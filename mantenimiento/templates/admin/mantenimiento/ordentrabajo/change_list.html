@@ -1,17 +1,265 @@
-{% extends "admin/change_list.html" %}
-{% load i18n admin_urls %}
+{% extends "admin/import_export/change_list.html" %}
+{% load i18n admin_urls static %}
 
-{% block object-tools-items %}
+{% block extrahead %}
 {{ block.super }}
-<li>
-    <a href="import-background/" class="addlink" style="background-color: #3b82f6; border-color: #2563eb;">
-        🚀 {% trans "Importación Aislada" %}
-    </a>
-</li>
-<li>
-    <a href="{% url 'mantenimiento:wizard_mensual' %}" target="_blank" class="addlink"
-        style="background-color: #8b5cf6; border-color: #7c3aed;">
-        📅 {% trans "Ver Cronograma Mensual" %}
-    </a>
-</li>
+{% include 'core/fiori_tokens.html' %}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    /* SAP Fiori Modal Styles */
+    .fiori-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .fiori-modal-overlay.active {
+        display: flex;
+        opacity: 1;
+    }
+
+    .fiori-modal-dialog {
+        background: var(--sap-card-bg);
+        width: 90%;
+        max-width: 850px;
+        max-height: 90vh;
+        border-radius: 0; /* Bordes sin curva */
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        position: relative;
+        overflow: hidden;
+        transform: scale(0.95);
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--sap-border-color);
+    }
+
+    .fiori-modal-overlay.active .fiori-modal-dialog {
+        transform: scale(1);
+    }
+
+    .fiori-modal-close {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        width: 32px;
+        height: 32px;
+        background: var(--sap-neutral-bg);
+        border: none;
+        border-radius: 0;
+        color: var(--sap-neutral);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        z-index: 10;
+    }
+
+    .fiori-modal-close:hover {
+        background: var(--sap-error-bg);
+        color: var(--sap-error);
+        transform: rotate(90deg);
+    }
+
+    .fiori-modal-content {
+        padding: 0; /* Changed to 0 to let the partial handle padding if needed */
+        overflow-y: auto;
+        font-family: var(--sap-font-family);
+        color: var(--sap-text-color);
+    }
+
+    /* Loader Styles */
+    .fiori-loader-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px;
+    }
+
+    .fiori-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* ── OTNP Modal Styles from Dashboard ── */
+    .otnp-dialog-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #e2e8f0;background:#f8fafc;border-radius:0}
+    .otnp-dialog-title{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem;color:#0f172a}
+    .otnp-close-btn{width:36px;height:36px;border:1px solid #e2e8f0;border-radius:0;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.3rem;color:#64748b;transition:all .15s}
+    .otnp-close-btn:hover{background:#fee2e2;color:#ef4444;border-color:#fecaca}
+    .otnp-dialog-body{flex:1;overflow-y:auto;padding:24px 32px;display:flex;flex-direction:column;gap:6px}
+    .otnp-dialog-footer{display:flex;justify-content:flex-end;gap:12px;padding:16px 32px;border-top:1px solid #e2e8f0;background:#f8fafc;border-radius:0}
+    .otnp-section-label{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#3b82f6;display:flex;align-items:center;gap:6px;margin-top:10px;margin-bottom:2px}
+    .otnp-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .otnp-row-3{grid-template-columns:1fr 1fr 1fr}
+    .otnp-field{display:flex;flex-direction:column;gap:4px;position:relative}
+    .otnp-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#64748b}
+    .otnp-input-wrap{display:flex;align-items:center;gap:8px;border:none;border-radius:0;padding:0 12px;background:#f1f5f9;transition:all .2s}
+    .otnp-input-wrap:focus-within{background:#e8f0fe;box-shadow:0 0 0 2px rgba(59,130,246,.15)}
+    .otnp-icon{color:#3b82f6;font-size:1.1rem;flex-shrink:0}
+    .otnp-input{border:none;outline:none;background:transparent;font:inherit;padding:10px 0;width:100%;font-size:.9rem;color:#0f172a}
+    .otnp-select{border:none;border-radius:0;padding:10px 12px;background:#f1f5f9;font:inherit;font-size:.9rem;color:#0f172a;transition:all .2s;width:100%}
+    .otnp-textarea{border:none;border-radius:0;padding:10px 12px;background:#f1f5f9;font:inherit;font-size:.9rem;color:#0f172a;resize:none;height:72px;transition:all .2s}
+    .otnp-chips-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+    .otnp-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:0;background:#e0e7ff;color:#3730a3;font-size:.78rem;font-weight:600}
+    .otnp-chip .chip-x{cursor:pointer;font-size:.85rem;opacity:.6;margin-left:2px}
+    .otnp-btn-primary{display:flex;align-items:center;gap:6px;padding:10px 28px;border-radius:0;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;font-weight:700;font-size:.9rem;border:none;cursor:pointer;transition:all .2s;box-shadow:0 4px 12px rgba(59,130,246,.3)}
+    .otnp-btn-ghost{padding:10px 20px;border-radius:0;background:transparent;border:1px solid #e2e8f0;color:#64748b;font-weight:600;font-size:.9rem;cursor:pointer;transition:all .15s}
+    .otnp-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:0;max-height:200px;overflow-y:auto;z-index:10;box-shadow:0 12px 24px rgba(0,0,0,.1);display:none}
+    .otnp-dropdown.show{display:block}
+    .otnp-dropdown-item{padding:10px 14px;cursor:pointer;font-size:.88rem;border-bottom:1px solid #f1f5f9}
+    .otnp-dropdown-item:hover{background:#eff6ff}
+    .otnp-badge{margin-top:2px;padding:4px 10px;border-radius:0;background:#eff6ff;color:#1d4ed8;font-size:.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+    /* Custom Toggle */
+    .otnp-toggle { position: relative; display: inline-flex; align-items: center; cursor: pointer; gap: 8px; margin-top: 8px; }
+    .otnp-toggle input { display: none; }
+    .otnp-toggle-slider { width: 44px; height: 24px; background-color: #cbd5e1; border-radius: 0; position: relative; transition: .3s; }
+    .otnp-toggle-slider:before { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 0; background: white; top: 3px; left: 3px; transition: .3s; }
+    .otnp-toggle input:checked + .otnp-toggle-slider { background-color: #3b82f6; }
+    .otnp-toggle input:checked + .otnp-toggle-slider:before { transform: translateX(20px); }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+
+<!-- Fiori Modal Markup -->
+<div id="fioriModalOverlay" class="fiori-modal-overlay" onclick="closeFioriModal()">
+    <div class="fiori-modal-dialog" onclick="event.stopPropagation()">
+        <button class="fiori-modal-close" onclick="closeFioriModal()">
+            <i class="fas fa-times"></i>
+        </button>
+        <div id="fioriModalContent" class="fiori-modal-content">
+            <!-- Content loaded via AJAX -->
+        </div>
+    </div>
+</div>
+
+<!-- AST View Modal Markup -->
+<div id="astModalOverlay" class="fiori-modal-overlay" onclick="closeAstViewModal()">
+    <div class="fiori-modal-dialog" style="max-width: 900px;" onclick="event.stopPropagation()">
+        <button class="fiori-modal-close" onclick="closeAstViewModal()">
+            <i class="fas fa-times"></i>
+        </button>
+        <div id="astModalContent" class="fiori-modal-content" style="padding: 0;">
+            <!-- Content loaded via AJAX -->
+        </div>
+    </div>
+</div>
+
+<script>
+    function openFioriModal(otId, isEdit = false) {
+        const overlay = document.getElementById('fioriModalOverlay');
+        const content = document.getElementById('fioriModalContent');
+        const dialog = overlay.querySelector('.fiori-modal-dialog');
+        
+        overlay.classList.add('active');
+        
+        if (isEdit) {
+            dialog.style.maxWidth = '1000px'; // Wider for the edit form
+            content.style.padding = '0';
+            content.innerHTML = `
+                <div class="fiori-loader-container">
+                    <div class="fiori-spinner"></div>
+                    <p style="color: #64748b; font-weight: 600;">Cargando editor de orden...</p>
+                </div>
+            `;
+            fetch(`fiori-edit/${otId}/`)
+                .then(response => response.text())
+                .then(html => {
+                    content.innerHTML = html;
+                    // Scripts in the partial will take over
+                })
+                .catch(error => {
+                    content.innerHTML = `<p style="color: #ef4444; text-align: center; padding: 20px;">Error al cargar el editor: ${error}</p>`;
+                });
+        } else {
+            dialog.style.maxWidth = '850px';
+            content.style.padding = '30px';
+            content.innerHTML = `
+                <div class="fiori-loader-container">
+                    <div class="fiori-spinner"></div>
+                    <p style="color: #64748b; font-weight: 600;">Cargando detalles de la orden...</p>
+                </div>
+            `;
+
+            fetch(`fiori-detail/${otId}/`)
+                .then(response => response.text())
+                .then(html => {
+                    content.innerHTML = html;
+                    // Intercept the 'Editar' button inside the detail view to open the Fiori Edit Modal
+                    const editBtn = content.querySelector('.btn-fiori-edit');
+                    if (editBtn) {
+                        editBtn.onclick = function(e) {
+                            e.preventDefault();
+                            openFioriModal(otId, true);
+                        };
+                    }
+                })
+                .catch(error => {
+                    content.innerHTML = `<p style="color: #ef4444; text-align: center; padding: 20px;">Error al cargar la información: ${error}</p>`;
+                });
+        }
+    }
+
+    function closeFioriModal() {
+        document.getElementById('fioriModalOverlay').classList.remove('active');
+    }
+
+    function openAstViewModal(astId) {
+        const overlay = document.getElementById('astModalOverlay');
+        const content = document.getElementById('astModalContent');
+        
+        overlay.classList.add('active');
+        content.innerHTML = `
+            <div class="fiori-loader-container">
+                <div class="fiori-spinner"></div>
+                <p style="color: #64748b; font-weight: 600;">Cargando Análisis de Seguridad...</p>
+            </div>
+        `;
+        
+        fetch(`/seguridad/ast/ver/${astId}/`)
+            .then(response => response.text())
+            .then(html => {
+                content.innerHTML = html;
+            })
+            .catch(error => {
+                content.innerHTML = `<p style="color: #ef4444; text-align: center; padding: 20px;">Error al cargar el AST: ${error}</p>`;
+            });
+    }
+
+    function closeAstViewModal() {
+        document.getElementById('astModalOverlay').classList.remove('active');
+    }
+
+    // Close on ESC key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === "Escape") {
+            closeFioriModal();
+            closeAstViewModal();
+        }
+    });
+</script>
 {% endblock %}

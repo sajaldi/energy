@@ -1,0 +1,359 @@
+<div class="otnp-dialog-header" style="border-radius: 0;">
+    <div class="otnp-dialog-title">
+        <ion-icon name="construct-outline" style="font-size:1.3rem"></ion-icon>
+        <span>Editar Orden de Trabajo: {{ ot.codigo_de_orden|default:ot.id }}</span>
+    </div>
+    <button class="otnp-close-btn" onclick="closeFioriEditModal()" style="border-radius: 0;">
+        <ion-icon name="close-outline"></ion-icon>
+    </button>
+</div>
+
+<!-- Dialog Body -->
+<form id="otnp-edit-form" class="otnp-dialog-body" style="padding: 24px 32px;">
+    {% csrf_token %}
+    <!-- Row 1: Activo + Ubicación -->
+    <div class="otnp-section-label"><ion-icon name="location-outline"></ion-icon> Activo y Ubicación</div>
+    <div class="otnp-row">
+        <div class="otnp-field">
+            <label class="otnp-label">Activos Seleccionados</label>
+            <div id="otnp-edit-activos-chips" class="otnp-chips-wrap">
+                {% for activo in ot.activos.all %}
+                <span class="otnp-chip" data-id="{{ activo.id }}" style="border-radius: 0;">
+                    <ion-icon name="cube-outline" style="font-size:.8rem"></ion-icon>
+                    {{ activo.nombre }}
+                    <input type="hidden" name="activos" value="{{ activo.id }}">
+                    <span class="chip-x" onclick="this.parentElement.remove()">&times;</span>
+                </span>
+                {% endfor %}
+            </div>
+            <div class="otnp-input-wrap" style="cursor:pointer; border-radius: 0;" onclick="document.getElementById('otnp-edit-activo-search').focus()">
+                <ion-icon name="add-circle-outline" class="otnp-icon"></ion-icon>
+                <input type="text" id="otnp-edit-activo-search" class="otnp-input" placeholder="Agregar activo..." autocomplete="off">
+            </div>
+            <div id="otnp-edit-activo-results" class="otnp-dropdown" style="border-radius: 0;"></div>
+        </div>
+        <div class="otnp-field">
+            <label class="otnp-label">Ubicación *</label>
+            <div class="otnp-input-wrap" style="cursor:pointer; border-radius: 0;" onclick="document.getElementById('otnp-edit-ubi-search').focus()">
+                <ion-icon name="navigate-outline" class="otnp-icon"></ion-icon>
+                <input type="text" id="otnp-edit-ubi-search" class="otnp-input" placeholder="Buscar ubicación..." autocomplete="off" value="{{ ot.ubicacion.nombre }}">
+                <input type="hidden" name="ubicacion" id="otnp-edit-ubicacion-id" value="{{ ot.ubicacion.id }}" required>
+            </div>
+            <div id="otnp-edit-ubi-results" class="otnp-dropdown" style="border-radius: 0;"></div>
+            <div id="otnp-edit-ubi-badge" class="otnp-badge" style="border-radius: 0;">
+                <ion-icon name="navigate-outline"></ion-icon> {{ ot.ubicacion.get_ruta_completa }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Responsable + Empresa -->
+    <div class="otnp-section-label"><ion-icon name="people-outline"></ion-icon> Asignación</div>
+    <div class="otnp-row">
+        <div class="otnp-field">
+            <label class="otnp-label">Líder Responsable</label>
+            <div class="otnp-input-wrap" style="border-radius: 0;" onclick="document.getElementById('otnp-edit-tecnico-search').focus()">
+                <ion-icon name="person-outline" class="otnp-icon"></ion-icon>
+                <input type="text" id="otnp-edit-tecnico-search" class="otnp-input" placeholder="Buscar responsable..." autocomplete="off" value="{% if ot.tecnico_puesto %}{{ ot.tecnico_puesto.nombre }} {{ ot.tecnico_puesto.apellido }}{% endif %}">
+                <input type="hidden" name="tecnico" id="otnp-edit-tecnico-id" value="{{ ot.tecnico_puesto.id|default:'none' }}">
+            </div>
+            <div id="otnp-edit-tecnico-results" class="otnp-dropdown" style="border-radius: 0;"></div>
+            <div id="otnp-edit-tecnico-badge" class="otnp-badge" style="{% if not ot.tecnico_puesto %}display:none;{% endif %} border-radius: 0;">
+                {% if ot.tecnico_puesto %}<ion-icon name="person-outline"></ion-icon> {{ ot.tecnico_puesto.nombre }} {{ ot.tecnico_puesto.apellido }} <span class="remove" onclick="clearEditTecnico()">&times;</span>{% endif %}
+            </div>
+        </div>
+        <div class="otnp-field">
+            <label class="otnp-label">Empresa Ejecutora</label>
+            <select name="empresa_responsable" id="otnp-edit-empresa" class="otnp-select" style="border-radius: 0;">
+                <option value="none">-- Seleccione --</option>
+                {% for e in empresas %}
+                <option value="{{ e.id }}" {% if ot.empresa_responsable.id == e.id %}selected{% endif %}>{{ e.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Row 2b: Técnicos Involucrados -->
+    <div class="otnp-field" style="margin-top:2px">
+        <label class="otnp-label">Técnicos Involucrados</label>
+        <div id="otnp-edit-tecnicos-chips" class="otnp-chips-wrap">
+            {% for t in ot.colaboradores_puesto.all %}
+            <span class="otnp-chip" data-id="{{ t.id }}" style="border-radius: 0;">
+                <ion-icon name="person-outline" style="font-size:.8rem"></ion-icon>{{ t.nombre }} {{ t.apellido }}
+                <input type="hidden" name="tecnicos" value="{{ t.id }}">
+                <span class="chip-x" onclick="this.parentElement.remove()">&times;</span>
+            </span>
+            {% endfor %}
+        </div>
+        <div class="otnp-input-wrap" style="border-radius: 0;" onclick="document.getElementById('otnp-edit-tecnicos-search').focus()">
+            <ion-icon name="people-outline" class="otnp-icon"></ion-icon>
+            <input type="text" id="otnp-edit-tecnicos-search" class="otnp-input" placeholder="Agregar técnicos..." autocomplete="off">
+        </div>
+        <div id="otnp-edit-tecnicos-results" class="otnp-dropdown" style="border-radius: 0;"></div>
+    </div>
+
+    <!-- Row 3: Dates + Priority -->
+    <div class="otnp-section-label"><ion-icon name="time-outline"></ion-icon> Programación</div>
+    <div class="otnp-row otnp-row-3">
+        <div class="otnp-field">
+            <label class="otnp-label">Inicio *</label>
+            <input type="datetime-local" name="inicio_programado" id="otnp-edit-inicio" class="otnp-select" style="border-radius: 0;" value="{{ ot.inicio_programado|date:'Y-m-d\TH:i' }}" required>
+        </div>
+        <div class="otnp-field">
+            <label class="otnp-label">Fin *</label>
+            <input type="datetime-local" name="fin_programado" id="otnp-edit-fin" class="otnp-select" style="border-radius: 0;" value="{{ ot.fin_programado|date:'Y-m-d\TH:i' }}" required>
+        </div>
+        <div class="otnp-field">
+            <label class="otnp-label">Prioridad</label>
+            <select name="prioridad" class="otnp-select" style="border-radius: 0;">
+                {% for val, label in prioridades %}
+                <option value="{{ val }}" {% if ot.prioridad == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Row 3b: Seguridad -->
+    <div class="otnp-section-label"><ion-icon name="shield-checkmark-outline"></ion-icon> Seguridad</div>
+    <div class="otnp-row">
+        <div class="otnp-field">
+            <label class="otnp-label">¿Requiere permiso de trabajo seguro?</label>
+            <label class="otnp-toggle">
+                <input type="checkbox" id="otnp-edit-requiere-permiso" name="requiere_permiso" {% if ot.requiere_permiso %}checked{% endif %} onchange="toggleEditPermisoTipo(this)">
+                <span class="otnp-toggle-slider" style="border-radius: 0;"></span>
+                <span class="otnp-toggle-text" id="otnp-edit-permiso-label">{% if ot.requiere_permiso %}Sí{% else %}No{% endif %}</span>
+            </label>
+        </div>
+        <div class="otnp-field" id="otnp-edit-tipo-permiso-wrap" style="{% if not ot.requiere_permiso %}display:none;{% endif %}">
+            <label class="otnp-label">Tipo de Permiso</label>
+            <select name="tipo_permiso" id="otnp-edit-tipo-permiso" class="otnp-select" style="border-radius: 0;">
+                <option value="">-- Seleccione --</option>
+                {% for tp in tipos_permiso %}
+                <option value="{{ tp.id }}" {% if ot.tipo_permiso.id == tp.id %}selected{% endif %}>{{ tp.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Gestión de Permisos (Dinámico) -->
+    <div class="otnp-row" id="otnp-edit-permisos-gestion" style="{% if not ot.requiere_permiso %}display:none;{% endif %} margin-top: -10px; margin-bottom: 10px;">
+        <div class="otnp-field">
+            <label class="otnp-label">Permisos de Trabajo Vinculados</label>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                {% for p in ot.permisos.all %}
+                <a href="{% url 'seguridad:detalle_permiso' p.id %}" target="_blank" class="otnp-chip" style="border-radius: 0; text-decoration:none; color:inherit; border: 1px solid #ddd;">
+                    <ion-icon name="document-text-outline" style="color:#005fb8"></ion-icon>
+                    #{{ p.id }} - {{ p.tipo.nombre }} ({{ p.get_estado_display }})
+                </a>
+                {% empty %}
+                <span style="font-size: 0.85rem; color: #777; font-style: italic;">No hay permisos generados aún.</span>
+                {% endfor %}
+                
+                <button type="button" class="otnp-btn-ghost" onclick="generarPermisoTrabajo()" style="border-radius: 0; padding: 4px 10px; font-size: 0.8rem; height: auto; border-style: dashed;">
+                    <ion-icon name="add-circle-outline"></ion-icon> Generar Permiso
+                </button>
+                <a href="{% url 'seguridad:ast_wizard_ot' ot.id %}" target="_blank" class="otnp-btn-ghost" style="border-radius: 0; padding: 4px 10px; font-size: 0.8rem; height: auto; border-style: dashed; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; color: #1e293b; background: #f1f5f9;">
+                    <ion-icon name="shield-checkmark-outline"></ion-icon> Crear AST
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- AST Warning in Edit -->
+    {% if not ot.asts.exists %}
+    <div style="margin: 0 0 20px 0; padding: 12px; background: #fffcf0; border: 1px solid #ffeeba; border-radius: 0; display: flex; align-items: center; gap: 10px; color: #856404;">
+        <ion-icon name="warning-outline" style="font-size: 1.4rem;"></ion-icon>
+        <div style="flex: 1; font-size: 0.85rem; font-weight: 600;">
+            Esta orden tiene <strong>riesgos no evaluados</strong>. Se recomienda generar un AST antes de iniciar el trabajo.
+        </div>
+        <a href="{% url 'seguridad:ast_wizard_ot' ot.id %}" target="_blank" style="color: #856404; text-decoration: underline; font-weight: 800; font-size: 0.8rem;">Generar Ahora</a>
+    </div>
+    {% endif %}
+
+    <!-- Row 4: Description -->
+    <div class="otnp-field" style="margin-top:4px">
+        <label class="otnp-label">Descripción Detallada *</label>
+        <textarea name="descripcion" class="otnp-textarea" style="border-radius: 0;" placeholder="Explique la necesidad de esta orden..." required>{{ ot.descripcion_detallada|default:ot.notas }}</textarea>
+    </div>
+</form>
+
+<div class="otnp-dialog-footer" style="border-radius: 0;">
+    <button type="button" class="otnp-btn-ghost" onclick="closeFioriEditModal()" style="border-radius: 0;">Cancelar</button>
+    <button type="submit" form="otnp-edit-form" class="otnp-btn-primary" id="otnp-edit-submit-btn" style="border-radius: 0;">
+        <ion-icon name="save-outline"></ion-icon> Guardar Cambios
+    </button>
+</div>
+
+<script>
+    // Logic for autocomplete and search in the edit partial
+    (function() {
+        // Reuse the logic from dashboard but adapted for IDs in the partial
+        const _personales = [
+            {% for p in personales %}
+            {id:'{{ p.id }}',name:'{{ p.nombre }} {{ p.apellido }}',empresa:'{{ p.empresa_id|default:"" }}'},
+            {% endfor %}
+        ];
+
+        // Activo Search
+        let _aTimer;
+        document.getElementById('otnp-edit-activo-search').addEventListener('input', function(){
+            clearTimeout(_aTimer);
+            const q = this.value.trim(), dd = document.getElementById('otnp-edit-activo-results');
+            if(q.length<2){ dd.classList.remove('show'); return; }
+            _aTimer = setTimeout(()=>{
+                fetch(`/mantenimiento/api/search-activos/?q=${encodeURIComponent(q)}`)
+                .then(r=>r.json()).then(data=>{
+                    if(!data.results.length){ dd.innerHTML='<div class="otnp-dropdown-item"><small>Sin resultados</small></div>'; }
+                    else { dd.innerHTML = data.results.map(a=>`<div class="otnp-dropdown-item" onclick="addEditActivoChip('${a.id}','${a.text.replace(/'/g,"\\'")}')"><strong>${a.text}</strong><small>${a.ubicacion_nombre||''}</small></div>`).join(''); }
+                    dd.classList.add('show');
+                });
+            },300);
+        });
+
+        window.addEditActivoChip = function(id, name) {
+            const wrap = document.getElementById('otnp-edit-activos-chips');
+            if (wrap.querySelector(`[data-id="${id}"]`)) return;
+            const chip = document.createElement('span');
+            chip.className = 'otnp-chip'; chip.dataset.id = id; chip.style.borderRadius = '0';
+            chip.innerHTML = `<ion-icon name="cube-outline" style="font-size:.8rem"></ion-icon>${name}<input type="hidden" name="activos" value="${id}"><span class="chip-x" onclick="this.parentElement.remove()">&times;</span>`;
+            wrap.appendChild(chip);
+            document.getElementById('otnp-edit-activo-search').value = '';
+            document.getElementById('otnp-edit-activo-results').classList.remove('show');
+        };
+
+        // Ubicacion Search
+        let _uTimer;
+        document.getElementById('otnp-edit-ubi-search').addEventListener('input', function(){
+            clearTimeout(_uTimer);
+            const q=this.value.trim(), dd=document.getElementById('otnp-edit-ubi-results');
+            if(q.length<2){dd.classList.remove('show');return;}
+            _uTimer=setTimeout(()=>{
+                fetch(`/activos/api/ubicaciones/list/?q=${encodeURIComponent(q)}`)
+                .then(r=>r.json()).then(data=>{
+                    const items=data.results||[];
+                    if(!items.length){dd.innerHTML='<div class="otnp-dropdown-item"><small>Sin resultados</small></div>';}
+                    else{dd.innerHTML=items.map(u=>`<div class="otnp-dropdown-item" onclick="pickEditUbi('${u.id}','${(u.nombre||'').replace(/'/g,"\\'")}')"><strong>${u.nombre}</strong>${u.padre_nombre?'<small>'+u.padre_nombre+'</small>':''}</div>`).join('');}
+                    dd.classList.add('show');
+                });
+            },300);
+        });
+        window.pickEditUbi = function(id, name) {
+            document.getElementById('otnp-edit-ubicacion-id').value = id;
+            document.getElementById('otnp-edit-ubi-search').value = name;
+            document.getElementById('otnp-edit-ubi-results').classList.remove('show');
+            const b = document.getElementById('otnp-edit-ubi-badge');
+            b.innerHTML = `<ion-icon name="navigate-outline"></ion-icon> ${name}`;
+        };
+
+        // Técnico Search
+        document.getElementById('otnp-edit-tecnico-search').addEventListener('input', function(){
+            const q=this.value.toLowerCase().trim(), dd=document.getElementById('otnp-edit-tecnico-results');
+            if(q.length<1){dd.classList.remove('show');return;}
+            const filtered=_personales.filter(p=>p.name.toLowerCase().includes(q));
+            if(!filtered.length){dd.innerHTML='<div class="otnp-dropdown-item"><small>Sin resultados</small></div>';}
+            else{dd.innerHTML=filtered.slice(0,15).map(p=>`<div class="otnp-dropdown-item" onclick="pickEditTecnico('${p.id}','${p.name.replace(/'/g,"\\'")}','${p.empresa}')"><strong>${p.name}</strong></div>`).join('');}
+            dd.classList.add('show');
+        });
+        window.pickEditTecnico = function(id, name, empId) {
+            document.getElementById('otnp-edit-tecnico-id').value = id;
+            document.getElementById('otnp-edit-tecnico-search').value = name;
+            document.getElementById('otnp-edit-tecnico-results').classList.remove('show');
+            const b = document.getElementById('otnp-edit-tecnico-badge');
+            b.innerHTML = `<ion-icon name="person-outline"></ion-icon> ${name} <span class="remove" onclick="clearEditTecnico()">&times;</span>`;
+            b.style.display = 'inline-flex';
+            if(empId) document.getElementById('otnp-edit-empresa').value = empId;
+        };
+        window.clearEditTecnico = function() {
+            document.getElementById('otnp-edit-tecnico-id').value = 'none';
+            document.getElementById('otnp-edit-tecnico-search').value = '';
+            document.getElementById('otnp-edit-tecnico-badge').style.display = 'none';
+        };
+
+        // Técnicos Involucrados
+        document.getElementById('otnp-edit-tecnicos-search').addEventListener('input', function(){
+            const q=this.value.toLowerCase().trim(), dd=document.getElementById('otnp-edit-tecnicos-results');
+            if(q.length<1){dd.classList.remove('show');return;}
+            const filtered=_personales.filter(p=>p.name.toLowerCase().includes(q));
+            if(!filtered.length){dd.innerHTML='<div class="otnp-dropdown-item"><small>Sin resultados</small></div>';}
+            else{dd.innerHTML=filtered.slice(0,15).map(p=>`<div class="otnp-dropdown-item" onclick="addEditTecnicoChip('${p.id}','${p.name.replace(/'/g,"\\'")}')"><strong>${p.name}</strong></div>`).join('');}
+            dd.classList.add('show');
+        });
+        window.addEditTecnicoChip = function(id, name) {
+            const wrap = document.getElementById('otnp-edit-tecnicos-chips');
+            if (wrap.querySelector(`[data-id="${id}"]`)) return;
+            const chip = document.createElement('span');
+            chip.className = 'otnp-chip'; chip.dataset.id = id; chip.style.borderRadius = '0';
+            chip.innerHTML = `<ion-icon name="person-outline" style="font-size:.8rem"></ion-icon>${name}<input type="hidden" name="tecnicos" value="${id}"><span class="chip-x" onclick="this.parentElement.remove()">&times;</span>`;
+            wrap.appendChild(chip);
+            document.getElementById('otnp-edit-tecnicos-search').value = '';
+            document.getElementById('otnp-edit-tecnicos-results').classList.remove('show');
+        };
+
+        window.toggleEditPermisoTipo = function(cb) {
+            const wrap = document.getElementById('otnp-edit-tipo-permiso-wrap');
+            const gestion = document.getElementById('otnp-edit-permisos-gestion');
+            const label = document.getElementById('otnp-edit-permiso-label');
+            wrap.style.display = cb.checked ? 'flex' : 'none';
+            if(gestion) gestion.style.display = cb.checked ? 'flex' : 'none';
+            label.innerText = cb.checked ? 'Sí' : 'No';
+        };
+
+        window.generarPermisoTrabajo = function() {
+            // Advertir que se abrirá en una nueva pestaña
+            Swal.fire({
+                title: 'Generar Permiso',
+                text: "Se abrirá la interfaz de creación de permisos en una nueva pestaña. ¿Desea guardar los cambios actuales de la orden primero?",
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: 'Guardar y Continuar',
+                cancelButtonText: 'Continuar sin guardar',
+                showDenyButton: true,
+                denyButtonText: 'Cancelar'
+            }).then((result) => {
+                const url = "{% url 'seguridad:generar_permiso_ot' ot.id %}";
+                if (result.isConfirmed) {
+                    // Guardar vía AJAX y luego abrir
+                    const form = document.getElementById('otnp-edit-form');
+                    const btn = document.getElementById('otnp-edit-submit-btn');
+                    const url_save = "{% url 'admin:mantenimiento_ordentrabajo_fiori_save' ot.id %}";
+                    fetch(url_save, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    }).then(() => {
+                        window.open(url, '_blank');
+                        btn.disabled = false;
+                    });
+                } else if (result.isDismissed && result.dismiss === Swal.DismissReason.cancel) {
+                    window.open(url, '_blank');
+                }
+            });
+        };
+
+        // Submit save
+        document.getElementById('otnp-edit-form').onsubmit = function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('otnp-edit-submit-btn');
+            btn.disabled = true; btn.innerHTML = 'Procesando...';
+            const url_save = "{% url 'admin:mantenimiento_ordentrabajo_fiori_save' ot.id %}";
+            fetch(url_save, {
+                method: 'POST',
+                body: new FormData(this),
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(r => r.json()).then(data => {
+                if (data.status === 'success') {
+                    Swal.fire('¡Éxito!', data.message, 'success').then(() => {
+                        closeFioriEditModal();
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                    btn.disabled = false; btn.innerHTML = 'Guardar Cambios';
+                }
+            }).catch(err => {
+                Swal.fire('Error', 'Fallo en la conexión', 'error');
+                btn.disabled = false; btn.innerHTML = 'Guardar Cambios';
+            });
+        };
+    })();
+</script>

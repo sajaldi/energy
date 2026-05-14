@@ -11,6 +11,7 @@ class SolicitudTicket(models.Model):
     # Identificadores
     id_solicitud = models.BigIntegerField(unique=True, verbose_name="ID Solicitud Servicio")
     folio = models.CharField(max_length=100, blank=True, null=True, verbose_name="Folio", db_index=True)
+    es_interno = models.BooleanField(default=False, verbose_name="Es Ticket Interno", db_index=True)
     
     # Personas
     solicitante = models.CharField(max_length=255, blank=True, null=True, db_index=True)
@@ -183,6 +184,14 @@ class GrupoTicket(models.Model):
         blank=True, 
         verbose_name="Departamento Responsable",
         related_name="clusters"
+    )
+    usuario_creador = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='clusters_creados',
+        verbose_name="Creado por"
     )
     descripcion = models.TextField(verbose_name="Descripción del Grupo")
     

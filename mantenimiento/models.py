@@ -1109,6 +1109,11 @@ class OrdenTrabajo(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
+    # Seguridad y Permisos
+    requiere_permiso = models.BooleanField(default=False, verbose_name="¿Requiere Permiso?", help_text="Si se marca, se exigirá un permiso de trabajo vinculado")
+    tipo_permiso = models.ForeignKey('seguridad.TipoPermiso', on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_asociadas', verbose_name="Tipo de Permiso Sugerido")
+
+
     def save(self, *args, **kwargs):
         """Garantiza que la orden tenga un código único si no existe."""
         is_new = self.pk is None

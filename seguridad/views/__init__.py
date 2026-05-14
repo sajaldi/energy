@@ -20,4 +20,5 @@ from .permisos_dashboard import (
     tipo_permiso_dashboard, tipo_permiso_detail_api,
     tipo_permiso_save_api, tipo_permiso_requisitos_save_api
 )
+from .ast_wizard import ast_wizard_view, save_ast_ajax, ast_view_partial
 

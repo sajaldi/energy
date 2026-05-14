@@ -102,7 +102,8 @@
                 max-width: 1100px;
                 background: white;
                 padding: 12px;
-                border-radius: 50px; /* Estilo píldora moderna */
+                border-radius: 0;
+ /* Estilo píldora moderna */
                 box-shadow: 0 10px 30px rgba(0,0,0,0.08);
                 border: 1px solid #eef0f2;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -113,7 +114,8 @@
                 background: white;
                 margin: 0 40px 24px 40px;
                 padding: 16px 24px;
-                border-radius: var(--sap-radius);
+                border-radius: 0;
+
                 box-shadow: 0 2px 8px rgba(0,0,0,0.05);
                 border: 1px solid #e2e8f0;
             }
@@ -139,7 +141,7 @@
             .fiori-input-date {
                 padding: 8px 12px;
                 border: 1px solid #cbd5e1;
-                border-radius: 4px;
+                border-radius: 0;
                 font-size: 0.85rem;
                 color: #1e293b;
                 outline: none;
@@ -157,7 +159,7 @@
                 color: white;
                 border: none;
                 padding: 8px 20px;
-                border-radius: 4px;
+                border-radius: 0;
                 font-weight: 600;
                 cursor: pointer;
                 display: flex;
@@ -170,7 +172,7 @@
                 color: #64748b;
                 border: 1px solid #e2e8f0;
                 padding: 8px 16px;
-                border-radius: 4px;
+                border-radius: 0;
                 font-weight: 600;
                 text-decoration: none;
                 display: flex;
@@ -193,12 +195,12 @@
                 display: flex;
                 background: #f1f3f5;
                 padding: 4px;
-                border-radius: 40px;
+                border-radius: 0;
                 gap: 4px;
             }
             .mode-pill {
                 padding: 8px 18px;
-                border-radius: 30px;
+                border-radius: 0;
                 font-size: 0.85rem;
                 font-weight: 700;
                 cursor: pointer;
@@ -244,7 +246,7 @@
                 right: 15px;
                 background: #f8f9fa;
                 padding: 4px 10px;
-                border-radius: 6px;
+                border-radius: 0;
                 font-size: 0.7rem;
                 color: #adb5bd;
                 border: 1px solid #dee2e6;
@@ -257,7 +259,7 @@
             .search-btn-pro {
                 width: 54px;
                 height: 54px;
-                border-radius: 50%;
+                border-radius: 0;
                 background: var(--sap-primary);
                 color: white;
                 border: none;
@@ -291,7 +293,7 @@
                 font-weight: 700;
                 color: #697386;
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                border-radius: 12px 12px 0 0;
+                border-radius: 0 12px 0 0;
                 position: relative;
                 font-size: 1rem;
             }
@@ -308,7 +310,7 @@
                 width: 100%;
                 height: 3px;
                 background: var(--sap-primary);
-                border-radius: 3px 3px 0 0;
+                border-radius: 0;
             }
             .tab-item:hover:not(.active) {
                 color: #1a1f36;
@@ -358,7 +360,7 @@
             }
             .fiori-tile {
                 background: white;
-                border-radius: 8px;
+                border-radius: 0;
                 padding: 16px;
                 border: 1px solid #d9d9d9;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -397,7 +399,7 @@
             }
             .location-card-pro {
                 background: white;
-                border-radius: 12px;
+                border-radius: 0;
                 padding: 0; /* Table fills the card */
                 border: 1px solid #d9d9d9;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.03);
@@ -419,7 +421,7 @@
             .table-search-box input {
                 width: 100%;
                 padding: 8px 12px 8px 36px;
-                border-radius: 6px;
+                border-radius: 0;
                 border: 1px solid #d9d9d9;
                 font-size: 0.9rem;
             }
@@ -462,7 +464,7 @@
 
             .stat-pill {
                 padding: 4px 10px;
-                border-radius: 4px;
+                border-radius: 0;
                 font-weight: 700;
                 font-size: 0.8rem;
                 display: inline-block;
@@ -480,7 +482,7 @@
             }
             .sidebar-card {
                 background: white;
-                border-radius: 12px;
+                border-radius: 0;
                 padding: 24px;
                 border: 1px solid #d9d9d9;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.03);
@@ -550,74 +552,84 @@
         <!-- View: Clusters -->
         <div id="view-clusters" class="dashboard-view active">
             <section class="clusters-experience">
-            <div class="clusters-header">
-                <div class="title-with-badge">
-                    <h2 class="modern-title">Explorador de Inteligencia</h2>
-                    <span class="pulse-badge">Live IA</span>
+                <div class="clusters-header">
+                    <div class="title-with-badge">
+                        <h2 class="modern-title">Explorador de Inteligencia</h2>
+                        <span class="pulse-badge">Live IA</span>
+                    </div>
+                    <p class="modern-subtitle">Agrupaciones categorizadas por departamento.</p>
                 </div>
-                <p class="modern-subtitle">Agrupaciones semánticas detectadas automáticamente por el motor vectorial.</p>
-            </div>
 
-            <div class="bento-clusters-grid">
-                {% for grupo in grupos %}
-                <div class="bento-panel" onclick="window.location.href='{% url 'callcenter:cluster_tickets' grupo.id|unlocalize %}'">
-                    <div class="panel-header">
-                        <div class="panel-id-group">
-                            <span class="id-tag">#{{ grupo.correlativo }}</span>
-                            <span class="date-tag">{{ grupo.fecha|date:"d M" }}</span>
+                <div class="clusters-by-depto" style="margin-top: 30px;">
+                    {% for depto, grupos in grupos_por_depto.items %}
+                    <div class="depto-cluster-group" style="margin-bottom: 50px;">
+                        <div class="depto-header-line" style="display:flex; align-items:center; gap:15px; margin-bottom: 20px; border-bottom: 3px solid #0070b2; padding-bottom: 10px;">
+                            <h3 style="margin:0; color:#004065; font-size: 1.25rem; text-transform: uppercase; font-weight: 900;">
+                                <i class="ph ph-buildings"></i> {{ depto }}
+                            </h3>
+                            <span style="background:#eef5fa; color:#0070b2; padding:4px 12px; font-size:0.85rem; font-weight:800;">{{ grupos|length }} CLUSTERS</span>
                         </div>
-                        <div class="panel-status-icon">
-                            <i class="ph ph-intersect-three"></i>
+
+                        <div class="bento-clusters-grid">
+                            {% for grupo in grupos %}
+                            <div class="bento-panel" onclick="window.location.href='{% url 'callcenter:cluster_tickets' grupo.id|unlocalize %}'">
+                                <div class="panel-header">
+                                    <div class="panel-id-group">
+                                        <span class="id-tag">#{{ grupo.correlativo }}</span>
+                                        <span class="date-tag">{{ grupo.fecha|date:"d M" }}</span>
+                                    </div>
+                                    <div class="panel-status-icon">
+                                        <i class="ph ph-intersect-three"></i>
+                                    </div>
+                                </div>
+
+                                <div class="panel-body">
+                                    <h3 class="panel-title" title="{{ grupo.descripcion }}">
+                                        {{ grupo.descripcion|truncatewords:10 }}
+                                    </h3>
+                                    
+                                    <div class="panel-progress-wrapper">
+                                        <div class="progress-info">
+                                            <span>Resolucion</span>
+                                            <strong>{% if grupo.num_tickets > 0 %}{% widthratio grupo.num_cerrados grupo.num_tickets 100 %}{% else %}0{% endif %}%</strong>
+                                        </div>
+                                        <div class="modern-progress-bg">
+                                            <div class="modern-progress-fill" style="width: {% if grupo.num_tickets > 0 %}{% widthratio grupo.num_cerrados grupo.num_tickets 100 %}{% else %}0{% endif %}%"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="panel-stats-row">
+                                        <div class="stat-item">
+                                            <span class="stat-val">{{ grupo.num_tickets }}</span>
+                                            <span class="stat-lbl">Total</span>
+                                        </div>
+                                        <div class="stat-item active">
+                                            <span class="stat-val">{{ grupo.num_abiertos }}</span>
+                                            <span class="stat-lbl">Pend.</span>
+                                        </div>
+                                        <div class="stat-item completed">
+                                            <span class="stat-val">{{ grupo.num_cerrados }}</span>
+                                            <span class="stat-lbl">Listos</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="panel-footer">
+                                    <span>Ver Analisis <i class="ph ph-arrow-up-right"></i></span>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
                     </div>
-
-                    <div class="panel-body">
-                        <h3 class="panel-title" title="{{ grupo.descripcion }}">
-                            {{ grupo.descripcion|truncatewords:12 }}
-                        </h3>
-                        
-                        <!-- Mini Progress Bar -->
-                        <div class="panel-progress-wrapper">
-                            <div class="progress-info">
-                                <span>Progreso de Cierre</span>
-                                <strong>{% widthratio grupo.num_cerrados grupo.num_tickets 100 %}%</strong>
-                            </div>
-                            <div class="modern-progress-bg">
-                                <div class="modern-progress-fill" style="width: {% widthratio grupo.num_cerrados grupo.num_tickets 100 %}%"></div>
-                            </div>
-                        </div>
-
-                        <div class="panel-stats-row">
-                            <div class="stat-item">
-                                <span class="stat-val">{{ grupo.num_tickets }}</span>
-                                <span class="stat-lbl">Tickets</span>
-                            </div>
-                            <div class="stat-item active">
-                                <span class="stat-val">{{ grupo.num_abiertos }}</span>
-                                <span class="stat-lbl">Abiertos</span>
-                            </div>
-                            <div class="stat-item completed">
-                                <span class="stat-val">{{ grupo.num_cerrados }}</span>
-                                <span class="stat-lbl">Cerrados</span>
-                            </div>
-                        </div>
+                    {% empty %}
+                    <div class="empty-clusters">
+                        <i class="ph ph-brain"></i>
+                        <p>No hay clusters analizados todavía.</p>
                     </div>
-
-                    <div class="panel-footer">
-                        <span>Ver Análisis <i class="ph ph-arrow-up-right"></i></span>
-                    </div>
+                    {% endfor %}
                 </div>
-                {% empty %}
-                <div class="empty-clusters">
-                    <i class="ph ph-brain"></i>
-                    <p>No hay clusters analizados todavía.</p>
-                </div>
-                {% endfor %}
-            </div>
-        </section>
+            </section>
         </div>
-
-        <!-- View: Locations -->
         <div id="view-locations" class="dashboard-view">
             <section class="location-experience">
                 <div class="clusters-header" style="margin-top: 40px;">
@@ -729,7 +741,7 @@
                 background: #e3e8ff;
                 color: #5469d4;
                 padding: 4px 10px;
-                border-radius: 6px;
+                border-radius: 0;
                 font-size: 0.7rem;
                 font-weight: 800;
                 text-transform: uppercase;
@@ -751,7 +763,7 @@
 
             .bento-panel {
                 background: white;
-                border-radius: 20px;
+                border-radius: 0;
                 padding: 24px;
                 border: 1px solid #eef0f2;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.02);
@@ -789,7 +801,7 @@
                 background: #f1f3f5;
                 color: #495057;
                 padding: 4px 10px;
-                border-radius: 8px;
+                border-radius: 0;
                 font-family: 'Monaco', monospace;
                 font-weight: 700;
                 font-size: 0.8rem;
@@ -803,7 +815,7 @@
                 width: 32px;
                 height: 32px;
                 background: #f8f9fa;
-                border-radius: 50%;
+                border-radius: 0;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -832,13 +844,13 @@
             .modern-progress-bg {
                 height: 8px;
                 background: #f1f3f5;
-                border-radius: 4px;
+                border-radius: 0;
                 overflow: hidden;
             }
             .modern-progress-fill {
                 height: 100%;
                 background: linear-gradient(90deg, #5469d4, #a0acff);
-                border-radius: 4px;
+                border-radius: 0;
             }
 
             .panel-stats-row {
@@ -924,7 +936,7 @@
                 background: #e3e8ff;
                 color: #5469d4;
                 padding: 4px 10px;
-                border-radius: 6px;
+                border-radius: 0;
                 font-size: 0.7rem;
                 font-weight: 800;
                 text-transform: uppercase;
@@ -946,7 +958,7 @@
 
             .bento-panel {
                 background: white;
-                border-radius: 20px;
+                border-radius: 0;
                 padding: 24px;
                 border: 1px solid #eef0f2;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.02);
@@ -984,7 +996,7 @@
                 background: #f1f3f5;
                 color: #495057;
                 padding: 4px 10px;
-                border-radius: 8px;
+                border-radius: 0;
                 font-family: 'Monaco', monospace;
                 font-weight: 700;
                 font-size: 0.8rem;
@@ -998,7 +1010,7 @@
                 width: 32px;
                 height: 32px;
                 background: #f8f9fa;
-                border-radius: 50%;
+                border-radius: 0;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -1027,13 +1039,13 @@
             .modern-progress-bg {
                 height: 8px;
                 background: #f1f3f5;
-                border-radius: 4px;
+                border-radius: 0;
                 overflow: hidden;
             }
             .modern-progress-fill {
                 height: 100%;
                 background: linear-gradient(90deg, #5469d4, #a0acff);
-                border-radius: 4px;
+                border-radius: 0;
             }
 
             .panel-stats-row {

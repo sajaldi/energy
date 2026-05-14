@@ -124,6 +124,46 @@ class AsignacionEPP(models.Model):
 
 # --- Analisis de Riesgos (AST) ---
 
+class PeligroCatalogo(models.Model):
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+    categoria = models.CharField(max_length=50, choices=[
+        ('FISICO', 'Físico'),
+        ('QUIMICO', 'Químico'),
+        ('BIOLOGICO', 'Biológico'),
+        ('ERGONOMICO', 'Ergonómico'),
+        ('PSICOSOCIAL', 'Psicosocial'),
+        ('MECANICO', 'Mecánico'),
+        ('ELECTRICO', 'Eléctrico'),
+        ('LOCATIVO', 'Locativo'),
+    ], default='FISICO')
+
+    def __str__(self):
+        return f"[{self.categoria}] {self.nombre}"
+
+    class Meta:
+        verbose_name = "Peligro de Catálogo"
+        verbose_name_plural = "Catálogo de Peligros"
+
+class MedidaControlCatalogo(models.Model):
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+    tipo = models.CharField(max_length=50, choices=[
+        ('ELIMINACION', 'Eliminación'),
+        ('SUSTITUCION', 'Sustitución'),
+        ('INGENIERIA', 'Control de Ingeniería'),
+        ('ADMINISTRATIVO', 'Control Administrativo'),
+        ('EPP', 'Equipo de Protección Personal'),
+    ], default='ADMINISTRATIVO')
+    peligros_asociados = models.ManyToManyField(PeligroCatalogo, related_name='controles_recomendados', blank=True)
+
+    def __str__(self):
+        return f"[{self.tipo}] {self.nombre}"
+
+    class Meta:
+        verbose_name = "Control de Catálogo"
+        verbose_name_plural = "Catálogo de Controles"
+
 class AnalisisRiesgo(models.Model):
     fecha = models.DateTimeField(default=timezone.now)
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True)
@@ -131,6 +171,9 @@ class AnalisisRiesgo(models.Model):
     ejecutantes = models.ManyToManyField('auth.User', related_name='asts_participante')
     lider = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='asts_lider', verbose_name="Líder del Trabajo")
     firmado = models.BooleanField(default=False)
+    
+    # Vinculación con OT (opcional)
+    orden_trabajo = models.ForeignKey('mantenimiento.OrdenTrabajo', on_delete=models.SET_NULL, null=True, blank=True, related_name='asts', limit_choices_to={'requiere_permiso': True})
 
     def __str__(self):
         return f"AST - {self.descripcion_trabajo[:50]} ({self.fecha.date()})"
@@ -143,13 +186,40 @@ class PasoTrabajo(models.Model):
     class Meta:
         ordering = ['orden']
 
+    def __str__(self):
+        return f"{self.orden}. {self.descripcion}"
+
 class Riesgo(models.Model):
+    VALOR_CHOICES = [(i, str(i)) for i in range(1, 6)] # 1-5 Scale
+
     paso = models.ForeignKey(PasoTrabajo, on_delete=models.CASCADE, related_name='riesgos')
-    descripcion = models.CharField(max_length=255, verbose_name="Peligro/Riesgo")
+    peligro_base = models.ForeignKey(PeligroCatalogo, on_delete=models.SET_NULL, null=True, blank=True)
+    descripcion = models.CharField(max_length=255, verbose_name="Peligro/Riesgo (Manual)")
+    
+    probabilidad = models.IntegerField(choices=VALOR_CHOICES, default=1)
+    consecuencia = models.IntegerField(choices=VALOR_CHOICES, default=1)
+    
+    @property
+    def nivel_riesgo(self):
+        # Matriz 5x5: 1-25
+        val = self.probabilidad * self.consecuencia
+        if val <= 4: return 'BAJO'
+        if val <= 9: return 'MEDIO'
+        if val <= 16: return 'ALTO'
+        return 'CRITICO'
+
+    def __str__(self):
+        return f"{self.peligro_base or self.descripcion} ({self.nivel_riesgo})"
 
 class Control(models.Model):
     riesgo = models.ForeignKey(Riesgo, on_delete=models.CASCADE, related_name='controles')
-    descripcion = models.CharField(max_length=255, verbose_name="Medida de Control")
+    control_base = models.ForeignKey(MedidaControlCatalogo, on_delete=models.SET_NULL, null=True, blank=True)
+    descripcion = models.CharField(max_length=255, verbose_name="Medida de Control (Manual)")
+    
+    verificado = models.BooleanField(default=False, verbose_name="¿Control Implementado?")
+
+    def __str__(self):
+        return self.control_base.nombre if self.control_base else self.descripcion
 
 # --- Permisos de Trabajo ---
 

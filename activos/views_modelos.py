@@ -1,7 +1,8 @@
+from decimal import Decimal
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
-from .models import Modelo, Marca, Categoria
+from .models import Modelo, Marca, Categoria, CaracteristicaCategoria, ValorCaracteristicaModelo
 from core.models import UnidadMedida
 from django.db.models import Count, Q
 import json
@@ -87,12 +88,14 @@ def modelo_detail_api(request):
 
         # Obtener activos asociados
         activos = []
-        for a in m.activos.select_related('ubicacion').all()[:50]: # Limitar a 50 para evitar sobrecarga
+        for a in m.activos.select_related('ubicacion').all(): 
+            ub = a.ubicacion
             activos.append({
                 'id': a.id,
                 'codigo': a.codigo_interno,
                 'nombre': a.nombre,
-                'ubicacion': a.ubicacion.nombre if a.ubicacion else 'Sin Ubicación',
+                'ubicacion': ub.nombre if ub else 'Sin Ubicación',
+                'ubicacion_jerarquica': ub.get_ruta_completa() if ub else 'Sin Ubicación',
                 'estado': a.get_estado_display(),
                 'estado_raw': a.estado
             })
@@ -113,6 +116,52 @@ def modelo_detail_api(request):
                     'tiempo': str(r.tiempo_estimado) if r.tiempo_estimado else 'N/A'
                 })
 
+        # Obtener características de la categoría y los valores del modelo
+        caracteristicas = []
+        if m.categoria:
+            cars_cat = CaracteristicaCategoria.objects.filter(categoria=m.categoria).select_related('unidad_medida')
+            valores = {v.caracteristica_id: v.valor for v in ValorCaracteristicaModelo.objects.filter(modelo=m)}
+            for c in cars_cat:
+                caracteristicas.append({
+                    'id': c.id,
+                    'nombre': c.nombre,
+                    'tipo_dato': c.tipo_dato,
+                    'unidad_medida': c.unidad_medida.nombre if c.unidad_medida else '',
+                    'opciones': c.opciones,
+                    'requerido': c.requerido,
+                    'valor': valores.get(c.id, '')
+                })
+
+        # Obtener materiales compatibles
+        from django.db.models import Sum, OuterRef, Subquery, DecimalField
+        from django.db.models.functions import Coalesce
+        from inventarios.models import StockRecord, CompatibilidadMaterial
+
+        stock_subquery = StockRecord.objects.filter(material=OuterRef('material_id')).values('material').annotate(total=Sum('cantidad')).values('total')
+        
+        repuestos = CompatibilidadMaterial.objects.filter(modelo=m).select_related(
+            'material__unidad_medida', 'material__marca'
+        ).annotate(
+            stock_actual=Coalesce(Subquery(stock_subquery, output_field=DecimalField()), Decimal('0.00'))
+        )
+
+        materiales = []
+        for comp in repuestos:
+            mat = comp.material
+            materiales.append({
+                'material_id': mat.id,
+                'nombre': mat.nombre,
+                'sku': mat.sku,
+                'descripcion': mat.descripcion or '',
+                'tipo_material': mat.get_tipo_material_display() if hasattr(mat, 'get_tipo_material_display') else mat.tipo_material,
+                'stock': float(comp.stock_actual),
+                'marca': mat.marca.nombre if mat.marca else 'S/M',
+                'imagen': mat.imagen.url if mat.imagen else '',
+                'cantidad_sugerida': float(comp.cantidad_sugerida),
+                'unidad_abreviatura': mat.unidad_medida.abreviatura if mat.unidad_medida else '',
+                'notas': comp.notas or ''
+            })
+
         return JsonResponse({
             'status': 'success',
             'modelo': {
@@ -131,7 +180,9 @@ def modelo_detail_api(request):
                 'total_activos': m.activos.count()
             },
             'activos': activos,
-            'rutinas': rutinas
+            'rutinas': rutinas,
+            'caracteristicas': caracteristicas,
+            'materiales': materiales
         })
     except Modelo.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': f'Modelo ID {pk} no encontrado'}, status=404)
@@ -174,6 +225,35 @@ def modelo_save_api(request):
             m.imagen_archivo = request.FILES['imagen_archivo']
             
         m.save()
+        
+        # Guardar características
+        if m.categoria_id:
+            cars_cat = CaracteristicaCategoria.objects.filter(categoria_id=m.categoria_id)
+            for c in cars_cat:
+                key = f'char_{c.id}'
+                if key in request.POST:
+                    val = request.POST.get(key)
+                    ValorCaracteristicaModelo.objects.update_or_create(
+                        modelo=m,
+                        caracteristica=c,
+                        defaults={'valor': val}
+                    )
+
+        # Guardar Materiales Compatibles
+        material_ids = request.POST.getlist('material_ids[]')
+        # Limpiar compatibilidades anteriores que ya no están en la lista
+        from inventarios.models import CompatibilidadMaterial
+        CompatibilidadMaterial.objects.filter(modelo=m).exclude(material_id__in=material_ids).delete()
+        
+        # Agregar/Actualizar las actuales
+        for mat_id in material_ids:
+            qty = request.POST.get(f'mat_qty_{mat_id}', 1)
+            CompatibilidadMaterial.objects.update_or_create(
+                modelo=m,
+                material_id=mat_id,
+                defaults={'cantidad_sugerida': qty}
+            )
+        
         return JsonResponse({'status': 'success', 'message': 'Modelo guardado correctamente'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -191,5 +271,28 @@ def modelo_delete_api(request, pk):
             
         m.delete()
         return JsonResponse({'status': 'success', 'message': 'Modelo eliminado'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+def categoria_caracteristicas_api(request):
+    """API para obtener las características de una categoría específica (para el modal de edición)"""
+    cat_id = request.GET.get('categoria_id')
+    if not cat_id:
+        return JsonResponse({'status': 'success', 'caracteristicas': []})
+        
+    try:
+        cars = CaracteristicaCategoria.objects.filter(categoria_id=cat_id).select_related('unidad_medida')
+        caracteristicas = []
+        for c in cars:
+            caracteristicas.append({
+                'id': c.id,
+                'nombre': c.nombre,
+                'tipo_dato': c.tipo_dato,
+                'unidad_medida': c.unidad_medida.nombre if c.unidad_medida else '',
+                'opciones': c.opciones,
+                'requerido': c.requerido,
+            })
+        return JsonResponse({'status': 'success', 'caracteristicas': caracteristicas})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

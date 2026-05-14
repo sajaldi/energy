@@ -1,0 +1,234 @@
+<div class="fiori-ot-detail">
+    <!-- Safety Alert Banner -->
+    {% if ot.asts.exists %}
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; color: #166534; border-radius: 0;">
+        <i class="fas fa-check-circle" style="font-size: 1.5rem; color: #16a34a;"></i>
+        <div style="flex: 1;">
+            <strong style="display: block; font-size: 0.9rem; font-weight: 800;">RIESGOS EVALUADOS ✓</strong>
+            <span style="font-size: 0.85rem; font-weight: 600;">Esta orden cuenta con un Análisis de Seguridad en el Trabajo (AST) vinculado.</span>
+        </div>
+        <button onclick="openAstViewModal({{ ot.asts.first.id }})" style="background: #16a34a; color: white; padding: 8px 15px; font-weight: 700; font-size: 0.8rem; border-radius: 0; border: none; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            VER AST
+        </button>
+    </div>
+    {% else %}
+    <div style="background: #fff4f4; border: 1px solid #f8d7da; padding: 12px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; color: #721c24; border-radius: 0;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 1.5rem; color: #dc3545;"></i>
+        <div style="flex: 1;">
+            <strong style="display: block; font-size: 0.9rem; font-weight: 800;">RIESGOS NO EVALUADOS</strong>
+            <span style="font-size: 0.85rem; font-weight: 600;">Esta orden de trabajo no cuenta con un análisis de seguridad previo.</span>
+        </div>
+        <a href="{% url 'seguridad:ast_wizard_ot' ot.id %}" target="_blank" style="background: #dc3545; color: white; padding: 8px 15px; text-decoration: none; font-weight: 700; font-size: 0.8rem; border-radius: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            EVALUAR RIESGOS (AST)
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="fiori-ot-header" style="border-bottom: 2px solid var(--sap-brand-color); padding-bottom: 15px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h2 style="margin: 0; color: var(--sap-text-color); font-size: 1.5rem; font-weight: 800;">{{ ot.codigo_de_orden|default:ot.id }}</h2>
+                <p style="margin: 5px 0 0 0; color: var(--sap-text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px;">
+                    {{ ot.get_tipo_display }} | 
+                    {% if ot.rutina %}
+                        {{ ot.rutina.nombre }}
+                    {% else %}
+                        {{ ot.descripcion_corta|default:"Mantenimiento Correctivo" }}
+                    {% endif %}
+                </p>
+            </div>
+            <span class="fiori-badge badge-{{ ot.estado|lower }}" style="padding: 6px 14px; border-radius: 0; font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">
+                {{ ot.get_estado_display }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+        <!-- Left Column -->
+        <div class="fiori-info-col">
+            <div class="fiori-info-group" style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--sap-text-muted); text-transform: uppercase; margin-bottom: 5px;">📍 Ubicación</label>
+                <div style="font-weight: 600; color: var(--sap-text-color); font-size: 0.95rem;">
+                    {% if ot.ubicacion %}
+                        {{ ot.ubicacion.get_ruta_completa }}
+                    {% else %}
+                        Sin ubicación definida
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="fiori-info-group" style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--sap-text-muted); text-transform: uppercase; margin-bottom: 5px;">⚙️ Activos</label>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    {% for activo in ot.activos.all %}
+                    <span style="background: var(--sap-information-bg); color: var(--sap-information); padding: 4px 10px; border-radius: 0; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--sap-border-color);">
+                        {{ activo.nombre }} ({{ activo.codigo_interno|default:"S/C" }})
+                    </span>
+                    {% empty %}
+                    <span style="color: var(--sap-text-muted); font-style: italic; font-size: 0.9rem;">Sin activos específicos</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="fiori-info-group">
+                <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--sap-text-muted); text-transform: uppercase; margin-bottom: 5px;">👤 Responsable</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; background: var(--sap-neutral-bg); border-radius: 0; display: flex; align-items: center; justify-content: center; color: var(--sap-neutral);">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span style="font-weight: 600; color: var(--sap-text-color);">
+                        {% if ot.tecnico %}
+                            {{ ot.tecnico.get_full_name|default:ot.tecnico.username }}
+                        {% else %}
+                            No asignado
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="fiori-info-col">
+            <div class="fiori-info-group" style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--sap-text-muted); text-transform: uppercase; margin-bottom: 5px;">📅 Fecha de Creación</label>
+                <div style="font-weight: 600; color: var(--sap-text-color); font-size: 0.95rem;">
+                    {{ ot.creado_en|date:"d/m/Y H:i" }}
+                </div>
+            </div>
+
+            <div class="fiori-info-group" style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--sap-text-muted); text-transform: uppercase; margin-bottom: 5px;">🗓️ Programación</label>
+                <div style="background: var(--sap-bg-color); padding: 12px; border-radius: 0; border: 1px solid var(--sap-border-color);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 0.8rem; color: var(--sap-text-muted);">Inicio:</span>
+                        <span style="font-size: 0.85rem; font-weight: 700; color: var(--sap-text-color);">{{ ot.inicio_programado|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="font-size: 0.8rem; color: var(--sap-text-muted);">Fin:</span>
+                        <span style="font-size: 0.85rem; font-weight: 700; color: var(--sap-text-color);">{{ ot.fin_programado|date:"d/m/Y H:i" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fiori-info-group" style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--sap-text-muted); text-transform: uppercase; margin-bottom: 5px;">🚩 Prioridad</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    {% if ot.prioridad == 'CRITICA' %}
+                    <span style="color: var(--sap-error);"><i class="fas fa-circle"></i></span>
+                    {% elif ot.prioridad == 'ALTA' %}
+                    <span style="color: var(--sap-warning);"><i class="fas fa-circle"></i></span>
+                    {% else %}
+                    <span style="color: var(--sap-information);"><i class="fas fa-circle"></i></span>
+                    {% endif %}
+                    <span style="font-weight: 700; color: var(--sap-text-color); font-size: 0.95rem;">{{ ot.get_prioridad_display }}</span>
+                </div>
+            </div>
+            
+            {% if ot.aviso %}
+            <div class="fiori-info-group">
+                <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--sap-text-muted); text-transform: uppercase; margin-bottom: 5px;">🔔 Aviso Relacionado</label>
+                <a href="{% url 'admin:mantenimiento_aviso_change' ot.aviso.id %}" target="_blank" style="color: var(--sap-brand-color); font-weight: 700; text-decoration: none; font-size: 0.9rem;">
+                    AV-{{ ot.aviso.id }} <i class="fas fa-external-link-alt" style="font-size: 0.7rem;"></i>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Description -->
+    <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--sap-border-color);">
+        <label style="display: block; font-size: 0.7rem; font-weight: 800; color: var(--sap-text-muted); text-transform: uppercase; margin-bottom: 8px;">📝 Notas y Descripción</label>
+        <div style="background: var(--sap-bg-color); padding: 15px; border-radius: 0; border-left: 4px solid var(--sap-neutral); color: var(--sap-text-color); line-height: 1.6; font-size: 0.9rem;">
+            {% if ot.notas %}
+                {{ ot.notas|linebreaks }}
+            {% elif ot.descripcion_detallada %}
+                {{ ot.descripcion_detallada|linebreaks }}
+            {% else %}
+                Sin descripción adicional registrada.
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+        <button onclick="triggerPowerAutomateWebhook({{ ot.id }})" style="background: #0078D4; color: white; padding: 10px 20px; border-radius: 0; font-weight: 700; font-size: 0.85rem; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fas fa-paper-plane"></i> ENVIAR A POWER AUTOMATE
+        </button>
+        <a href="{% url 'admin:mantenimiento_ordentrabajo_change' ot.id %}" class="btn-fiori-edit" style="background: var(--sap-neutral-bg); color: var(--sap-neutral); padding: 10px 20px; border-radius: 0; font-weight: 700; text-decoration: none; font-size: 0.85rem; border: 1px solid var(--sap-border-color);">
+            <i class="fas fa-edit"></i> EDITAR ORDEN
+        </a>
+        {% with ast_linked=ot.asts.first %}
+        {% if ast_linked %}
+        <button onclick="openAstViewModal({{ ast_linked.id }})" style="background: #10b981; color: white; padding: 10px 20px; border-radius: 0; font-weight: 700; font-size: 0.85rem; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fas fa-eye"></i> VER AST #{{ ast_linked.id }}
+        </button>
+        {% else %}
+        <a href="{% url 'seguridad:ast_wizard_ot' ot.id %}" target="_blank" style="background: var(--sap-brand-color); color: white; padding: 10px 20px; border-radius: 0; font-weight: 700; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fas fa-shield-alt"></i> CREAR ANÁLISIS DE RIESGOS (AST)
+        </a>
+        {% endif %}
+        {% endwith %}
+        {% if ot.estado == 'REALIZADA' %}
+        <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" style="background: var(--sap-error); color: white; padding: 10px 20px; border-radius: 0; font-weight: 700; text-decoration: none; font-size: 0.85rem;">
+            <i class="fas fa-file-pdf"></i> VER REPORTE
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function triggerPowerAutomateWebhook(otId) {
+        Swal.fire({
+            title: 'Enviando a Power Automate...',
+            text: 'Procesando la orden de trabajo, por favor espere.',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        fetch(`/mantenimiento/app/ot/${otId}/send-webhook/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Enviado!',
+                    text: 'La orden fue enviada a Power Automate exitosamente.',
+                    confirmButtonColor: '#0078D4'
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Hubo un error al enviar la orden.',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de conexión',
+                text: 'No se pudo contactar con el servidor: ' + error,
+                confirmButtonColor: '#dc3545'
+            });
+        });
+    }
+</script>
+
+<style>
+    .badge-realizada { background: var(--sap-success-bg); color: var(--sap-success); }
+    .badge-ejecucion { background: var(--sap-information-bg); color: var(--sap-information); }
+    .badge-programada { background: var(--sap-warning-bg); color: var(--sap-warning); }
+    .badge-espera { background: var(--sap-neutral-bg); color: var(--sap-neutral); }
+    .badge-cancelada { background: var(--sap-error-bg); color: var(--sap-error); }
+</style>

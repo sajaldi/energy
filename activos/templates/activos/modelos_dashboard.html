@@ -173,8 +173,8 @@
 
         .modal-content {
             background: white;
-            width: 90%;
-            max-width: 650px;
+            width: 95%;
+            max-width: 900px;
             border-radius: 0.5rem;
             overflow: hidden;
             box-shadow: 0 1rem 3rem rgba(0,0,0,0.2);
@@ -236,6 +236,81 @@
         .badge-status-reparacion { background: #fee2e2; color: #991b1b; }
         .badge-status-fuera_servicio { background: #f3f4f6; color: #374151; }
 
+        /* Collapsible Location Groups */
+        .loc-group { margin-bottom: 2px; border: 2px solid #e8ecf0; border-radius: 0; overflow: hidden; }
+        .loc-group-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            cursor: pointer; user-select: none; transition: background 0.2s;
+        }
+        .loc-group-header:hover { background: linear-gradient(135deg, #eef2f7 0%, #e2e8f0 100%); }
+        .loc-group-header .chevron {
+            font-size: 1.1rem; color: #94a3b8; transition: transform 0.25s ease;
+            flex-shrink: 0;
+        }
+        .loc-group-header.collapsed .chevron { transform: rotate(-90deg); }
+        .loc-group-header .loc-path {
+            font-size: 0.82rem; font-weight: 600; color: #334155;
+            display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
+        }
+        .loc-group-header .loc-path .path-segment { color: #64748b; font-weight: 400; }
+        .loc-group-header .loc-path .path-arrow { color: #cbd5e1; font-size: 0.7rem; }
+        .loc-group-header .loc-count {
+            background: var(--sap-primary); color: white;
+            font-size: 0.7rem; font-weight: 700;
+            padding: 2px 8px; border-radius: 10px; flex-shrink: 0;
+        }
+        .loc-group-body {
+            max-height: 2000px; overflow: hidden;
+            transition: max-height 0.35s ease-in-out;
+        }
+        .loc-group-body.collapsed { max-height: 0; }
+        .loc-group-body .view-table { margin: 0; }
+        .loc-group-body .view-table th { font-size: 0.72rem; padding: 6px 10px; }
+
+        /* Nested Tree Styles */
+        .tree-indent { border-left: 1px dashed #cbd5e1; margin-left: 10px; padding-left: 10px; }
+        .loc-group-header .loc-name { font-size: 0.85rem; font-weight: 600; color: #334155; flex: 1; }
+        .loc-group-header .loc-type-icon { color: var(--sap-primary); font-size: 1.1rem; flex-shrink: 0; }
+
+        /* Material Tab Styles */
+        .material-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; padding: 10px 0; }
+        .material-card {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+            background: white; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .material-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .material-card-img {
+            width: 100%; height: 100px; background: #f8fafc;
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .material-card-img img { width: 100%; height: 100%; object-fit: cover; }
+        .material-card-img ion-icon { font-size: 2.5rem; opacity: 0.2; }
+        .material-card-info { padding: 10px; }
+        .material-card-info .name { font-weight: 600; font-size: 0.85rem; color: #1e293b; margin-bottom: 2px; display: block; }
+        .material-card-info .sku { font-size: 0.72rem; color: #64748b; font-family: monospace; }
+        .material-card-info .qty { 
+            display: block; font-size: 0.75rem; color: var(--sap-primary); 
+            font-weight: 700; margin-top: 5px; 
+        }
+
+        .search-material-container { position: relative; margin-bottom: 15px; }
+        #search-material-input { width: 100%; padding: 12px 40px 12px 15px; border: 2px solid #e2e8f0; border-radius: 8px; outline: none; }
+        #search-material-input:focus { border-color: var(--sap-primary); }
+        .search-icon-abs { position: absolute; right: 15px; top: 12px; font-size: 1.2rem; color: #94a3b8; }
+        
+        .material-search-results {
+            position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
+            background: white; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;
+            max-height: 300px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .search-result-item {
+            padding: 10px 15px; display: flex; align-items: center; gap: 10px;
+            cursor: pointer; border-bottom: 1px solid #f1f5f9;
+        }
+        .search-result-item:hover { background: #f8fafc; }
+        .search-result-item img { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; }
     </style>
 </head>
 <body>
@@ -442,6 +517,12 @@
                     <button id="btn-tab-activos" class="tab-btn" onclick="switchTab('tab-activos', this)">
                         <ion-icon name="list-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon> Activos en Inventario
                     </button>
+                    <button id="btn-tab-caracteristicas" class="tab-btn" onclick="switchTab('tab-caracteristicas', this)">
+                        <ion-icon name="options-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon> Especificaciones
+                    </button>
+                    <button id="btn-tab-materiales" class="tab-btn" onclick="switchTab('tab-materiales', this)">
+                        <ion-icon name="construct-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon> Materiales Compatibles
+                    </button>
                 </div>
 
                 <div id="tab-rutinas" class="tab-content active">
@@ -451,6 +532,16 @@
                 </div>
                 <div id="tab-activos" class="tab-content">
                     <div id="view-activos-container" style="min-height: 250px;">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+                <div id="tab-caracteristicas" class="tab-content">
+                    <div id="view-caracteristicas-container" style="min-height: 250px;">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+                <div id="tab-materiales" class="tab-content">
+                    <div id="view-materiales-container" class="material-grid" style="min-height: 250px;">
                         <!-- Injected via JS -->
                     </div>
                 </div>
@@ -537,16 +628,23 @@
                 <h2 id="modalTitle">Nuevo Modelo</h2>
                 <button class="btn-close" onclick="closeModeloModal()">✕</button>
             </div>
-            <form id="modeloForm" onsubmit="saveModelo(event)" enctype="multipart/form-data">
+            <form id="modeloForm" onsubmit="saveModelo(event)" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
                 <div class="modal-body">
-                    <input type="hidden" name="id" id="mod-id">
-                    
-                    <div class="preview-img-container">
-                        <img id="img-preview" class="preview-img" style="display: none;">
-                        <div id="no-img-text" class="no-img-text">Sin imagen</div>
+                    <div class="tabs" style="margin-bottom: 15px;">
+                        <button type="button" class="tab-btn active" onclick="switchTab('edit-tab-general', this)">General</button>
+                        <button type="button" class="tab-btn" onclick="switchTab('edit-tab-materiales', this)">Materiales Compatibles</button>
                     </div>
 
-                    <div class="form-grid">
+                    <div id="edit-tab-general" class="tab-content active">
+                        <input type="hidden" name="id" id="mod-id">
+                        
+                        <div class="preview-img-container">
+                            <img id="img-preview" class="preview-img" style="display: none;">
+                            <div id="no-img-text" class="no-img-text">Sin imagen</div>
+                        </div>
+
+                        <div class="form-grid">
                         <div class="form-group full-width">
                             <label>Nombre del Modelo</label>
                             <input type="text" name="nombre" id="mod-nombre" class="form-control" required placeholder="Ej: Transformer 500kVA">
@@ -602,6 +700,22 @@
                             <input type="url" name="imagen_url" id="mod-url" class="form-control" placeholder="https://..." onchange="previewUrl(this.value)">
                         </div>
                     </div>
+                    <div id="dynamic-characteristics-container" class="full-width" style="margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px; display: none; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+
+                <div id="edit-tab-materiales" class="tab-content">
+                    <div class="search-material-container">
+                        <input type="text" id="search-material-input" class="form-control" placeholder="Buscar material por nombre o SKU..." onkeyup="searchMaterials(this.value)">
+                        <ion-icon name="search-outline" class="search-icon-abs"></ion-icon>
+                        <div id="material-results" class="material-search-results"></div>
+                    </div>
+                    
+                    <div id="selected-materials-list" class="material-grid">
+                        <!-- Injected via JS -->
+                    </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" onclick="closeModeloModal()">Cancelar</button>
@@ -615,6 +729,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         let tsMarca, tsCat, tsUnidad;
+        let isProgrammaticCatChange = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize Tom Selects
@@ -624,7 +739,74 @@
             
             new TomSelect('#filter-marca', { create: false });
             new TomSelect('#filter-cat', { create: false });
+
+            tsCat.on('change', function(val) {
+                if (!isProgrammaticCatChange) {
+                    if (val) {
+                        fetchCategoriaCaracteristicas(val);
+                    } else {
+                        document.getElementById('dynamic-characteristics-container').style.display = 'none';
+                        document.getElementById('dynamic-characteristics-container').innerHTML = '';
+                    }
+                }
+            });
         });
+
+        function fetchCategoriaCaracteristicas(catId) {
+            fetch(`{% url 'activos:categoria_caracteristicas_api' %}?categoria_id=${catId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        renderDynamicCharacteristics(data.caracteristicas);
+                    }
+                });
+        }
+
+        function renderDynamicCharacteristics(caracteristicas) {
+            const container = document.getElementById('dynamic-characteristics-container');
+            if (!caracteristicas || caracteristicas.length === 0) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+
+            container.style.display = 'grid';
+            let html = '<div style="grid-column: 1 / -1; margin-bottom: 6px;"><h4 style="font-size:1rem; color:#334155; font-weight:600; margin:0;"><ion-icon name="options-outline" style="vertical-align:middle; margin-right:6px;"></ion-icon>Especificaciones Técnicas</h4><p style="font-size:0.75rem; color:#64748b; margin:4px 0 0 0;">Complete las propiedades según la categoría elegida.</p></div>';
+
+            caracteristicas.forEach(c => {
+                const requiredLabel = c.requerido ? '<span style="color:#e74c3c;">*</span>' : '';
+                const val = c.valor !== undefined && c.valor !== null ? c.valor : '';
+                const name = `char_${c.id}`;
+                const unitLabel = c.unidad_medida ? `<span style="color:#94a3b8; font-weight:400;"> (${c.unidad_medida})</span>` : '';
+                const lbl = `${c.nombre}${unitLabel} ${requiredLabel}`;
+
+                html += `<div style="display:flex; flex-direction:column;"><label style="font-size:0.8rem; font-weight:600; color:#475569; margin-bottom:4px;">${lbl}</label>`;
+                
+                if (c.tipo_dato === 'BOOLEANO') {
+                    const selTrue = val === 'Sí' || val === 'true' || val === 'True' || val === '1' ? 'selected' : '';
+                    const selFalse = val === 'No' || val === 'false' || val === 'False' || val === '0' ? 'selected' : '';
+                    html += `<select name="${name}" class="form-control">
+                        <option value="">--</option>
+                        <option value="Sí" ${selTrue}>Sí</option>
+                        <option value="No" ${selFalse}>No</option>
+                    </select>`;
+                } else if (c.tipo_dato === 'NUMERO') {
+                    html += `<input type="number" step="any" name="${name}" class="form-control" value="${val}">`;
+                } else if (c.tipo_dato === 'OPCIONES' && c.opciones) {
+                    const optionsList = c.opciones.split(',').map(s => s.trim()).filter(s => s);
+                    html += `<select name="${name}" class="form-control"><option value="">-- Seleccionar --</option>`;
+                    optionsList.forEach(opt => {
+                        const sel = val === opt ? 'selected' : '';
+                        html += `<option value="${opt}" ${sel}>${opt}</option>`;
+                    });
+                    html += `</select>`;
+                } else {
+                    html += `<input type="text" name="${name}" class="form-control" value="${val}">`;
+                }
+                html += `</div>`;
+            });
+            container.innerHTML = html;
+        }
 
         // --- VIEWER MODAL LOGIC ---
 
@@ -644,6 +826,7 @@
             document.getElementById('view-no-img').style.display = 'block';
             document.getElementById('view-rutinas-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando planes...</p>';
             document.getElementById('view-activos-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando inventario...</p>';
+            document.getElementById('view-caracteristicas-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando especificaciones...</p>';
 
             // Switch to first tab by default
             switchTab('tab-rutinas', document.getElementById('btn-tab-rutinas'));
@@ -656,7 +839,7 @@
                         title.innerText = m.nombre;
                         document.getElementById('view-marca').innerText = m.marca_nombre;
                         document.getElementById('view-categoria').innerText = m.categoria_nombre;
-                        document.getElementById('view-unidad').innerText = m.unidad_nombre;
+                        document.getElementById('view-unidad').innerText = m.unidad_medida_nombre;
                         document.getElementById('view-precio').innerText = `$${m.precio_promedio.toLocaleString()}`;
                         document.getElementById('view-descripcion').innerText = m.descripcion || "Sin descripción técnica adicional.";
                         
@@ -685,25 +868,140 @@
                         rutHtml += '</tbody></table>';
                         document.getElementById('view-rutinas-container').innerHTML = rutHtml;
 
-                        // Render Activos
-                        let actHtml = '<table class="view-table"><thead><tr><th>Código</th><th>Nombre del Equipo</th><th>Ubicación</th><th>Estado</th></tr></thead><tbody>';
+                        // Render Activos — Hierarchical Tree
                         if (data.activos && data.activos.length > 0) {
-                            data.activos.forEach(a => {
-                                actHtml += `<tr style="cursor:pointer;" onclick="openAssetDetail(${a.id})">
-                                    <td style="font-weight:700; color:var(--sap-primary);">${a.codigo}</td>
-                                    <td>${a.nombre}</td>
-                                    <td style="font-size:0.75rem; color:#666;">${a.ubicacion}</td>
-                                    <td><span class="badge-status badge-status-${a.estado_raw.toLowerCase()}">${a.estado}</span></td>
+                            const tree = buildAssetTree(data.activos);
+                            document.getElementById('view-activos-container').innerHTML = renderAssetTree(tree);
+                        } else {
+                            document.getElementById('view-activos-container').innerHTML = '<div style="text-align:center; padding:40px; color:#999;"><ion-icon name="cube-outline" style="font-size:3rem; opacity:0.2; display:block; margin:0 auto 10px;"></ion-icon>No hay activos físicos registrados con este modelo.</div>';
+                        }
+
+                        // Render Materiales Compatibles
+                        if (data.materiales && data.materiales.length > 0) {
+                            let matHtml = '';
+                            data.materiales.forEach(m => {
+                                matHtml += `
+                                    <div class="material-card">
+                                        <div class="material-card-img">
+                                            ${m.imagen ? `<img src="${m.imagen}">` : '<ion-icon name="construct-outline"></ion-icon>'}
+                                        </div>
+                                        <div class="material-card-info">
+                                            <span class="name">${m.nombre}</span>
+                                            <span class="sku" style="font-size:0.7rem; color:#666; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:2.2em;">${m.descripcion || ''}</span>
+                                            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top: auto;">
+                                                <span class="qty" style="font-weight:700; color:var(--sap-primary); font-size:0.9rem;">${m.cantidad_sugerida} <small style="font-weight:400; font-size:0.7rem;">${m.unidad_abreviatura}</small></span>
+                                                <div style="text-align:right;">
+                                                    <div style="font-size:0.7rem; font-weight:700; color:${m.stock > 0 ? '#10b981' : '#ef4444'}; margin-bottom:2px;">
+                                                        <ion-icon name="cube-outline" style="vertical-align:middle;"></ion-icon> Stock: ${m.stock}
+                                                    </div>
+                                                    <span style="font-size:0.6rem; background:#f1f5f9; color:#64748b; padding:2px 6px; border-radius:8px; font-weight:600;">${m.tipo_material}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                            document.getElementById('view-materiales-container').innerHTML = matHtml;
+                        } else {
+                            document.getElementById('view-materiales-container').innerHTML = '<div style="text-align:center; padding:40px; color:#999; grid-column: 1 / -1;"><ion-icon name="construct-outline" style="font-size:3rem; opacity:0.2; display:block; margin:0 auto 10px;"></ion-icon>No hay materiales específicos asociados a este modelo.</div>';
+                        }
+
+                        // Helper functions for Tree
+                        function buildAssetTree(activos) {
+                            const root = { children: {}, items: [] };
+                            activos.forEach(a => {
+                                const path = a.ubicacion_jerarquica || 'Sin Ubicación';
+                                const segments = path.split(' → ');
+                                let current = root;
+                                segments.forEach((seg, i) => {
+                                    if (!current.children[seg]) {
+                                        current.children[seg] = { name: seg, children: {}, items: [], level: i };
+                                    }
+                                    current = current.children[seg];
+                                });
+                                current.items.push(a);
+                            });
+                            return root;
+                        }
+
+                        function renderAssetTree(node, level = 0) {
+                            let html = '';
+                            const sortedKeys = Object.keys(node.children).sort();
+                            
+                            sortedKeys.forEach((key, idx) => {
+                                const child = node.children[key];
+                                const groupId = `tree-grp-${level}-${idx}-${Math.random().toString(36).substr(2, 5)}`;
+                                const hasSub = Object.keys(child.children).length > 0;
+                                const hasItems = child.items.length > 0;
+                                
+                                html += `<div class="loc-group ${level > 0 ? 'tree-indent' : ''}">`;
+                                html += `<div class="loc-group-header collapsed" onclick="toggleLocGroup('${groupId}', this)">`;
+                                html += `<ion-icon name="chevron-down-outline" class="chevron"></ion-icon>`;
+                                
+                                let iconName = 'location-outline';
+                                if (level === 0) iconName = 'business-outline';
+                                else if (level === 1) iconName = 'layers-outline';
+                                
+                                html += `<ion-icon name="${iconName}" class="loc-type-icon"></ion-icon>`;
+                                html += `<span class="loc-name">${child.name}</span>`;
+                                
+                                const totalInBranch = countItemsInBranch(child);
+                                if (totalInBranch > 0) {
+                                    html += `<span class="loc-count">${totalInBranch}</span>`;
+                                }
+                                
+                                html += `</div>`;
+                                html += `<div id="${groupId}" class="loc-group-body collapsed">`;
+                                
+                                // Render items at THIS level
+                                if (hasItems) {
+                                    html += '<table class="view-table"><thead><tr><th>Código</th><th>Equipo</th><th>Estado</th></tr></thead><tbody>';
+                                    child.items.forEach(a => {
+                                        html += `<tr style="cursor:pointer;" onclick="openAssetDetail(${a.id})">
+                                            <td style="font-weight:700; color:var(--sap-primary);">${a.codigo}</td>
+                                            <td>${a.nombre}</td>
+                                            <td><span class="badge-status badge-status-${a.estado_raw.toLowerCase()}">${a.estado}</span></td>
+                                        </tr>`;
+                                    });
+                                    html += '</tbody></table>';
+                                }
+                                
+                                // Recursive call for children
+                                if (hasSub) {
+                                    html += renderAssetTree(child, level + 1);
+                                }
+                                
+                                html += `</div></div>`;
+                            });
+                            return html;
+                        }
+
+                        function countItemsInBranch(node) {
+                            let count = node.items.length;
+                            for (const key in node.children) {
+                                count += countItemsInBranch(node.children[key]);
+                            }
+                            return count;
+                        }
+
+                        // Render Caracteristicas
+                        let charHtml = '<table class="view-table" style="width: 100%;"><thead><tr><th style="width: 40%;">Propiedad</th><th>Valor</th></tr></thead><tbody>';
+                        if (data.caracteristicas && data.caracteristicas.length > 0) {
+                            data.caracteristicas.forEach(c => {
+                                let valText = c.valor || '<span style="color:#ccc;">No especificado</span>';
+                                if (c.valor && c.unidad_medida) {
+                                    valText += ` <span style="color:#666; font-size:0.8em;">${c.unidad_medida}</span>`;
+                                }
+                                charHtml += `<tr>
+                                    <td style="font-weight:600; color:#334155;">${c.nombre}</td>
+                                    <td>${valText}</td>
                                 </tr>`;
                             });
-                            if (m.total_activos > 50) {
-                                actHtml += `<tr><td colspan="4" style="text-align:center; font-size:0.75rem; color:#999; padding:10px;">Mostrando los primeros 50 de ${m.total_activos} equipos asociados.</td></tr>`;
-                            }
                         } else {
-                            actHtml += '<tr><td colspan="4" style="text-align:center; padding:40px; color:#999;">No hay activos físicos registrados con este modelo.</td></tr>';
+                            charHtml += '<tr><td colspan="2" style="text-align:center; padding:40px; color:#999;">No hay características técnicas definidas.</td></tr>';
                         }
-                        actHtml += '</tbody></table>';
-                        document.getElementById('view-activos-container').innerHTML = actHtml;
+                        charHtml += '</tbody></table>';
+                        document.getElementById('view-caracteristicas-container').innerHTML = charHtml;
 
                         // Setup Edit button
                         btnEdit.onclick = () => {
@@ -782,6 +1080,12 @@
             document.getElementById(tabId).classList.add('active');
         }
 
+        function toggleLocGroup(groupId, headerEl) {
+            const body = document.getElementById(groupId);
+            body.classList.toggle('collapsed');
+            headerEl.classList.toggle('collapsed');
+        }
+
         // --- EDITOR MODAL LOGIC ---
 
         function openEditModal(id = null) {
@@ -797,9 +1101,15 @@
             document.getElementById('mod-id').value = id || '';
             document.getElementById('img-preview').style.display = 'none';
             document.getElementById('no-img-text').style.display = 'block';
+            document.getElementById('dynamic-characteristics-container').style.display = 'none';
+            document.getElementById('dynamic-characteristics-container').innerHTML = '';
             
             btnDelete.style.display = id ? 'block' : 'none';
             title.innerText = id ? 'Editar Modelo' : 'Nuevo Modelo';
+
+            // Ensure first tab is active
+            const firstTab = document.querySelector('#modeloModal .tab-btn');
+            if (firstTab) switchTab('edit-tab-general', firstTab);
 
             if (id) {
                 fetch(`{% url 'activos:modelo_fiori_get' %}?id=${id}`)
@@ -809,7 +1119,11 @@
                             const m = data.modelo;
                             document.getElementById('mod-nombre').value = m.nombre || '';
                             if (m.marca_id) tsMarca.setValue(String(m.marca_id));
-                            if (m.categoria_id) tsCat.setValue(String(m.categoria_id));
+                            if (m.categoria_id) {
+                                isProgrammaticCatChange = true;
+                                tsCat.setValue(String(m.categoria_id));
+                                isProgrammaticCatChange = false;
+                            }
                             if (m.unidad_medida_id) tsUnidad.setValue(String(m.unidad_medida_id));
                             document.getElementById('mod-precio').value = m.precio_promedio || 0;
                             document.getElementById('mod-desc').value = m.descripcion || '';
@@ -817,6 +1131,19 @@
                             
                             if (m.image_display_url) {
                                 previewUrl(m.image_display_url);
+                            }
+
+                            if (data.caracteristicas && data.caracteristicas.length > 0) {
+                                renderDynamicCharacteristics(data.caracteristicas);
+                            }
+
+                            // Update selected materials in editor
+                            const selectedContainer = document.getElementById('selected-materials-list');
+                            selectedContainer.innerHTML = '';
+                            if (data.materiales) {
+                                data.materiales.forEach(m => {
+                                    addMaterialToSelected(m.material_id, m.nombre, m.sku, m.imagen, m.cantidad_sugerida, m.unidad_abreviatura, m.descripcion, m.tipo_material, m.stock);
+                                });
                             }
                         }
                     });
@@ -851,10 +1178,92 @@
             }
         }
 
-        function saveModelo(e) {
+        let searchTimeout = null;
+    function searchMaterials(q) {
+        if (searchTimeout) clearTimeout(searchTimeout);
+        if (q.length < 2) {
+            document.getElementById('material-results').style.display = 'none';
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            fetch(`/inventarios/api/materials/?q=${q}`)
+                .then(r => r.json())
+                .then(res => {
+                    const container = document.getElementById('material-results');
+                    container.innerHTML = '';
+                    if (res.results && res.results.length > 0) {
+                        res.results.forEach(m => {
+                            const div = document.createElement('div');
+                            div.className = 'search-result-item';
+                            div.onclick = () => {
+                                addMaterialToSelected(m.id, m.nombre, m.sku, m.image_url, 1, m.unidad, m.descripcion, m.tipo_material, m.stock);
+                                container.style.display = 'none';
+                                document.getElementById('search-material-input').value = '';
+                            };
+                            div.innerHTML = `
+                                ${m.image_url ? `<img src="${m.image_url}">` : '<ion-icon name="construct-outline"></ion-icon>'}
+                                <div>
+                                    <div style="font-weight:600; font-size:0.8rem;">${m.nombre}</div>
+                                    <div style="font-size:0.7rem; color:#666;">${m.sku}</div>
+                                </div>
+                            `;
+                            container.appendChild(div);
+                        });
+                        container.style.display = 'block';
+                    } else {
+                        container.innerHTML = '<div style="padding:10px; color:#999; font-size:0.8rem;">No se encontraron materiales.</div>';
+                        container.style.display = 'block';
+                    }
+                });
+        }, 300);
+    }
+
+    function addMaterialToSelected(id, name, sku, img, qty = 1, unit = '', desc = '', type = '', stock = 0) {
+        // Avoid duplicates
+        if (document.querySelector(`.sel-mat-item[data-id="${id}"]`)) return;
+
+        const container = document.getElementById('selected-materials-list');
+        const div = document.createElement('div');
+        div.className = 'material-card sel-mat-item';
+        div.dataset.id = id;
+        div.innerHTML = `
+            <div class="material-card-img">
+                ${img ? `<img src="${img}">` : '<ion-icon name="construct-outline"></ion-icon>'}
+                <button type="button" class="btn-remove-mat" onclick="this.parentElement.parentElement.remove()" 
+                        style="position:absolute; top:5px; right:5px; background:rgba(255,0,0,0.7); color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="material-card-info">
+                <span class="name">${name}</span>
+                <span class="sku" style="font-size:0.7rem; color:#666; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:2.2em;">${desc || ''}</span>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;">
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="number" name="mat_qty_${id}" value="${qty}" step="0.01" class="form-control" style="font-size:0.75rem; padding:4px 8px; height:auto; width:60px;">
+                        <span style="font-size:0.7rem; color:#666;">${unit}</span>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.6rem; font-weight:700; color:${stock > 0 ? '#10b981' : '#ef4444'};">Stock: ${stock}</div>
+                        <span style="font-size:0.55rem; background:#f1f5f9; padding:1px 4px; border-radius:4px;">${type}</span>
+                    </div>
+                </div>
+                <input type="hidden" name="material_ids[]" value="${id}">
+            </div>
+        `;
+        container.appendChild(div);
+    }
+
+    function saveModelo(e) {
             e.preventDefault();
+            console.log("saveModelo started");
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+            btn.disabled = true;
+
             const formData = new FormData(document.getElementById('modeloForm'));
-            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
             fetch(`{% url 'activos:modelo_fiori_save' %}`, {
                 method: 'POST',
@@ -863,10 +1272,24 @@
             .then(r => r.json())
             .then(res => {
                 if (res.status === 'success') {
-                    Swal.fire('¡Éxito!', res.message, 'success').then(() => location.reload());
+                    Swal.fire({
+                        title: '¡Éxito!',
+                        text: res.message,
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
                 } else {
                     Swal.fire('Error', res.message, 'error');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
                 }
+            })
+            .catch(err => {
+                console.error('Error guardando modelo:', err);
+                Swal.fire('Error', 'Error al comunicarse con el servidor: ' + err.message, 'error');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             });
         }
 

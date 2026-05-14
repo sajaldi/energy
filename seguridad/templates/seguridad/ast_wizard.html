@@ -1,0 +1,642 @@
+{% load static l10n %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wizard de Análisis de Riesgos (AST) | Energía</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --fiori-shell-color: #1e293b;
+            --fiori-background: #f1f5f9;
+            --fiori-primary: #2563eb;
+            --fiori-border: #e2e8f0;
+            --fiori-card-bg: #ffffff;
+            --fiori-success: #10b981;
+            --fiori-error: #ef4444;
+            --fiori-warning: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--fiori-background);
+            color: #334155;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--fiori-shell-color);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .wizard-container {
+            flex: 1;
+            max-width: 900px;
+            width: 100%;
+            margin: 2rem auto;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            border-radius: 0; /* SAP Fiori Flat Style */
+        }
+
+        .wizard-steps {
+            display: flex;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--fiori-border);
+            padding: 1rem;
+            justify-content: space-around;
+        }
+
+        .step-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            opacity: 0.5;
+            transition: all 0.3s;
+            position: relative;
+            flex: 1;
+        }
+
+        .step-indicator.active { opacity: 1; font-weight: 600; color: var(--fiori-primary); }
+        .step-indicator.completed { opacity: 0.8; color: var(--fiori-success); }
+
+        .step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            border: 2px solid transparent;
+        }
+
+        .active .step-circle { background: white; border-color: var(--fiori-primary); color: var(--fiori-primary); }
+        .completed .step-circle { background: var(--fiori-success); color: white; }
+
+        .wizard-content { padding: 2.5rem; flex: 1; min-height: 400px; }
+
+        .step-panel { display: none; }
+        .step-panel.active { display: block; animation: fadeIn 0.4s ease-out; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .wizard-footer {
+            padding: 1.5rem 2.5rem;
+            background: #f8fafc;
+            border-top: 1px solid var(--fiori-border);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary { background: var(--fiori-primary); color: white; }
+        .btn-secondary { background: white; border-color: var(--fiori-border); color: #64748b; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; color: #475569; }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--fiori-border);
+            border-radius: 0;
+            outline: none;
+            font-family: inherit;
+        }
+        input:focus { border-color: var(--fiori-primary); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1); }
+
+        .ot-info-card {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        .step-list-item {
+            background: #f8fafc;
+            border: 1px solid var(--fiori-border);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .risk-eval-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 1rem;
+            align-items: end;
+            margin-top: 1rem;
+            background: white;
+            padding: 1rem;
+            border: 1px dashed #cbd5e1;
+        }
+
+        .risk-badge {
+            padding: 0.25rem 0.5rem;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-align: center;
+        }
+        .risk-BAJO { background: #dcfce7; color: #166534; }
+        .risk-MEDIO { background: #fef9c3; color: #854d0e; }
+        .risk-ALTO { background: #ffedd5; color: #9a3412; }
+        .risk-CRITICO { background: #fee2e2; color: #991b1b; }
+
+        .control-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .control-chip {
+            background: #e2e8f0;
+            padding: 2px 10px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .control-chip .remove { cursor: pointer; color: var(--fiori-error); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <header>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <h2>Análisis de Seguridad en el Trabajo (AST)</h2>
+        </div>
+        <a href="{% url 'seguridad:dashboard' %}" style="color: white; text-decoration: none; font-size: 0.9rem;">Cancelar</a>
+    </header>
+
+    <div class="wizard-container">
+        <div class="wizard-steps" id="wizardSteps">
+            <div class="step-indicator active" data-step="1">
+                <div class="step-circle">1</div>
+                <span>Contexto</span>
+            </div>
+            <div class="step-indicator" data-step="2">
+                <div class="step-circle">2</div>
+                <span>Pasos</span>
+            </div>
+            <div class="step-indicator" data-step="3">
+                <div class="step-circle">3</div>
+                <span>Riesgos</span>
+            </div>
+            <div class="step-indicator" data-step="4">
+                <div class="step-circle">4</div>
+                <span>Revisión</span>
+            </div>
+        </div>
+
+        <div class="wizard-content">
+            <!-- Step 1: Contexto -->
+            <div class="step-panel active" id="step1">
+                <h3 style="margin-bottom: 1.5rem;">Información del Trabajo</h3>
+                
+                {% if ot %}
+                <div class="ot-info-card">
+                    <strong>Vincular con Orden de Trabajo:</strong> OT-{{ ot.id|unlocalize }}<br>
+                    <strong>Ubicación:</strong> {{ ot.ubicacion.nombre }}<br>
+                    <strong>Activo:</strong> {{ ot.activo.nombre|default:"N/A" }}
+                </div>
+                {% else %}
+                <div class="form-group">
+                    <label>Vincular a Orden de Trabajo (Solo las que requieren permiso)</label>
+                    <select id="ast-ot-id" class="ot-select">
+                        <option value="">-- Seleccione una OT (Opcional) --</option>
+                        {% for pending_ot in ots_pendientes %}
+                        <option value="{{ pending_ot.id|unlocalize }}">OT-{{ pending_ot.id|unlocalize }}: {{ pending_ot.descripcion|truncatechars:80 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="form-group">
+                    <label>Descripción General del Trabajo</label>
+                    <textarea id="ast-descripcion" rows="3" placeholder="Ej: Mantenimiento preventivo de transformador de potencia...">{% if ot %}{% if ot.descripcion_detallada %}{{ ot.descripcion_detallada }}{% else %}{{ ot.descripcion_corta }}{% endif %}{% endif %}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Líder del Trabajo (Responsable)</label>
+                    <input type="text" value="{{ user.get_full_name }}" readonly style="background: #f1f5f9;">
+                </div>
+            </div>
+
+            <!-- Step 2: Pasos -->
+            <div class="step-panel" id="step2">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3>Desglose de Pasos</h3>
+                    <button class="btn btn-secondary" onclick="addPaso()">+ Agregar Paso</button>
+                </div>
+                <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 1.5rem;">Divida el trabajo en los pasos lógicos que se seguirán.</p>
+                
+                <div id="pasos-container">
+                    <!-- Dinámico -->
+                </div>
+            </div>
+
+            <!-- Step 3: Riesgos y Controles -->
+            <div class="step-panel" id="step3">
+                <h3>Identificación de Riesgos y Controles</h3>
+                <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 1.5rem;">Por cada paso, asigne los peligros identificados y las medidas para mitigarlos.</p>
+                
+                <div id="riesgos-container">
+                    <!-- Dinámico basado en Pasos -->
+                </div>
+            </div>
+
+            <!-- Step 4: Revisión -->
+            <div class="step-panel" id="step4">
+                <h3>Resumen del Análisis</h3>
+                <div id="review-content" style="margin-top: 1.5rem;">
+                    <!-- Resumen dinámico -->
+                </div>
+            </div>
+        </div>
+
+        <div class="wizard-footer">
+            <button class="btn btn-secondary" id="btnPrev" disabled onclick="changeStep(-1)">Anterior</button>
+            <button class="btn btn-primary" id="btnNext" onclick="changeStep(1)">Siguiente</button>
+            <button class="btn btn-primary" id="btnFinish" style="display: none;" onclick="saveAST()">Finalizar y Guardar</button>
+        </div>
+    </div>
+
+    <!-- Modales / Plantillas Ocultas -->
+    <template id="paso-template">
+        <div class="step-list-item" data-index="${index}">
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <span style="font-weight: 700; color: var(--fiori-primary); min-width: 25px;">${index + 1}.</span>
+                <input type="text" class="paso-text" placeholder="Ej: Apertura de gabinete de control" oninput="updatePasoData(${index}, this.value)">
+                <button class="btn" style="color: var(--fiori-error); padding: 5px;" onclick="removePaso(${index})">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <template id="riesgo-item-template">
+        <div class="risk-eval-grid" data-riesgo-index="${rIndex}">
+            <div class="form-group" style="margin:0">
+                <label>Peligro</label>
+                <select class="peligro-select" onchange="updateRiesgo(${pIndex}, ${rIndex}, 'peligro_id', this.value)">
+                    <option value="">-- Seleccionar --</option>
+                    {% for p in peligros_cat %}
+                    <option value="{{ p.id }}">{{ p.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Prob.</label>
+                <select class="prob-select" onchange="updateRiesgo(${pIndex}, ${rIndex}, 'probabilidad', this.value)">
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label>Cons.</label>
+                <select class="cons-select" onchange="updateRiesgo(${pIndex}, ${rIndex}, 'consecuencia', this.value)">
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                </select>
+            </div>
+            <div class="risk-result" style="padding-bottom: 10px;">
+                <div class="risk-badge risk-BAJO">BAJO</div>
+            </div>
+            <div style="grid-column: span 4; margin-top: 10px;">
+                <label>Controles Aplicables</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <select class="control-select" style="flex:1">
+                        <option value="">-- Añadir Control --</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="addControlToRiesgo(${pIndex}, ${rIndex})">Añadir</button>
+                </div>
+                <div class="control-chips" id="chips-${pIndex}-${rIndex}"></div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        let currentStep = 1;
+        let astData = {
+            descripcion: '',
+            ot_id: '{{ ot.id|unlocalize|default:"" }}',
+            ubicacion_id: '{{ ot.ubicacion.id|unlocalize|default:"" }}',
+            pasos: []
+        };
+
+        const peligrosInfo = {
+            {% for p in peligros_cat %} "{{ p.id }}": "{{ p.nombre }}", {% endfor %}
+        };
+        const controlesInfo = {
+            {% for c in controles_cat %} "{{ c.id }}": "{{ c.nombre }}", {% endfor %}
+        };
+        const peligroControlesMap = {{ peligros_controles_map_json|safe }};
+
+        function addPaso() {
+            astData.pasos.push({ descripcion: '', riesgos: [] });
+            renderPasos();
+        }
+
+        function removePaso(index) {
+            astData.pasos.splice(index, 1);
+            renderPasos();
+        }
+
+        function updatePasoData(index, value) {
+            astData.pasos[index].descripcion = value;
+        }
+
+        function renderPasos() {
+            const container = document.getElementById('pasos-container');
+            container.innerHTML = '';
+            const template = document.getElementById('paso-template').innerHTML;
+            
+            astData.pasos.forEach((paso, i) => {
+                let html = template.replace(/\${index}/g, i).replace(/\${index \+ 1}/g, i + 1);
+                container.insertAdjacentHTML('beforeend', html);
+                container.querySelector(`[data-index="${i}"] input`).value = paso.descripcion;
+            });
+        }
+
+        function changeStep(delta) {
+            if (delta === 1 && !validateCurrentStep()) return;
+            
+            document.getElementById(`step${currentStep}`).classList.remove('active');
+            document.querySelector(`.step-indicator[data-step="${currentStep}"]`).classList.remove('active');
+            document.querySelector(`.step-indicator[data-step="${currentStep}"]`).classList.add('completed');
+            
+            currentStep += delta;
+            
+            document.getElementById(`step${currentStep}`).classList.add('active');
+            document.querySelector(`.step-indicator[data-step="${currentStep}"]`).classList.add('active');
+            
+            updateFooter();
+            if (currentStep === 3) renderRiesgosStep();
+            if (currentStep === 4) renderReview();
+        }
+
+        function validateCurrentStep() {
+            if (currentStep === 1) {
+                astData.descripcion = document.getElementById('ast-descripcion').value;
+                if (!astData.descripcion) {
+                    Swal.fire('Atención', 'Por favor ingrese la descripción del trabajo', 'warning');
+                    return false;
+                }
+                
+                const otSelect = document.getElementById('ast-ot-id');
+                if (otSelect) {
+                    astData.ot_id = otSelect.value;
+                }
+            }
+            if (currentStep === 2) {
+                if (astData.pasos.length === 0) {
+                    Swal.fire('Atención', 'Debe agregar al menos un paso de trabajo', 'warning');
+                    return false;
+                }
+                if (astData.pasos.some(p => !p.descripcion)) {
+                    Swal.fire('Atención', 'Todos los pasos deben tener descripción', 'warning');
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function updateFooter() {
+            document.getElementById('btnPrev').disabled = currentStep === 1;
+            document.getElementById('btnNext').style.display = currentStep === 4 ? 'none' : 'inline-flex';
+            document.getElementById('btnFinish').style.display = currentStep === 4 ? 'inline-flex' : 'none';
+        }
+
+        function renderRiesgosStep() {
+            const container = document.getElementById('riesgos-container');
+            container.innerHTML = '';
+            
+            astData.pasos.forEach((paso, pIdx) => {
+                const pasoDiv = document.createElement('div');
+                pasoDiv.style.marginBottom = '2rem';
+                pasoDiv.innerHTML = `
+                    <div style="background: var(--fiori-shell-color); color: white; padding: 0.5rem 1rem; font-weight: 600;">
+                        Paso ${pIdx + 1}: ${paso.descripcion}
+                    </div>
+                    <div id="riesgos-paso-${pIdx}" style="padding: 1rem; border: 1px solid var(--fiori-border); border-top: none;">
+                    </div>
+                    <button class="btn btn-secondary" style="width:100%; border-top: none; font-size: 0.8rem;" onclick="addRiesgoToPaso(${pIdx})">+ Identificar Peligro</button>
+                `;
+                container.appendChild(pasoDiv);
+                renderRiesgosDePaso(pIdx);
+            });
+        }
+
+        function addRiesgoToPaso(pIdx) {
+            astData.pasos[pIdx].riesgos.push({
+                peligro_id: '',
+                probabilidad: 1,
+                consecuencia: 1,
+                controles_ids: []
+            });
+            renderRiesgosDePaso(pIdx);
+        }
+
+        function updateControlDropdown(row, peligro_id) {
+            const select = row.querySelector('.control-select');
+            select.innerHTML = '<option value="">-- Añadir Control --</option>';
+            if (!peligro_id) {
+                // Si no hay peligro seleccionado, se podrían mostrar todos o dejarlo vacío.
+                // Lo dejamos vacío para obligar a seleccionar peligro.
+                return;
+            }
+            const allowedIds = peligroControlesMap[peligro_id] || [];
+            allowedIds.forEach(cid => {
+                const opt = document.createElement('option');
+                opt.value = cid;
+                opt.textContent = controlesInfo[cid];
+                select.appendChild(opt);
+            });
+        }
+
+        function renderRiesgosDePaso(pIdx) {
+            const container = document.getElementById(`riesgos-paso-${pIdx}`);
+            container.innerHTML = '';
+            const template = document.getElementById('riesgo-item-template').innerHTML;
+            
+            astData.pasos[pIdx].riesgos.forEach((riesgo, rIdx) => {
+                let html = template.replace(/\${pIndex}/g, pIdx).replace(/\${rIndex}/g, rIdx);
+                container.insertAdjacentHTML('beforeend', html);
+                
+                const row = container.querySelector(`[data-riesgo-index="${rIdx}"]`);
+                row.querySelector('.peligro-select').value = riesgo.peligro_id;
+                row.querySelector('.prob-select').value = riesgo.probabilidad;
+                row.querySelector('.cons-select').value = riesgo.consecuencia;
+                
+                updateControlDropdown(row, riesgo.peligro_id);
+                updateRiskBadge(row, riesgo.probabilidad, riesgo.consecuencia);
+                renderChips(pIdx, rIdx);
+            });
+        }
+
+        function updateRiesgo(pIdx, rIdx, field, value) {
+            astData.pasos[pIdx].riesgos[rIdx][field] = value;
+            const row = document.querySelector(`#riesgos-paso-${pIdx} [data-riesgo-index="${rIdx}"]`);
+            if (field === 'probabilidad' || field === 'consecuencia') {
+                updateRiskBadge(row, astData.pasos[pIdx].riesgos[rIdx].probabilidad, astData.pasos[pIdx].riesgos[rIdx].consecuencia);
+            } else if (field === 'peligro_id') {
+                // Limpiar controles seleccionados si cambia el peligro
+                astData.pasos[pIdx].riesgos[rIdx].controles_ids = [];
+                renderChips(pIdx, rIdx);
+                updateControlDropdown(row, value);
+            }
+        }
+
+        function updateRiskBadge(row, p, c) {
+            const val = p * c;
+            let label = 'BAJO', cls = 'risk-BAJO';
+            if (val > 16) { label = 'CRITICO'; cls = 'risk-CRITICO'; }
+            else if (val > 9) { label = 'ALTO'; cls = 'risk-ALTO'; }
+            else if (val > 4) { label = 'MEDIO'; cls = 'risk-MEDIO'; }
+            
+            const badge = row.querySelector('.risk-result');
+            badge.innerHTML = `<div class="risk-badge ${cls}">${label}</div>`;
+        }
+
+        function addControlToRiesgo(pIdx, rIdx) {
+            const row = document.querySelector(`#riesgos-paso-${pIdx} [data-riesgo-index="${rIdx}"]`);
+            const select = row.querySelector('.control-select');
+            const cid = select.value;
+            if (!cid) return;
+            
+            if (!astData.pasos[pIdx].riesgos[rIdx].controles_ids.includes(cid)) {
+                astData.pasos[pIdx].riesgos[rIdx].controles_ids.push(cid);
+                renderChips(pIdx, rIdx);
+            }
+            select.value = '';
+        }
+
+        function renderChips(pIdx, rIdx) {
+            const container = document.getElementById(`chips-${pIdx}-${rIdx}`);
+            container.innerHTML = '';
+            astData.pasos[pIdx].riesgos[rIdx].controles_ids.forEach(cid => {
+                const chip = document.createElement('div');
+                chip.className = 'control-chip';
+                chip.innerHTML = `
+                    ${controlesInfo[cid]} 
+                    <span class="remove" onclick="removeControl(${pIdx}, ${rIdx}, '${cid}')">&times;</span>
+                `;
+                container.appendChild(chip);
+            });
+        }
+
+        function removeControl(pIdx, rIdx, cid) {
+            astData.pasos[pIdx].riesgos[rIdx].controles_ids = astData.pasos[pIdx].riesgos[rIdx].controles_ids.filter(id => id !== cid);
+            renderChips(pIdx, rIdx);
+        }
+
+        function renderReview() {
+            const container = document.getElementById('review-content');
+            let html = `
+                <div style="background: #f8fafc; padding: 1.5rem; border: 1px solid var(--fiori-border);">
+                    <h4 style="margin-bottom:0.5rem">Detalles del Trabajo</h4>
+                    <p>${astData.descripcion}</p>
+                    <hr style="margin: 1rem 0; border: none; border-top: 1px solid #e2e8f0;">
+                    <h4 style="margin-bottom:1rem">Análisis de Pasos y Riesgos</h4>
+            `;
+
+            astData.pasos.forEach((p, i) => {
+                html += `
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: 700; color: var(--fiori-primary); margin-bottom: 0.5rem;">${i+1}. ${p.descripcion}</div>
+                        <ul style="list-style: none; padding-left: 1.5rem;">
+                `;
+                p.riesgos.forEach(r => {
+                    const val = r.probabilidad * r.consecuencia;
+                    let label = 'Bajo';
+                    if (val > 16) label = 'Crítico'; else if (val > 9) label = 'Alto'; else if (val > 4) label = 'Medio';
+                    
+                    html += `
+                        <li style="margin-bottom: 0.75rem; font-size: 0.9rem;">
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <strong>⚠️ ${peligrosInfo[r.peligro_id] || 'Peligro Manual'}</strong>
+                                <span class="risk-badge risk-${label.toUpperCase()}">${label}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px;">
+                                Controles: ${r.controles_ids.map(cid => controlesInfo[cid]).join(', ') || 'Sin controles asignados'}
+                            </div>
+                        </li>
+                    `;
+                });
+                html += `</ul></div>`;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        async function saveAST() {
+            Swal.fire({
+                title: '¿Guardar Análisis?',
+                text: "Se generará el registro oficial de seguridad.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, guardar',
+                cancelButtonText: 'Revisar',
+                confirmButtonColor: '#10b981'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch('{% url "seguridad:save_ast_ajax" %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify(astData)
+                        });
+                        const data = await response.json();
+                        if (data.status === 'success') {
+                            Swal.fire({
+                                title: '¡Éxito!',
+                                text: 'El AST ha sido guardado correctamente.',
+                                icon: 'success'
+                            }).then(() => {
+                                window.location.href = "{% url 'seguridad:dashboard' %}";
+                            });
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    } catch (e) {
+                        Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
+                    }
+                }
+            });
+        }
+
+        // Initialize first step
+        addPaso();
+    </script>
+</body>
+</html>

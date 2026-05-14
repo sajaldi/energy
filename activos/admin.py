@@ -9,7 +9,7 @@ from import_export.admin import ImportExportModelAdmin, ImportExportMixin, Impor
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal, DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja, FotoUbicacion, ReporteGenerado, DowntimeActivo
+from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal, DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja, FotoUbicacion, ReporteGenerado, DowntimeActivo, CaracteristicaCategoria, ValorCaracteristicaModelo
 
 @admin.register(ReporteGenerado)
 class ReporteGeneradoAdmin(admin.ModelAdmin):
@@ -313,11 +313,24 @@ class PinPlanoAdmin(admin.ModelAdmin):
     search_fields = ('visor__nombre', 'activo__nombre')
     autocomplete_fields = ['activo', 'visor']
 
+@admin.register(CaracteristicaCategoria)
+class CaracteristicaCategoriaAdmin(ImportExportModelAdmin):
+    list_per_page = 50
+    list_display = ('nombre', 'categoria', 'tipo_dato', 'requerido', 'unidad_medida')
+    list_filter = ('categoria', 'tipo_dato', 'requerido')
+    search_fields = ('nombre', 'categoria__nombre')
+    autocomplete_fields = ('categoria',)
+
+class CaracteristicaCategoriaInline(admin.TabularInline):
+    model = CaracteristicaCategoria
+    extra = 1
+
 @admin.register(Categoria)
 class CategoriaAdmin(ImportExportModelAdmin):
     list_per_page = 50
     list_display = ('nombre', 'icono', 'descripcion', 'cantidad_activos')
     search_fields = ('nombre',)
+    inlines = [CaracteristicaCategoriaInline]
     change_form_template = 'admin/activos/categoria/change_form.html'
     change_list_template = 'admin/activos/categoria/change_list.html'
 
@@ -465,6 +478,10 @@ class MarcaAdmin(ImportExportModelAdmin):
             'all': ('core/css/brand_tree.css',)
         }
 
+class ValorCaracteristicaModeloInline(admin.TabularInline):
+    model = ValorCaracteristicaModelo
+    extra = 1
+
 @admin.register(Modelo)
 class ModeloAdmin(ImportExportModelAdmin):
     list_per_page = 50
@@ -473,7 +490,7 @@ class ModeloAdmin(ImportExportModelAdmin):
     list_filter = ('marca', 'categoria')
     list_select_related = ('marca', 'categoria')
     autocomplete_fields = ('marca', 'categoria')
-    inlines = [CompatibilidadMaterialInline]
+    inlines = [CompatibilidadMaterialInline, ValorCaracteristicaModeloInline]
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}

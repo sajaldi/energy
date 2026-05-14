@@ -652,12 +652,14 @@ def ticket_dashboard_view(request):
     """
     Dashboard principal de tickets y grupos (clusters).
     """
-    from .models import SolicitudTicket, GrupoTicket, FallaTicket
     from django.db.models import Count, Q
+    from datetime import datetime
+    
+    from core.models import Departamento
     from activos.models.ubicacion import Ubicacion
     from activos.models.categoria import Categoria
-    from datetime import datetime
-    import json
+    from callcenter.models import SolicitudTicket, GrupoTicket, FallaTicket
+    from django.core.cache import cache
 
     # --- Filtros de Fecha ---
     ticket_qs = get_filtered_ticket_qs(request)
@@ -666,203 +668,182 @@ def ticket_dashboard_view(request):
     fecha_inicio_str = request.GET.get('fecha_inicio')
     fecha_fin_str = request.GET.get('fecha_fin')
 
-    # Métricas Globales (Filtradas)
-    total_tickets = ticket_qs.count()
-    tickets_cerrados = ticket_qs.filter(
-        Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)
-    ).count()
+    # Métricas Globales (Filtradas en una sola query)
+    metrics = ticket_qs.aggregate(
+        total=Count('id'),
+        cerrados=Count('id', filter=Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True))
+    )
+    total_tickets = metrics['total'] or 0
+    tickets_cerrados = metrics['cerrados'] or 0
     tickets_abiertos = total_tickets - tickets_cerrados
     
-    # Grupos Recientes (Podrían filtrarse también, pero usualmente se quieren ver los últimos generados)
-    grupos = GrupoTicket.objects.annotate(
-        num_tickets=Count('tickets'),
-        num_cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True)),
-        num_abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False))
-    ).order_by('-fecha')[:12]
-
-    # --- AGREGACIÓN MULTIDIMENSIONAL (Depto -> Falla -> Ubicación) ---
-    # 1. Obtener conteos base por (Depto, Falla, Ubicación)
-    raw_stats = ticket_qs.values(
-        'falla_reportada__departamento_responsable_id',
-        'falla_reportada_id', 
-        'ubicacion_id'
-    ).annotate(
-        t_total=Count('id'),
-        t_abiertos=Count('id', filter=Q(fecha_cierre__isnull=True) & Q(cierre_enviado=False)),
-        t_cerrados=Count('id', filter=Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True))
-    )
-
-    # 2. Cargar Catálogos
-    from core.models import Departamento
-    deptos = {d.id: d for d in Departamento.objects.all()}
-    fallas = {f.id: f for f in FallaTicket.objects.all()}
-    ubicaciones = {u.id: u for u in Ubicacion.objects.all()}
-
-    # 3. Organizar datos por Depto -> Falla -> Loc
-    # d_data[depto_id][falla_id] = { stats, locs: {uid: stats} }
-    d_data = {}
+    # --- CACHE PARA DATOS PESADOS (Clusters y Árbol) ---
+    cache_key = f"ticket_dashboard_heavy_{request.user.id}_{fecha_inicio_str}_{fecha_fin_str}"
+    cached_data = cache.get(cache_key)
     
-    for stat in raw_stats:
-        did = stat['falla_reportada__departamento_responsable_id']
-        fid = stat['falla_reportada_id']
-        uid = stat['ubicacion_id']
-        
-        if not did: did = 0 # "Sin Departamento"
-        if not fid: continue
-        
-        if did not in d_data:
-            d_data[did] = {}
-        
-        if fid not in d_data[did]:
-            d_data[did][fid] = {'total': 0, 'abiertos': 0, 'cerrados': 0, 'locs': {}}
-        
-        d_data[did][fid]['total'] += stat['t_total']
-        d_data[did][fid]['abiertos'] += stat['t_abiertos']
-        d_data[did][fid]['cerrados'] += stat['t_cerrados']
-        
-        if uid:
-            if uid not in d_data[did][fid]['locs']:
-                d_data[did][fid]['locs'][uid] = {'total': 0, 'abiertos': 0, 'cerrados': 0}
-            d_data[did][fid]['locs'][uid]['total'] += stat['t_total']
-            d_data[did][fid]['locs'][uid]['abiertos'] += stat['t_abiertos']
-            d_data[did][fid]['locs'][uid]['cerrados'] += stat['t_cerrados']
+    if cached_data:
+        grupos_por_depto = cached_data['grupos_por_depto']
+        flat_nodes = cached_data['flat_nodes']
+    else:
+        # 2. Cargar Catálogos (Necesarios para clusters y árbol)
+        deptos = {d.id: d for d in Departamento.objects.all()}
+        fallas = {f.id: f for f in FallaTicket.objects.all()}
+        ubicaciones = {u.id: u for u in Ubicacion.objects.all()}
 
-    # Función para construir jerarquía de ubicaciones (con ancestros)
-    def build_loc_tree(loc_stats, offset_level, parent_dom_id):
-        # 1. Identificar todas las ubicaciones involucradas y sus ancestros
-        relevant_uids = set(loc_stats.keys())
-        all_uids = set()
-        for uid in relevant_uids:
-            curr = uid
-            while curr:
-                all_uids.add(curr)
-                u_obj = ubicaciones.get(curr)
-                curr = u_obj.padre_id if u_obj else None
+        # Grupos Recientes
+        raw_grupos_qs = GrupoTicket.objects.annotate(
+            num_tickets=Count('tickets'),
+            num_cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True)),
+            num_abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False))
+        ).select_related('usuario_creador', 'departamento', 'usuario_creador__perfil')
+
+        # Seguridad: Filtrar por departamento
+        perfil = getattr(request.user, 'perfil', None)
+        user_depto_id = perfil.departamento_id if perfil else None
         
-        # 2. Inicializar nodos
-        u_nodes = {uid: {
-            'id': uid, 'nombre': ubicaciones[uid].nombre, 'padre_id': ubicaciones[uid].padre_id,
-            'total': loc_stats.get(uid, {}).get('total', 0),
-            'abiertos': loc_stats.get(uid, {}).get('abiertos', 0),
-            'cerrados': loc_stats.get(uid, {}).get('cerrados', 0),
-            'children': [], 'is_loc': True,
-            'dom_id': f"{parent_dom_id}-loc-{uid}" # Único por contexto
-        } for uid in all_uids if uid in ubicaciones}
-        
-        # 3. Vincular padres e hijos
-        u_roots = []
-        for uid, node in u_nodes.items():
-            if node['padre_id'] and node['padre_id'] in u_nodes:
-                node['dom_parent_id'] = node['dom_id'].replace(f"-loc-{uid}", f"-loc-{node['padre_id']}")
-                u_nodes[node['padre_id']]['children'].append(node)
-            else:
-                node['dom_parent_id'] = parent_dom_id
-                u_roots.append(node)
+        if not request.user.is_superuser and user_depto_id:
+            raw_grupos_qs = raw_grupos_qs.filter(
+                Q(departamento_id=user_depto_id) | 
+                Q(usuario_creador__perfil__departamento_id=user_depto_id)
+            )
+        elif not request.user.is_superuser and not user_depto_id:
+            raw_grupos_qs = raw_grupos_qs.none()
+
+        raw_grupos = raw_grupos_qs.order_by('-fecha')[:20]
+
+        # Agrupar grupos por departamento
+        grupos_por_depto = {}
+        for g in raw_grupos:
+            did = g.departamento_id
+            if not did and g.usuario_creador:
+                pc = getattr(g.usuario_creador, 'perfil', None)
+                did = pc.departamento_id if pc else None
             
-        def acc_u(node, level):
-            node['level'] = level
-            # Asegurar que dom_parent_id sea correcto si es raíz
-            if 'dom_parent_id' not in node: node['dom_parent_id'] = parent_dom_id
-            for c in node['children']:
-                cs = acc_u(c, level + 1)
-                node['total'] += cs['total']; node['abiertos'] += cs['abiertos']; node['cerrados'] += cs['cerrados']
-            return node
-        
-        for r in u_roots: acc_u(r, offset_level)
-        return u_roots
-
-    # Función para construir jerarquía de fallas dentro de un depto (con ancestros)
-    def build_falla_tree(f_stats_dict, offset_level, parent_dom_id):
-        # 1. Identificar todas las fallas involucradas y sus ancestros
-        relevant_fids = set(f_stats_dict.keys())
-        all_fids = set()
-        for fid in relevant_fids:
-            curr = fid
-            while curr:
-                all_fids.add(curr); f_obj = fallas.get(curr)
-                curr = f_obj.parent_id if f_obj else None
-        
-        # 2. Inicializar nodos
-        f_nodes = {fid: {
-            'id': fid, 'nombre': fallas[fid].nombre, 'padre_id': fallas[fid].parent_id,
-            'total': f_stats_dict.get(fid, {}).get('total', 0),
-            'abiertos': f_stats_dict.get(fid, {}).get('abiertos', 0),
-            'cerrados': f_stats_dict.get(fid, {}).get('cerrados', 0),
-            'children': [], 'loc_stats': f_stats_dict.get(fid, {}).get('locs', {}),
-            'is_falla': True,
-            'dom_id': f"{parent_dom_id}-fail-{fid}" # Único por depto
-        } for fid in all_fids if fid in fallas}
-        
-        # 3. Vincular padres e hijos
-        f_roots = []
-        for fid, node in f_nodes.items():
-            if node['padre_id'] and node['padre_id'] in f_nodes:
-                node['dom_parent_id'] = node['dom_id'].replace(f"-fail-{fid}", f"-fail-{node['padre_id']}")
-                f_nodes[node['padre_id']]['children'].append(node)
-            else:
-                node['dom_parent_id'] = parent_dom_id
-                f_roots.append(node)
+            if not did:
+                main_depto_info = g.tickets.values('falla_reportada__departamento_responsable_id').annotate(
+                    count=Count('id')
+                ).order_by('-count').first()
+                did = main_depto_info['falla_reportada__departamento_responsable_id'] if main_depto_info else 0
             
-        def acc_f(node, level):
-            node['level'] = level
-            if 'dom_parent_id' not in node: node['dom_parent_id'] = parent_dom_id
-            for c in node['children']:
-                cs = acc_f(c, level + 1)
-                node['total'] += cs['total']; node['abiertos'] += cs['abiertos']; node['cerrados'] += cs['cerrados']
-                # Acumular loc_stats hacia arriba para que los padres también tengan el árbol de ubicaciones completo
-                for lid, ls in cs['loc_stats'].items():
-                    if lid not in node['loc_stats']: node['loc_stats'][lid] = {'total':0,'abiertos':0,'cerrados':0}
-                    node['loc_stats'][lid]['total'] += ls['total']
-                    node['loc_stats'][lid]['abiertos'] += ls['abiertos']
-                    node['loc_stats'][lid]['cerrados'] += ls['cerrados']
-            
-            # Construir el árbol de ubicaciones para este nodo de falla
-            node['loc_tree'] = build_loc_tree(node['loc_stats'], node['level'] + 1, node['dom_id'])
-            return node
-            
-        for r in f_roots: acc_f(r, offset_level)
-        return f_roots
+            if not did: did = 0
+            depto_obj = deptos.get(did)
+            depto_name = depto_obj.nombre if depto_obj else "Sin Departamento"
+            if depto_name not in grupos_por_depto:
+                grupos_por_depto[depto_name] = []
+            grupos_por_depto[depto_name].append(g)
 
-    # --- CATEGORÍAS (Para Gráfica) ---
-    categorias_stats = Categoria.objects.filter(ubicaciones__tickets__isnull=False).annotate(
-        total_tickets=Count('ubicaciones__tickets')
-    ).order_by('-total_tickets')
-    cat_labels = [c.nombre for c in categorias_stats]
-    cat_data = [c.total_tickets for c in categorias_stats]
+        # --- AGREGACIÓN MULTIDIMENSIONAL ---
+        raw_stats = ticket_qs.values(
+            'falla_reportada__departamento_responsable_id',
+            'falla_reportada_id', 
+            'ubicacion_id'
+        ).annotate(
+            t_total=Count('id'),
+            t_abiertos=Count('id', filter=Q(fecha_cierre__isnull=True) & Q(cierre_enviado=False)),
+            t_cerrados=Count('id', filter=Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True))
+        )
 
-    # --- FLATTEN THE TREE ---
-    def flatten_tree(nodes, flattened_list):
-        for node in nodes:
-            flattened_list.append(node)
-            if 'children' in node and node['children']:
-                flatten_tree(node['children'], flattened_list)
-            if 'loc_tree' in node and node['loc_tree']:
-                flatten_tree(node['loc_tree'], flattened_list)
-    
-    # Construir el árbol final de Departamentos
-    temp_tree = []
-    for did, f_stats in d_data.items():
-        depto_name = deptos[did].nombre if did in deptos else "Sin Departamento"
-        depto_dom_id = f"dep-{did}"
-        d_node = {
-            'id': did, 'nombre': depto_name, 'is_depto': True, 'level': 0, 'total': 0, 'abiertos': 0, 'cerrados': 0,
-            'dom_id': depto_dom_id, 'dom_parent_id': 'none',
-            'children': build_falla_tree(f_stats, 1, depto_dom_id)
-        }
-        for fn in d_node['children']:
-            d_node['total'] += fn['total']; d_node['abiertos'] += fn['abiertos']; d_node['cerrados'] += fn['cerrados']
-        if d_node['total'] > 0: temp_tree.append(d_node)
+        d_data = {}
+        for stat in raw_stats:
+            did = stat['falla_reportada__departamento_responsable_id'] or 0
+            fid = stat['falla_reportada_id']
+            uid = stat['ubicacion_id']
+            if not fid: continue
+            if did not in d_data: d_data[did] = {}
+            if fid not in d_data[did]: d_data[did][fid] = {'total': 0, 'abiertos': 0, 'cerrados': 0, 'locs': {}}
+            d_data[did][fid]['total'] += stat['t_total']
+            d_data[did][fid]['abiertos'] += stat['t_abiertos']
+            d_data[did][fid]['cerrados'] += stat['t_cerrados']
+            if uid:
+                if uid not in d_data[did][fid]['locs']: d_data[did][fid]['locs'][uid] = {'total': 0, 'abiertos': 0, 'cerrados': 0}
+                d_data[did][fid]['locs'][uid]['total'] += stat['t_total']
+                d_data[did][fid]['locs'][uid]['abiertos'] += stat['t_abiertos']
+                d_data[did][fid]['locs'][uid]['cerrados'] += stat['t_cerrados']
 
-    temp_tree.sort(key=lambda x: x['total'], reverse=True)
-    
-    flat_nodes = []
-    flatten_tree(temp_tree, flat_nodes)
-    
+        def build_loc_tree(loc_stats, offset_level, parent_dom_id):
+            relevant_uids = set(loc_stats.keys()); all_uids = set()
+            for uid in relevant_uids:
+                curr = uid
+                while curr:
+                    all_uids.add(curr); u_obj = ubicaciones.get(curr); curr = u_obj.padre_id if u_obj else None
+            u_nodes = {uid: {'id': uid, 'nombre': ubicaciones[uid].nombre, 'padre_id': ubicaciones[uid].padre_id, 'total': loc_stats.get(uid, {}).get('total', 0), 'abiertos': loc_stats.get(uid, {}).get('abiertos', 0), 'cerrados': loc_stats.get(uid, {}).get('cerrados', 0), 'children': [], 'is_loc': True, 'dom_id': f"{parent_dom_id}-loc-{uid}"} for uid in all_uids if uid in ubicaciones}
+            u_roots = []
+            for uid, node in u_nodes.items():
+                if node['padre_id'] and node['padre_id'] in u_nodes:
+                    node['dom_parent_id'] = node['dom_id'].replace(f"-loc-{uid}", f"-loc-{node['padre_id']}")
+                    u_nodes[node['padre_id']]['children'].append(node)
+                else: node['dom_parent_id'] = parent_dom_id; u_roots.append(node)
+            def acc_u(node, level):
+                node['level'] = level
+                for c in node['children']:
+                    cs = acc_u(c, level + 1); node['total'] += cs['total']; node['abiertos'] += cs['abiertos']; node['cerrados'] += cs['cerrados']
+                return node
+            for r in u_roots: acc_u(r, offset_level)
+            return u_roots
+
+        def build_falla_tree(f_stats_dict, offset_level, parent_dom_id):
+            relevant_fids = set(f_stats_dict.keys()); all_fids = set()
+            for fid in relevant_fids:
+                curr = fid
+                while curr:
+                    all_fids.add(curr); f_obj = fallas.get(curr); curr = f_obj.parent_id if f_obj else None
+            f_nodes = {fid: {'id': fid, 'nombre': fallas[fid].nombre, 'padre_id': fallas[fid].parent_id, 'total': f_stats_dict.get(fid, {}).get('total', 0), 'abiertos': f_stats_dict.get(fid, {}).get('abiertos', 0), 'cerrados': f_stats_dict.get(fid, {}).get('cerrados', 0), 'children': [], 'loc_stats': f_stats_dict.get(fid, {}).get('locs', {}), 'is_falla': True, 'dom_id': f"{parent_dom_id}-fail-{fid}"} for fid in all_fids if fid in fallas}
+            f_roots = []
+            for fid, node in f_nodes.items():
+                if node['padre_id'] and node['padre_id'] in f_nodes:
+                    node['dom_parent_id'] = node['dom_id'].replace(f"-fail-{fid}", f"-fail-{node['padre_id']}")
+                    f_nodes[node['padre_id']]['children'].append(node)
+                else: node['dom_parent_id'] = parent_dom_id; f_roots.append(node)
+            def acc_f(node, level):
+                node['level'] = level
+                for c in node['children']:
+                    cs = acc_f(c, level + 1); node['total'] += cs['total']; node['abiertos'] += cs['abiertos']; node['cerrados'] += cs['cerrados']
+                    for lid, ls in cs['loc_stats'].items():
+                        if lid not in node['loc_stats']: node['loc_stats'][lid] = {'total':0,'abiertos':0,'cerrados':0}
+                        node['loc_stats'][lid]['total'] += ls['total']; node['loc_stats'][lid]['abiertos'] += ls['abiertos']; node['loc_stats'][lid]['cerrados'] += ls['cerrados']
+                node['loc_tree'] = build_loc_tree(node['loc_stats'], node['level'] + 1, node['dom_id'])
+                return node
+            for r in f_roots: acc_f(r, offset_level)
+            return f_roots
+
+        def flatten_tree(nodes, flattened_list):
+            for node in nodes:
+                flattened_list.append(node)
+                if 'children' in node and node['children']: flatten_tree(node['children'], flattened_list)
+                if 'loc_tree' in node and node['loc_tree']: flatten_tree(node['loc_tree'], flattened_list)
+
+        temp_tree = []
+        for did, f_stats in d_data.items():
+            depto_name = deptos[did].nombre if did in deptos else "Sin Departamento"
+            depto_dom_id = f"dep-{did}"
+            d_node = {
+                'id': did, 'nombre': depto_name, 'is_depto': True, 'level': 0, 'total': 0, 'abiertos': 0, 'cerrados': 0,
+                'dom_id': depto_dom_id, 'dom_parent_id': 'none',
+                'children': build_falla_tree(f_stats, 1, depto_dom_id)
+            }
+            for fn in d_node['children']:
+                d_node['total'] += fn['total']; d_node['abiertos'] += fn['abiertos']; d_node['cerrados'] += fn['cerrados']
+            if d_node['total'] > 0: temp_tree.append(d_node)
+
+        temp_tree.sort(key=lambda x: x['total'], reverse=True)
+        flat_nodes = []
+        flatten_tree(temp_tree, flat_nodes)
+        
+        # Guardar en cache por 5 minutos
+        cache.set(cache_key, {'grupos_por_depto': grupos_por_depto, 'flat_nodes': flat_nodes}, 300)
+
+    # Gráficas (Optimizado: Agrupar desde tickets)
+    cat_stats = ticket_qs.filter(ubicacion__categoria__isnull=False).values('ubicacion__categoria__nombre').annotate(
+        total=Count('id')
+    ).order_by('-total')[:10]
+    cat_labels = [c['ubicacion__categoria__nombre'] for c in cat_stats]
+    cat_data = [c['total'] for c in cat_stats]
+
     context = {
         'total': total_tickets,
         'cerrados': tickets_cerrados,
         'abiertos': tickets_abiertos,
-        'grupos': grupos,
+        'grupos_por_depto': grupos_por_depto,
         'flat_nodes': flat_nodes,
         'cat_labels_json': json.dumps(cat_labels),
         'cat_data_json': json.dumps(cat_data),
@@ -889,7 +870,26 @@ def cluster_tickets_view(request, cluster_id):
     
     # Limpiar ID de posibles comas de formateo regional
     cluster_id = int(str(cluster_id).replace(',', ''))
-    cluster = get_object_or_404(GrupoTicket, id=cluster_id)
+    cluster = get_object_or_404(GrupoTicket.objects.select_related('usuario_creador', 'departamento'), id=cluster_id)
+    
+    # SEGURIDAD: Restricción por Departamento
+    if not request.user.is_superuser:
+        user_depto_id = getattr(request.user.perfil, 'departamento_id', None) if hasattr(request.user, 'perfil') else None
+        
+        if not user_depto_id:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("Tu usuario no tiene un departamento asignado. Contacta al administrador.")
+
+        # Obtener deptos vinculados al cluster
+        cluster_depto_id = cluster.departamento_id
+        creator_depto_id = None
+        if cluster.usuario_creador and hasattr(cluster.usuario_creador, 'perfil'):
+            creator_depto_id = cluster.usuario_creador.perfil.departamento_id
+            
+        # Si no coincide con ninguno, denegar acceso
+        if user_depto_id not in [cluster_depto_id, creator_depto_id]:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("No tienes permiso para acceder a este cluster (Restricción de Departamento).")
     
     # Parámetros de Filtro y Búsqueda
     q = request.GET.get('q', '').strip()
@@ -928,6 +928,13 @@ def cluster_tickets_view(request, cluster_id):
     # Filtro por Falla
     if falla_id:
         tickets = tickets.filter(falla_reportada_id=falla_id)
+
+    # Filtro por Interno/Externo
+    interno_filter = request.GET.get('interno')
+    if interno_filter == '1':
+        tickets = tickets.filter(es_interno=True)
+    elif interno_filter == '0':
+        tickets = tickets.filter(es_interno=False)
 
     # Obtener fallas únicas presentes en este cluster para el filtro
     fallas_ids = cluster.tickets.values_list('falla_reportada_id', flat=True).distinct()
@@ -1786,6 +1793,7 @@ def create_ticket_in_cluster_ajax(request, cluster_id):
         id_solicitud = data.get('id_solicitud')
         solicitante = data.get('solicitante', 'Manual')
         descripcion = data.get('descripcion', 'Sin descripción')
+        es_interno = data.get('es_interno', False)
         
         if not id_solicitud:
             return JsonResponse({'success': False, 'error': 'ID de Solicitud es requerido'})
@@ -1798,7 +1806,8 @@ def create_ticket_in_cluster_ajax(request, cluster_id):
             defaults={
                 'solicitante': solicitante,
                 'solicitud_descripcion': descripcion,
-                'fecha_solicitud': timezone.now()
+                'fecha_solicitud': timezone.now(),
+                'es_interno': es_interno
             }
         )
         

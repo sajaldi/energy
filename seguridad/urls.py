@@ -45,4 +45,10 @@ urlpatterns = [
     path('api/tipo-permiso/<int:pk>/', views.tipo_permiso_detail_api, name='tipo_permiso_detail_api'),
     path('api/tipo-permiso/save/', views.tipo_permiso_save_api, name='tipo_permiso_save_api'),
     path('api/tipo-permiso/requisitos/save/', views.tipo_permiso_requisitos_save_api, name='tipo_permiso_requisitos_save_api'),
+
+    # Análisis de Riesgos (AST) Wizard
+    path('ast/nuevo/', views.ast_wizard_view, name='ast_wizard'),
+    path('ast/nuevo/ot/<int:ot_id>/', views.ast_wizard_view, name='ast_wizard_ot'),
+    path('api/ast/save/', views.save_ast_ajax, name='save_ast_ajax'),
+    path('ast/ver/<int:ast_id>/', views.ast_view_partial, name='ast_view_partial'),
 ]

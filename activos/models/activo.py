@@ -29,6 +29,13 @@ class Modelo(models.Model):
     
     imagen_archivo = models.ImageField(upload_to='modelos_fotos/', blank=True, null=True, storage=minio_storage, help_text="Cargar imagen desde el equipo")
     imagen_url = models.URLField(max_length=500, blank=True, null=True, help_text="O pegar una URL externa de la imagen")
+    
+    materiales_compatibles = models.ManyToManyField(
+        'inventarios.Material', 
+        through='inventarios.CompatibilidadMaterial',
+        blank=True, 
+        related_name='modelos_compatibles_m2m'
+    )
 
     @property
     def imagen(self):

@@ -1,0 +1,158 @@
+{% load l10n %}
+<style>
+    .ast-modal-content { font-family: 'Inter', -apple-system, sans-serif; color: #334155; }
+    .ast-header { background: #1e293b; color: white; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .ast-header h3 { margin: 0; font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .ast-close-btn { background: rgba(255,255,255,0.1); border: none; color: white; width: 32px; height: 32px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+    .ast-close-btn:hover { background: rgba(255,255,255,0.2); }
+    .ast-body { padding: 24px; max-height: 70vh; overflow-y: auto; }
+    .ast-info-card { background: #eff6ff; border: 1px solid #bfdbfe; padding: 16px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ast-info-item label { display: block; font-size: 0.7rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .ast-info-item span { font-weight: 600; color: #0f172a; font-size: 0.9rem; }
+    .ast-desc-block { background: #f8fafc; border-left: 4px solid #2563eb; padding: 14px 18px; margin-bottom: 24px; font-size: 0.9rem; line-height: 1.6; color: #334155; }
+    .ast-step-header { background: #1e293b; color: white; padding: 10px 16px; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+    .ast-step-header .step-num { background: #2563eb; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; }
+    .ast-risk-card { border: 1px solid #e2e8f0; margin: 0; padding: 14px 16px; }
+    .ast-risk-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: center; }
+    .ast-risk-label { font-size: 0.72rem; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }
+    .ast-risk-value { font-weight: 600; font-size: 0.88rem; color: #0f172a; }
+    .ast-risk-matrix { display: flex; gap: 16px; align-items: center; }
+    .ast-risk-score { font-size: 0.75rem; font-weight: 700; padding: 4px 12px; text-align: center; }
+    .ast-risk-BAJO { background: #dcfce7; color: #166534; }
+    .ast-risk-MEDIO { background: #fef9c3; color: #854d0e; }
+    .ast-risk-ALTO { background: #ffedd5; color: #9a3412; }
+    .ast-risk-CRITICO { background: #fee2e2; color: #991b1b; }
+    .ast-controls-section { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e2e8f0; }
+    .ast-control-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: #e0e7ff; color: #3730a3; font-size: 0.75rem; font-weight: 600; margin: 3px 3px 3px 0; }
+    .ast-control-chip .tipo-badge { background: #c7d2fe; padding: 1px 6px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; }
+    .ast-no-risks { color: #94a3b8; font-style: italic; font-size: 0.85rem; padding: 12px 16px; border: 1px dashed #e2e8f0; }
+    .ast-footer { padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .ast-footer-info { font-size: 0.78rem; color: #64748b; }
+    .ast-footer-info strong { color: #334155; }
+    .ast-verified-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-weight: 700; font-size: 0.8rem; }
+    .ast-verified-yes { background: #dcfce7; color: #166534; }
+    .ast-verified-no { background: #fef9c3; color: #854d0e; }
+</style>
+
+<div class="ast-modal-content">
+    <div class="ast-header">
+        <h3>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Análisis de Seguridad en el Trabajo (AST) #{{ ast.id|unlocalize }}
+        </h3>
+        <button class="ast-close-btn" onclick="closeAstViewModal()">&times;</button>
+    </div>
+
+    <div class="ast-body">
+        <!-- Info Card -->
+        <div class="ast-info-card">
+            <div class="ast-info-item">
+                <label>📅 Fecha</label>
+                <span>{{ ast.fecha|date:"d/m/Y H:i" }}</span>
+            </div>
+            <div class="ast-info-item">
+                <label>👤 Líder del Trabajo</label>
+                <span>{{ ast.lider.get_full_name|default:ast.lider.username }}</span>
+            </div>
+            <div class="ast-info-item">
+                <label>📍 Ubicación</label>
+                <span>{{ ast.ubicacion.nombre|default:"No especificada" }}</span>
+            </div>
+            <div class="ast-info-item">
+                <label>🔗 Orden de Trabajo</label>
+                <span>{% if ast.orden_trabajo %}OT-{{ ast.orden_trabajo.id|unlocalize }} — {{ ast.orden_trabajo.codigo_de_orden }}{% else %}Sin vincular{% endif %}</span>
+            </div>
+        </div>
+
+        <!-- Description -->
+        <div class="ast-desc-block">
+            <strong style="display:block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: #2563eb; margin-bottom: 6px;">Descripción General del Trabajo</strong>
+            {{ ast.descripcion_trabajo }}
+        </div>
+
+        <!-- Steps, Risks & Controls -->
+        {% for paso in ast.pasos.all %}
+        <div class="ast-step-block">
+            <div class="ast-step-header">
+                <span class="step-num">{{ paso.orden|add:1 }}</span>
+                {{ paso.descripcion }}
+            </div>
+
+            {% for riesgo in paso.riesgos.all %}
+            <div class="ast-risk-card">
+                <div class="ast-risk-row">
+                    <div>
+                        <div class="ast-risk-label">Peligro Identificado</div>
+                        <div class="ast-risk-value">
+                            {% if riesgo.peligro_base %}
+                                ⚠️ {{ riesgo.peligro_base.nombre }}
+                                {% if riesgo.peligro_base.categoria %}
+                                <span style="font-size: 0.72rem; color: #64748b; margin-left: 6px;">({{ riesgo.peligro_base.categoria }})</span>
+                                {% endif %}
+                            {% else %}
+                                ⚠️ {{ riesgo.descripcion|default:"Peligro sin catalogar" }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="ast-risk-matrix">
+                            <div style="text-align:center">
+                                <div class="ast-risk-label">Prob.</div>
+                                <div class="ast-risk-value">{{ riesgo.probabilidad }}</div>
+                            </div>
+                            <div style="font-size: 1.2rem; color: #cbd5e1;">×</div>
+                            <div style="text-align:center">
+                                <div class="ast-risk-label">Cons.</div>
+                                <div class="ast-risk-value">{{ riesgo.consecuencia }}</div>
+                            </div>
+                            <div style="font-size: 1.2rem; color: #cbd5e1;">=</div>
+                            <div class="ast-risk-score ast-risk-{{ riesgo.nivel_riesgo }}">
+                                {{ riesgo.nivel_riesgo }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                {% if riesgo.controles.exists %}
+                <div class="ast-controls-section">
+                    <div class="ast-risk-label" style="margin-bottom: 6px;">Controles Aplicados</div>
+                    {% for control in riesgo.controles.all %}
+                    <span class="ast-control-chip">
+                        {% if control.control_base %}
+                            {% if control.control_base.tipo %}
+                            <span class="tipo-badge">{{ control.control_base.tipo }}</span>
+                            {% endif %}
+                            {{ control.control_base.nombre }}
+                        {% else %}
+                            {{ control.descripcion }}
+                        {% endif %}
+                        {% if control.verificado %}
+                            <span style="color: #16a34a;">✓</span>
+                        {% endif %}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="ast-no-risks">No se identificaron riesgos para este paso.</div>
+            {% endfor %}
+        </div>
+        {% empty %}
+        <div class="ast-no-risks">Este análisis no tiene pasos registrados.</div>
+        {% endfor %}
+    </div>
+
+    <div class="ast-footer">
+        <div class="ast-footer-info">
+            Creado el <strong>{{ ast.fecha|date:"d/m/Y" }}</strong> por <strong>{{ ast.lider.get_full_name|default:ast.lider.username }}</strong>
+            &nbsp;—&nbsp; {{ ast.pasos.count }} paso{{ ast.pasos.count|pluralize:"s" }}
+        </div>
+        {% if ast.firmado %}
+        <span class="ast-verified-badge ast-verified-yes">✓ Firmado / Verificado</span>
+        {% else %}
+        <span class="ast-verified-badge ast-verified-no">⏳ Pendiente de firma</span>
+        {% endif %}
+    </div>
+</div>

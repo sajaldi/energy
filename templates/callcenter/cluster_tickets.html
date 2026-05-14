@@ -81,6 +81,8 @@
         }
         .badge-success { background: #e7f4e9; color: #1e6330; border: 1px solid rgba(30, 99, 48, 0.2); }
         .badge-warning { background: #fff4e5; color: #854e0b; border: 1px solid rgba(133, 78, 11, 0.2); }
+        .badge-info-fiori { background: #e0f2ff; color: #0056b3; border: 1px solid rgba(0, 86, 179, 0.2); }
+        .badge-interno { background: #f0f0f0; color: #444; border: 1px solid #ccc; }
         
         .metric-card {
             padding: 1rem 1.5rem;
@@ -172,10 +174,17 @@
                         <!-- Dropdowns Group -->
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <!-- Status Filter -->
-                            <select name="status" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 150px;">
+                            <select name="status" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 130px;">
                                 <option value="">Todos los Estados</option>
                                 <option value="abiertos" {% if request.GET.status == 'abiertos' %}selected{% endif %}>🟢 Solo Abiertos</option>
                                 <option value="cerrados" {% if request.GET.status == 'cerrados' %}selected{% endif %}>🔴 Solo Cerrados</option>
+                            </select>
+
+                            <!-- Internal/External Filter -->
+                            <select name="interno" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 130px;">
+                                <option value="">Todos los Tipos</option>
+                                <option value="1" {% if request.GET.interno == '1' %}selected{% endif %}>🏠 Solo Internos</option>
+                                <option value="0" {% if request.GET.interno == '0' %}selected{% endif %}>🌐 Solo Externos</option>
                             </select>
 
                             <!-- Falla Filter -->
@@ -309,6 +318,9 @@
                                 </a>
                                 {% if t.embedding is not None %}
                                     <i class="ph ph-brain" style="color: #6c5ce7; font-size: 0.9rem; margin-left: 4px;" title="Vectorizado por IA"></i>
+                                {% endif %}
+                                {% if t.es_interno %}
+                                    <i class="ph ph-house-line" style="color: #444; font-size: 1rem; margin-left: 6px;" title="Ticket Interno"></i>
                                 {% endif %}
                             </td>
                             <td>{{ t.solicitante|default:"-" }}</td>
@@ -630,6 +642,10 @@
                                 <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">Descripción</label>
                                 <textarea id="swal-descripcion" class="swal2-textarea" style="width: 100%; margin: 0; min-height: 80px;" placeholder="Detalles de la falla..."></textarea>
                             </div>
+                            <div style="margin-top: 1rem; display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" id="swal-es-interno" style="width: 20px; height: 20px; cursor: pointer;">
+                                <label for="swal-es-interno" style="font-size: 0.9rem; font-weight: 600; cursor: pointer; color: var(--sap-primary);">¿Es un Ticket Interno?</label>
+                            </div>
                         </div>
                     </div>
                 `,
@@ -665,11 +681,12 @@
                     const id = document.getElementById('swal-id-solicitud').value;
                     const solicitante = document.getElementById('swal-solicitante').value;
                     const desc = document.getElementById('swal-descripcion').value;
+                    const interno = document.getElementById('swal-es-interno').checked;
                     if (!id) {
                         Swal.showValidationMessage('El ID de Solicitud es obligatorio');
                         return false;
                     }
-                    return { id_solicitud: id, solicitante: solicitante, descripcion: desc };
+                    return { id_solicitud: id, solicitante: solicitante, descripcion: desc, es_interno: interno };
                 }
             });
 

@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models import Count
 from django.contrib import admin, messages
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
@@ -1803,14 +1803,15 @@ class ValorPasoOrdenInline(admin.TabularInline):
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('codigo_de_orden', 'tipo', 'prioridad', 'descripcion_corta', 'get_ubicacion_jerarquia', 'get_activos_format', 'inicio_programado', 'estado', 'registrar_salida_link', 'ver_pdf_link')
-    list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico', 'supervisor', 'equipo')
-    readonly_fields = ('registrar_salida_link', 'ver_pdf_link')
+    change_list_template = "admin/mantenimiento/ordentrabajo/change_list.html"
+    list_display = ('codigo_de_orden', 'visualizar_fiori_link', 'tipo', 'prioridad', 'descripcion_corta', 'get_ubicacion_jerarquia', 'get_activos_format', 'creado_en', 'inicio_programado', 'estado', 'registrar_salida_link', 'ver_pdf_link')
+    list_filter = ('tipo', 'prioridad', 'estado', 'creado_en', 'inicio_programado', 'tecnico', 'supervisor', 'equipo')
+    readonly_fields = ('registrar_salida_link', 'ver_pdf_link', 'visualizar_fiori_link', 'creado_en')
     list_select_related = ('rutina', 'aviso', 'tecnico', 'supervisor', 'equipo', 'ubicacion', 'programacion')
     search_fields = ('id', 'codigo_de_orden', 'descripcion_corta', 'descripcion_detallada', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'activos__codigo_interno', 'activos__serie', 'notas')
     autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion', 'activos')
-    ordering = ('-inicio_programado',)
-    date_hierarchy = 'inicio_programado'
+    ordering = ('-creado_en',)
+    date_hierarchy = 'creado_en'
     actions = ['generar_permiso_action', 'exportar_seleccionadas_action', 'generar_pdf_masivo_action', 'generar_checklist_action']
     inlines = [CierreOrdenTrabajoInline, ValorPasoOrdenInline, MovimientoInventarioInline, PermisosTrabajoInline]
 
@@ -1859,6 +1860,10 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             return f"CORR: {obj.aviso.descripcion[:30]}"
         return "OT Sin descripción"
     get_descripcion.short_description = 'Descripción/Rutina'
+
+    def visualizar_fiori_link(self, obj):
+        return mark_safe(f'<a href="javascript:void(0)" onclick="openFioriModal({obj.id})" style="color: #3b82f6; font-size: 1.1em;" title="Visualización Rápida (Fiori)"><i class="fas fa-eye"></i></a>')
+    visualizar_fiori_link.short_description = "Det."
 
     def registrar_salida_link(self, obj):
         if obj.estado in ['PROGRAMADA', 'EJECUCION']:
@@ -1943,12 +1948,104 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         from .views import import_ordenes
         custom_urls = [
+            path('fiori-detail/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_view), name='mantenimiento_ordentrabajo_fiori_detail'),
+            path('fiori-edit/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_edit_view), name='mantenimiento_ordentrabajo_fiori_edit'),
+            path('fiori-save/<int:pk>/', csrf_exempt(self.admin_site.admin_view(self.guardar_ot_fiori_view)), name='mantenimiento_ordentrabajo_fiori_save'),
             path('import-background/', self.admin_site.admin_view(import_ordenes.import_ordenes_background), name='mantenimiento_ordentrabajo_import_background'),
             path('import-background/process/', csrf_exempt(self.admin_site.admin_view(import_ordenes.import_ordenes_process)), name='mantenimiento_ordentrabajo_import_process'),
             path('import-background/progress/', self.admin_site.admin_view(import_ordenes.import_ordenes_progress), name='mantenimiento_ordentrabajo_import_progress'),
             path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_ordentrabajo_import_template'),
         ]
         return custom_urls + urls
+
+    def visualizar_ot_fiori_view(self, request, pk):
+        """Vista que retorna el partial de detalle en estilo Fiori"""
+        ot = get_object_or_404(OrdenTrabajo, pk=pk)
+        return render(request, 'admin/mantenimiento/ordentrabajo/fiori_detail_partial.html', {'ot': ot})
+
+    def visualizar_ot_fiori_edit_view(self, request, pk):
+        """Vista que retorna el formulario de edición en estilo Fiori (OTNP style)"""
+        ot = get_object_or_404(OrdenTrabajo, pk=pk)
+        # Importaciones correctas según la estructura del proyecto
+        from .models import TecnicoPuesto, Empresa
+        from activos.models import Ubicacion
+        from seguridad.models import TipoPermiso
+        
+        context = {
+            'ot': ot,
+            'empresas': Empresa.objects.all(),
+            'personales': TecnicoPuesto.objects.filter(esta_vigente=True),
+            'tipos_permiso': TipoPermiso.objects.all(),
+            'prioridades': OrdenTrabajo.PRIORIDAD_CHOICES,
+        }
+        return render(request, 'admin/mantenimiento/ordentrabajo/fiori_edit_partial.html', context)
+
+    def guardar_ot_fiori_view(self, request, pk):
+        """Maneja el guardado AJAX de la edición Fiori"""
+        if request.method != 'POST':
+            return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+            
+        ot = get_object_or_404(OrdenTrabajo, pk=pk)
+        try:
+            # Extraer campos del POST (basado en el form otnp)
+            ot.descripcion_detallada = request.POST.get('descripcion', ot.descripcion_detallada)
+            ot.inicio_programado = request.POST.get('inicio_programado', ot.inicio_programado)
+            ot.fin_programado = request.POST.get('fin_programado', ot.fin_programado)
+            ot.prioridad = request.POST.get('prioridad', ot.prioridad)
+            
+            # Ubicación y Técnico (pueden venir IDs)
+            ubi_id = request.POST.get('ubicacion')
+            if ubi_id and ubi_id != 'none':
+                from activos.models import Ubicacion
+                ot.ubicacion = Ubicacion.objects.get(id=ubi_id)
+                
+            tec_id = request.POST.get('tecnico')
+            if tec_id and tec_id != 'none':
+                from .models import TecnicoPuesto
+                tp = TecnicoPuesto.objects.get(id=tec_id)
+                ot.tecnico_puesto = tp
+                ot.tecnico = tp.user
+            elif tec_id == 'none':
+                ot.tecnico_puesto = None
+                ot.tecnico = None
+                
+            # Empresa
+            emp_id = request.POST.get('empresa_responsable')
+            if emp_id and emp_id != 'none':
+                from .models import Empresa
+                ot.empresa_responsable = Empresa.objects.get(id=emp_id)
+            
+            # Seguridad
+            ot.requiere_permiso = request.POST.get('requiere_permiso') == 'on'
+            tipo_perm_id = request.POST.get('tipo_permiso')
+            if tipo_perm_id:
+                from seguridad.models import TipoPermiso
+                ot.tipo_permiso = TipoPermiso.objects.get(id=tipo_perm_id)
+            else:
+                ot.tipo_permiso = None
+                
+            # Activos (muchos a muchos)
+            activos_ids = request.POST.getlist('activos') # Si se implementa multi-activo
+            if not activos_ids:
+                # Fallback al campo "activo" individual si el form otnp solo envía uno
+                solo_activo_id = request.POST.get('activo')
+                if solo_activo_id:
+                    activos_ids = [solo_activo_id]
+            
+            if activos_ids:
+                from activos.models import Activo
+                ot.activos.set(Activo.objects.filter(id__in=activos_ids))
+
+            # Técnicos involucrados
+            tecs_inv_ids = request.POST.getlist('tecnicos')
+            if tecs_inv_ids:
+                from .models import TecnicoPuesto
+                ot.colaboradores_puesto.set(TecnicoPuesto.objects.filter(id__in=tecs_inv_ids))
+
+            ot.save()
+            return JsonResponse({'status': 'success', 'message': 'Orden actualizada correctamente'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
     def download_template_view(self, request):
         """Genera un archivo Excel vacío con las cabeceras del recurso"""

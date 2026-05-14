@@ -168,8 +168,8 @@ class EvidenciasInline(admin.TabularInline):
 
 @admin.register(SolicitudTicket)
 class SolicitudTicketAdmin(admin.ModelAdmin):
-    list_display = ('folio', 'id_solicitud', 'solicitante', 'falla_reportada', 'usuario_responsable', 'get_tiempos_acordados', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
-    list_filter = ('servicio', 'area', 'tipo_solicitud', 'falla_reportada', 'falla_clasificacion', 'categoria_falla', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
+    list_display = ('folio', 'es_interno', 'id_solicitud', 'solicitante', 'falla_reportada', 'usuario_responsable', 'get_tiempos_acordados', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
+    list_filter = ('es_interno', 'servicio', 'area', 'tipo_solicitud', 'falla_reportada', 'falla_clasificacion', 'categoria_falla', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
     search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'falla_descripcion', 'falla_reportada__nombre', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
     autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
@@ -261,7 +261,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     # Organización por Fieldsets (Secciones)
     fieldsets = (
         ('Información General', {
-            'fields': (('id_solicitud', 'folio'), ('fecha_solicitud', 'tipo_recepcion'), 'fecha_tipo_recepcion')
+            'fields': (('id_solicitud', 'folio', 'es_interno'), ('fecha_solicitud', 'tipo_recepcion'), 'fecha_tipo_recepcion')
         }),
         ('Ubicación y Activos', {
             'fields': (('activo', 'ubicacion'), ('area', 'unidad'), ('servicio', 'subservicio'), ('grupo', 'nivel'))
@@ -294,7 +294,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         # Seleccionar solo los campos necesarios para la lista unificada
         return super().get_queryset(request).select_related('activo', 'ubicacion', 'falla_reportada').only(
-            'id', 'folio', 'id_solicitud', 'solicitante', 'servicio', 'area', 
+            'id', 'folio', 'es_interno', 'id_solicitud', 'solicitante', 'servicio', 'area', 
             'falla_descripcion', 'falla_reportada',
             'activo__nombre', 'activo__codigo_interno', 'fecha_solicitud', 'tipo_solicitud',
             'ubicacion__nombre'

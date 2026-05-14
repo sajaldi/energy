@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/modelo-fiori-save/', views_modelos.modelo_save_api, name='modelo_fiori_save'),
     path('api/modelo-fiori-delete/<int:pk>/', views_modelos.modelo_delete_api, name='modelo_fiori_delete'),
     path('api/modelo-fiori-get/', views_modelos.modelo_detail_api, name='modelo_fiori_get'),
+    path('api/categoria-caracteristicas/', views_modelos.categoria_caracteristicas_api, name='categoria_caracteristicas_api'),
 
     path('visor/<int:visor_id>/', views.visor_plano, name='visor_plano'),
     path('visor/plano/<int:plano_id>/', views.visor_plano, name='visor_plano_por_plano'),

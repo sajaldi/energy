@@ -1,10 +1,19 @@
 from django import forms
+from django.contrib import admin
 from .models import Activo
 
 class ActivoAdminForm(forms.ModelForm):
     class Meta:
         model = Activo
         fields = '__all__'
+        widgets = {
+            'ubicacion': admin.widgets.AutocompleteSelect(Activo._meta.get_field('ubicacion').remote_field, admin.site),
+            'responsable': admin.widgets.AutocompleteSelect(Activo._meta.get_field('responsable').remote_field, admin.site),
+            'modelo': admin.widgets.AutocompleteSelect(Activo._meta.get_field('modelo').remote_field, admin.site),
+            'familia': admin.widgets.AutocompleteSelect(Activo._meta.get_field('familia').remote_field, admin.site),
+            'padre': admin.widgets.AutocompleteSelect(Activo._meta.get_field('padre').remote_field, admin.site),
+            'plano': admin.widgets.AutocompleteSelect(Activo._meta.get_field('plano').remote_field, admin.site),
+        }
 
     def clean(self):
         cleaned_data = super().clean()

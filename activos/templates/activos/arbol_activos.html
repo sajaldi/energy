@@ -370,6 +370,89 @@
 
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+    /* Modal Styles from Modelos Dashboard */
+    .sap-modal-backdrop {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        backdrop-filter: blur(4px);
+    }
+
+    .sap-modal-content {
+        background: white;
+        width: 90%;
+        max-width: 650px;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        box-shadow: 0 1rem 3rem rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh;
+    }
+
+    .sap-modal-header { padding: 1.25rem; border-bottom: 1px solid var(--fiori-border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+    .sap-modal-body { padding: 1.5rem; overflow-y: auto; }
+    .sap-modal-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--fiori-border); background: #f8fafc; display: flex; justify-content: flex-end; gap: 0.75rem; }
+
+    .sap-btn-close {
+        background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--fiori-text-secondary);
+    }
+
+    /* Tab Styles */
+    .sap-tabs { display: flex; border-bottom: 1px solid var(--fiori-border); margin-bottom: 1rem; }
+    .sap-tab-btn { padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; font-weight: 500; color: var(--fiori-text-secondary); position: relative; }
+    .sap-tab-btn:hover { color: var(--fiori-primary); }
+    .sap-tab-btn.active { color: var(--fiori-primary); }
+    .sap-tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: var(--fiori-primary); }
+    
+    .sap-tab-content { display: none; }
+    .sap-tab-content.active { display: block; }
+
+    .sap-view-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .sap-view-table th { text-align: left; padding: 10px; background: #f8fafc; color: var(--fiori-text-secondary); font-weight: 600; border-bottom: 1px solid var(--fiori-border); }
+    .sap-view-table td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
+    .sap-view-table tr:hover { background: #f9fbff; }
+
+    /* Collapsible Location Groups */
+    .loc-group { margin-bottom: 2px; border: 2px solid #e8ecf0; border-radius: 0; overflow: hidden; }
+    .loc-group-header {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        cursor: pointer; user-select: none; transition: background 0.2s;
+    }
+    .loc-group-header:hover { background: linear-gradient(135deg, #eef2f7 0%, #e2e8f0 100%); }
+    .loc-group-header .chevron {
+        font-size: 1.1rem; color: #94a3b8; transition: transform 0.25s ease;
+        flex-shrink: 0;
+    }
+    .loc-group-header.collapsed .chevron { transform: rotate(-90deg); }
+    .loc-group-header .loc-path {
+        font-size: 0.82rem; font-weight: 600; color: #334155;
+        display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
+    }
+    .loc-group-header .loc-path .path-segment { color: #64748b; font-weight: 400; }
+    .loc-group-header .loc-path .path-arrow { color: #cbd5e1; font-size: 0.7rem; }
+    .loc-group-header .loc-count {
+        background: var(--fiori-primary); color: white;
+        font-size: 0.7rem; font-weight: 700;
+        padding: 2px 8px; border-radius: 10px; flex-shrink: 0;
+    }
+    .loc-group-body {
+        max-height: 2000px; overflow: hidden;
+        transition: max-height 0.35s ease-in-out;
+    }
+    .loc-group-body.collapsed { max-height: 0; }
+    .loc-group-body .sap-view-table { margin: 0; }
+    .loc-group-body .sap-view-table th { font-size: 0.72rem; padding: 6px 10px; }
+
+    /* Nested Tree Styles */
+    .tree-indent { border-left: 1px dashed #cbd5e1; margin-left: 10px; padding-left: 10px; }
+    .loc-group-header .loc-name { font-size: 0.85rem; font-weight: 600; color: #334155; flex: 1; }
+    .loc-group-header .loc-type-icon { color: var(--fiori-primary); font-size: 1.1rem; flex-shrink: 0; }
 </style>
 {% endblock %}
 
@@ -644,6 +727,7 @@
         try {
             const res = await fetch(`/activos/api/activo-detalle/${id}/`);
             const a = await res.json();
+            currentSelectedAsset = a;
             
             pane.innerHTML = `
                 <div style="padding:16px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
@@ -664,10 +748,12 @@
                             <div class="tile-label">Código Interno</div>
                             <div class="tile-value">${a.codigo_interno || 'S/C'}</div>
                         </div>
-                        <div class="info-tile" style="border-left:none; background:#f0f3f5;">
+                        <div class="info-tile" style="border-left:none; background:#f0f3f5; cursor:pointer; transition: background 0.2s;" onclick="openModeloModal()" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f0f3f5'">
                             <div class="tile-label">Marca / Modelo</div>
                             <div class="tile-value">${a.marca || '-'} / ${a.modelo || '-'}</div>
+                            ${a.modelo ? `<div style="font-size: 0.75rem; color: var(--fiori-primary); margin-top: 6px; font-weight: 600;"><ion-icon name="information-circle-outline" style="vertical-align: middle;"></ion-icon> Ver detalle del modelo</div>` : ''}
                         </div>
+
                         <div class="info-tile" style="border-left:none; background:#f0f3f5;">
                             <div class="tile-label">Responsable</div>
                             <div class="tile-value">${a.responsable}</div>
@@ -736,5 +822,291 @@
             }
         });
     }
+
+    let currentSelectedAsset = null;
+
+    function openModeloModal() {
+        if (!currentSelectedAsset || !currentSelectedAsset.modelo_id) return;
+        const id = currentSelectedAsset.modelo_id;
+        
+        const modal = document.getElementById('viewModeloModal');
+        const title = document.getElementById('view-title');
+        
+        // Reset contents
+        title.innerText = "Cargando...";
+        document.getElementById('view-marca').innerText = "-";
+        document.getElementById('view-categoria').innerText = "-";
+        document.getElementById('view-unidad').innerText = "-";
+        document.getElementById('view-precio').innerText = "-";
+        document.getElementById('view-descripcion').innerText = "";
+        document.getElementById('view-img').style.display = 'none';
+        document.getElementById('view-no-img').style.display = 'block';
+        document.getElementById('view-rutinas-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando planes...</p>';
+        document.getElementById('view-activos-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando inventario...</p>';
+        document.getElementById('view-caracteristicas-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando especificaciones...</p>';
+
+        // Switch to first tab by default
+        switchTab('tab-rutinas', document.getElementById('btn-tab-rutinas'));
+
+        fetch(`/activos/api/modelo-fiori-get/?id=${id}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const m = data.modelo;
+                    title.innerText = m.nombre;
+                    document.getElementById('view-marca').innerText = m.marca_nombre;
+                    document.getElementById('view-categoria').innerText = m.categoria_nombre;
+                    document.getElementById('view-unidad').innerText = m.unidad_nombre;
+                    document.getElementById('view-precio').innerText = `$${m.precio_promedio.toLocaleString()}`;
+                    document.getElementById('view-descripcion').innerText = m.descripcion || "Sin descripción técnica adicional.";
+                    
+                    if (m.image_display_url) {
+                        const img = document.getElementById('view-img');
+                        img.src = m.image_display_url;
+                        img.style.display = 'block';
+                        document.getElementById('view-no-img').style.display = 'none';
+                    }
+
+                    // Render Rutinas
+                    let rutHtml = '<table class="sap-view-table"><thead><tr><th>Código</th><th>Plan / Actividad</th><th>Frecuencia</th><th>Tipo</th><th>Tiempo Est.</th></tr></thead><tbody>';
+                    if (data.rutinas && data.rutinas.length > 0) {
+                        data.rutinas.forEach(r => {
+                            rutHtml += `<tr>
+                                <td style="font-weight:700; font-size:0.8rem; color:#64748b;">${r.codigo}</td>
+                                <td style="font-weight:600; color:var(--fiori-primary);">${r.nombre}</td>
+                                <td>${r.frecuencia}</td>
+                                <td><span style="background:#f1f5f9; padding:2px 8px; border-radius:4px; font-size:0.7rem;">${r.tipo}</span></td>
+                                <td style="color:#666;">${r.tiempo}</td>
+                            </tr>`;
+                        });
+                    } else {
+                        rutHtml += '<tr><td colspan="5" style="text-align:center; padding:40px; color:#999;">No hay planes de mantenimiento definidos para esta categoría.</td></tr>';
+                    }
+                    rutHtml += '</tbody></table>';
+                    document.getElementById('view-rutinas-container').innerHTML = rutHtml;
+
+                    // Render Activos — Hierarchical Tree
+                    if (data.activos && data.activos.length > 0) {
+                        const tree = buildAssetTree(data.activos);
+                        document.getElementById('view-activos-container').innerHTML = renderAssetTree(tree);
+                    } else {
+                        document.getElementById('view-activos-container').innerHTML = '<div style="text-align:center; padding:40px; color:#999;"><ion-icon name="cube-outline" style="font-size:3rem; opacity:0.2; display:block; margin:0 auto 10px;"></ion-icon>No hay activos físicos registrados con este modelo.</div>';
+                    }
+
+                    // Helper functions for Tree
+                    function buildAssetTree(activos) {
+                        const root = { children: {}, items: [] };
+                        activos.forEach(a => {
+                            const path = a.ubicacion_jerarquica || 'Sin Ubicación';
+                            const segments = path.split(' → ');
+                            let current = root;
+                            segments.forEach((seg, i) => {
+                                if (!current.children[seg]) {
+                                    current.children[seg] = { name: seg, children: {}, items: [], level: i };
+                                }
+                                current = current.children[seg];
+                            });
+                            current.items.push(a);
+                        });
+                        return root;
+                    }
+
+                    function renderAssetTree(node, level = 0) {
+                        let html = '';
+                        const sortedKeys = Object.keys(node.children).sort();
+                        
+                        sortedKeys.forEach((key, idx) => {
+                            const child = node.children[key];
+                            const groupId = `tree-grp-${level}-${idx}-${Math.random().toString(36).substr(2, 5)}`;
+                            const hasSub = Object.keys(child.children).length > 0;
+                            const hasItems = child.items.length > 0;
+                            
+                            html += `<div class="loc-group ${level > 0 ? 'tree-indent' : ''}">`;
+                            html += `<div class="loc-group-header collapsed" onclick="toggleLocGroup('${groupId}', this)">`;
+                            html += `<ion-icon name="chevron-down-outline" class="chevron"></ion-icon>`;
+                            
+                            let iconName = 'location-outline';
+                            if (level === 0) iconName = 'business-outline';
+                            else if (level === 1) iconName = 'layers-outline';
+                            
+                            html += `<ion-icon name="${iconName}" class="loc-type-icon"></ion-icon>`;
+                            html += `<span class="loc-name">${child.name}</span>`;
+                            
+                            const totalInBranch = countItemsInBranch(child);
+                            if (totalInBranch > 0) {
+                                html += `<span class="loc-count">${totalInBranch}</span>`;
+                            }
+                            
+                            html += `</div>`;
+                            html += `<div id="${groupId}" class="loc-group-body collapsed">`;
+                            
+                            // Render items at THIS level
+                            if (hasItems) {
+                                html += '<table class="sap-view-table"><thead><tr><th>Código</th><th>Equipo</th><th>Estado</th></tr></thead><tbody>';
+                                child.items.forEach(a => {
+                                    html += `<tr style="cursor:pointer;" onclick="openAssetDetail(${a.id})">
+                                        <td style="font-weight:700; color:var(--fiori-primary);">${a.codigo}</td>
+                                        <td>${a.nombre}</td>
+                                        <td><span class="status-badge status-${a.estado_raw.toLowerCase()}">${a.estado}</span></td>
+                                    </tr>`;
+                                });
+                                html += '</tbody></table>';
+                            }
+                            
+                            // Recursive call for children
+                            if (hasSub) {
+                                html += renderAssetTree(child, level + 1);
+                            }
+                            
+                            html += `</div></div>`;
+                        });
+                        return html;
+                    }
+
+                    function countItemsInBranch(node) {
+                        let count = node.items.length;
+                        for (const key in node.children) {
+                            count += countItemsInBranch(node.children[key]);
+                        }
+                        return count;
+                    }
+
+                    // Render Caracteristicas
+                    let charHtml = '<table class="sap-view-table" style="width: 100%;"><thead><tr><th style="width: 40%;">Propiedad</th><th>Valor</th></tr></thead><tbody>';
+                    if (data.caracteristicas && data.caracteristicas.length > 0) {
+                        data.caracteristicas.forEach(c => {
+                            let valText = c.valor || '<span style="color:#ccc;">No especificado</span>';
+                            if (c.valor && c.unidad_medida) {
+                                valText += ` <span style="color:#666; font-size:0.8em;">${c.unidad_medida}</span>`;
+                            }
+                            charHtml += `<tr>
+                                <td style="font-weight:600; color:#334155;">${c.nombre}</td>
+                                <td>${valText}</td>
+                            </tr>`;
+                        });
+                    } else {
+                        charHtml += '<tr><td colspan="2" style="text-align:center; padding:40px; color:#999;">No hay características técnicas definidas.</td></tr>';
+                    }
+                    charHtml += '</tbody></table>';
+                    document.getElementById('view-caracteristicas-container').innerHTML = charHtml;
+                } else {
+                    if (window.Swal) {
+                        Swal.fire('Error', data.message, 'error');
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                    closeViewModelo();
+                }
+            });
+
+        modal.style.display = 'flex';
+    }
+
+    function closeViewModelo() {
+        document.getElementById('viewModeloModal').style.display = 'none';
+    }
+
+    function switchTab(tabId, el) {
+        // Update buttons
+        document.querySelectorAll('.sap-tab-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+
+        // Update contents
+        document.querySelectorAll('.sap-tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+    }
+
+    function toggleLocGroup(groupId, headerEl) {
+        const body = document.getElementById(groupId);
+        body.classList.toggle('collapsed');
+        headerEl.classList.toggle('collapsed');
+    }
+</script>
+
+<!-- Modal para Ver Detalles del Modelo (Viewer) -->
+<div id="viewModeloModal" class="sap-modal-backdrop">
+    <div class="sap-modal-content" style="max-width: 950px; width: 95%;">
+        <div class="sap-modal-header">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="background: var(--fiori-primary); color: white; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <ion-icon name="cube" style="font-size: 1.5rem;"></ion-icon>
+                </div>
+                <div>
+                    <h2 id="view-title" style="margin:0; font-size: 1.25rem;">Cargando...</h2>
+                    <span id="view-subtitle" style="font-size: 0.85rem; color: var(--fiori-text-secondary);">Ficha Técnica del Modelo</span>
+                </div>
+            </div>
+            <button class="sap-btn-close" onclick="closeViewModelo()">&times;</button>
+        </div>
+        <div class="sap-modal-body" style="background: #ffffff; padding: 2rem;">
+            <div style="display: flex; gap: 2.5rem; margin-bottom: 2.5rem; flex-wrap: wrap;">
+                <div style="width: 280px; flex-shrink: 0;">
+                    <div style="background: #f8fafc; border: 1px solid var(--fiori-border); border-radius: 12px; padding: 12px; height: 280px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        <img id="view-img" src="" alt="Imagen del modelo" style="max-width:100%; max-height:100%; object-fit: contain; display: none;">
+                        <div id="view-no-img" style="color:#94a3b8; text-align:center;">
+                            <ion-icon name="image-outline" style="font-size: 4rem; opacity: 0.2;"></ion-icon>
+                            <p style="font-size: 0.85rem; font-weight: 500;">Sin imagen técnica</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="flex: 1; min-width: 350px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div class="stat-item">
+                            <span class="stat-label" style="font-size: 0.65rem; color: var(--fiori-text-secondary); text-transform: uppercase; display: block;">Marca / Fabricante</span>
+                            <span id="view-marca" style="font-weight: 600; font-size: 1.1rem; color: var(--fiori-text); display: block; margin-top: 4px;"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label" style="font-size: 0.65rem; color: var(--fiori-text-secondary); text-transform: uppercase; display: block;">Categoría de Activo</span>
+                            <span id="view-categoria" style="font-weight: 600; font-size: 1.1rem; color: var(--fiori-text); display: block; margin-top: 4px;"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label" style="font-size: 0.65rem; color: var(--fiori-text-secondary); text-transform: uppercase; display: block;">Unidad de Gestión</span>
+                            <span id="view-unidad" style="font-weight: 600; color: var(--fiori-text); display: block; margin-top: 4px;"></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label" style="font-size: 0.65rem; color: var(--fiori-text-secondary); text-transform: uppercase; display: block;">Valor de Referencia</span>
+                            <span id="view-precio" style="font-weight: 700; color: #107e3e; font-size: 1.25rem; display: block; margin-top: 4px;"></span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #f1f5f9;">
+                        <span class="stat-label" style="font-size: 0.65rem; color: var(--fiori-text-secondary); text-transform: uppercase; display: block;">Especificaciones y Descripción</span>
+                        <p id="view-descripcion" style="font-size: 0.95rem; line-height: 1.6; color: #4b5563; margin-top: 10px; font-style: italic;"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sap-tabs">
+                <button id="btn-tab-rutinas" class="sap-tab-btn active" onclick="switchTab('tab-rutinas', this)">
+                    <ion-icon name="construct-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon> Planes de Mantenimiento
+                </button>
+                <button id="btn-tab-activos" class="sap-tab-btn" onclick="switchTab('tab-activos', this)">
+                    <ion-icon name="list-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon> Activos en Inventario
+                </button>
+                <button id="btn-tab-caracteristicas" class="sap-tab-btn" onclick="switchTab('tab-caracteristicas', this)">
+                    <ion-icon name="options-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon> Especificaciones
+                </button>
+            </div>
+
+            <div id="tab-rutinas" class="sap-tab-content active">
+                <div id="view-rutinas-container" style="min-height: 250px;">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+            <div id="tab-activos" class="sap-tab-content">
+                <div id="view-activos-container" style="min-height: 250px;">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+            <div id="tab-caracteristicas" class="sap-tab-content">
+                <div id="view-caracteristicas-container" style="min-height: 250px;">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+        </div>
+        <div class="sap-modal-footer" style="padding: 1.5rem 2rem;">
+            <button onclick="closeViewModelo()" style="padding: 0.6rem 1.5rem; background: transparent; border: 1px solid var(--fiori-primary); color: var(--fiori-primary); border-radius: 4px; cursor: pointer; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background='transparent'">Cerrar Vista</button>
+        </div>
+    </div>
+</div>
 </script>
 {% endblock %}

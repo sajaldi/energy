@@ -13,3 +13,4 @@ from .plantilla_qr import PlantillaEtiquetaQR
 from .foto_ubicacion import FotoUbicacion
 from .reporte import ReporteGenerado
 from .downtime import DowntimeActivo
+from .caracteristica import CaracteristicaCategoria, ValorCaracteristicaModelo

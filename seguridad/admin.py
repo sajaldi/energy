@@ -5,7 +5,8 @@ from .models import (
     AsignacionEPP,
     AnalisisRiesgo, PasoTrabajo, Riesgo, Control,
     TipoPermiso, RequisitoPermiso, PermisoTrabajo, VerificacionRequisito,
-    ObjetoCatalogo, LevantamientoConfiscacion, ObjetoConfiscado, FotoObjetoConfiscado
+    ObjetoCatalogo, LevantamientoConfiscacion, ObjetoConfiscado, FotoObjetoConfiscado,
+    PeligroCatalogo, MedidaControlCatalogo
 )
 
 class ItemInspeccionInline(admin.TabularInline):
@@ -55,6 +56,9 @@ class AnalisisRiesgoAdmin(admin.ModelAdmin):
     inlines = [PasoTrabajoInline]
     list_display = ('descripcion_trabajo', 'fecha', 'ubicacion', 'lider', 'firmado')
     filter_horizontal = ('ejecutantes',)
+    autocomplete_fields = ['ubicacion', 'lider', 'orden_trabajo']
+    list_select_related = ('ubicacion', 'lider', 'orden_trabajo')
+    search_fields = ('descripcion_trabajo', 'lider__username', 'lider__first_name', 'ubicacion__nombre')
 
 # Nota: Riesgo y Control se registran por separado por ahora debido a la anidación
 @admin.register(PasoTrabajo)
@@ -134,3 +138,23 @@ class LevantamientoConfiscacionAdmin(admin.ModelAdmin):
     def count_objetos(self, obj):
         return obj.objetos.count()
     count_objetos.short_description = 'Objetos'
+
+class MedidaControlInline(admin.TabularInline):
+    model = MedidaControlCatalogo.peligros_asociados.through
+    extra = 1
+    verbose_name = "Control Recomendado"
+    verbose_name_plural = "Controles Recomendados"
+
+@admin.register(PeligroCatalogo)
+class PeligroCatalogoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'categoria')
+    list_filter = ('categoria',)
+    search_fields = ('nombre',)
+    inlines = [MedidaControlInline]
+
+@admin.register(MedidaControlCatalogo)
+class MedidaControlCatalogoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'tipo')
+    list_filter = ('tipo',)
+    search_fields = ('nombre',)
+    filter_horizontal = ('peligros_asociados',)
