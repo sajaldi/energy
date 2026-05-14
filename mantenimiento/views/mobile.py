@@ -1117,7 +1117,7 @@ def mobile_ot_webhook(request, pk):
 
     try:
         # 3. Obtener correos del departamento del usuario que dispara
-        departamento_emails = []
+        departamento_emails = ""
         if hasattr(request.user, 'perfil') and request.user.perfil.departamento:
             dept = request.user.perfil.departamento
             usuarios_dept = User.objects.filter(perfil__departamento=dept).exclude(email='').distinct()

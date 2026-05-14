@@ -489,7 +489,7 @@ class ModeloAdmin(ImportExportModelAdmin):
     list_display = ('thumbnail', 'nombre', 'marca', 'categoria', 'total_activos')
     list_filter = ('marca', 'categoria')
     list_select_related = ('marca', 'categoria')
-    autocomplete_fields = ('marca', 'categoria')
+    autocomplete_fields = ('marca', 'categoria', 'documentos')
     inlines = [CompatibilidadMaterialInline, ValorCaracteristicaModeloInline]
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
@@ -633,6 +633,10 @@ class ModeloAdmin(ImportExportModelAdmin):
         ('Distribución de Activos', {
             'fields': ('lista_activos_ubicacion',),
             'description': 'Listado completo de equipos físicos asociados a este modelo, organizados jerárquicamente por su ubicación.'
+        }),
+        ('Biblioteca de Documentos', {
+            'fields': ('documentos',),
+            'description': 'Gestione aquí los manuales, fichas técnicas y otros documentos asociados a este modelo de equipo.'
         }),
     )
 

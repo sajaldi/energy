@@ -169,7 +169,77 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    function setFioriModalContent(container, html) {
+        container.innerHTML = html;
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+            const newScript = document.createElement('script');
+            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+            oldScript.parentNode.replaceChild(newScript, oldScript);
+        });
+    }
+
+    function triggerPowerAutomateWebhook(otId) {
+        Swal.fire({
+            title: 'Enviando a Power Automate...',
+            text: 'Procesando la orden de trabajo, por favor espere.',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        fetch(`fiori-detail/${otId}/send-webhook/`, { // Check if the path needs adjustment
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                // Try alternate path if first fails
+                return fetch(`/mantenimiento/app/ot/${otId}/send-webhook/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
+            return response;
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Enviado!',
+                    text: 'La orden fue enviada a Power Automate exitosamente.',
+                    confirmButtonColor: '#0078D4'
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Hubo un error al enviar la orden.',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de conexión',
+                text: 'No se pudo contactar con el servidor: ' + error,
+                confirmButtonColor: '#dc3545'
+            });
+        });
+    }
+
     function openFioriModal(otId, isEdit = false) {
         const overlay = document.getElementById('fioriModalOverlay');
         const content = document.getElementById('fioriModalContent');
@@ -178,7 +248,7 @@
         overlay.classList.add('active');
         
         if (isEdit) {
-            dialog.style.maxWidth = '1000px'; // Wider for the edit form
+            dialog.style.maxWidth = '1000px'; 
             content.style.padding = '0';
             content.innerHTML = `
                 <div class="fiori-loader-container">
@@ -189,8 +259,7 @@
             fetch(`fiori-edit/${otId}/`)
                 .then(response => response.text())
                 .then(html => {
-                    content.innerHTML = html;
-                    // Scripts in the partial will take over
+                    setFioriModalContent(content, html);
                 })
                 .catch(error => {
                     content.innerHTML = `<p style="color: #ef4444; text-align: center; padding: 20px;">Error al cargar el editor: ${error}</p>`;
@@ -208,8 +277,8 @@
             fetch(`fiori-detail/${otId}/`)
                 .then(response => response.text())
                 .then(html => {
-                    content.innerHTML = html;
-                    // Intercept the 'Editar' button inside the detail view to open the Fiori Edit Modal
+                    setFioriModalContent(content, html);
+                    // Intercept the 'Editar' button
                     const editBtn = content.querySelector('.btn-fiori-edit');
                     if (editBtn) {
                         editBtn.onclick = function(e) {
@@ -243,7 +312,7 @@
         fetch(`/seguridad/ast/ver/${astId}/`)
             .then(response => response.text())
             .then(html => {
-                content.innerHTML = html;
+                setFioriModalContent(content, html);
             })
             .catch(error => {
                 content.innerHTML = `<p style="color: #ef4444; text-align: center; padding: 20px;">Error al cargar el AST: ${error}</p>`;
@@ -254,7 +323,6 @@
         document.getElementById('astModalOverlay').classList.remove('active');
     }
 
-    // Close on ESC key
     document.addEventListener('keydown', function(event) {
         if (event.key === "Escape") {
             closeFioriModal();

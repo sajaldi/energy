@@ -178,52 +178,6 @@
     </div>
 </div>
 
-<script>
-    function triggerPowerAutomateWebhook(otId) {
-        Swal.fire({
-            title: 'Enviando a Power Automate...',
-            text: 'Procesando la orden de trabajo, por favor espere.',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-
-        fetch(`/mantenimiento/app/ot/${otId}/send-webhook/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Enviado!',
-                    text: 'La orden fue enviada a Power Automate exitosamente.',
-                    confirmButtonColor: '#0078D4'
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: data.message || 'Hubo un error al enviar la orden.',
-                    confirmButtonColor: '#dc3545'
-                });
-            }
-        })
-        .catch(error => {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error de conexión',
-                text: 'No se pudo contactar con el servidor: ' + error,
-                confirmButtonColor: '#dc3545'
-            });
-        });
-    }
-</script>
 
 <style>
     .badge-realizada { background: var(--sap-success-bg); color: var(--sap-success); }

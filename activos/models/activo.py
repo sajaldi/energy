@@ -37,6 +37,13 @@ class Modelo(models.Model):
         related_name='modelos_compatibles_m2m'
     )
 
+    documentos = models.ManyToManyField(
+        'documentos.Documento', 
+        blank=True, 
+        related_name='modelos', 
+        help_text="Biblioteca de documentos asociados a este modelo"
+    )
+
     @property
     def imagen(self):
         """Retorna la URL de la imagen, priorizando el archivo cargado."""
