@@ -71,19 +71,30 @@ class Ubicacion(models.Model):
 
     def get_descendants(self, include_self=True):
         """
-        Reemplazo manual para get_descendants de MPTT.
-        Retorna un QuerySet con todos los descendientes.
+        Reemplazo optimizado para get_descendants.
+        Obtiene todos los descendientes en memoria para evitar N queries.
         """
+        all_locs = list(Ubicacion.objects.all().values('id', 'padre_id'))
+        
+        # Mapa de padre -> hijos
+        parent_map = {}
+        for loc in all_locs:
+            pid = loc['padre_id']
+            if pid not in parent_map:
+                parent_map[pid] = []
+            parent_map[pid].append(loc['id'])
+            
         descendants_ids = []
         if include_self:
             descendants_ids.append(self.id)
+            
+        def _collect(pid):
+            if pid in parent_map:
+                for child_id in parent_map[pid]:
+                    descendants_ids.append(child_id)
+                    _collect(child_id)
         
-        def _get_children(parent):
-            for child in parent.sub_ubicaciones.all():
-                descendants_ids.append(child.id)
-                _get_children(child)
-        
-        _get_children(self)
+        _collect(self.id)
         return Ubicacion.objects.filter(id__in=descendants_ids)
 
     @property

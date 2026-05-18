@@ -43,6 +43,7 @@ urlpatterns = [
     path('api/ubicaciones-root/', views.api_ubicaciones_root, name='api_ubicaciones_root'),
     path('api/ubicaciones-children/<int:parent_id>/', views.api_ubicaciones_children, name='api_ubicaciones_children'),
     path('api/ubicacion-detalle/<int:ubicacion_id>/', views.api_ubicacion_detalle, name='api_ubicacion_detalle'),
+    path('api/ubicacion-categoria-activos/<int:ubicacion_id>/<str:categoria_id>/', views.api_ubicacion_categoria_activos, name='api_ubicacion_categoria_activos'),
     path('api/activo-detalle/<int:activo_id>/', views.api_activo_detalle, name='api_activo_detalle'),
     path('api/explorer-search/', views.api_explorer_search, name='api_explorer_search'),
     path('app/activo/<int:pk>/', views.mobile_activo_detalle, name='mobile_activo_detalle'),

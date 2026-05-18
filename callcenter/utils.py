@@ -120,6 +120,7 @@ def import_tickets_from_df(df):
             'categoria_falla': clean(row.get('Categoria_Falla')),
             'correo_cierre': False,
             'cierre_enviado': False,
+            'es_interno': False,
         }
 
         # --- Resolución de Falla en Catálogo ---

@@ -453,6 +453,27 @@
     .tree-indent { border-left: 1px dashed #cbd5e1; margin-left: 10px; padding-left: 10px; }
     .loc-group-header .loc-name { font-size: 0.85rem; font-weight: 600; color: #334155; flex: 1; }
     .loc-group-header .loc-type-icon { color: var(--fiori-primary); font-size: 1.1rem; flex-shrink: 0; }
+
+    /* Material Tab Styles */
+    .material-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; padding: 10px 0; }
+    .material-card {
+        border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        background: white; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .material-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .material-card-img {
+        width: 100%; height: 100px; background: #f8fafc;
+        display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .material-card-img img { width: 100%; height: 100%; object-fit: cover; }
+    .material-card-img ion-icon { font-size: 2.5rem; opacity: 0.2; }
+    .material-card-info { padding: 10px; }
+    .material-card-info .name { font-weight: 600; font-size: 0.85rem; color: #1e293b; margin-bottom: 2px; display: block; }
+    .material-card-info .sku { font-size: 0.72rem; color: #64748b; font-family: monospace; }
+    .material-card-info .qty { 
+        display: block; font-size: 0.75rem; color: var(--fiori-primary); 
+        font-weight: 700; margin-top: 5px; 
+    }
 </style>
 {% endblock %}
 
@@ -648,10 +669,10 @@
             html += '<p style="color:#999; text-align:center; padding:40px;">No hay activos asignados directamente a esta ubicación.</p>';
         } else {
             data.categorias.forEach((cat, idx) => {
-                const catId = 'cat-block-' + idx;
+                const cardId = 'cat-block-' + idx;
                 html += `
-                    <div class="category-card collapsed" id="${catId}">
-                        <div class="category-header" onclick="toggleCategory('${catId}')">
+                    <div class="category-card collapsed" id="${cardId}" data-cat-id="${cat.id}" data-ubicacion-id="${u.id}" data-loaded="false">
+                        <div class="category-header" onclick="toggleCategory('${cardId}')">
                             <ion-icon name="${cat.icono || 'cube'}"></ion-icon>
                             <span>${cat.nombre}</span>
                             <span style="margin-left:auto; opacity:0.6; font-size: 0.8rem; margin-right: 10px;">${cat.total_items} items</span>
@@ -671,35 +692,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                `;
-
-                cat.subcategorias.forEach(sub => {
-                    sub.activos.forEach(a => {
-                        html += `
-                            <tr class="asset-row" onclick="${isSelectionMode ? `selectAsset(${a.id}, '${a.nombre.replace(/'/g, "\\'")}')` : `viewAsset(${a.id})`}">
-                                <td style="font-weight:700; color:var(--fiori-primary);">${a.codigo}</td>
-                                <td>${a.nombre}</td>
-                                <td>${a.modelo || '-'}</td>
-                                <td style="color:var(--fiori-text-secondary); font-size:0.8rem;">${a.modelo_descripcion || '-'}</td>
-                                <td style="color:var(--fiori-text-secondary); font-size:0.8rem;">${a.descripcion || '-'}</td>
-                                <td><span class="status-badge status-${a.estado}">${a.estado_display}</span></td>
-                                <td>
-                                    ${isSelectionMode ? `
-                                    <button class="btn-icon" style="background:var(--fiori-primary); color:white; padding:4px 12px; font-size:0.75rem; border-radius:12px;">
-                                        Seleccionar
-                                    </button>
-                                    ` : `
-                                    <button class="btn-icon" onclick="event.stopPropagation(); window.location.href='/activos/editar-activo/${a.id}/'">
-                                        <ion-icon name="create-outline"></ion-icon>
-                                    </button>
-                                    `}
-                                </td>
-                            </tr>
-                        `;
-                    });
-                });
-
-                html += `
+                                    <tr><td colspan="7" style="text-align:center; padding:20px; color:#999;">Haz clic para expandir y cargar activos...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -710,6 +703,110 @@
 
         html += '</div>';
         container.innerHTML = html;
+    }
+
+    async function toggleCategory(cardId) {
+        const card = document.getElementById(cardId);
+        if (!card) return;
+        
+        card.classList.toggle('collapsed');
+        
+        // Cargar si se expande y no está cargado
+        if (!card.classList.contains('collapsed') && card.dataset.loaded === 'false') {
+            const tableBody = card.querySelector('tbody');
+            const catId = card.dataset.catId;
+            const ubicacionId = card.dataset.ubicacionId;
+            
+            tableBody.innerHTML = '<tr><td colspan="7"><div class="loader" style="width:24px; height:24px; margin:20px auto;"></div><p style="text-align:center; font-size:0.8rem; color:#666;">Cargando activos...</p></td></tr>';
+            
+            try {
+                const res = await fetch(`/activos/api/ubicacion-categoria-activos/${ubicacionId}/${catId}/`);
+                const data = await res.json();
+                
+                renderAssetRows(data.activos, tableBody);
+                card.dataset.loaded = 'true';
+                
+                if (data.more) {
+                    const moreRow = document.createElement('tr');
+                    moreRow.innerHTML = `<td colspan="7" style="text-align:center; color:var(--fiori-primary); font-size:0.8rem; padding:15px; background:#f8f9fa; font-weight:600;">Mostrando los primeros 500 activos. Usa filtros para búsquedas específicas.</td>`;
+                    tableBody.appendChild(moreRow);
+                }
+            } catch (e) {
+                console.error(e);
+                tableBody.innerHTML = '<tr><td colspan="7" style="color:var(--fiori-error); text-align:center; padding:20px;">Error al conectar con el servidor.</td></tr>';
+            }
+        }
+    }
+
+    function renderAssetRows(activos, container) {
+        container.innerHTML = '';
+        if (!activos || activos.length === 0) {
+            container.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px; color:#999;">No se encontraron activos en esta categoría.</td></tr>';
+            return;
+        }
+
+        activos.forEach(a => {
+            const row = document.createElement('tr');
+            row.className = 'asset-row';
+            row.onclick = () => isSelectionMode ? selectAsset(a.id, a.nombre) : viewAsset(a.id);
+            
+            row.innerHTML = `
+                <td style="font-weight:700; color:var(--fiori-primary);">${a.codigo}</td>
+                <td>${a.nombre}</td>
+                <td>${a.modelo || '-'}</td>
+                <td style="color:var(--fiori-text-secondary); font-size:0.8rem;">${a.modelo_descripcion || '-'}</td>
+                <td style="color:var(--fiori-text-secondary); font-size:0.8rem;">${a.descripcion || '-'}</td>
+                <td><span class="status-badge status-${a.estado}">${a.estado_display}</span></td>
+                <td>
+                    ${isSelectionMode ? `
+                    <button class="btn-icon" style="background:var(--fiori-primary); color:white; padding:4px 12px; font-size:0.75rem; border-radius:12px;">
+                        Seleccionar
+                    </button>
+                    ` : `
+                    <button class="btn-icon" onclick="event.stopPropagation(); window.location.href='/activos/editar-activo/${a.id}/'">
+                        <ion-icon name="create-outline"></ion-icon>
+                    </button>
+                    `}
+                </td>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function filterEquipment(q) {
+        const query = q.toLowerCase().trim();
+        const cards = document.querySelectorAll('.category-card');
+        
+        if (query === '') {
+            cards.forEach(c => {
+                c.style.display = '';
+                // No colapsar si ya están expandidos y cargados
+            });
+            const allRows = document.querySelectorAll('.asset-row');
+            allRows.forEach(r => r.style.display = '');
+            return;
+        }
+
+        cards.forEach(card => {
+            // El filtro solo funciona sobre lo que ya está cargado.
+            // Para una búsqueda global, se debería usar un endpoint de búsqueda.
+            if (card.dataset.loaded === 'true') {
+                let hasVisible = false;
+                const rows = card.querySelectorAll('.asset-row');
+                rows.forEach(row => {
+                    if (row.innerText.toLowerCase().includes(query)) {
+                        row.style.display = '';
+                        hasVisible = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                card.style.display = hasVisible ? '' : 'none';
+            } else {
+                // Si no está cargado, lo ocultamos durante el filtrado local para evitar confusión
+                card.style.display = 'none';
+            }
+        });
     }
 
     async function selectAsset(id, name) {
@@ -781,48 +878,6 @@
         // Optional implementation for global search
     }
 
-    function toggleCategory(id) {
-        const card = document.getElementById(id);
-        if (card) card.classList.toggle('collapsed');
-    }
-
-    function filterEquipment(q) {
-        const query = q.toLowerCase().trim();
-        const rows = document.querySelectorAll('.asset-row');
-        const cards = document.querySelectorAll('.category-card');
-        
-        if (query === '') {
-            rows.forEach(r => r.style.display = '');
-            cards.forEach(c => {
-                c.style.display = '';
-                c.classList.add('collapsed');
-            });
-            return;
-        }
-
-        cards.forEach(card => {
-            let hasVisible = false;
-            const cardRows = card.querySelectorAll('.asset-row');
-            
-            cardRows.forEach(row => {
-                const text = row.innerText.toLowerCase();
-                if (text.includes(query)) {
-                    row.style.display = '';
-                    hasVisible = true;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-
-            if (hasVisible) {
-                card.style.display = '';
-                card.classList.remove('collapsed');
-            } else {
-                card.style.display = 'none';
-            }
-        });
-    }
-
     let currentSelectedAsset = null;
 
     function openModeloModal() {
@@ -844,6 +899,13 @@
         document.getElementById('view-rutinas-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando planes...</p>';
         document.getElementById('view-activos-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando inventario...</p>';
         document.getElementById('view-caracteristicas-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando especificaciones...</p>';
+        document.getElementById('view-materiales-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando repuestos...</p>';
+
+        // Setup Edit button
+        const btnEdit = document.getElementById('btn-edit-from-view');
+        btnEdit.onclick = () => {
+            window.open(`/activos/modelos/dashboard/?search=${title.innerText}`, '_blank');
+        };
 
         // Switch to first tab by default
         switchTab('tab-rutinas', document.getElementById('btn-tab-rutinas'));
@@ -989,6 +1051,45 @@
                     }
                     charHtml += '</tbody></table>';
                     document.getElementById('view-caracteristicas-container').innerHTML = charHtml;
+
+                    // Render Materiales Compatibles
+                    let matHtml = '<table class="sap-view-table"><thead><tr><th style="width: 60px; text-align: center;">Imagen</th><th>Repuesto</th><th>SKU / Marca</th><th style="text-align: right;">Cant. Sugerida</th><th style="text-align: right;">Stock</th><th>Tipo</th></tr></thead><tbody>';
+                    if (data.materiales && data.materiales.length > 0) {
+                        data.materiales.forEach(m => {
+                            const stockColor = m.stock > 0 ? '#107e3e' : '#bb0000';
+                            const imgHtml = m.imagen 
+                                ? `<img src="${m.imagen}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid var(--fiori-border);">` 
+                                : `<div style="width: 40px; height: 40px; background: #f5f6f7; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1px solid var(--fiori-border); color: #888;"><ion-icon name="construct-outline" style="font-size: 1.2rem;"></ion-icon></div>`;
+
+                            matHtml += `<tr>
+                                <td style="text-align: center; vertical-align: middle;">${imgHtml}</td>
+                                <td style="vertical-align: middle;">
+                                    <div style="font-weight: 600; color: var(--fiori-text);">${m.nombre}</div>
+                                    <div style="font-size: 0.75rem; color: var(--fiori-text-secondary); margin-top: 2px;">${m.descripcion || ''}</div>
+                                </td>
+                                <td style="vertical-align: middle;">
+                                    <div style="font-family: monospace; font-size: 0.8rem; color: var(--fiori-text); font-weight: 500;">${m.sku || 'N/A'}</div>
+                                    <div style="font-size: 0.75rem; color: var(--fiori-text-secondary); margin-top: 2px;">${m.marca || 'S/M'}</div>
+                                </td>
+                                <td style="text-align: right; vertical-align: middle; font-weight: 600; color: var(--fiori-primary);">
+                                    ${m.cantidad_sugerida} <span style="font-weight: 400; font-size: 0.8em; color: var(--fiori-text-secondary);">${m.unidad_abreviatura || ''}</span>
+                                </td>
+                                <td style="text-align: right; vertical-align: middle; font-weight: 700; color: ${stockColor};">
+                                    <span style="display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end;">
+                                        <ion-icon name="cube-outline" style="font-size: 0.95rem;"></ion-icon>
+                                        ${m.stock}
+                                    </span>
+                                </td>
+                                <td style="vertical-align: middle;">
+                                    <span style="font-size: 0.72rem; background: #ebeef0; color: var(--fiori-text); padding: 2px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase;">${m.tipo_material || 'Insumo'}</span>
+                                </td>
+                            </tr>`;
+                        });
+                        matHtml += '</tbody></table>';
+                        document.getElementById('view-materiales-container').innerHTML = matHtml;
+                    } else {
+                        document.getElementById('view-materiales-container').innerHTML = '<div style="text-align:center; padding:40px; color:#999;"><ion-icon name="construct-outline" style="font-size:3rem; opacity:0.2; display:block; margin:0 auto 10px;"></ion-icon>No hay repuestos compatibles asociados a este modelo.</div>';
+                    }
                 } else {
                     if (window.Swal) {
                         Swal.fire('Error', data.message, 'error');
@@ -1085,6 +1186,9 @@
                 <button id="btn-tab-caracteristicas" class="sap-tab-btn" onclick="switchTab('tab-caracteristicas', this)">
                     <ion-icon name="options-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon> Especificaciones
                 </button>
+                <button id="btn-tab-materiales" class="sap-tab-btn" onclick="switchTab('tab-materiales', this)">
+                    <ion-icon name="construct-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon> Repuestos Compatibles
+                </button>
             </div>
 
             <div id="tab-rutinas" class="sap-tab-content active">
@@ -1102,8 +1206,16 @@
                     <!-- Injected via JS -->
                 </div>
             </div>
+            <div id="tab-materiales" class="sap-tab-content">
+                <div id="view-materiales-container" style="min-height: 250px; overflow-x: auto;">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
         </div>
-        <div class="sap-modal-footer" style="padding: 1.5rem 2rem;">
+        <div class="sap-modal-footer" style="padding: 1.5rem 2rem; display: flex; justify-content: space-between;">
+            <button class="btn btn-primary" id="btn-edit-from-view" style="background: #334155; border: none; padding: 0.6rem 1.5rem; color: white; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                <ion-icon name="create-outline"></ion-icon> Editar Ficha Técnica
+            </button>
             <button onclick="closeViewModelo()" style="padding: 0.6rem 1.5rem; background: transparent; border: 1px solid var(--fiori-primary); color: var(--fiori-primary); border-radius: 4px; cursor: pointer; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background='transparent'">Cerrar Vista</button>
         </div>
     </div>

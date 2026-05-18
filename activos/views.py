@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Q
+from django.db.models import Q, Exists, OuterRef, Count
 from .forms import ActivoAdminForm
 from .models import VisorPlano, PinPlano, Activo
 import json
@@ -805,14 +805,23 @@ def api_item_form(request, item_type, item_id):
 @staff_member_required
 def api_ubicaciones_root(request):
     from .models import Ubicacion
-    roots = Ubicacion.objects.filter(padre__isnull=True).order_by('orden', 'nombre')
+    from .models import Activo # Importar aquí para evitar circularidad si es necesario, o usar OuterRef
+    
+    sub_ubicaciones_exists = Ubicacion.objects.filter(padre=OuterRef('pk'))
+    activos_exists = Activo.objects.filter(ubicacion=OuterRef('pk'))
+    
+    roots = Ubicacion.objects.filter(padre__isnull=True).annotate(
+        has_sub=Exists(sub_ubicaciones_exists),
+        has_act=Exists(activos_exists)
+    ).order_by('orden', 'nombre')
+    
     data = []
     for u in roots:
         data.append({
             'id': u.id,
             'nombre': u.nombre,
             'tipo': u.tipo,
-            'has_children': u.sub_ubicaciones.exists()
+            'has_children': u.has_sub or u.has_act
         })
     return JsonResponse(data, safe=False)
 
@@ -820,32 +829,41 @@ def api_ubicaciones_root(request):
 def api_ubicaciones_children(request, parent_id):
     from .models import Ubicacion, Activo, Categoria
     
-    # 1. Obtener sub-ubicaciones físicas
-    children = Ubicacion.objects.filter(padre_id=parent_id).order_by('orden', 'nombre')
+    # 1. Obtener sub-ubicaciones físicas con anotaciones para evitar N+1
+    sub_ubicaciones_exists = Ubicacion.objects.filter(padre=OuterRef('pk'))
+    activos_exists = Activo.objects.filter(ubicacion=OuterRef('pk'))
+    
+    children = Ubicacion.objects.filter(padre_id=parent_id).annotate(
+        has_sub=Exists(sub_ubicaciones_exists),
+        has_act=Exists(activos_exists)
+    ).order_by('orden', 'nombre')
+    
     data = []
     for u in children:
         data.append({
             'id': u.id,
             'nombre': u.nombre,
             'tipo': u.tipo,
-            'has_children': u.sub_ubicaciones.exists() or Activo.objects.filter(ubicacion=u).exists()
+            'has_children': u.has_sub or u.has_act
         })
     
     # 2. Obtener categorías de activos en esta ubicación (Categorías virtuales)
-    # Solo buscamos si NO hay más sub-ubicaciones o si queremos dar el nivel de sistema
-    descendants = Ubicacion.objects.get(id=parent_id).get_descendants(include_self=True)
-    cat_ids = Activo.objects.filter(ubicacion__in=descendants).values_list('modelo__categoria_id', flat=True).distinct()
-    
-    if cat_ids:
-        categorias = Categoria.objects.filter(id__in=cat_ids).order_by('nombre')
-        for c in categorias:
-            data.append({
-                'id': f"cat_{c.id}_{parent_id}", # Formato especial para identificarlo
-                'nombre': c.nombre,
-                'tipo': 'CATEGORIA',
-                'has_children': False,
-                'icono': c.icono or 'cube'
-            })
+    # Solo buscamos si NO hay más sub-ubicaciones directas para no sobrecargar el árbol
+    # o si se solicita explícitamente (aquí lo mantenemos pero optimizado)
+    if not children.exists():
+        descendants = Ubicacion.objects.get(id=parent_id).get_descendants(include_self=True)
+        cat_ids = Activo.objects.filter(ubicacion__in=descendants).values_list('modelo__categoria_id', flat=True).distinct()
+        
+        if cat_ids:
+            categorias = Categoria.objects.filter(id__in=cat_ids).order_by('nombre')
+            for c in categorias:
+                data.append({
+                    'id': f"cat_{c.id}_{parent_id}", # Formato especial para identificarlo
+                    'nombre': c.nombre,
+                    'tipo': 'CATEGORIA',
+                    'has_children': False,
+                    'icono': c.icono or 'cube'
+                })
             
     return JsonResponse(data, safe=False)
 
@@ -870,97 +888,68 @@ def api_ubicacion_detalle(request, ubicacion_id):
         
     activos = activos_qs
     
-    # Estructura de árbol: Root Name -> { data, subcats: { Sub Name -> [assets] } }
-    groups = {}
-    total_operativos = 0
+    # Optimización: Solo traer conteos por categorías para el resumen inicial
+    from django.db.models import Count
     
-    for activo in activos:
-        # Estado
-        if activo.estado == 'OPERATIVO':
-            total_operativos += 1
+    # Conteos por categoría (Root and Direct)
+    counts_qs = activos_qs.values(
+        'modelo__categoria__padre_id',
+        'modelo__categoria__padre__nombre',
+        'modelo__categoria__padre__icono',
+        'modelo__categoria_id',
+        'modelo__categoria__nombre',
+    ).annotate(total=Count('id'))
 
-        # Categorización
-        cat_directa = activo.modelo.categoria if (activo.modelo and activo.modelo.categoria) else None
+    groups = {}
+    for item in counts_qs:
+        root_id = item['modelo__categoria__padre_id']
+        root_name = item['modelo__categoria__padre__nombre']
+        root_icon = item['modelo__categoria__padre__icono']
         
-        # Agrupador Principal (Padre o Directa si no tiene padre)
-        # Nota: Asumimos jerarquía de 2 niveles para visualización simple. 
-        # Si tiene abuelo, este lógica tomará al padre inmediato como raíz de visualización.
-        # Para ser más robustos en "Sistemas", idealmente buscaríamos la raíz, pero esto funciona para "Tipo -> Subtipo".
-        cat_root = cat_directa.padre if (cat_directa and cat_directa.padre) else cat_directa
-        
-        root_name = cat_root.nombre if cat_root else "Otros"
-        root_icon = cat_root.icono if cat_root else "cube"
-        
-        # Subcategoría (Solo si es diferente a la raíz)
-        sub_name = cat_directa.nombre if (cat_directa and cat_directa != cat_root) else "_general_"
-        
-        if root_name not in groups:
-            groups[root_name] = {
+        # Si no tiene padre, la categoría misma es la raíz
+        if root_id is None:
+            root_id = item['modelo__categoria_id']
+            root_name = item['modelo__categoria__nombre']
+            root_icon = item['modelo__categoria__padre__icono'] # Fallback
+            
+        if root_name is None: 
+            root_name = "Otros"
+            root_icon = "cube"
+
+        if root_id not in groups:
+            groups[root_id] = {
+                'id': root_id,
                 'nombre': root_name,
-                'icono': root_icon,
-                'total_assets': 0,
-                'subcats': {} 
+                'icono': root_icon or 'cube',
+                'total_items': 0,
+                'subcategorias': {}
             }
-            
-        groups[root_name]['total_assets'] += 1
         
-        if sub_name not in groups[root_name]['subcats']:
-            groups[root_name]['subcats'][sub_name] = []
-            
-        # Serializar activo
-        # Construir nombre de modelo con marca
-        modelo_display = ""
-        if activo.modelo:
-            if activo.modelo.marca:
-                modelo_display = f"{activo.modelo.marca.nombre} {activo.modelo.nombre}"
-            else:
-                modelo_display = activo.modelo.nombre
-        else:
-            modelo_display = 'S/M'
+        groups[root_id]['total_items'] += item['total']
+        
+        sub_id = item['modelo__categoria_id']
+        sub_name = item['modelo__categoria__nombre'] or "General"
+        
+        if sub_id not in groups[root_id]['subcategorias']:
+            groups[root_id]['subcategorias'][sub_id] = {
+                'id': sub_id,
+                'nombre': sub_name,
+                'total': 0
+            }
+        groups[root_id]['subcategorias'][sub_id]['total'] += item['total']
 
-        groups[root_name]['subcats'][sub_name].append({
-            'id': activo.id,
-            'nombre': activo.nombre,
-            'codigo': activo.codigo_interno or 'S/C',
-            'serie': activo.serie,
-            'modelo': modelo_display,
-            'estado': activo.estado,
-            'estado_display': activo.get_estado_display(),
-            'descripcion': (activo.descripcion[:50] + '...') if (activo.descripcion and len(activo.descripcion) > 50) else (activo.descripcion or ''),
-            'modelo_descripcion': (activo.modelo.descripcion[:50] + '...') if (activo.modelo and activo.modelo.descripcion and len(activo.modelo.descripcion) > 50) else (activo.modelo.descripcion if (activo.modelo and activo.modelo.descripcion) else ''),
-            'ubicacion_nombre': activo.ubicacion.nombre if activo.ubicacion else 'Sin Ubicación',
-            'is_child': activo.ubicacion_id != ubicacion.id,
-        })
-
-    # Procesar para JSON (Listas ordenadas)
+    # Convertir a lista para JSON
     final_list = []
-    for root_key in sorted(groups.keys()):
-        g_data = groups[root_key]
-        
-        # Procesar subcategorías
-        subs_list = []
-        # Ponemos "_general_" al principio si existe
-        if "_general_" in g_data['subcats']:
-            subs_list.append({
-                'nombre': 'General',
-                'is_general': True,
-                'activos': g_data['subcats'].pop("_general_")
-            })
-            
-        # El resto ordenado alfabéticamente
-        for sub_key in sorted(g_data['subcats'].keys()):
-            subs_list.append({
-                'nombre': sub_key,
-                'is_general': False,
-                'activos': g_data['subcats'][sub_key]
-            })
-            
-        final_list.append({
-            'nombre': g_data['nombre'],
-            'icono': g_data['icono'],
-            'total_items': g_data['total_assets'],
-            'subcategorias': subs_list
-        })
+    for g_id in sorted(groups.keys(), key=lambda x: groups[x]['nombre']):
+        g = groups[g_id]
+        subs = []
+        for s_id in sorted(g['subcategorias'].keys(), key=lambda x: g['subcategorias'][x]['nombre']):
+            subs.append(g['subcategorias'][s_id])
+        g['subcategorias'] = subs
+        final_list.append(g)
+
+    total_activos = activos_qs.count()
+    total_operativos = activos_qs.filter(estado='OPERATIVO').count()
     
     return JsonResponse({
         'ubicacion': {
@@ -970,10 +959,61 @@ def api_ubicacion_detalle(request, ubicacion_id):
             'ruta': ubicacion.get_ruta_completa(),
             'descripcion': ubicacion.descripcion
         },
-        'total_activos': activos.count(),
+        'total_activos': total_activos,
         'activos_operativos': total_operativos,
         'categorias': final_list
     })
+
+@staff_member_required
+def api_ubicacion_categoria_activos(request, ubicacion_id, categoria_id):
+    from .models import Ubicacion, Activo
+    
+    try:
+        ubicacion = Ubicacion.objects.get(id=ubicacion_id)
+    except Ubicacion.DoesNotExist:
+        return JsonResponse({'error': 'Ubicación no encontrada'}, status=404)
+        
+    descendants = ubicacion.get_descendants(include_self=True)
+    activos_qs = Activo.objects.filter(ubicacion__in=descendants).select_related('modelo__marca', 'modelo__categoria', 'ubicacion')
+    
+    # Filtrar por categoría (puede ser la raíz o una subcategoría)
+    if categoria_id == '0' or categoria_id == 'null' or not categoria_id:
+        activos_qs = activos_qs.filter(modelo__categoria__isnull=True)
+    else:
+        # Buscamos si es una categoría raíz (tiene hijos) o una hoja
+        from .models import Categoria
+        try:
+            cat = Categoria.objects.get(id=categoria_id)
+            if cat.subcategorias.exists():
+                # Es raíz, traer todo lo que cuelga de ella o sus hijos
+                cats_ids = list(cat.get_descendants(include_self=True).values_list('id', flat=True))
+                activos_qs = activos_qs.filter(modelo__categoria_id__in=cats_ids)
+            else:
+                # Es hoja
+                activos_qs = activos_qs.filter(modelo__categoria_id=categoria_id)
+        except Categoria.DoesNotExist:
+            return JsonResponse({'error': 'Categoría no encontrada'}, status=404)
+
+    # Limitar para evitar saturación si aún así son muchos
+    # (En una fase posterior se puede añadir paginación real)
+    activos = activos_qs[:500] 
+    
+    data = []
+    for a in activos:
+        modelo_display = f"{a.modelo.marca.nombre} {a.modelo.nombre}" if (a.modelo and a.modelo.marca) else (a.modelo.nombre if a.modelo else 'S/M')
+        data.append({
+            'id': a.id,
+            'nombre': a.nombre,
+            'codigo': a.codigo_interno or 'S/C',
+            'modelo': modelo_display,
+            'modelo_descripcion': (a.modelo.descripcion[:50] + '...') if (a.modelo and a.modelo.descripcion and len(a.modelo.descripcion) > 50) else (a.modelo.descripcion if (a.modelo and a.modelo.descripcion) else ''),
+            'descripcion': (a.descripcion[:50] + '...') if (a.descripcion and len(a.descripcion) > 50) else (a.descripcion or ''),
+            'estado': a.estado,
+            'estado_display': a.get_estado_display(),
+            'ubicacion_nombre': a.ubicacion.nombre if a.ubicacion else '-'
+        })
+        
+    return JsonResponse({'activos': data, 'more': activos_qs.count() > 500})
 
 @staff_member_required
 def api_activo_detalle(request, activo_id):

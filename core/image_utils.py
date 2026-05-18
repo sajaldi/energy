@@ -41,7 +41,7 @@ def compress_image(image_field, max_width=1024, quality=70):
             'ImageField', 
             new_filename,
             'image/jpeg', 
-            sys.getsizeof(output), 
+            output.getbuffer().nbytes, 
             None
         )
     except Exception as e:

@@ -602,9 +602,11 @@
                 <ion-icon name="checkmark-done-outline"></ion-icon> Finalizar
             </a>
             {% elif ot.estado == 'REALIZADA' %}
-            <a href="#" id="viewPdfBtn" class="fiori-btn fiori-btn-danger" style="flex: 1; justify-content: center; background: #d32f2f;">
-                <ion-icon name="document-text-outline"></ion-icon> Reporte PDF
-            </a>
+            <div id="pdfActionContainer" style="flex: 1; display: flex;">
+                <a href="#" id="viewPdfBtn" class="fiori-btn fiori-btn-danger" style="flex: 1; justify-content: center; background: #d32f2f;" onclick="this.innerHTML='<ion-icon name=\'sync-outline\' style=\'animation: spin 1s linear infinite;\'></ion-icon> Preparando...'; startPdfPolling(); return false;">
+                    <ion-icon name="document-text-outline"></ion-icon> Reporte PDF
+                </a>
+            </div>
             {% endif %}
         </div>
         <button class="fiori-btn fiori-btn-ghost" style="padding: 10px;" onclick="document.getElementById('moreActionsMenu').classList.toggle('show'); event.stopPropagation();">
@@ -778,10 +780,12 @@
             let attempts = 0;
             const maxAttempts = 20; // ~1 minuto
 
-            const interval = setInterval(async () => {
+            if (window.pdfPollingInterval) return;
+            window.pdfPollingInterval = setInterval(async () => {
                 attempts++;
                 if (attempts > maxAttempts) {
-                    clearInterval(interval);
+                    clearInterval(window.pdfPollingInterval);
+                    window.pdfPollingInterval = null;
                     const loader = document.getElementById('pdfLoadingBtn');
                     if (loader) loader.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon> Reintente manual';
                     return;
@@ -792,7 +796,8 @@
                     const data = await response.json();
 
                     if (data.ready) {
-                        clearInterval(interval);
+                        clearInterval(window.pdfPollingInterval);
+                        window.pdfPollingInterval = null;
                         
                         // Actualizar UI
                         container.innerHTML = `
@@ -903,10 +908,9 @@
                                 <div onclick="openMediaModal('${a.url}', 'IMAGEN')" style="width:100%;height:100%;">
                                     <img src="${a.url}" alt="${a.nombre}" style="object-fit: cover;">
                                 </div>
-                                    <button class="attachment-delete" onclick="deleteFile(${a.id})" title="Eliminar" style="z-index: 10;">
-                                        <ion-icon name="close"></ion-icon>
-                                    </button>
-                                </div>
+                                <button class="attachment-delete" onclick="deleteFile(${a.id})" title="Eliminar" style="z-index: 10;">
+                                    <ion-icon name="close"></ion-icon>
+                                </button>
                                 <div style="padding: 4px;">
                                     <input type="text" class="fiori-input" value="${a.nombre}" 
                                            style="font-size: 11px; padding: 4px; height: 24px; border: none; border-bottom: 1px solid #eee;"
@@ -1174,31 +1178,6 @@
             const modal = document.getElementById('mediaModal');
             modal.classList.remove('active');
             document.body.style.overflow = '';
-        }
-
-        // === OT Update ===
-        async function updateOT() {
-            const formData = new FormData(document.getElementById('assignmentForm'));
-            
-            fetch("{% url 'mantenimiento:mobile_ot_update_ajax' ot.id %}", {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showToast('Orden actualizada correctamente');
-                } else {
-                    showToast('Error al actualizar: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Error de conexión');
-            });
         }
 
         function filterTecnicosByEmpresa() {
