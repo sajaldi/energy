@@ -864,7 +864,7 @@ def cluster_tickets_view(request, cluster_id):
     import pandas as pd
     from xhtml2pdf import pisa
     
-    from django.db.models import Prefetch, Count, Q
+    from django.db.models import Prefetch, Count, Q, Sum
     from .models import FallaTicket
     from django.contrib.auth.models import User
     
@@ -945,6 +945,9 @@ def cluster_tickets_view(request, cluster_id):
     cerrados_count = tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).count()
     abiertos_count = total - cerrados_count
     
+    # Calcular deductiva total en el filtro actual
+    total_deductiva = tickets.aggregate(total=Sum('deductiva'))['total'] or 0.00
+    
     # Manejo de Exportación
     export_type = request.GET.get('export')
     if export_type == 'excel':
@@ -960,6 +963,7 @@ def cluster_tickets_view(request, cluster_id):
                 'Fecha Finalización': t.fecha_cierre.strftime('%d/%m/%Y %H:%M') if t.fecha_cierre else '',
                 'Diagnóstico': t.diagnostico or '',
                 'Acciones Realizadas': t.actividades or '',
+                'Deductiva (USD)': float(t.deductiva) if t.deductiva else 0.0,
                 'Estado': 'Cerrado' if (t.fecha_cierre or t.cierre_enviado) else 'Abierto'
             })
         df = pd.DataFrame(data)
@@ -975,6 +979,7 @@ def cluster_tickets_view(request, cluster_id):
             'total': total,
             'cerrados': cerrados_count,
             'abiertos': abiertos_count,
+            'total_deductiva': total_deductiva,
             'fecha_reporte': timezone.now()
         })
         response = HttpResponse(content_type='application/pdf')
@@ -1017,7 +1022,8 @@ def cluster_tickets_view(request, cluster_id):
         raw_tickets.append({
             'f': f_name,
             'u': partes,
-            'd': duracion_horas
+            'd': duracion_horas,
+            'c': bool(t.fecha_cierre or t.cierre_enviado)
         })
 
     chart_data = {
@@ -1031,13 +1037,12 @@ def cluster_tickets_view(request, cluster_id):
         'total': total,
         'cerrados': cerrados_count,
         'abiertos': abiertos_count,
+        'total_deductiva': total_deductiva,
         'q': q,
         'title': f'Tickets en {cluster.correlativo}',
         'chart_data_json': json.dumps(chart_data)
     }
 
-    return render(request, 'callcenter/cluster_tickets.html', context)
-    return render(request, 'callcenter/cluster_tickets.html', context)
     return render(request, 'callcenter/cluster_tickets.html', context)
 
 @staff_member_required

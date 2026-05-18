@@ -967,6 +967,66 @@
                     }
                 });
             }
+
+            // Initialize Tom Select for Category Parent (Categoría Padre)
+            const fTipoPadre = document.getElementById('tipo-padre');
+            if (fTipoPadre) {
+                tsTipoPadre = new TomSelect('#tipo-padre', {
+                    create: false,
+                    placeholder: 'Seleccione una categoría padre...',
+                    allowEmptyOption: true,
+                    maxOptions: 500,
+                    render: {
+                        option: function(data, escape) {
+                            if (!data.value) {
+                                return `<div><span style="font-weight:600; color:var(--text-muted);">${escape(data.text)}</span></div>`;
+                            }
+                            const parts = data.text.split(' → ');
+                            const main = parts.pop();
+                            const path = parts.join(' → ');
+                            return `<div>
+                                <span style="font-weight:600; display:block;">${escape(main)}</span>
+                                ${path ? `<span style="font-size:0.75rem; color:#64748b; display:block;">${escape(path)}</span>` : ''}
+                            </div>`;
+                        },
+                        item: function(data, escape) {
+                            if (!data.value) return `<div>${escape(data.text)}</div>`;
+                            const parts = data.text.split(' → ');
+                            return `<div>${escape(parts[parts.length - 1])}</div>`;
+                        }
+                    }
+                });
+            }
+
+            // Initialize Tom Select for Move Routine Destination
+            const fMoveTipo = document.getElementById('move-routine-tipo');
+            if (fMoveTipo) {
+                tsMoveCategoria = new TomSelect('#move-routine-tipo', {
+                    create: false,
+                    placeholder: 'Seleccione una categoría...',
+                    allowEmptyOption: true,
+                    maxOptions: 500,
+                    render: {
+                        option: function(data, escape) {
+                            if (!data.value) {
+                                return `<div><span style="font-weight:600; color:var(--text-muted);">${escape(data.text)}</span></div>`;
+                            }
+                            const parts = data.text.split(' → ');
+                            const main = parts.pop();
+                            const path = parts.join(' → ');
+                            return `<div>
+                                <span style="font-weight:600; display:block;">${escape(main)}</span>
+                                ${path ? `<span style="font-size:0.75rem; color:#64748b; display:block;">${escape(path)}</span>` : ''}
+                            </div>`;
+                        },
+                        item: function(data, escape) {
+                            if (!data.value) return `<div>${escape(data.text)}</div>`;
+                            const parts = data.text.split(' → ');
+                            return `<div>${escape(parts[parts.length - 1])}</div>`;
+                        }
+                    }
+                });
+            }
         });
 
         function toggleInvasiveBorder(isInvasive) {
@@ -1042,7 +1102,16 @@
             if (btnDelete) btnDelete.style.display = 'none';
             if (modalTitle) modalTitle.textContent = id ? 'Editar Categoría' : 'Nueva Categoría';
             
-            if (padreSelect && parentId) {
+            // Habilitar todas las opciones y deshabilitar la categoría actual para evitar ciclos circulares
+            if (tsTipoPadre) {
+                Object.keys(tsTipoPadre.options).forEach(optKey => {
+                    tsTipoPadre.enableOption(optKey);
+                });
+                if (id) {
+                    tsTipoPadre.disableOption(id);
+                }
+                tsTipoPadre.setValue(parentId || '');
+            } else if (padreSelect && parentId) {
                 padreSelect.value = parentId;
             }
             
@@ -1057,7 +1126,11 @@
                             if (tipoIdInput) tipoIdInput.value = t.id;
                             if (document.getElementById('tipo-nombre')) document.getElementById('tipo-nombre').value = t.nombre;
                             if (document.getElementById('tipo-codigo')) document.getElementById('tipo-codigo').value = t.codigo;
-                            if (padreSelect) padreSelect.value = t.padre_id;
+                            if (tsTipoPadre) {
+                                tsTipoPadre.setValue(t.padre_id || '');
+                            } else if (padreSelect) {
+                                padreSelect.value = t.padre_id;
+                            }
                             if (document.getElementById('tipo-descripcion')) document.getElementById('tipo-descripcion').value = t.descripcion;
                             
                             if (btnDelete) btnDelete.style.display = 'inline-block';
@@ -1074,6 +1147,105 @@
                 targetM.setAttribute('style', 'display:none;');
             }
             currentTipoId = null;
+        }
+
+        // --- CONTEXT MENU Y MOVER RUTINAS ---
+        function showRoutineContextMenu(event, routineId, routineName) {
+            event.preventDefault();
+            contextRoutineId = routineId;
+            const menu = document.getElementById('routineContextMenu');
+            if (menu) {
+                menu.style.display = 'block';
+                menu.style.left = `${event.pageX}px`;
+                menu.style.top = `${event.pageY}px`;
+                menu.dataset.routineName = routineName;
+            }
+            
+            const closeMenu = () => {
+                if (menu) menu.style.display = 'none';
+                document.removeEventListener('click', closeMenu);
+            };
+            setTimeout(() => {
+                document.addEventListener('click', closeMenu);
+            }, 10);
+        }
+
+        function openMoveRoutineModal() {
+            if (!contextRoutineId) return;
+            const menu = document.getElementById('routineContextMenu');
+            const routineName = menu ? menu.dataset.routineName : '';
+            const moveModal = document.getElementById('moveRoutineModal');
+            const nameSpan = document.getElementById('move-routine-name');
+            
+            if (nameSpan) nameSpan.textContent = routineName;
+            
+            if (moveModal) {
+                moveModal.setAttribute('style',
+                    'display:flex !important;' +
+                    'position:fixed !important;' +
+                    'top:0 !important;' +
+                    'left:0 !important;' +
+                    'width:100vw !important;' +
+                    'height:100vh !important;' +
+                    'background:rgba(0,0,0,0.5);' +
+                    'z-index:999999 !important;' +
+                    'align-items:center;' +
+                    'justify-content:center;' +
+                    'backdrop-filter:blur(4px);' +
+                    'visibility:visible !important;' +
+                    'opacity:1 !important;' +
+                    'pointer-events:all !important;'
+                );
+            }
+            if (tsMoveCategoria) {
+                tsMoveCategoria.setValue('');
+            } else {
+                const moveSelect = document.getElementById('move-routine-tipo');
+                if (moveSelect) moveSelect.value = '';
+            }
+        }
+
+        function closeMoveRoutineModal() {
+            const moveModal = document.getElementById('moveRoutineModal');
+            if (moveModal) {
+                moveModal.setAttribute('style', 'display:none;');
+            }
+            contextRoutineId = null;
+        }
+
+        function submitMoveRoutine() {
+            if (!contextRoutineId) return;
+            const targetTipoId = tsMoveCategoria ? tsMoveCategoria.getValue() : document.getElementById('move-routine-tipo').value;
+            
+            const submitBtn = document.querySelector('#moveRoutineModal .btn-primary');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = 'Moviendo...';
+            submitBtn.disabled = true;
+            
+            fetch(`/mantenimiento/rutinas/dashboard/move/${contextRoutineId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ tipo_id: targetTipoId || null })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + res.message);
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error de conexión al mover la rutina");
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
         }
 
         function saveTipo() {

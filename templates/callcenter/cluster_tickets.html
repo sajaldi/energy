@@ -157,6 +157,11 @@
                         <span class="metric-label" style="font-size: 0.7rem;">Cerrados</span>
                         <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.2rem; color: var(--sap-success);">{{ cerrados }}</div>
                     </a>
+
+                    <div class="metric-card" style="padding: 0.75rem 1rem; min-width: 120px; border-left: 4px solid #b81d24; cursor: default;">
+                        <span class="metric-label" style="font-size: 0.7rem; color: #b81d24; font-weight: bold;"><i class="ph ph-currency-usd"></i> Total Deductiva</span>
+                        <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.2rem; color: #b81d24;">${{ total_deductiva|default:"0.00"|intcomma }}</div>
+                    </div>
                 </div>
 
                 <!-- Section 2: Filters -->
@@ -243,17 +248,44 @@
 
         <!-- Tab Análisis -->
         <div id="tab-analisis" style="display: none;">
-            <!-- Badge de filtro activo -->
-            <div id="filter-badge" style="display: none; align-items: center; gap: 8px; margin-bottom: 1rem; padding: 8px 16px; background: linear-gradient(135deg, #ebf5ff, #f0f0ff); border: 1px solid #c0d8f0; border-radius: 8px; font-size: 0.9rem; color: #333;">
-                <i class="ph ph-funnel" style="color: var(--sap-primary);"></i>
-                <span></span>
-                <button onclick="clearFallaFilter()" style="margin-left: auto; border: none; background: none; cursor: pointer; color: #999; font-size: 1.1rem;" title="Quitar filtro"><i class="ph ph-x-circle"></i></button>
+            <!-- Dynamic Metric Cards Row -->
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(59,130,246,0.05); transition: transform 0.2s;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-ticket" style="margin-right: 4px;"></i>Total en Filtro</span>
+                    <div id="dynamic-total" style="font-size: 1.75rem; font-weight: 800; color: #1d4ed8; margin-top: 4px;">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fef3c7; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(245,158,11,0.05); transition: transform 0.2s;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-clock" style="margin-right: 4px;"></i>Abiertos</span>
+                    <div id="dynamic-abiertos" style="font-size: 1.75rem; font-weight: 800; color: #d97706; margin-top: 4px;">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(16,185,129,0.05); transition: transform 0.2s;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-check-circle" style="margin-right: 4px;"></i>Cerrados</span>
+                    <div id="dynamic-cerrados" style="font-size: 1.75rem; font-weight: 800; color: #15803d; margin-top: 4px;">0</div>
+                </div>
             </div>
+
+            <!-- Badge de filtro activo -->
+            <div id="filter-badge" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; padding: 8px 16px; background: linear-gradient(135deg, #ebf5ff, #f0f0ff); border: 1px solid #c0d8f0; border-radius: 8px; font-size: 0.9rem; color: #333;">
+                <i class="ph ph-funnel" style="color: var(--sap-primary); margin-right: 4px;"></i>
+                <span style="font-weight: 600; color: #555; margin-right: 8px;">Filtros Activos:</span>
+                <div id="active-filter-chips" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+                <button onclick="clearAllFilters()" style="margin-left: auto; border: none; background: none; cursor: pointer; color: var(--sap-primary); font-size: 0.8rem; font-weight: bold; display: flex; align-items: center; gap: 4px;" title="Limpiar todos los filtros">
+                    <i class="ph ph-trash"></i> Limpiar Todo
+                </button>
+            </div>
+
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
                 <div class="chart-card">
                     <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Distribución por Tipo de Falla</h3>
                     <div style="position: relative; height: 300px; width: 100%;">
                         <canvas id="chartFallas"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Estado de los Tickets (Abiertos vs Cerrados)</h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="chartEstado"></canvas>
                     </div>
                 </div>
                 
@@ -290,6 +322,7 @@
                         <th>Técnico Asignado</th>
                         <th>Descripción</th>
                         <th>Fecha</th>
+                        <th style="white-space: nowrap; color: #b81d24; font-weight: 700;">Deductiva (USD)</th>
                         <th style="cursor: pointer; white-space: nowrap; color: var(--sap-primary);" onclick="applySort('estado')">
                             Estado 
                             {% if request.GET.sort == 'estado' %}<i class="ph ph-caret-up"></i>{% elif request.GET.sort == '-estado' %}<i class="ph ph-caret-down"></i>{% endif %}
@@ -302,7 +335,7 @@
                     {% regroup tickets by falla_reportada.parent.nombre as grouped_tickets %}
                     {% for group in grouped_tickets %}
                         <tr class="group-header" onclick="toggleGroup(this)" data-group-id="group-{{ forloop.counter }}" style="cursor: pointer; background: #f8f9fa;">
-                            <td colspan="9" style="padding: 0.8rem 1.25rem; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; box-shadow: inset 5px 0 0 var(--sap-primary);">
+                            <td colspan="10" style="padding: 0.8rem 1.25rem; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; box-shadow: inset 5px 0 0 var(--sap-primary);">
                                 <div style="display: flex; align-items: center; gap: 1rem;">
                                     <i class="ph ph-caret-right caret-icon" style="transition: transform 0.3s; {% if q %}transform: rotate(90deg);{% endif %}"></i>
                                     <span style="font-weight: 700; color: var(--sap-primary);">{{ group.grouper|default:"Sin Clasificar" }}</span>
@@ -343,6 +376,13 @@
                             </td>
                             <td><span style="color: var(--sap-text-muted);" title="{{ t.solicitud_descripcion }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
                             <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                            <td style="font-weight: 600; color: #b81d24;">
+                                {% if t.deductiva and t.deductiva > 0 %}
+                                    ${{ t.deductiva|floatformat:2|intcomma }}
+                                {% else %}
+                                    <span style="color: #bbb;">-</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if t.fecha_cierre or t.cierre_enviado %}
                                     <span class="badge badge-success"><i class="ph ph-check-circle"></i> Cerrado</span>
@@ -373,7 +413,7 @@
                         {% endfor %}
                     {% empty %}
                         <tr>
-                            <td colspan="9" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
+                            <td colspan="10" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
                                 No hay tickets que coincidan con los filtros.
                             </td>
                         </tr>
@@ -838,10 +878,21 @@
         }
 
         let chartsRendered = false;
-        let chartFallas, chartTiempos, chartUbic;
+        let chartFallas, chartTiempos, chartUbic, chartEstado;
         let globalTickets = [];
         let currentUbicacionPath = [];
         let selectedFalla = null; // Cross-filter por falla
+        let selectedEstado = null; // Cross-filter por estado ('abierto', 'cerrado' o null)
+        let fallaColors = {};
+        const presetColors = ['#0070f2', '#e9730c', '#107e3e', '#d22359', '#6c5ce7', '#00aed8', '#f39c12', '#8e44ad', '#2c3e50', '#16a085'];
+
+        function hexToRgba(hex, alpha) {
+            hex = hex.replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
 
         function renderCharts() {
             if (chartsRendered) return;
@@ -852,6 +903,17 @@
             
             const chartData = JSON.parse(rawData);
             globalTickets = chartData.raw_tickets || [];
+
+            // Asignar colores consistentes a cada falla única
+            const uniqueFallas = Array.from(new Set(globalTickets.map(t => t.f)));
+            fallaColors = {
+                'Sin Clasificar': '#cbd5e1'
+            };
+            uniqueFallas.forEach((f, idx) => {
+                if (f !== 'Sin Clasificar') {
+                    fallaColors[f] = presetColors[idx % presetColors.length];
+                }
+            });
             
             updateAllCharts();
         }
@@ -868,57 +930,210 @@
             updateAllCharts();
         };
 
+        window.clearEstadoFilter = function() {
+            selectedEstado = null;
+            updateAllCharts();
+        };
+
+        window.clearUbicacionFilter = function() {
+            currentUbicacionPath = [];
+            updateAllCharts();
+        };
+
+        window.clearAllFilters = function() {
+            selectedFalla = null;
+            selectedEstado = null;
+            currentUbicacionPath = [];
+            updateAllCharts();
+        };
+
+        function updateFilterBadges() {
+            const badge = document.getElementById('filter-badge');
+            const container = document.getElementById('active-filter-chips');
+            container.innerHTML = '';
+
+            let hasFilters = false;
+
+            if (selectedFalla) {
+                hasFilters = true;
+                const chip = document.createElement('span');
+                chip.style = 'display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; border: 1px solid #bae6fd; color: #0369a1; padding: 4px 8px; border-radius: 16px; font-size: 0.8rem; font-weight: 600;';
+                chip.innerHTML = `Falla: ${selectedFalla} <i class="ph ph-x-circle" style="cursor: pointer; font-size: 1rem; color: #0284c7;" onclick="clearFallaFilter()"></i>`;
+                container.appendChild(chip);
+            }
+
+            if (selectedEstado) {
+                hasFilters = true;
+                const chip = document.createElement('span');
+                const isAbierto = selectedEstado === 'abierto';
+                chip.style = isAbierto 
+                    ? 'display: inline-flex; align-items: center; gap: 6px; background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 16px; font-size: 0.8rem; font-weight: 600;'
+                    : 'display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 4px 8px; border-radius: 16px; font-size: 0.8rem; font-weight: 600;';
+                chip.innerHTML = `Estado: ${selectedEstado.toUpperCase()} <i class="ph ph-x-circle" style="cursor: pointer; font-size: 1rem; color: ${isAbierto ? '#d97706' : '#16a34a'};" onclick="clearEstadoFilter()"></i>`;
+                container.appendChild(chip);
+            }
+
+            if (currentUbicacionPath.length > 0) {
+                hasFilters = true;
+                const chip = document.createElement('span');
+                chip.style = 'display: inline-flex; align-items: center; gap: 6px; background: #f3e8ff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 4px 8px; border-radius: 16px; font-size: 0.8rem; font-weight: 600;';
+                chip.innerHTML = `Ubicación: ${currentUbicacionPath.join(' → ')} <i class="ph ph-x-circle" style="cursor: pointer; font-size: 1rem; color: #8b5cf6;" onclick="clearUbicacionFilter()"></i>`;
+                container.appendChild(chip);
+            }
+
+            if (hasFilters) {
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
         function updateAllCharts() {
-            // 1. Filtrar tickets por jerarquía de ubicación
-            let filteredTickets = globalTickets.filter(t => {
+            // 1. Filtrar por Ubicación (dataset base para charts)
+            let ticketsFiltradosPorUbicacion = globalTickets.filter(t => {
                 for (let i=0; i<currentUbicacionPath.length; i++) {
                     if (t.u[i] !== currentUbicacionPath[i]) return false;
                 }
                 return true;
             });
             
-            // 2. Calcular Falla Counts (sobre tickets filtrados por ubicación, SIN filtro de falla)
+            // 2. Filtrar por todos los filtros activos (para las KPI cards de cabecera y el gráfico de tiempos)
+            let ticketsCompletamenteFiltrados = ticketsFiltradosPorUbicacion.filter(t => {
+                if (selectedFalla && t.f !== selectedFalla) return false;
+                if (selectedEstado === 'abierto' && t.c) return false;
+                if (selectedEstado === 'cerrado' && !t.c) return false;
+                return true;
+            });
+
+            // Actualizar tarjetas dinámicas de métricas en el tab
+            let totalFiltered = ticketsCompletamenteFiltrados.length;
+            let abiertosFiltered = ticketsCompletamenteFiltrados.filter(t => !t.c).length;
+            let cerradosFiltered = ticketsCompletamenteFiltrados.filter(t => t.c).length;
+
+            document.getElementById('dynamic-total').innerText = totalFiltered;
+            document.getElementById('dynamic-abiertos').innerText = abiertosFiltered;
+            document.getElementById('dynamic-cerrados').innerText = cerradosFiltered;
+            
+            // 3. Dataset para CHART FALLAS: Filtrado por Ubicación y Estado (NO por Falla)
+            let ticketsParaFallas = ticketsFiltradosPorUbicacion.filter(t => {
+                if (selectedEstado === 'abierto' && t.c) return false;
+                if (selectedEstado === 'cerrado' && !t.c) return false;
+                return true;
+            });
             let fCounts = {};
-            filteredTickets.forEach(t => { fCounts[t.f] = (fCounts[t.f] || 0) + 1; });
+            ticketsParaFallas.forEach(t => { fCounts[t.f] = (fCounts[t.f] || 0) + 1; });
             const topFallas = Object.entries(fCounts).sort((a,b) => b[1]-a[1]).slice(0, 10);
             
-            // 3. Aplicar filtro de falla para tiempos y ubicaciones
-            let ticketsParaDetalle = filteredTickets;
-            if (selectedFalla) {
-                ticketsParaDetalle = filteredTickets.filter(t => t.f === selectedFalla);
-            }
-            
-            // 4. Calcular Tiempos
+            // 4. Dataset para CHART ESTADO: Filtrado por Ubicación y Falla (NO por Estado)
+            let ticketsParaEstado = ticketsFiltradosPorUbicacion.filter(t => {
+                if (selectedFalla && t.f !== selectedFalla) return false;
+                return true;
+            });
+            let abiertosCountForChart = ticketsParaEstado.filter(t => !t.c).length;
+            let cerradosCountForChart = ticketsParaEstado.filter(t => t.c).length;
+
+            // 5. Dataset para CHART UBICACIONES: Filtrado por Falla y Estado (Jerárquico por Ubicación)
+            let ticketsParaUbicaciones = globalTickets.filter(t => {
+                for (let i=0; i<currentUbicacionPath.length; i++) {
+                    if (t.u[i] !== currentUbicacionPath[i]) return false;
+                }
+                if (selectedFalla && t.f !== selectedFalla) return false;
+                if (selectedEstado === 'abierto' && t.c) return false;
+                if (selectedEstado === 'cerrado' && !t.c) return false;
+                return true;
+            });
+            let uCounts = {};
+            const level = currentUbicacionPath.length;
+            ticketsParaUbicaciones.forEach(t => {
+                if (level < t.u.length) {
+                    const nextNode = t.u[level];
+                    if (!uCounts[nextNode]) {
+                        uCounts[nextNode] = { count: 0, fallas: {} };
+                    }
+                    uCounts[nextNode].count++;
+                    
+                    if (!uCounts[nextNode].fallas[t.f]) {
+                        uCounts[nextNode].fallas[t.f] = { abiertos: 0, cerrados: 0 };
+                    }
+                    if (t.c) {
+                        uCounts[nextNode].fallas[t.f].cerrados++;
+                    } else {
+                        uCounts[nextNode].fallas[t.f].abiertos++;
+                    }
+                }
+            });
+            const topUbic = Object.entries(uCounts).sort((a,b) => b[1].count - a[1].count).slice(0, 15);
+
+            // Calcular hasChildrenMap dinámicamente sobre la jerarquía de globalTickets
+            const hasChildrenMap = topUbic.map(x => {
+                const clickedLabel = x[0];
+                const nextLevel = currentUbicacionPath.length + 1;
+                return globalTickets.some(t => {
+                    for (let i = 0; i < currentUbicacionPath.length; i++) {
+                        if (t.u[i] !== currentUbicacionPath[i]) return false;
+                    }
+                    if (t.u[currentUbicacionPath.length] !== clickedLabel) return false;
+                    return t.u.length > nextLevel;
+                });
+            });
+
+            // Construir conjuntos de datasets para la pila (stack) de fallas por ubicación
+            const fallasPresentes = new Set();
+            topUbic.forEach(x => {
+                Object.keys(x[1].fallas).forEach(f => fallasPresentes.add(f));
+            });
+
+            const datasets = [];
+            Array.from(fallasPresentes).forEach(f => {
+                const baseColor = fallaColors[f] || '#cbd5e1';
+                
+                // Conteo de Abiertos (Más transparente)
+                const abiertosData = topUbic.map(x => (x[1].fallas[f] ? x[1].fallas[f].abiertos : 0));
+                if (abiertosData.some(v => v > 0)) {
+                    datasets.push({
+                        label: `${f} (Abiertos)`,
+                        data: abiertosData,
+                        backgroundColor: hexToRgba(baseColor, 0.55), // Transparente
+                        borderColor: baseColor,
+                        borderWidth: 1,
+                        borderRadius: 4
+                    });
+                }
+                
+                // Conteo de Cerrados (Menos transparente / Sólido)
+                const cerradosData = topUbic.map(x => (x[1].fallas[f] ? x[1].fallas[f].cerrados : 0));
+                if (cerradosData.some(v => v > 0)) {
+                    datasets.push({
+                        label: `${f} (Cerrados)`,
+                        data: cerradosData,
+                        backgroundColor: hexToRgba(baseColor, 0.95), // Casi sólido (menos transparencia)
+                        borderColor: baseColor,
+                        borderWidth: 1.5,
+                        borderRadius: 4
+                    });
+                }
+            });
+
+            const labelsWithCounts = topUbic.map(x => `${x[0]} (${x[1].count})`);
+
+            // 6. Calcular Tiempos (Dataset completamente filtrado)
             let fTimes = {};
-            ticketsParaDetalle.forEach(t => {
+            ticketsCompletamenteFiltrados.forEach(t => {
                 if (t.d !== null) {
                     if (!fTimes[t.f]) fTimes[t.f] = [];
                     fTimes[t.f].push(t.d);
                 }
             });
-            
-            // 5. Calcular Nodos Hijos de Ubicación
-            let uCounts = {};
-            const level = currentUbicacionPath.length;
-            ticketsParaDetalle.forEach(t => {
-                if (level < t.u.length) {
-                    const nextNode = t.u[level];
-                    if (!uCounts[nextNode]) uCounts[nextNode] = { count: 0, hasChildren: false };
-                    uCounts[nextNode].count++;
-                    if (level + 1 < t.u.length) uCounts[nextNode].hasChildren = true;
-                }
-            });
-            
             const topTiempos = Object.entries(fTimes).map(([f, times]) => {
                 const avg = times.reduce((a,b)=>a+b,0) / times.length;
                 return [f, Math.round(avg * 10) / 10];
             }).sort((a,b) => b[1]-a[1]).slice(0, 10);
             
-            const topUbic = Object.entries(uCounts).sort((a,b) => b[1].count - a[1].count).slice(0, 15);
-            
+            // 7. Renderizar todas las gráficas
             drawFallas(topFallas.map(x=>x[0]), topFallas.map(x=>x[1]));
+            drawEstado(abiertosCountForChart, cerradosCountForChart);
             drawTiempos(topTiempos.map(x=>x[0]), topTiempos.map(x=>x[1]));
-            drawUbicaciones(topUbic);
+            drawUbicaciones(labelsWithCounts, datasets, hasChildrenMap);
             
             // UI Updates - Ubicación
             const btnBack = document.getElementById('btn-back-ubicaciones');
@@ -931,27 +1146,24 @@
                 title.innerText = `Ubicaciones principales con más fallas`;
             }
             
-            // UI Updates - Badge de filtro activo
-            const badge = document.getElementById('filter-badge');
-            if (selectedFalla) {
-                badge.style.display = 'flex';
-                badge.querySelector('span').innerText = `Filtrando: ${selectedFalla}`;
-            } else {
-                badge.style.display = 'none';
-            }
+            // UI Updates - Actualizar los Badges de filtro activos
+            updateFilterBadges();
         }
         
         function drawFallas(labels, data) {
+            const labelsWithCounts = labels.map((l, i) => `${l} (${data[i]})`);
+            const colors = labels.map(l => fallaColors[l] || '#cbd5e1');
             if (chartFallas) {
-                chartFallas.data.labels = labels;
+                chartFallas.data.labels = labelsWithCounts;
                 chartFallas.data.datasets[0].data = data;
+                chartFallas.data.datasets[0].backgroundColor = colors;
                 chartFallas.update();
             } else {
                 chartFallas = new Chart(document.getElementById('chartFallas'), {
                     type: 'doughnut',
                     data: {
-                        labels: labels,
-                        datasets: [{ data: data, backgroundColor: ['#0070f2', '#e9730c', '#107e3e', '#d22359', '#6c5ce7', '#00aed8', '#f39c12', '#8e44ad', '#2c3e50', '#16a085'] }]
+                        labels: labelsWithCounts,
+                        datasets: [{ data: data, backgroundColor: colors }]
                     },
                     options: {
                         responsive: true, maintainAspectRatio: false,
@@ -959,7 +1171,10 @@
                         onClick: (e, elements) => {
                             if (elements.length > 0) {
                                 const index = elements[0].index;
-                                const clickedLabel = chartFallas.data.labels[index];
+                                const clickedLabelWithCount = chartFallas.data.labels[index];
+                                const lastOpenParen = clickedLabelWithCount.lastIndexOf(' (');
+                                const clickedLabel = lastOpenParen !== -1 ? clickedLabelWithCount.substring(0, lastOpenParen) : clickedLabelWithCount;
+                                
                                 if (selectedFalla === clickedLabel) {
                                     selectedFalla = null; // Toggle off
                                 } else {
@@ -976,17 +1191,71 @@
                 });
             }
         }
+
+        function drawEstado(abiertos, cerrados) {
+            const labels = [`Abiertos (${abiertos})`, `Cerrados (${cerrados})`];
+            const data = [abiertos, cerrados];
+            
+            if (chartEstado) {
+                chartEstado.data.labels = labels;
+                chartEstado.data.datasets[0].data = data;
+                chartEstado.update();
+            } else {
+                chartEstado = new Chart(document.getElementById('chartEstado'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{ 
+                            data: data, 
+                            backgroundColor: ['#e9730c', '#107e3e'],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { 
+                                position: 'right',
+                                labels: {
+                                    font: { size: 12, weight: 'bold' }
+                                }
+                            }
+                        },
+                        onClick: (e, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                const clickedLabelWithCount = chartEstado.data.labels[index];
+                                const clickedLabel = clickedLabelWithCount.startsWith('Abiertos') ? 'abierto' : 'cerrado';
+                                
+                                if (selectedEstado === clickedLabel) {
+                                    selectedEstado = null; // Toggle off
+                                } else {
+                                    selectedEstado = clickedLabel;
+                                }
+                                updateAllCharts();
+                            }
+                        },
+                        onHover: (e, elements) => {
+                            const canvas = e.native ? e.native.target : e.target;
+                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                        }
+                    }
+                });
+            }
+        }
         
         function drawTiempos(labels, data) {
+            const labelsWithTimes = labels.map((l, i) => `${l} (${data[i]} hrs)`);
             if (chartTiempos) {
-                chartTiempos.data.labels = labels;
+                chartTiempos.data.labels = labelsWithTimes;
                 chartTiempos.data.datasets[0].data = data;
                 chartTiempos.update();
             } else {
                 chartTiempos = new Chart(document.getElementById('chartTiempos'), {
                     type: 'bar',
                     data: {
-                        labels: labels,
+                        labels: labelsWithTimes,
                         datasets: [{ label: 'Horas Promedio', data: data, backgroundColor: '#e9730c', borderRadius: 4 }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
@@ -994,32 +1263,58 @@
             }
         }
         
-        function drawUbicaciones(topUbic) {
-            const labels = topUbic.map(x=>x[0]);
-            const data = topUbic.map(x=>x[1].count);
-            const hasChildrenMap = topUbic.map(x=>x[1].hasChildren);
-            
+        function drawUbicaciones(labelsWithCounts, datasets, hasChildrenMap) {
             if (chartUbic) {
-                chartUbic.data.labels = labels;
-                chartUbic.data.datasets[0].data = data;
+                chartUbic.data.labels = labelsWithCounts;
+                chartUbic.data.datasets = datasets;
                 chartUbic.data.hasChildrenMap = hasChildrenMap;
                 chartUbic.update();
             } else {
                 chartUbic = new Chart(document.getElementById('chartUbicaciones'), {
                     type: 'bar',
                     data: {
-                        labels: labels,
-                        datasets: [{ label: 'Cantidad de Tickets', data: data, backgroundColor: '#0070f2', borderRadius: 4 }],
+                        labels: labelsWithCounts,
+                        datasets: datasets,
                         hasChildrenMap: hasChildrenMap
                     },
                     options: {
-                        indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                        indexAxis: 'y', 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { 
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: { stacked: true },
+                            y: { stacked: true }
+                        },
                         onClick: (e, elements) => {
                             if (elements.length > 0) {
                                 const index = elements[0].index;
-                                if (chartUbic.data.hasChildrenMap[index]) {
-                                    currentUbicacionPath.push(chartUbic.data.labels[index]);
+                                const clickedLabelWithCount = chartUbic.data.labels[index];
+                                const lastOpenParen = clickedLabelWithCount.lastIndexOf(' (');
+                                const clickedLabel = lastOpenParen !== -1 ? clickedLabelWithCount.substring(0, lastOpenParen) : clickedLabelWithCount;
+                                
+                                const nextLevel = currentUbicacionPath.length + 1;
+                                const hasSubLocations = globalTickets.some(t => {
+                                    for (let i = 0; i < currentUbicacionPath.length; i++) {
+                                        if (t.u[i] !== currentUbicacionPath[i]) return false;
+                                    }
+                                    if (t.u[currentUbicacionPath.length] !== clickedLabel) return false;
+                                    return t.u.length > nextLevel;
+                                });
+
+                                if (hasSubLocations) {
+                                    currentUbicacionPath.push(clickedLabel);
                                     updateAllCharts();
+                                } else {
+                                    Swal.fire({
+                                        title: 'Fin de la ruta',
+                                        text: `La ubicación "${clickedLabel}" es el nivel final y no tiene sub-ubicaciones.`,
+                                        icon: 'info',
+                                        confirmButtonText: 'Entendido',
+                                        confirmButtonColor: 'var(--sap-primary)'
+                                    });
                                 }
                             }
                         },
@@ -1027,7 +1322,8 @@
                             const canvas = e.native ? e.native.target : e.target;
                             if (elements.length > 0) {
                                 const index = elements[0].index;
-                                if (chartUbic.data.hasChildrenMap[index]) {
+                                const hasChildren = chartUbic.data.hasChildrenMap[index];
+                                if (hasChildren) {
                                     canvas.style.cursor = 'pointer';
                                     return;
                                 }

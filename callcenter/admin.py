@@ -38,14 +38,14 @@ class TicketsInline(admin.TabularInline):
 
 @admin.register(GrupoTicket)
 class GrupoTicketAdmin(admin.ModelAdmin):
-    list_display = ('correlativo', 'descripcion_corta', 'get_ubicaciones', 'fecha', 'get_tickets_count')
-    list_filter = ('fecha',)
-    search_fields = ('correlativo', 'descripcion')
+    list_display = ('correlativo', 'descripcion_corta', 'get_tickets_count', 'departamento', 'get_estadisticas_generales', 'visualizar_cluster_btn')
+    list_filter = ('fecha', 'departamento')
+    search_fields = ('correlativo', 'descripcion', 'departamento__nombre')
     readonly_fields = ('correlativo', 'fecha')
     inlines = [TicketsInline]
     exclude = ('tickets',)
     
-    change_form_template = "admin/callcenter/grupoticket/import_enabled_form.html"
+    change_form_template = "admin/callcenter/grupoticket/change_form.html"
     print(f"DEBUG: Cargando GrupoTicketAdmin con template unico: {change_form_template}")
 
 
@@ -135,19 +135,110 @@ class GrupoTicketAdmin(admin.ModelAdmin):
 
         return render(request, "admin/callcenter/grupoticket/importar_modal.html", {"grupo": grupo})
 
-    def get_ubicaciones(self, obj):
-        ubicaciones = obj.tickets.filter(ubicacion__isnull=False).values_list('ubicacion__nombre', flat=True).distinct()
-        return ", ".join(ubicaciones) if ubicaciones else "-"
-    get_ubicaciones.short_description = "Ubicaciones involucradas"
+    def get_queryset(self, request):
+        from django.db.models import Count, Sum, Q
+        return super().get_queryset(request).select_related('departamento').annotate(
+            tickets_count=Count('tickets', distinct=True),
+            tickets_resueltos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False), distinct=True),
+            deductiva_total=Sum('tickets__deductiva')
+        )
 
-    
+    def get_estadisticas_generales(self, obj):
+        from django.utils.html import format_html
+        
+        total = getattr(obj, 'tickets_count', obj.tickets.count())
+        if total == 0:
+            return format_html(
+                '<div style="color:#64748b; font-size:0.85rem; font-style:italic;">'
+                '<i class="fas fa-info-circle"></i> Sin tickets asociados'
+                '</div>'
+            )
+            
+        resueltos = getattr(obj, 'tickets_resueltos', obj.tickets.filter(fecha_cierre__isnull=False).count())
+        pendientes = total - resueltos
+        deductiva_total = getattr(obj, 'deductiva_total', None)
+        if deductiva_total is None:
+            from django.db import models
+            deductiva_total = obj.tickets.aggregate(total=models.Sum('deductiva'))['total'] or 0.00
+            
+        pct_completado = round((resueltos / total) * 100) if total > 0 else 0
+        
+        # Color del badge de progreso
+        if pct_completado == 100:
+            progress_color = '#10b981' # Verde esmeralda premium
+            progress_bg = '#ecfdf5'
+        elif pct_completado >= 50:
+            progress_color = '#3b82f6' # Azul royal premium
+            progress_bg = '#eff6ff'
+        elif pct_completado > 0:
+            progress_color = '#f59e0b' # Ámbar premium
+            progress_bg = '#fffbeb'
+        else:
+            progress_color = '#ef4444' # Rojo premium
+            progress_bg = '#fef2f2'
+            
+        deductiva_html = ""
+        if deductiva_total and deductiva_total > 0:
+            deductiva_html = f'''
+            <div style="margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; background: #fff1f2; color: #e11d48; border: 1px solid #ffe4e6; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">
+                <i class="fas fa-dollar-sign"></i> Deductiva: ${deductiva_total:,.2f}
+            </div>
+            '''
+            
+        return format_html(
+            f'''
+            <div style="display: flex; flex-direction: column; gap: 4px; font-family: system-ui, -apple-system, sans-serif; font-size: 0.85rem; min-width: 180px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="background: {progress_bg}; color: {progress_color}; border: 1px solid {progress_color}40; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 3px;">
+                        <i class="fas fa-tasks"></i> {pct_completado}%
+                    </span>
+                    <span style="color: #475569; font-weight: 500;">
+                        {resueltos} de {total} resueltos
+                    </span>
+                </div>
+                <div style="display: flex; gap: 8px; font-size: 0.75rem; color: #64748b;">
+                    <span><i class="fas fa-check-circle" style="color: #10b981;"></i> Resueltos: <strong>{resueltos}</strong></span>
+                    <span><i class="fas fa-exclamation-circle" style="color: #ef4444;"></i> Pendientes: <strong style="color: {"#ef4444" if pendientes > 0 else "#64748b"};">{pendientes}</strong></span>
+                </div>
+                {deductiva_html}
+            </div>
+            '''
+        )
+    get_estadisticas_generales.short_description = "Estadísticas Generales"
+
     def descripcion_corta(self, obj):
         return obj.descripcion[:50] + "..." if len(obj.descripcion) > 50 else obj.descripcion
     descripcion_corta.short_description = "Descripción"
 
     def get_tickets_count(self, obj):
-        return obj.tickets.count()
+        return getattr(obj, 'tickets_count', obj.tickets.count())
     get_tickets_count.short_description = "N° de Tickets"
+
+    def visualizar_cluster_btn(self, obj):
+        from django.urls import reverse
+        from django.utils.html import format_html
+        url = reverse('callcenter:cluster_tickets', args=[obj.id])
+        return format_html(
+            f'''
+            <a href="{url}" target="_blank" class="btn btn-sm btn-primary" 
+               style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); 
+                      color: white; 
+                      border: none; 
+                      padding: 4px 10px; 
+                      border-radius: 4px; 
+                      font-weight: 600; 
+                      font-size: 0.75rem; 
+                      display: inline-flex; 
+                      align-items: center; 
+                      gap: 4px; 
+                      text-decoration: none;
+                      box-shadow: 0 2px 4px rgba(29, 78, 216, 0.15);
+                      transition: all 0.2s ease;">
+                <i class="fas fa-eye" style="font-size: 0.8rem;"></i> Visualizar
+            </a>
+            '''
+        )
+    visualizar_cluster_btn.short_description = "Acción"
 
 from .models import SolicitudTicket, GrupoTicket, EvidenciaTicket
 from django.utils.html import format_html

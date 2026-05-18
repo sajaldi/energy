@@ -2,18 +2,25 @@
 {% load i18n admin_urls %}
 
 {% block content %}
+{% if original %}
 <div class="row">
     <div class="col-12">
-        <div class="alert alert-info" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="alert alert-info" style="display: flex; justify-content: space-between; align-items: center; background: #eff6ff; border-color: #bfdbfe; color: #1e3a8a; padding: 12px 20px;">
             <div>
-                <strong><i class="fas fa-info-circle"></i> Gestión Masiva:</strong>
-                Puedes cargar múltiples tickets a este grupo usando un archivo Excel.
+                <strong><i class="fas fa-cubes" style="margin-right: 5px;"></i> Gestión del Cluster:</strong>
+                Puedes visualizar el dashboard interactivo para este cluster o importar múltiples tickets vía Excel.
             </div>
-            <a href="importar-tickets/" class="btn btn-success btn-sm">
-                <i class="fas fa-file-excel"></i> IMPORTAR TICKETS MASIVO
-            </a>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <a href="{% url 'callcenter:cluster_tickets' original.id %}" target="_blank" class="btn btn-sm btn-primary" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; padding: 6px 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(29,78,216,0.15);">
+                    <i class="fas fa-eye"></i> VISUALIZAR DASHBOARD
+                </a>
+                <a href="importar-tickets/" class="btn btn-sm btn-success" style="background: linear-gradient(135deg, #10b981, #047857); border: none; padding: 6px 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(4,120,87,0.15);">
+                    <i class="fas fa-file-excel"></i> IMPORTAR TICKETS MASIVO
+                </a>
+            </div>
         </div>
     </div>
 </div>
+{% endif %}
 {{ block.super }}
 {% endblock %}

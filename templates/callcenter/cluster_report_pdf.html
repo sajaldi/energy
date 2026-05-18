@@ -91,17 +91,21 @@
     <div class="summary-box">
         <table class="summary-grid">
             <tr>
-                <td>
+                <td style="width: 25%;">
                     <span class="metric-label">Total Tickets</span>
                     <span class="metric-value">{{ total }}</span>
                 </td>
-                <td>
+                <td style="width: 25%;">
                     <span class="metric-label">Abiertos</span>
                     <span class="metric-value" style="color: #e9730c;">{{ abiertos }}</span>
                 </td>
-                <td>
+                <td style="width: 25%;">
                     <span class="metric-label">Cerrados</span>
                     <span class="metric-value" style="color: #107e3e;">{{ cerrados }}</span>
+                </td>
+                <td style="width: 25%;">
+                    <span class="metric-label">Total Deductiva</span>
+                    <span class="metric-value" style="color: #b81d24;">${{ total_deductiva|default:"0.00"|intcomma }}</span>
                 </td>
             </tr>
         </table>
@@ -116,11 +120,11 @@
             <tr>
                 <th style="width: 10%;">Folio/ID</th>
                 <th style="width: 13%;">Solicitante</th>
-                <th style="width: 12%;">Resp. Orig.</th>
                 <th style="width: 12%;">Técnico</th>
-                <th style="width: 33%;">Descripción</th>
+                <th style="width: 27%;">Descripción</th>
                 <th style="width: 10%;">Fecha Sol.</th>
-                <th style="width: 10%;">Estado</th>
+                <th style="width: 10%;">Deductiva</th>
+                <th style="width: 8%;">Estado</th>
             </tr>
         </thead>
         <tbody>
@@ -128,7 +132,6 @@
             <tr>
                 <td><strong>{{ t.folio|default:t.id_solicitud }}</strong></td>
                 <td>{{ t.solicitante|default:"-" }}</td>
-                <td>{{ t.responsable|default:"-" }}</td>
                 <td>
                     {% if t.usuario_responsable %}
                         {{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username }}
@@ -136,8 +139,15 @@
                         Sin asignar
                     {% endif %}
                 </td>
-                <td>{{ t.solicitud_descripcion|truncatechars:100|default:"-" }}</td>
+                <td>{{ t.solicitud_descripcion|truncatechars:80|default:"-" }}</td>
                 <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                <td style="color: #b81d24; font-weight: bold;">
+                    {% if t.deductiva and t.deductiva > 0 %}
+                        ${{ t.deductiva|floatformat:2|intcomma }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
                 <td>
                     {% if t.fecha_cierre or t.cierre_enviado %}
                         <span class="status-badge status-cerrado">CERRADO</span>
