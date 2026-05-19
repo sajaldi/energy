@@ -45,14 +45,20 @@
         {% endfor %}
 
         <!-- Rutinas -->
-        {% if node.rutinas %}
-        <div class="routines-container">
+        <div class="routines-container" data-cat-id="{{ node.categoria.id }}" style="min-height: 10px; padding-bottom: 5px;">
             {% for rutina in node.rutinas %}
             <div class="tree-row routine-row"
+                 data-routine-id="{{ rutina.id }}"
                  data-routine-name="{{ rutina.nombre|lower }}"
                  data-routine-code="{{ rutina.codigo_rutina|default:''|lower }}"
                  onclick="toggleRoutineExpansion(this, {{ rutina.id }})"
                  oncontextmenu="showRoutineContextMenu(event, {{ rutina.id }}, '{{ rutina.nombre|escapejs }}')">
+                <span class="tree-icon drag-handle" style="cursor: grab; margin-right: 8px; color: #cbd5e1;" title="Arrastrar para mover">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/>
+                        <circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>
+                    </svg>
+                </span>
                 <span class="tree-icon">
                     <svg class="file-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2">
@@ -109,6 +115,5 @@
             </div>
             {% endfor %}
         </div>
-        {% endif %}
     </div>
 </div>

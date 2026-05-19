@@ -2370,6 +2370,76 @@
 
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-</body>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            initSortable();
+        });
 
+        function initSortable() {
+            const containers = document.querySelectorAll('.routines-container');
+            containers.forEach(container => {
+                new Sortable(container, {
+                    group: 'rutinas', // allow dragging between containers
+                    animation: 150,
+                    handle: '.drag-handle', // use the drag handle icon
+                    ghostClass: 'sortable-ghost',
+                    onEnd: function (evt) {
+                        const itemEl = evt.item;
+                        const toList = evt.to;
+                        const fromList = evt.from;
+                        
+                        if (toList === fromList && evt.newIndex === evt.oldIndex) return; // no change
+
+                        const rutinaId = itemEl.getAttribute('data-routine-id');
+                        const newCatId = toList.getAttribute('data-cat-id');
+
+                        moveRutina(rutinaId, newCatId, itemEl, fromList, toList);
+                    }
+                });
+            });
+        }
+
+        function moveRutina(rutinaId, newCatId, itemEl, fromList, toList) {
+            fetch(`/mantenimiento/rutinas/dashboard/move/${rutinaId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ tipo_id: newCatId ? parseInt(newCatId) : null })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    showToast('Rutina movida correctamente', 'success');
+                    updateCategoryCounts();
+                } else {
+                    alert('Error al mover rutina: ' + res.message);
+                    // Revert UI
+                    fromList.appendChild(itemEl);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error de conexión al mover rutina.');
+                // Revert UI
+                fromList.appendChild(itemEl);
+            });
+        }
+
+        function updateCategoryCounts() {
+            // Recalcular conteos de rutinas en los nodos padres si es necesario
+            document.querySelectorAll('.tree-node').forEach(node => {
+                const routinesContainer = node.querySelector(':scope > .tree-content > .routines-container');
+                if (routinesContainer) {
+                    const count = routinesContainer.querySelectorAll('.routine-row').length;
+                    const countSpan = node.querySelector(':scope > .cat-row > .cat-count');
+                    if (countSpan) {
+                        countSpan.innerText = count > 0 ? `(${count})` : '';
+                    }
+                }
+            });
+        }
+    </script>
+</body>
 </html>
