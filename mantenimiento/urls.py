@@ -6,7 +6,8 @@ from .views.rutinas_dashboard import (
     rutina_delete_api, rutina_pasos_save_api, rutina_qr_pdf,
     api_rutina_kpis, api_rutina_kpis_save,
     paso_media_upload_api, paso_media_delete_api,
-    rutina_print_pdf, rutina_move_api
+    rutina_print_pdf, rutina_move_api,
+    export_rutinas_excel
 )
 from .views import asistencia
 
@@ -75,6 +76,7 @@ urlpatterns = [
     path('rutinas/api/tipo/<int:pk>/', views.rutinas_dashboard.tipo_detail_api, name='tipo_detail_api'),
     path('rutinas/api/tipo/save/', views.rutinas_dashboard.tipo_save_api, name='tipo_save_api'),
     path('rutinas/api/tipo/<int:pk>/delete/', views.rutinas_dashboard.tipo_delete_api, name='tipo_delete_api'),
+    path('rutinas/export-excel/', export_rutinas_excel, name='export_rutinas_excel'),
     path('proyeccion-generar/api/', views.api_generar_orden_individual, name='api_generar_orden_individual'),
 
     # Importación de Rutinas (Aislada)

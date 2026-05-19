@@ -54,6 +54,8 @@ class SolicitudTicket(models.Model):
     fecha_observaciones_usuario = models.DateTimeField(blank=True, null=True, verbose_name="Fecha/Hora Obs. Usuario")
     observaciones_usuario = models.TextField(blank=True, null=True, verbose_name="Observaciones Usuario")
     
+    comentarios_internos = models.TextField(blank=True, null=True, verbose_name="Comentarios Internos")
+    
     # Clasificación de Falla Final
     clasificacion_falla_final = models.CharField(max_length=255, blank=True, null=True, verbose_name="Clasificación Falla Final")
     categoria_falla = models.CharField(max_length=255, blank=True, null=True, verbose_name="Categoría Falla")

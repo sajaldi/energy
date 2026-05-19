@@ -110,6 +110,22 @@
         .btn-excel { background: #1d6f42 !important; border-color: #1d6f42 !important; color: white !important; }
         .btn-pdf { background: #bb0000 !important; border-color: #bb0000 !important; color: white !important; }
         .btn-ai { background: #6c5ce7 !important; border-color: #a29bfe !important; color: white !important; }
+        
+        .chart-card {
+            cursor: zoom-in;
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+        }
+        .chart-card:hover {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+        .chart-card canvas, 
+        .chart-card button, 
+        .chart-card select, 
+        .chart-card input, 
+        .chart-card a {
+            cursor: default;
+        }
     </style>
 </head>
 <body>
@@ -160,7 +176,17 @@
 
                     <div class="metric-card" style="padding: 0.75rem 1rem; min-width: 120px; border-left: 4px solid #b81d24; cursor: default;">
                         <span class="metric-label" style="font-size: 0.7rem; color: #b81d24; font-weight: bold;"><i class="ph ph-currency-usd"></i> Total Deductiva</span>
-                        <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.2rem; color: #b81d24;">${{ total_deductiva|default:"0.00"|intcomma }}</div>
+                        <div id="header-total-deductiva" style="font-size: 1.25rem; font-weight: 700; margin-top: 0.2rem; color: #b81d24;">${{ total_deductiva|default:"0.00"|intcomma }}</div>
+                    </div>
+
+                    <div class="metric-card" style="padding: 0.75rem 1rem; min-width: 120px; border-left: 4px solid #e9730c; cursor: default;">
+                        <span class="metric-label" style="font-size: 0.7rem; color: #e9730c; font-weight: bold;"><i class="ph ph-currency-usd"></i> Deductiva Abiertos</span>
+                        <div id="header-deductiva-abiertos" style="font-size: 1.25rem; font-weight: 700; margin-top: 0.2rem; color: #e9730c;">${{ total_deductiva_abiertos|default:"0.00"|intcomma }}</div>
+                    </div>
+
+                    <div class="metric-card" style="padding: 0.75rem 1rem; min-width: 120px; border-left: 4px solid #107e3e; cursor: default;">
+                        <span class="metric-label" style="font-size: 0.7rem; color: #107e3e; font-weight: bold;"><i class="ph ph-currency-usd"></i> Deductiva Cerrados</span>
+                        <div id="header-deductiva-cerrados" style="font-size: 1.25rem; font-weight: 700; margin-top: 0.2rem; color: #107e3e;">${{ total_deductiva_cerrados|default:"0.00"|intcomma }}</div>
                     </div>
                 </div>
 
@@ -211,6 +237,9 @@
                             <button type="button" onclick="importTicketsByFolios()" class="btn-fiori" style="height: 40px; background: #ffc107 !important; border-color: #ffc107 !important; color: #212529 !important;" title="Importar por Folio">
                                 <i class="ph ph-list-plus"></i>
                             </button>
+                            <button type="button" onclick="importDeductivasExcel()" class="btn-fiori" style="height: 40px; width: 40px; padding: 0; background: #107e3e !important; border-color: #107e3e !important; color: white !important;" title="Importar Deductivas desde Excel">
+                                <i class="ph ph-file-arrow-up" style="font-size: 1.2rem;"></i>
+                            </button>
                             <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-fiori btn-excel" style="height: 40px; width: 40px; padding: 0;" title="Exportar Excel">
                                 <i class="ph ph-file-xls" style="font-size: 1.2rem;"></i>
                             </a>
@@ -242,12 +271,12 @@
             }
         </style>
         <div style="display: flex; gap: 1rem; border-bottom: 2px solid #eee; margin-bottom: 1.5rem;">
-            <button class="tab-btn active" id="btn-tab-listado" onclick="switchTab('listado')"><i class="ph ph-list-dashes"></i> Listado de Tickets</button>
-            <button class="tab-btn" id="btn-tab-analisis" onclick="switchTab('analisis')"><i class="ph ph-chart-pie"></i> Análisis (Gráficas)</button>
+            <button class="tab-btn active" id="btn-tab-analisis" onclick="switchTab('analisis')"><i class="ph ph-chart-pie"></i> Análisis (Gráficas y Tickets)</button>
+            <button class="tab-btn" id="btn-tab-deductivas" onclick="switchTab('deductivas')"><i class="ph ph-currency-usd"></i> Edición de Deductivas</button>
         </div>
 
         <!-- Tab Análisis -->
-        <div id="tab-analisis" style="display: none;">
+        <div id="tab-analisis">
             <!-- Dynamic Metric Cards Row -->
             <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(59,130,246,0.05); transition: transform 0.2s;">
@@ -261,6 +290,18 @@
                 <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(16,185,129,0.05); transition: transform 0.2s;">
                     <span style="font-size: 0.75rem; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-check-circle" style="margin-right: 4px;"></i>Cerrados</span>
                     <div id="dynamic-cerrados" style="font-size: 1.75rem; font-weight: 800; color: #15803d; margin-top: 4px;">0</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #fdf2f8, #fce7f3); border: 1px solid #fbcfe8; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(219,39,119,0.05); transition: transform 0.2s;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #9d174d; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-currency-usd" style="margin-right: 4px;"></i>Total Deductiva en Filtro</span>
+                    <div id="dynamic-deductiva-total" style="font-size: 1.75rem; font-weight: 800; color: #db2777; margin-top: 4px;">$0.00</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #fffaf0, #ffedd5); border: 1px solid #fed7aa; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(234,88,12,0.05); transition: transform 0.2s;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #c2410c; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-currency-usd" style="margin-right: 4px;"></i>Deductiva Abiertos</span>
+                    <div id="dynamic-deductiva-abiertos" style="font-size: 1.75rem; font-weight: 800; color: #ea580c; margin-top: 4px;">$0.00</div>
+                </div>
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(22,163,74,0.05); transition: transform 0.2s;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-currency-usd" style="margin-right: 4px;"></i>Deductiva Cerrados</span>
+                    <div id="dynamic-deductiva-cerrados" style="font-size: 1.75rem; font-weight: 800; color: #16a34a; margin-top: 4px;">$0.00</div>
                 </div>
             </div>
 
@@ -296,6 +337,13 @@
                     </div>
                 </div>
                 
+                <div class="chart-card">
+                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Pareto de Monto Deductiva por Falla</h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="chartPareto"></canvas>
+                    </div>
+                </div>
+                
                 <div class="chart-card" style="grid-column: 1 / -1;">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">
                         <h3 style="margin: 0; color: #444; font-size: 1.1rem;" id="ubicaciones-title">Ubicaciones principales con más fallas</h3>
@@ -308,11 +356,13 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Tab Listado -->
-        <div id="tab-listado" class="list-container">
-            <table class="visual-table">
+            <!-- Listado de Tickets Integrado al Análisis -->
+            <div class="list-container" style="margin-top: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden;">
+                <div style="padding: 1rem 1.5rem; border-bottom: 1px solid #eee; background: #fafafa;">
+                    <h3 style="margin: 0; color: #444; font-size: 1.1rem;"><i class="ph ph-list-dashes"></i> Listado de Tickets Filtrados</h3>
+                </div>
+                <table class="visual-table" id="filtered-tickets-table">
                 <thead>
                     <tr>
                         <th>Folio / ID</th>
@@ -344,13 +394,25 @@
                             </td>
                         </tr>
                         {% for t in group.list %}
-                        <tr class="ticket-row group-row group-{{ forloop.parentloop.counter }}" style="{% if q %}display: table-row;{% else %}display: none;{% endif %}">
+                        <tr class="ticket-row group-row group-{{ forloop.parentloop.counter }}" 
+                            data-ticket-id="{{ t.id_unlocalized }}"
+                            style="{% if q %}display: table-row;{% else %}display: none;{% endif %}">
                             <td style="font-weight: 700;">
-                                <a href="#" class="ticket-detail-link" data-id="{{ t.id_unlocalized }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
+                                <a href="#" class="ticket-detail-link" 
+                                   data-id="{{ t.id_unlocalized }}" 
+                                   data-folio="{{ t.folio|default:t.id_solicitud }}" 
+                                   data-is-closed="{% if t.fecha_cierre or t.cierre_enviado %}true{% else %}false{% endif %}"
+                                   data-has-restriccion="{% if t.restriccion_acceso %}true{% else %}false{% endif %}"
+                                   data-restriccion-id="{{ t.restriccion_acceso.id|default:'' }}"
+                                   data-comentario-interno="{{ t.comentarios_internos|default:'' }}"
+                                   style="color: var(--sap-primary); font-weight: 600; text-decoration: none;">
                                     {{ t.folio|default:t.id_solicitud }}
                                 </a>
                                 {% if t.embedding is not None %}
                                     <i class="ph ph-brain" style="color: #6c5ce7; font-size: 0.9rem; margin-left: 4px;" title="Vectorizado por IA"></i>
+                                {% endif %}
+                                {% if t.comentarios_internos %}
+                                    <i class="ph ph-chat-centered-text" style="color: #0984e3; font-size: 0.9rem; margin-left: 4px;" title="Comentario Interno: {{ t.comentarios_internos }}"></i>
                                 {% endif %}
                                 {% if t.es_interno %}
                                     <i class="ph ph-house-line" style="color: #444; font-size: 1rem; margin-left: 6px;" title="Ticket Interno"></i>
@@ -412,11 +474,97 @@
                         </tr>
                         {% endfor %}
                     {% empty %}
-                        <tr>
+                        <tr id="empty-tickets-message">
                             <td colspan="10" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
                                 No hay tickets que coincidan con los filtros.
                             </td>
                         </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab Edición de Deductivas -->
+        <div id="tab-deductivas" class="list-container" style="display: none;">
+            <div style="background: #f8f9fa; border: 1px solid var(--sap-border); padding: 16px 24px; border-radius: 8px; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h3 style="margin: 0; color: #444; font-size: 1.1rem;"><i class="ph ph-currency-usd" style="color: var(--sap-primary);"></i> Edición de Deductivas del Cluster</h3>
+                    <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--sap-text-muted);">
+                        Introduce los montos de deductiva directamente en la tabla. Los cambios se guardan automáticamente al presionar <kbd style="background: #eee; padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.75rem;">Enter</kbd> o al salir del campo (<kbd style="background: #eee; padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.75rem;">Tab</kbd> / clic fuera).
+                    </p>
+                </div>
+            </div>
+            
+            <table class="visual-table">
+                <thead>
+                    <tr>
+                        <th>Folio / ID</th>
+                        <th>Solicitante</th>
+                        <th>Ubicación</th>
+                        <th>Clasificación de Falla</th>
+                        <th>Descripción</th>
+                        <th>Estado</th>
+                        <th style="white-space: nowrap; color: #b81d24; font-weight: 700; width: 220px; text-align: right; padding-right: 2rem;">Deductiva (USD)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tickets %}
+                    <tr style="transition: background 0.3s;" id="row-deductiva-{{ t.id_unlocalized }}">
+                        <td style="font-weight: 700;">
+                            <a href="#" class="ticket-detail-link" data-id="{{ t.id_unlocalized }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
+                                {{ t.folio|default:t.id_solicitud }}
+                            </a>
+                        </td>
+                        <td>{{ t.solicitante|default:"-" }}</td>
+                        <td style="font-size: 0.8rem; color: var(--sap-text-muted);" title="{{ t.ubicacion_jerarquica }}">
+                            {{ t.ubicacion_jerarquica|truncatechars:80 }}
+                        </td>
+                        <td>
+                            <span style="font-size: 0.85rem; color: #555; font-weight: 500;">
+                                {{ t.falla_reportada.nombre_completo|default:"Sin Clasificar" }}
+                            </span>
+                        </td>
+                        <td><span style="color: var(--sap-text-muted);" title="{{ t.solicitud_descripcion }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
+                        <td>
+                            {% if t.fecha_cierre or t.cierre_enviado %}
+                                <span class="badge badge-success" id="state-badge-{{ t.id_unlocalized }}"><i class="ph ph-check-circle"></i> Cerrado</span>
+                            {% else %}
+                                <span class="badge badge-warning" id="state-badge-{{ t.id_unlocalized }}"><i class="ph ph-clock"></i> Abierto</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right; padding-right: 2rem;">
+                            <div style="display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; width: 100%;">
+                                <span style="font-weight: 600; color: #555;">$</span>
+                                <input type="number" 
+                                       step="0.01" 
+                                       min="0" 
+                                       value="{{ t.deductiva|default:'0.00' }}" 
+                                       class="deductiva-input" 
+                                       data-id="{{ t.id_unlocalized }}"
+                                       id="input-deductiva-{{ t.id_unlocalized }}"
+                                       style="width: 120px; padding: 6px 10px; border: 1px solid var(--sap-border); border-radius: 4px; outline: none; font-size: 0.9rem; font-weight: 600; text-align: right; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);"
+                                       onkeydown="if(event.key === 'Enter') saveDeductiva('{{ t.id_unlocalized }}')"
+                                       onblur="saveDeductiva('{{ t.id_unlocalized }}')">
+                                <button class="btn-fiori" 
+                                        onclick="saveDeductiva('{{ t.id_unlocalized }}')" 
+                                        id="btn-save-{{ t.id_unlocalized }}"
+                                        title="Guardar Deductiva" 
+                                        style="cursor: pointer; padding: 4px 8px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background: var(--sap-primary); color: white; border-radius: 4px; border: none;">
+                                    <i class="ph ph-floppy-disk" style="font-size: 1.1rem;"></i>
+                                </button>
+                                <div id="status-icon-{{ t.id_unlocalized }}" style="display: none; align-items: center; justify-content: center; width: 32px; height: 32px;">
+                                    <div style="border: 2px solid #f3f3f3; border-top: 2px solid var(--sap-blue); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite;"></div>
+                                </div>
+                                <span id="success-tick-{{ t.id_unlocalized }}" style="display: none; color: var(--sap-success); font-weight: bold; font-size: 1.2rem; width: 32px; height: 32px; align-items: center; justify-content: center;"><i class="ph ph-check-circle"></i></span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
+                            No hay tickets registrados en este grupo.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -440,6 +588,7 @@
         </div>
     </div>
 
+    {{ chart_data_json|json_script:"chart-data-script" }}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         function toggleGroup(headerElement) {
@@ -591,7 +740,188 @@
             document.getElementById('ticket-iframe').src = '';
         }
 
+        // --- Lógica del Menú Contextual para Restricción de Acceso ---
+        const contextMenu = document.createElement('div');
+        contextMenu.style.cssText = `
+            position: absolute; display: none; background: white; border: 1px solid var(--sap-border);
+            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; min-width: 220px;
+            overflow: hidden; padding: 4px 0; font-family: 'Inter', sans-serif;
+        `;
+        contextMenu.innerHTML = `
+            <div class="ctx-item" id="ctx-add-restriccion" style="padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #444; font-size: 0.9rem; transition: background 0.2s;">
+                <i class="ph ph-shield-warning" style="font-size: 1.1rem; color: #b81d24;"></i> Crear Restricción de Acceso
+            </div>
+            <div class="ctx-item" id="ctx-download-restriccion" style="padding: 10px 16px; cursor: pointer; display: none; align-items: center; gap: 8px; color: #444; font-size: 0.9rem; transition: background 0.2s;">
+                <i class="ph ph-file-pdf" style="font-size: 1.1rem; color: #107e3e;"></i> Descargar PDF de Restricción
+            </div>
+            <div style="height: 1px; background: #eee; margin: 4px 0;"></div>
+            <div class="ctx-item" id="ctx-add-comentario" style="padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #444; font-size: 0.9rem; transition: background 0.2s;">
+                <i class="ph ph-chat-centered-text" style="font-size: 1.1rem; color: #0984e3;"></i> <span>Agregar Comentario Interno</span>
+            </div>
+        `;
+        document.body.appendChild(contextMenu);
+
+        // Hover effect CSS for context menu
+        const style = document.createElement('style');
+        style.innerHTML = `.ctx-item:hover { background-color: #f3f4f6; }`;
+        document.head.appendChild(style);
+
+        let currentContextTicketId = null;
+        let currentContextIsClosed = false;
+        let currentContextHasRestriccion = false;
+        let currentContextRestriccionId = null;
+        let currentContextComentarioInterno = '';
+
+        document.addEventListener('contextmenu', function(e) {
+            const detailLink = e.target.closest('.ticket-detail-link');
+            if (detailLink) {
+                e.preventDefault();
+                currentContextTicketId = detailLink.dataset.id;
+                currentContextIsClosed = detailLink.dataset.isClosed === 'true';
+                currentContextHasRestriccion = detailLink.dataset.hasRestriccion === 'true';
+                currentContextRestriccionId = detailLink.dataset.restriccionId;
+                currentContextComentarioInterno = detailLink.dataset.comentarioInterno || '';
+
+                // Configurar visibilidad del menú restricción
+                if (currentContextHasRestriccion) {
+                    document.getElementById('ctx-add-restriccion').style.display = 'none';
+                    document.getElementById('ctx-download-restriccion').style.display = 'flex';
+                } else {
+                    document.getElementById('ctx-add-restriccion').style.display = 'flex';
+                    document.getElementById('ctx-download-restriccion').style.display = 'none';
+                }
+
+                // Configurar texto del comentario interno
+                const commentTextSpan = document.querySelector('#ctx-add-comentario span');
+                if (currentContextComentarioInterno.trim() !== '') {
+                    commentTextSpan.innerText = 'Editar Comentario Interno';
+                } else {
+                    commentTextSpan.innerText = 'Agregar Comentario Interno';
+                }
+
+                // Posicionar y mostrar
+                contextMenu.style.left = e.pageX + 'px';
+                contextMenu.style.top = e.pageY + 'px';
+                contextMenu.style.display = 'block';
+            } else {
+                contextMenu.style.display = 'none';
+            }
+        });
+
         document.addEventListener('click', function(e) {
+            // Ocultar el menú contextual al hacer clic en cualquier lado
+            if (!e.target.closest('#ctx-add-restriccion') && !e.target.closest('#ctx-download-restriccion') && !e.target.closest('#ctx-add-comentario')) {
+                contextMenu.style.display = 'none';
+            }
+
+            // Click en Crear Restricción
+            if (e.target.closest('#ctx-add-restriccion')) {
+                if (!currentContextIsClosed) {
+                    Swal.fire('Ticket Abierto', 'El ticket debe estar cerrado para poder generar una restricción de acceso.', 'warning');
+                    return;
+                }
+                Swal.fire({
+                    title: '¿Crear Restricción de Acceso?',
+                    text: 'Se generará automáticamente utilizando los tiempos de inicio y cierre del ticket, descontando horas no hábiles.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, crear restricción',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: 'var(--sap-primary)',
+                    showLoaderOnConfirm: true,
+                    preConfirm: async () => {
+                        try {
+                            const response = await fetch(`/callcenter/ticket/${currentContextTicketId}/restriccion-acceso/`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: JSON.stringify({ firma: '', firma_tecnico: '' })
+                            });
+                            const data = await response.json();
+                            if (!data.success) {
+                                throw new Error(data.message);
+                            }
+                            return data;
+                        } catch (error) {
+                            Swal.showValidationMessage(`Error: ${error.message}`);
+                        }
+                    },
+                    allowOutsideClick: () => !Swal.isLoading()
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({
+                            title: '¡Restricción Creada!',
+                            text: `Se ha generado el folio ${result.value.folio} con un total de ${result.value.horas} horas.`,
+                            icon: 'success',
+                            confirmButtonColor: 'var(--sap-primary)'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    }
+                });
+            }
+
+            // Click en Descargar PDF
+            if (e.target.closest('#ctx-download-restriccion')) {
+                if (currentContextRestriccionId) {
+                    window.open(`/callcenter/restriccion-acceso/${currentContextRestriccionId}/pdf/`, '_blank');
+                }
+            }
+
+            // Click en Agregar/Editar Comentario Interno
+            if (e.target.closest('#ctx-add-comentario')) {
+                Swal.fire({
+                    title: 'Comentario Interno',
+                    input: 'textarea',
+                    inputValue: currentContextComentarioInterno,
+                    inputPlaceholder: 'Escribe tu comentario interno aquí...',
+                    inputAttributes: {
+                        'aria-label': 'Escribe tu comentario interno aquí'
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: 'Guardar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: 'var(--sap-primary)',
+                    showLoaderOnConfirm: true,
+                    preConfirm: async (comentario) => {
+                        try {
+                            const response = await fetch(`/callcenter/ticket/${currentContextTicketId}/comentario-interno/`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: JSON.stringify({ comentario_interno: comentario })
+                            });
+                            const data = await response.json();
+                            if (!data.success) {
+                                throw new Error(data.message);
+                            }
+                            return data;
+                        } catch (error) {
+                            Swal.showValidationMessage(`Error: ${error.message}`);
+                        }
+                    },
+                    allowOutsideClick: () => !Swal.isLoading()
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({
+                            title: '¡Guardado!',
+                            text: 'El comentario interno se ha guardado correctamente.',
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    }
+                });
+            }
+
             const detailLink = e.target.closest('.ticket-detail-link');
             if (detailLink) {
                 e.preventDefault();
@@ -865,20 +1195,39 @@
         // ============================
         function switchTab(tabId) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-tab-' + tabId).classList.add('active');
+            const activeBtn = document.getElementById('btn-tab-' + tabId);
+            if (activeBtn) activeBtn.classList.add('active');
             
+            const tabListado = document.getElementById('tab-listado');
+            const tabAnalisis = document.getElementById('tab-analisis');
+            const tabDeductivas = document.getElementById('tab-deductivas');
+
             if (tabId === 'listado') {
-                document.getElementById('tab-listado').style.display = 'block';
-                document.getElementById('tab-analisis').style.display = 'none';
-            } else {
-                document.getElementById('tab-listado').style.display = 'none';
-                document.getElementById('tab-analisis').style.display = 'block';
+                if (tabListado) tabListado.style.display = 'block';
+                if (tabAnalisis) tabAnalisis.style.display = 'none';
+                if (tabDeductivas) tabDeductivas.style.display = 'none';
+            } else if (tabId === 'analisis') {
+                if (tabListado) tabListado.style.display = 'none';
+                if (tabAnalisis) tabAnalisis.style.display = 'block';
+                if (tabDeductivas) tabDeductivas.style.display = 'none';
                 renderCharts(); // Renderizar solo al abrir la pestaña para evitar bugs visuales
+            } else if (tabId === 'deductivas') {
+                if (tabListado) tabListado.style.display = 'none';
+                if (tabAnalisis) tabAnalisis.style.display = 'none';
+                if (tabDeductivas) tabDeductivas.style.display = 'block';
             }
         }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inicializar la pestaña por defecto y disparar las gráficas
+            switchTab('analisis');
+            if (typeof renderCharts === 'function') {
+                renderCharts();
+            }
+        });
 
         let chartsRendered = false;
-        let chartFallas, chartTiempos, chartUbic, chartEstado;
+        let chartFallas, chartTiempos, chartUbic, chartEstado, chartPareto;
         let globalTickets = [];
         let currentUbicacionPath = [];
         let selectedFalla = null; // Cross-filter por falla
@@ -898,10 +1247,28 @@
             if (chartsRendered) return;
             chartsRendered = true;
 
-            const rawData = `{{ chart_data_json|safe }}`;
-            if (!rawData || rawData === '""') return;
+            const scriptEl = document.getElementById('chart-data-script');
+            if (!scriptEl) return;
             
-            const chartData = JSON.parse(rawData);
+            const rawData = scriptEl.textContent;
+            if (!rawData) return;
+            
+            let chartData;
+            try {
+                // If the backend passes json.dumps(chart_data) directly to json_script, it's double-encoded.
+                // Usually json_script expects a dict, but we passed a string (json.dumps).
+                // So we parse it twice just in case, or once if it's correct.
+                let parsedOnce = JSON.parse(rawData);
+                if (typeof parsedOnce === 'string') {
+                    chartData = JSON.parse(parsedOnce);
+                } else {
+                    chartData = parsedOnce;
+                }
+            } catch (e) {
+                console.error("Error parsing JSON:", e);
+                return;
+            }
+
             globalTickets = chartData.raw_tickets || [];
 
             // Asignar colores consistentes a cada falla única
@@ -1013,6 +1380,37 @@
             document.getElementById('dynamic-total').innerText = totalFiltered;
             document.getElementById('dynamic-abiertos').innerText = abiertosFiltered;
             document.getElementById('dynamic-cerrados').innerText = cerradosFiltered;
+
+            // Recalcular deductivas del subset filtrado
+            let totalDeductivaFiltered = ticketsCompletamenteFiltrados.reduce((sum, t) => sum + (parseFloat(t.deductiva) || 0.0), 0.0);
+            let abiertosDeductivaFiltered = ticketsCompletamenteFiltrados.filter(t => !t.c).reduce((sum, t) => sum + (parseFloat(t.deductiva) || 0.0), 0.0);
+            let cerradosDeductivaFiltered = ticketsCompletamenteFiltrados.filter(t => t.c).reduce((sum, t) => sum + (parseFloat(t.deductiva) || 0.0), 0.0);
+
+            const formatCurrency = (val) => {
+                return '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            };
+
+            document.getElementById('dynamic-deductiva-total').innerText = formatCurrency(totalDeductivaFiltered);
+            document.getElementById('dynamic-deductiva-abiertos').innerText = formatCurrency(abiertosDeductivaFiltered);
+            document.getElementById('dynamic-deductiva-cerrados').innerText = formatCurrency(cerradosDeductivaFiltered);
+
+            // ---> NUEVA LÓGICA: Filtrar las filas de la tabla de listado <---
+            const visibleIds = new Set(ticketsCompletamenteFiltrados.map(t => t.id));
+            const tableRows = document.querySelectorAll('#filtered-tickets-table tbody tr.ticket-row');
+            let anyVisible = false;
+            tableRows.forEach(row => {
+                if (visibleIds.has(row.dataset.ticketId)) {
+                    row.style.display = 'table-row';
+                    anyVisible = true;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            // Mostrar mensaje de vacío si no hay filas visibles
+            const emptyMessageRow = document.getElementById('empty-tickets-message');
+            if (emptyMessageRow) {
+                emptyMessageRow.style.display = anyVisible ? 'none' : 'table-row';
+            }
             
             // 3. Dataset para CHART FALLAS: Filtrado por Ubicación y Estado (NO por Falla)
             let ticketsParaFallas = ticketsFiltradosPorUbicacion.filter(t => {
@@ -1120,20 +1518,57 @@
             let fTimes = {};
             ticketsCompletamenteFiltrados.forEach(t => {
                 if (t.d !== null) {
-                    if (!fTimes[t.f]) fTimes[t.f] = [];
-                    fTimes[t.f].push(t.d);
+                    const fp = t.fp || t.f || 'Sin Clasificar';
+                    if (!fTimes[fp]) fTimes[fp] = [];
+                    fTimes[fp].push(t.d);
                 }
             });
-            const topTiempos = Object.entries(fTimes).map(([f, times]) => {
+            const topTiempos = Object.entries(fTimes).map(([fp, times]) => {
                 const avg = times.reduce((a,b)=>a+b,0) / times.length;
-                return [f, Math.round(avg * 10) / 10];
+                return [fp, Math.round(avg * 10) / 10];
             }).sort((a,b) => b[1]-a[1]).slice(0, 10);
+            
+            // 6.5. Calcular Pareto de Deductivas (Dataset completamente filtrado)
+            let fDeductiva = {};
+            ticketsCompletamenteFiltrados.forEach(t => {
+                const fp = t.fp || t.f || 'Sin Clasificar';
+                const amt = parseFloat(t.deductiva) || 0.0;
+                if (amt > 0) {
+                    fDeductiva[fp] = (fDeductiva[fp] || 0.0) + amt;
+                }
+            });
+            
+            const allParetoEntries = Object.entries(fDeductiva).sort((a, b) => b[1] - a[1]);
+            const totalParetoSum = allParetoEntries.reduce((acc, curr) => acc + curr[1], 0.0);
+            
+            let sortedParetoData = [];
+            if (allParetoEntries.length > 8) {
+                sortedParetoData = allParetoEntries.slice(0, 7);
+                const othersSum = allParetoEntries.slice(7).reduce((acc, curr) => acc + curr[1], 0.0);
+                sortedParetoData.push(['Otros', othersSum]);
+            } else {
+                sortedParetoData = allParetoEntries;
+            }
+            
+            let runningSum = 0;
+            const paretoLabels = [];
+            const paretoAmounts = [];
+            const paretoPercentages = [];
+            
+            sortedParetoData.forEach(([fp, amt]) => {
+                paretoLabels.push(fp);
+                paretoAmounts.push(Math.round(amt * 100) / 100);
+                runningSum += amt;
+                const pct = totalParetoSum > 0 ? (runningSum / totalParetoSum) * 100 : 0;
+                paretoPercentages.push(Math.round(pct * 10) / 10);
+            });
             
             // 7. Renderizar todas las gráficas
             drawFallas(topFallas.map(x=>x[0]), topFallas.map(x=>x[1]));
             drawEstado(abiertosCountForChart, cerradosCountForChart);
             drawTiempos(topTiempos.map(x=>x[0]), topTiempos.map(x=>x[1]));
             drawUbicaciones(labelsWithCounts, datasets, hasChildrenMap);
+            drawPareto(paretoLabels, paretoAmounts, paretoPercentages);
             
             // UI Updates - Ubicación
             const btnBack = document.getElementById('btn-back-ubicaciones');
@@ -1181,11 +1616,13 @@
                                     selectedFalla = clickedLabel;
                                 }
                                 updateAllCharts();
+                            } else {
+                                maximizeChart(chartFallas, "Distribución por Tipo de Falla");
                             }
                         },
                         onHover: (e, elements) => {
                             const canvas = e.native ? e.native.target : e.target;
-                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'zoom-in';
                         }
                     }
                 });
@@ -1234,31 +1671,216 @@
                                     selectedEstado = clickedLabel;
                                 }
                                 updateAllCharts();
+                            } else {
+                                maximizeChart(chartEstado, "Estado de los Tickets (Abiertos vs Cerrados)");
                             }
                         },
                         onHover: (e, elements) => {
                             const canvas = e.native ? e.native.target : e.target;
-                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'zoom-in';
                         }
                     }
                 });
             }
         }
         
+        function splitLabel(str, maxLen = 25) {
+            if (str.length <= maxLen) return [str];
+            const words = str.split(' ');
+            const lines = [];
+            let currentLine = '';
+            
+            words.forEach(word => {
+                if ((currentLine + ' ' + word).trim().length <= maxLen) {
+                    currentLine = (currentLine + ' ' + word).trim();
+                } else {
+                    if (currentLine) lines.push(currentLine);
+                    currentLine = word;
+                }
+            });
+            if (currentLine) lines.push(currentLine);
+            return lines;
+        }
+
         function drawTiempos(labels, data) {
-            const labelsWithTimes = labels.map((l, i) => `${l} (${data[i]} hrs)`);
+            const multilineLabels = labels.map((l, i) => {
+                const lines = splitLabel(l, 22);
+                lines.push(`⌛ ${data[i]} hrs`);
+                return lines;
+            });
             if (chartTiempos) {
-                chartTiempos.data.labels = labelsWithTimes;
+                chartTiempos.data.labels = multilineLabels;
                 chartTiempos.data.datasets[0].data = data;
                 chartTiempos.update();
             } else {
                 chartTiempos = new Chart(document.getElementById('chartTiempos'), {
                     type: 'bar',
                     data: {
-                        labels: labelsWithTimes,
+                        labels: multilineLabels,
                         datasets: [{ label: 'Horas Promedio', data: data, backgroundColor: '#e9730c', borderRadius: 4 }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                    options: { 
+                        indexAxis: 'y',
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        layout: {
+                            padding: {
+                                left: 20
+                            }
+                        },
+                        plugins: { 
+                            legend: { display: false } 
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Horas'
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    autoSkip: false,
+                                    font: {
+                                        size: 10,
+                                        weight: '500'
+                                    }
+                                }
+                            }
+                        },
+                        onClick: (e, elements) => {
+                            if (elements.length === 0) {
+                                maximizeChart(chartTiempos, "Tiempos de Resolución Promedio (Horas)");
+                            }
+                        },
+                        onHover: (e, elements) => {
+                            const canvas = e.native ? e.native.target : e.target;
+                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'zoom-in';
+                        }
+                    }
+                });
+            }
+        }
+        
+        function drawPareto(labels, amounts, percentages) {
+            const multilineLabels = labels.map((l, i) => {
+                const lines = splitLabel(l, 20);
+                return lines;
+            });
+            
+            if (chartPareto) {
+                chartPareto.data.labels = multilineLabels;
+                chartPareto.data.datasets[0].data = amounts;
+                chartPareto.data.datasets[1].data = percentages;
+                chartPareto.update();
+            } else {
+                chartPareto = new Chart(document.getElementById('chartPareto'), {
+                    type: 'bar',
+                    data: {
+                        labels: multilineLabels,
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'Monto Deductiva (USD)',
+                                data: amounts,
+                                backgroundColor: '#b81d24',
+                                yAxisID: 'y',
+                                order: 2,
+                                borderRadius: 4
+                            },
+                            {
+                                type: 'line',
+                                label: '% Acumulado',
+                                data: percentages,
+                                borderColor: '#0070f2',
+                                backgroundColor: '#0070f2',
+                                borderWidth: 3,
+                                pointBackgroundColor: '#0070f2',
+                                pointRadius: 4,
+                                yAxisID: 'yPerc',
+                                order: 1,
+                                tension: 0.1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Monto (USD)'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value.toLocaleString();
+                                    }
+                                }
+                            },
+                            yPerc: {
+                                type: 'linear',
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: '% Acumulado'
+                                },
+                                min: 0,
+                                max: 100,
+                                grid: {
+                                    drawOnChartArea: false
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    autoSkip: false,
+                                    font: {
+                                        size: 10,
+                                        weight: '500'
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.datasetIndex === 0) {
+                                            label += '$' + context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                        } else {
+                                            label += context.parsed.y + '%';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        onClick: (e, elements) => {
+                            if (elements.length === 0) {
+                                maximizeChart(chartPareto, "Pareto de Monto Deductiva por Falla");
+                            }
+                        },
+                        onHover: (e, elements) => {
+                            const canvas = e.native ? e.native.target : e.target;
+                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'zoom-in';
+                        }
+                    }
                 });
             }
         }
@@ -1316,6 +1938,8 @@
                                         confirmButtonColor: 'var(--sap-primary)'
                                     });
                                 }
+                            } else {
+                                maximizeChart(chartUbic, "Ubicaciones principales con más fallas");
                             }
                         },
                         onHover: (e, elements) => {
@@ -1328,12 +1952,386 @@
                                     return;
                                 }
                             }
-                            canvas.style.cursor = 'default';
+                            canvas.style.cursor = 'zoom-in';
                         }
                     }
                 });
             }
         }
+
+        async function saveDeductiva(ticketId) {
+            const input = document.getElementById('input-deductiva-' + ticketId);
+            const val = input.value.trim() || '0.00';
+            
+            // Si el valor ya está siendo guardado, evitar re-entrada
+            const btn = document.getElementById('btn-save-' + ticketId);
+            const statusIcon = document.getElementById('status-icon-' + ticketId);
+            const successTick = document.getElementById('success-tick-' + ticketId);
+            
+            if (btn.style.display === 'none' && statusIcon.style.display === 'flex') {
+                return; // Ya está guardando
+            }
+            
+            // Mostrar spinner, ocultar botón y tick
+            btn.style.display = 'none';
+            successTick.style.display = 'none';
+            statusIcon.style.display = 'flex';
+            
+            try {
+                const response = await fetch(`/callcenter/ticket/${ticketId}/update-deductiva/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ deductiva: val })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    // 1. Mostrar check verde
+                    statusIcon.style.display = 'none';
+                    successTick.style.display = 'inline-flex';
+                    setTimeout(() => {
+                        successTick.style.display = 'none';
+                        btn.style.display = 'inline-flex';
+                    }, 2000);
+                    
+                    // 2. Actualizar las KPI cards de la cabecera (dashboard global)
+                    const formatCurrency = (v) => {
+                        return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    };
+                    
+                    document.getElementById('header-total-deductiva').innerText = formatCurrency(data.total_deductiva);
+                    document.getElementById('header-deductiva-abiertos').innerText = formatCurrency(data.total_deductiva_abiertos);
+                    document.getElementById('header-deductiva-cerrados').innerText = formatCurrency(data.total_deductiva_cerrados);
+                    
+                    // 3. Actualizar la celda correspondiente en la pestaña "Listado de Tickets"
+                    const ticketLinks = document.querySelectorAll(`.ticket-detail-link[data-id="${ticketId}"]`);
+                    ticketLinks.forEach(link => {
+                        const tr = link.closest('tr');
+                        if (tr && tr.id !== 'row-deductiva-' + ticketId) {
+                            const cells = tr.getElementsByTagName('td');
+                            if (cells.length >= 8) {
+                                if (parseFloat(val) > 0) {
+                                    cells[7].innerText = formatCurrency(parseFloat(val));
+                                    cells[7].style.color = '#b81d24';
+                                    cells[7].style.fontWeight = '600';
+                                } else {
+                                    cells[7].innerHTML = '<span style="color: #bbb;">-</span>';
+                                }
+                            }
+                        }
+                    });
+                    
+                    // 4. Actualizar el array globalTickets en memoria
+                    if (globalTickets && globalTickets.length > 0) {
+                        const globT = globalTickets.find(x => x.id === ticketId);
+                        if (globT) {
+                            globT.deductiva = parseFloat(val);
+                        }
+                    }
+                    
+                    // 5. Forzar recalcular los gráficos y KPI de la pestaña de Análisis
+                    if (chartsRendered) {
+                        updateAllCharts();
+                    }
+                    
+                } else {
+                    statusIcon.style.display = 'none';
+                    btn.style.display = 'inline-flex';
+                    Swal.fire('Error', data.error || 'No se pudo guardar la deductiva.', 'error');
+                }
+            } catch (e) {
+                statusIcon.style.display = 'none';
+                btn.style.display = 'inline-flex';
+                Swal.fire('Error', 'Error de red al intentar guardar.', 'error');
+            }
+        }
+
+        function importDeductivasExcel() {
+            Swal.fire({
+                title: '<i class="ph ph-file-arrow-up" style="color: #107e3e;"></i> Importar Deductivas',
+                html: `
+                    <div style="text-align: left; font-size: 0.9rem; color: #555;">
+                        <p style="margin-bottom: 12px;">Sube el archivo <strong>Excel (.xlsx)</strong> exportado desde este dashboard o usando la plantilla. El sistema buscará la columna <strong>"Deductiva (USD)"</strong> y actualizará los montos.</p>
+                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="color: #15803d;"><i class="ph ph-info"></i> Tip:</strong> Puedes descargar la plantilla base aquí:
+                            </div>
+                            <a href="{% url 'callcenter:download_deductivas_template' %}" style="text-decoration: none; background: #fff; border: 1px solid #107e3e; color: #107e3e; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: 600;"><i class="ph ph-download-simple"></i> Plantilla</a>
+                        </div>
+                        <input type="file" id="swal-import-file" accept=".xlsx" style="width: 100%; padding: 10px; border: 2px dashed #ccc; border-radius: 8px; cursor: pointer; background: #fafafa;">
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '<i class="ph ph-upload-simple"></i> Importar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#107e3e',
+                preConfirm: () => {
+                    const fileInput = document.getElementById('swal-import-file');
+                    if (!fileInput.files || fileInput.files.length === 0) {
+                        Swal.showValidationMessage('Selecciona un archivo Excel (.xlsx)');
+                        return false;
+                    }
+                    const file = fileInput.files[0];
+                    if (!file.name.endsWith('.xlsx')) {
+                        Swal.showValidationMessage('El archivo debe ser formato .xlsx');
+                        return false;
+                    }
+                    return file;
+                }
+            }).then(async (result) => {
+                if (result.isConfirmed && result.value) {
+                    const file = result.value;
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    Swal.fire({
+                        title: 'Procesando...',
+                        html: '<div style="display: flex; align-items: center; justify-content: center; gap: 12px;"><div class="swal2-loading" style="display: flex;"></div> Leyendo y actualizando deductivas...</div>',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    try {
+                        const response = await fetch("{% url 'callcenter:import_deductivas_excel' cluster.id|unlocalize %}", {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': '{{ csrf_token }}',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: formData
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            // Actualizar KPI cards del header
+                            const formatCurrency = (v) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            document.getElementById('header-total-deductiva').innerText = formatCurrency(data.total_deductiva);
+                            document.getElementById('header-deductiva-abiertos').innerText = formatCurrency(data.total_deductiva_abiertos);
+                            document.getElementById('header-deductiva-cerrados').innerText = formatCurrency(data.total_deductiva_cerrados);
+
+                            // Construir resumen visual
+                            let detailsHtml = '';
+                            if (data.details && data.details.length > 0) {
+                                detailsHtml = '<div style="max-height: 250px; overflow-y: auto; text-align: left; margin-top: 12px; border: 1px solid #e5e7eb; border-radius: 8px;">';
+                                detailsHtml += '<table style="width: 100%; font-size: 0.8rem; border-collapse: collapse;">';
+                                detailsHtml += '<thead><tr style="background: #f9fafb; position: sticky; top: 0;"><th style="padding: 6px 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">Folio</th><th style="padding: 6px 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Deductiva</th><th style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #e5e7eb;">Resultado</th></tr></thead>';
+                                detailsHtml += '<tbody>';
+                                data.details.forEach(d => {
+                                    const statusColor = d.status === 'actualizado' ? '#107e3e' : (d.status === 'sin_cambio' ? '#999' : '#b81d24');
+                                    const statusIcon = d.status === 'actualizado' ? '✅' : (d.status === 'sin_cambio' ? '➖' : '❌');
+                                    const errorMsg = d.msg ? `<br><span style="font-size: 0.7rem; color: #b81d24;">${d.msg}</span>` : '';
+                                    detailsHtml += `<tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 5px 10px;">${d.folio}</td><td style="padding: 5px 10px; text-align: right; font-weight: 600; color: ${d.status === 'actualizado' ? '#b81d24' : '#999'};">$${parseFloat(d.deductiva || 0).toFixed(2)}</td><td style="padding: 5px 10px; text-align: center;">${statusIcon}${errorMsg}</td></tr>`;
+                                });
+                                detailsHtml += '</tbody></table></div>';
+                            }
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Importación Completada!',
+                                html: `
+                                    <div style="display: flex; gap: 16px; justify-content: center; margin: 12px 0;">
+                                        <div style="text-align: center; padding: 10px 15px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
+                                            <div style="font-size: 1.5rem; font-weight: 700; color: #1d4ed8;">${data.agregados || 0}</div>
+                                            <div style="font-size: 0.75rem; color: #666;">Agregados al Cluster</div>
+                                        </div>
+                                        <div style="text-align: center; padding: 10px 15px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+                                            <div style="font-size: 1.5rem; font-weight: 700; color: #107e3e;">${data.updated}</div>
+                                            <div style="font-size: 0.75rem; color: #666;">Actualizados</div>
+                                        </div>
+                                        <div style="text-align: center; padding: 10px 15px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                                            <div style="font-size: 1.5rem; font-weight: 700; color: #999;">${data.skipped}</div>
+                                            <div style="font-size: 0.75rem; color: #666;">Sin cambio</div>
+                                        </div>
+                                        <div style="text-align: center; padding: 10px 15px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
+                                            <div style="font-size: 1.5rem; font-weight: 700; color: #b81d24;">${data.errors}</div>
+                                            <div style="font-size: 0.75rem; color: #666;">Errores (No existen)</div>
+                                        </div>
+                                    </div>
+                                    ${detailsHtml}
+                                `,
+                                width: 600,
+                                confirmButtonText: 'Recargar Página',
+                                confirmButtonColor: '#0070f2'
+                            }).then(() => {
+                                location.reload();
+                            });
+
+                        } else {
+                            Swal.fire('Error', data.error || 'No se pudo procesar el archivo.', 'error');
+                        }
+                    } catch (e) {
+                        Swal.fire('Error', 'Error de red al intentar importar el archivo.', 'error');
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // MAXIMIZAR GRÁFICOS AL TOCAR PARTE BLANCA
+        // ==========================================
+        function maximizeChart(chartInstance, titleText) {
+            if (!chartInstance) return;
+            
+            let modal = document.getElementById('chartMaximizeModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'chartMaximizeModal';
+                modal.style.position = 'fixed';
+                modal.style.top = '0';
+                modal.style.left = '0';
+                modal.style.width = '100vw';
+                modal.style.height = '100vh';
+                modal.style.backgroundColor = 'rgba(15, 23, 42, 0.45)';
+                modal.style.backdropFilter = 'blur(10px)';
+                modal.style.webkitBackdropFilter = 'blur(10px)';
+                modal.style.zIndex = '999999';
+                modal.style.display = 'flex';
+                modal.style.justifyContent = 'center';
+                modal.style.alignItems = 'center';
+                modal.style.opacity = '0';
+                modal.style.transition = 'opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+                
+                modal.innerHTML = `
+                    <div style="background: #ffffff; width: 90vw; height: 85vh; max-width: 1300px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); display: flex; flex-direction: column; overflow: hidden; transform: scale(0.95); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+                        <!-- Header -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2rem; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+                            <h3 id="chartMaximizeTitle" style="margin: 0; color: #0f172a; font-size: 1.3rem; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;"></h3>
+                            <button onclick="closeMaximizedChart()" style="padding: 8px 16px; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; border: 1px solid #e2e8f0; font-weight: 600; font-size: 0.875rem; color: #475569; background: #ffffff; transition: all 0.15s ease-in-out; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1';" onmouseout="this.style.background='#ffffff'; this.style.borderColor='#e2e8f0';">
+                                <i class="ph ph-x" style="font-size: 1.15rem;"></i> Cerrar
+                            </button>
+                        </div>
+                        <!-- Body -->
+                        <div style="flex: 1; padding: 2.5rem; position: relative; display: flex; justify-content: center; align-items: center; background: #ffffff;">
+                            <canvas id="chartMaximizeCanvas" style="width: 100%; height: 100%;"></canvas>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeMaximizedChart();
+                    }
+                });
+            }
+            
+            document.getElementById('chartMaximizeTitle').innerText = titleText;
+            
+            modal.style.display = 'flex';
+            modal.offsetHeight; // Force reflow
+            modal.style.opacity = '1';
+            modal.firstElementChild.style.transform = 'scale(1)';
+            
+            if (window.maximizedChartInstance) {
+                window.maximizedChartInstance.destroy();
+            }
+            
+            // Clonación profunda de data y options para evitar mutar el gráfico original
+            const config = {
+                type: chartInstance.config.type,
+                data: JSON.parse(JSON.stringify(chartInstance.config.data)),
+                options: JSON.parse(JSON.stringify(chartInstance.config.options))
+            };
+            
+            config.options.responsive = true;
+            config.options.maintainAspectRatio = false;
+            config.options.onClick = null; // Desactivar clics de filtrado dentro del modal
+            
+            // Restaurar callbacks de funciones que se pierden con JSON stringify
+            if (chartInstance.config.options.plugins && chartInstance.config.options.plugins.tooltip && chartInstance.config.options.plugins.tooltip.callbacks) {
+                config.options.plugins = config.options.plugins || {};
+                config.options.plugins.tooltip = config.options.plugins.tooltip || {};
+                config.options.plugins.tooltip.callbacks = chartInstance.config.options.plugins.tooltip.callbacks;
+            }
+            
+            if (chartInstance.config.options.scales) {
+                config.options.scales = config.options.scales || {};
+                for (const [scaleKey, scaleConfig] of Object.entries(chartInstance.config.options.scales)) {
+                    if (scaleConfig.ticks && scaleConfig.ticks.callback) {
+                        config.options.scales[scaleKey].ticks.callback = scaleConfig.ticks.callback;
+                    }
+                }
+            }
+            
+            // Escalar tamaños de fuentes para la visualización ampliada
+            if (config.options.scales) {
+                for (const scaleConfig of Object.values(config.options.scales)) {
+                    if (scaleConfig.ticks) {
+                        scaleConfig.ticks.font = scaleConfig.ticks.font || {};
+                        scaleConfig.ticks.font.size = 12;
+                        scaleConfig.ticks.font.weight = '500';
+                    }
+                    if (scaleConfig.title) {
+                        scaleConfig.title.font = scaleConfig.title.font || {};
+                        scaleConfig.title.font.size = 14;
+                        scaleConfig.title.font.weight = '600';
+                    }
+                }
+            }
+            if (config.options.plugins && config.options.plugins.legend) {
+                config.options.plugins.legend.labels = config.options.plugins.legend.labels || {};
+                config.options.plugins.legend.labels.font = config.options.plugins.legend.labels.font || {};
+                config.options.plugins.legend.labels.font.size = 13;
+                config.options.plugins.legend.labels.font.weight = '500';
+            }
+            
+            const ctx = document.getElementById('chartMaximizeCanvas').getContext('2d');
+            window.maximizedChartInstance = new Chart(ctx, config);
+        }
+
+        function closeMaximizedChart() {
+            const modal = document.getElementById('chartMaximizeModal');
+            if (modal) {
+                modal.style.opacity = '0';
+                modal.firstElementChild.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    if (window.maximizedChartInstance) {
+                        window.maximizedChartInstance.destroy();
+                        window.maximizedChartInstance = null;
+                    }
+                }, 250);
+            }
+        }
+
+        // Listener de clicks a nivel de tarjeta para espacios blancos externos al Canvas
+        document.addEventListener('DOMContentLoaded', () => {
+            const cardMapping = [
+                { canvasId: 'chartFallas', title: 'Distribución por Tipo de Falla', getInstance: () => chartFallas },
+                { canvasId: 'chartEstado', title: 'Estado de los Tickets (Abiertos vs Cerrados)', getInstance: () => chartEstado },
+                { canvasId: 'chartTiempos', title: 'Tiempos de Resolución Promedio (Horas)', getInstance: () => chartTiempos },
+                { canvasId: 'chartPareto', title: 'Pareto de Monto Deductiva por Falla', getInstance: () => chartPareto },
+                { canvasId: 'chartUbicaciones', title: 'Ubicaciones principales con más fallas', getInstance: () => chartUbic }
+            ];
+
+            cardMapping.forEach(({ canvasId, title, getInstance }) => {
+                const canvas = document.getElementById(canvasId);
+                if (!canvas) return;
+                const card = canvas.closest('.chart-card');
+                if (!card) return;
+
+                card.addEventListener('click', (event) => {
+                    // Ignorar si hace clic en controles interactivos internos
+                    if (event.target.closest('button, a, input, select, option')) return;
+                    
+                    // Si el clic fue directamente en el canvas, el onClick interno de Chart.js lo maneja
+                    if (event.target === canvas) return;
+
+                    // De lo contrario, hizo clic en el espacio blanco de la tarjeta externa. ¡Maximizar!
+                    const chartInstance = getInstance();
+                    if (chartInstance) {
+                        maximizeChart(chartInstance, title);
+                    }
+                });
+            });
+        });
     </script>
 </body>
 </html>

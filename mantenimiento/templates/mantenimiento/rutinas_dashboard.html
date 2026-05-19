@@ -485,9 +485,9 @@
             pointer-events: all;
         }
 
-        #routineModal { z-index: 10000 !important; }
-        #tipoModal { z-index: 20000 !important; }
-        .selector-modal-backdrop { z-index: 30000 !important; }
+        #routineModal { z-index: 100000 !important; }
+        #tipoModal { z-index: 105000 !important; }
+        .selector-modal-backdrop { z-index: 150000 !important; }
 
         .modal-glass {
             position: relative;
@@ -643,6 +643,20 @@
                     <line x1="5" y1="12" x2="19" y2="12" />
                 </svg> Nueva Rutina
             </button>
+            <a href="{% url 'mantenimiento:export_rutinas_excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-outline" style="border-color: #107e3e; color: #107e3e;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg> Exportar Excel
+            </a>
+            <a href="{% url 'mantenimiento:rutina_import_background' %}" class="btn btn-outline" style="border-color: #7c3aed; color: #7c3aed;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg> 🚀 Carga Masiva
+            </a>
             <a href="{% url 'mantenimiento:dashboard' %}" class="btn btn-outline">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M19 12H5" />
@@ -2199,6 +2213,8 @@
 
             if (empty) empty.style.display = 'none';
 
+            const isEditMode = rForm && rForm.style.display !== 'none';
+
             kpis.forEach(k => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -2212,9 +2228,9 @@
                             ${k.estado}
                         </span>
                     </td>
-                    <td class="edit-mode" style="display:${document.getElementById('routineForm').style.display === 'none' ? 'none' : 'table-cell'}">
-                        <button onclick="removeKpi(${k.id})" class="btn-action" style="color: #ef4444;" title="Desvincular KPI">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <td class="edit-mode" style="display:${isEditMode ? 'table-cell' : 'none'}; text-align: center;">
+                        <button data-kpi-id="${k.id}" onclick="removeKpi(${k.id})" style="background: none; border: 1px solid #fecaca; border-radius: 6px; color: #ef4444; cursor: pointer; padding: 6px 8px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s;" onmouseover="this.style.background='#fee2e2';this.style.borderColor='#ef4444'" onmouseout="this.style.background='none';this.style.borderColor='#fecaca'" title="Desvincular KPI">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <path d="M18 6L6 18M6 6l12 12"/>
                             </svg>
                         </button>
@@ -2308,15 +2324,20 @@
         }
 
         function removeKpi(id) {
-            if (!confirm('¿Seguro que deseas desvincular este KPI de esta rutina?')) return;
+            console.log('removeKpi called with id:', id, 'currentRoutineId:', currentRoutineId);
             
-            const currentIds = Array.from(document.querySelectorAll('#m-kpis-body button'))
-                .map(btn => {
-                    const onc = btn.getAttribute('onclick');
-                    return parseInt(onc.match(/\d+/)[0]);
-                })
-                .filter(kId => kId !== id);
+            if (!currentRoutineId) {
+                console.error('removeKpi: currentRoutineId is not set');
+                showToast('Error: No se pudo identificar la rutina actual', 'error');
+                return;
+            }
 
+            // Recopilar IDs actuales usando data-kpi-id (robusto) o fallback a onclick
+            const currentIds = Array.from(document.querySelectorAll('#m-kpis-body button[data-kpi-id]'))
+                .map(btn => parseInt(btn.getAttribute('data-kpi-id')))
+                .filter(kId => !isNaN(kId) && kId !== id);
+
+            console.log('removeKpi: IDs restantes a guardar:', currentIds);
             saveKpis(currentIds);
         }
 

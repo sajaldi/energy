@@ -947,6 +947,8 @@ def cluster_tickets_view(request, cluster_id):
     
     # Calcular deductiva total en el filtro actual
     total_deductiva = tickets.aggregate(total=Sum('deductiva'))['total'] or 0.00
+    total_deductiva_abiertos = tickets.exclude(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).aggregate(total=Sum('deductiva'))['total'] or 0.00
+    total_deductiva_cerrados = tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).aggregate(total=Sum('deductiva'))['total'] or 0.00
     
     # Manejo de Exportación
     export_type = request.GET.get('export')
@@ -980,6 +982,8 @@ def cluster_tickets_view(request, cluster_id):
             'cerrados': cerrados_count,
             'abiertos': abiertos_count,
             'total_deductiva': total_deductiva,
+            'total_deductiva_abiertos': total_deductiva_abiertos,
+            'total_deductiva_cerrados': total_deductiva_cerrados,
             'fecha_reporte': timezone.now()
         })
         response = HttpResponse(content_type='application/pdf')
@@ -996,6 +1000,9 @@ def cluster_tickets_view(request, cluster_id):
     for t in tickets:
         # Falla
         f_name = t.falla_reportada.nombre if t.falla_reportada else 'Sin Clasificar'
+        
+        # Falla Padre
+        fp_name = t.falla_reportada.parent.nombre if (t.falla_reportada and t.falla_reportada.parent) else (t.falla_reportada.nombre if t.falla_reportada else 'Sin Clasificar')
         
         # Ubicación (Lista jerárquica)
         ruta = t.ubicacion_jerarquica if hasattr(t, 'ubicacion_jerarquica') else (t.ubicacion.ruta_completa if t.ubicacion else (t.nivel or 'Otra'))
@@ -1020,10 +1027,13 @@ def cluster_tickets_view(request, cluster_id):
                 duracion_horas = dh
                 
         raw_tickets.append({
+            'id': str(t.id),
             'f': f_name,
+            'fp': fp_name,
             'u': partes,
             'd': duracion_horas,
-            'c': bool(t.fecha_cierre or t.cierre_enviado)
+            'c': bool(t.fecha_cierre or t.cierre_enviado),
+            'deductiva': float(t.deductiva) if t.deductiva else 0.0
         })
 
     chart_data = {
@@ -1038,6 +1048,8 @@ def cluster_tickets_view(request, cluster_id):
         'cerrados': cerrados_count,
         'abiertos': abiertos_count,
         'total_deductiva': total_deductiva,
+        'total_deductiva_abiertos': total_deductiva_abiertos,
+        'total_deductiva_cerrados': total_deductiva_cerrados,
         'q': q,
         'title': f'Tickets en {cluster.correlativo}',
         'chart_data_json': json.dumps(chart_data)
@@ -2333,6 +2345,32 @@ def mobile_ticket_detalle_view(request, pk):
 @staff_member_required
 @require_POST
 @csrf_exempt
+def save_comentario_interno_ajax(request, ticket_id):
+    """
+    Guarda o actualiza el comentario interno de un ticket.
+    """
+    # Limpiar ID de posibles comas de formateo regional
+    ticket_id = int(str(ticket_id).replace(',', ''))
+    ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
+    
+    try:
+        data = json.loads(request.body)
+        comentario = data.get('comentario_interno', '')
+    except:
+        comentario = request.POST.get('comentario_interno', '')
+
+    ticket.comentarios_internos = comentario
+    ticket.save(update_fields=['comentarios_internos'])
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Comentario interno guardado con éxito.',
+        'comentario': ticket.comentarios_internos
+    })
+
+@staff_member_required
+@require_POST
+@csrf_exempt
 def create_restriccion_acceso_ajax(request, ticket_id):
     """
     Crea una Restricción de Acceso vinculada a un ticket cerrado.
@@ -2701,3 +2739,274 @@ def get_dashboard_node_tickets_ajax(request):
     
     return JsonResponse({'html': html})
 
+@staff_member_required
+@require_POST
+def update_ticket_deductiva_ajax(request, ticket_id):
+    """
+    Actualiza la deductiva de un ticket específico vía AJAX y retorna los totales actualizados del cluster.
+    """
+    from decimal import Decimal
+    from django.db.models import Sum
+    import json
+    
+    ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
+    
+    # Soporte para JSON body o POST tradicional
+    deductiva_val = '0.00'
+    if request.content_type == 'application/json':
+        try:
+            data = json.loads(request.body)
+            deductiva_val = str(data.get('deductiva', '0.00'))
+        except:
+            pass
+    else:
+        deductiva_val = request.POST.get('deductiva', '0.00')
+        
+    try:
+        clean_val = deductiva_val.replace(',', '').strip()
+        ticket.deductiva = Decimal(clean_val)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Monto inválido: {str(e)}'}, status=400)
+        
+    ticket.save()
+    
+    # Recalcular totales del cluster para retornar y actualizar cabecera en vivo
+    cluster = ticket.grupo
+    if cluster:
+        all_tickets = cluster.tickets.all()
+        total_ded = all_tickets.aggregate(total=Sum('deductiva'))['total'] or Decimal('0.00')
+        total_ded_abiertos = all_tickets.filter(fecha_cierre__isnull=True, cierre_enviado=False).aggregate(total=Sum('deductiva'))['total'] or Decimal('0.00')
+        total_ded_cerrados = all_tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).aggregate(total=Sum('deductiva'))['total'] or Decimal('0.00')
+    else:
+        total_ded = Decimal('0.00')
+        total_ded_abiertos = Decimal('0.00')
+        total_ded_cerrados = Decimal('0.00')
+        
+    return JsonResponse({
+        'success': True,
+        'ticket_id': ticket_id,
+        'deductiva': float(ticket.deductiva),
+        'total_deductiva': float(total_ded),
+        'total_deductiva_abiertos': float(total_ded_abiertos),
+        'total_deductiva_cerrados': float(total_ded_cerrados),
+    })
+
+
+@staff_member_required
+@require_POST
+def import_deductivas_excel_ajax(request, cluster_id):
+    """
+    Importa deductivas desde un archivo Excel (.xlsx) que fue previamente exportado
+    desde el dashboard del cluster. Busca la columna 'Deductiva (USD)' y el identificador
+    'Folio/ID' para hacer match con los tickets del cluster.
+    """
+    from decimal import Decimal, InvalidOperation
+    from django.db.models import Sum, Q
+    from .models import GrupoTicket, SolicitudTicket
+    import pandas as pd
+
+    cluster_id = int(str(cluster_id).replace(',', ''))
+    cluster = get_object_or_404(GrupoTicket, id=cluster_id)
+
+    file = request.FILES.get('file')
+    if not file:
+        return JsonResponse({'success': False, 'error': 'No se recibió ningún archivo.'}, status=400)
+
+    if not file.name.endswith('.xlsx'):
+        return JsonResponse({'success': False, 'error': 'El archivo debe ser formato .xlsx'}, status=400)
+
+    try:
+        df = pd.read_excel(file)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'No se pudo leer el archivo Excel: {str(e)}'}, status=400)
+
+    # Buscar columnas necesarias (case-insensitive, strip whitespace)
+    col_map = {c.strip().lower(): c for c in df.columns}
+
+    folio_col = None
+    deductiva_col = None
+
+    for key, original in col_map.items():
+        if key in ('folio/id', 'folio / id', 'folio', 'folio_id'):
+            folio_col = original
+        if key in ('deductiva (usd)', 'deductiva(usd)', 'deductiva'):
+            deductiva_col = original
+
+    if not folio_col:
+        return JsonResponse({
+            'success': False,
+            'error': f'No se encontró la columna "Folio/ID" en el Excel. Columnas encontradas: {", ".join(df.columns.tolist())}'
+        }, status=400)
+
+    if not deductiva_col:
+        return JsonResponse({
+            'success': False,
+            'error': f'No se encontró la columna "Deductiva (USD)" en el Excel. Columnas encontradas: {", ".join(df.columns.tolist())}'
+        }, status=400)
+
+    # Pre-cargar todos los tickets del cluster en un dict para búsqueda O(1)
+    all_tickets = cluster.tickets.all()
+    tickets_by_folio = {}
+    tickets_by_id = {}
+    for t in all_tickets:
+        if t.folio:
+            clean_f = str(t.folio).replace(' ', '').lower()
+            tickets_by_folio[clean_f] = t
+        tickets_by_id[str(t.id_solicitud)] = t
+
+    updated = 0
+    skipped = 0
+    errors = 0
+    agregados_al_cluster = 0
+    details = []
+
+    for idx, row in df.iterrows():
+        folio_val = str(row[folio_col]).strip() if pd.notna(row[folio_col]) else ''
+        deductiva_val = row[deductiva_col]
+
+        if not folio_val or folio_val.lower() == 'nan':
+            continue
+
+        clean_folio = folio_val.replace(' ', '').lower()
+        
+        # Buscar ticket por folio o por id_solicitud en el cluster actual
+        ticket = tickets_by_folio.get(clean_folio) or tickets_by_id.get(clean_folio)
+        
+        # Fallback para casos en los que pandas lee el ID como float (ej: '145685.0')
+        if not ticket and clean_folio.endswith('.0'):
+            ticket = tickets_by_id.get(clean_folio[:-2])
+
+        # Si no está en el cluster, buscar globalmente y agregarlo
+        if not ticket:
+            global_ticket = None
+            try:
+                clean_folio_no_decimals = folio_val.replace('.0', '')
+                
+                # Crear los filtros. Siempre buscamos en folio exacto primero
+                q_filter = Q(folio__iexact=folio_val) | Q(folio__iexact=clean_folio_no_decimals)
+                
+                # Solo buscamos en id_solicitud si el valor es numérico
+                if folio_val.isdigit():
+                    q_filter |= Q(id_solicitud=int(folio_val))
+                elif clean_folio_no_decimals.isdigit():
+                    q_filter |= Q(id_solicitud=int(clean_folio_no_decimals))
+                    
+                global_ticket = SolicitudTicket.objects.filter(q_filter).first()
+
+                # BÚSQUEDA A PRUEBA DE BALAS: Si no lo encontró, y tiene un guión, buscar la parte numérica
+                # (Esto resuelve los casos donde en la DB se guardó como 'SS26- 144975' con espacios)
+                if not global_ticket and '-' in folio_val:
+                    number_part = folio_val.split('-')[-1].replace('.0', '').strip()
+                    if number_part.isdigit():
+                        possible_tickets = SolicitudTicket.objects.filter(folio__icontains=number_part)
+                        for pt in possible_tickets:
+                            if pt.folio and str(pt.folio).replace(' ', '').lower() == clean_folio:
+                                global_ticket = pt
+                                break
+                                
+            except Exception as e:
+                print(f"Error buscando ticket {folio_val}: {e}")
+                pass
+            
+            if global_ticket:
+                # Añadir el ticket global al cluster
+                cluster.tickets.add(global_ticket)
+                ticket = global_ticket
+                agregados_al_cluster += 1
+                
+                # Actualizar los diccionarios locales por si hay duplicados en el excel
+                if ticket.folio:
+                    tickets_by_folio[str(ticket.folio).replace(' ', '').lower()] = ticket
+                tickets_by_id[str(ticket.id_solicitud)] = ticket
+
+        if not ticket:
+            errors += 1
+            details.append({
+                'folio': folio_val,
+                'deductiva': 0,
+                'status': 'error',
+                'msg': 'No existe en la base de datos'
+            })
+            continue
+
+        try:
+            if pd.isna(deductiva_val):
+                new_deductiva = Decimal('0.00')
+            else:
+                clean_val = str(deductiva_val).replace(',', '').replace('$', '').strip()
+                new_deductiva = Decimal(clean_val)
+        except (InvalidOperation, ValueError):
+            errors += 1
+            details.append({
+                'folio': folio_val,
+                'deductiva': 0,
+                'status': 'error',
+                'msg': f'Valor inválido: {deductiva_val}'
+            })
+            continue
+
+        current_deductiva = ticket.deductiva or Decimal('0.00')
+        if current_deductiva == new_deductiva:
+            skipped += 1
+            details.append({
+                'folio': folio_val,
+                'deductiva': float(new_deductiva),
+                'status': 'sin_cambio'
+            })
+        else:
+            ticket.deductiva = new_deductiva
+            ticket.save(update_fields=['deductiva'])
+            updated += 1
+            details.append({
+                'folio': folio_val,
+                'deductiva': float(new_deductiva),
+                'status': 'actualizado'
+            })
+
+    # Recalcular totales del cluster
+    total_ded = all_tickets.aggregate(total=Sum('deductiva'))['total'] or Decimal('0.00')
+    total_ded_abiertos = all_tickets.exclude(
+        Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)
+    ).aggregate(total=Sum('deductiva'))['total'] or Decimal('0.00')
+    total_ded_cerrados = all_tickets.filter(
+        Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)
+    ).aggregate(total=Sum('deductiva'))['total'] or Decimal('0.00')
+
+    return JsonResponse({
+        'success': True,
+        'updated': updated,
+        'skipped': skipped,
+        'errors': errors,
+        'agregados': agregados_al_cluster,
+        'total_rows': len(df),
+        'details': details,
+        'total_deductiva': float(total_ded),
+        'total_deductiva_abiertos': float(total_ded_abiertos),
+        'total_deductiva_cerrados': float(total_ded_cerrados),
+    })
+
+@staff_member_required
+def download_deductivas_template(request):
+    """
+    Descarga una plantilla vacía de Excel para la importación de deductivas.
+    """
+    import pandas as pd
+    from django.http import HttpResponse
+    import io
+
+    df = pd.DataFrame(columns=['Folio/ID', 'Deductiva (USD)'])
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Plantilla')
+        # Ajustar el ancho de las columnas
+        worksheet = writer.sheets['Plantilla']
+        worksheet.column_dimensions['A'].width = 20
+        worksheet.column_dimensions['B'].width = 25
+
+    output.seek(0)
+    response = HttpResponse(
+        output.read(), 
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="plantilla_importacion_deductivas.xlsx"'
+    return response

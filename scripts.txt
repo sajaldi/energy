@@ -1,0 +1,1309 @@
+<script type="text/javascript" src="/admin/jsi18n/"></script>
+---
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+---
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+---
+<script src="/static/admin/js/vendor/jquery/jquery.js"></script>
+---
+<script src="/static/admin/js/jquery.init.js"></script>
+---
+<script src="/static/admin/js/core.js"></script>
+---
+<script src="/static/admin/js/admin/RelatedObjectLookups.js"></script>
+---
+<script src="/static/admin/js/actions.js"></script>
+---
+<script src="/static/admin/js/urlify.js"></script>
+---
+<script src="/static/admin/js/prepopulate.js"></script>
+---
+<script src="/static/admin/js/vendor/xregexp/xregexp.js"></script>
+---
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+---
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Fallback robusto para abrir el menú (evita conflictos de Bootstrap)
+        const dropdownBtn = document.getElementById('savedViewsDropdown');
+        if (dropdownBtn) {
+            const dropdownMenu = dropdownBtn.nextElementSibling;
+            dropdownBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (dropdownMenu) {
+                    dropdownMenu.classList.toggle('show');
+                }
+            });
+
+            // Cerrar menú si se hace clic fuera
+            document.addEventListener('click', function (e) {
+                if (dropdownBtn && dropdownMenu && !dropdownBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                    dropdownMenu.classList.remove('show');
+                }
+            });
+        }
+
+        // Navegación al hacer clic en una vista (en cualquier parte de la fila excepto eliminar)
+        document.querySelectorAll('.view-item').forEach(item => {
+            item.addEventListener('click', function (e) {
+                if (!e.target.closest('.delete-view')) {
+                    window.location.href = this.dataset.url;
+                }
+            });
+        });
+
+        const btnSave = document.getElementById('btn-save-current-view');
+        if (btnSave) {
+            btnSave.onclick = async function () {
+                const { value: formValues } = await Swal.fire({
+                    title: 'Guardar Vista Personalizada',
+                    html:
+                        '<input id="swal-input-name" class="swal2-input" placeholder="Nombre de la vista">' +
+                        '<div class="form-check mt-3 text-left pl-5">' +
+                        '  <input class="form-check-input" type="checkbox" id="swal-input-public">' +
+                        '  <label class="form-check-label" for="swal-input-public">¿Hacer pública?</label>' +
+                        '</div>',
+                    focusConfirm: false,
+                    showCancelButton: true,
+                    confirmButtonText: 'Guardar',
+                    confirmButtonColor: '#4f46e5',
+                    preConfirm: () => {
+                        return {
+                            nombre: document.getElementById('swal-input-name').value,
+                            es_publica: document.getElementById('swal-input-public').checked
+                        }
+                    }
+                });
+
+                if (formValues && formValues.nombre) {
+                    const payload = {
+                        nombre: formValues.nombre,
+                        es_publica: formValues.es_publica,
+                        app_label: 'seguridad',
+                        model_name: 'analisisriesgo',
+                        query_string: ''
+                    };
+
+                    fetch('/vistas/guardar/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': 'Ymg7qUqXaFEIJDIkZvAWqLO61zZhhP9M9wK7z6w94niH4UZUZHjYd7ENvaWit5tZ'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Guardado',
+                                    text: data.message,
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                }).then(() => location.reload());
+                            } else {
+                                Swal.fire('Error', data.message, 'error');
+                            }
+                        });
+                }
+            };
+        }
+
+        // Eliminar vista
+        document.querySelectorAll('.delete-view').forEach(btn => {
+            btn.onclick = function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = this.dataset.id;
+
+                Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: 'Esta vista se eliminará permanentemente.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    confirmButtonText: 'Sí, eliminar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch(`/vistas/eliminar/0/`.replace('0', id), {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': 'Ymg7qUqXaFEIJDIkZvAWqLO61zZhhP9M9wK7z6w94niH4UZUZHjYd7ENvaWit5tZ'
+                            }
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.status === 'success') {
+                                    location.reload();
+                                }
+                            });
+                    }
+                });
+            };
+        });
+    });
+</script>
+---
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+---
+<script>
+    (function () {
+        const POLLING_INTERVAL = 10000; // 10 segundos
+
+        function startNotificationPolling() {
+            setInterval(checkNotifications, POLLING_INTERVAL);
+            checkNotifications();
+        }
+
+        function checkNotifications() {
+            fetch('/mantenimiento/api/notifications/', {
+                method: 'GET'
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' && data.notificaciones.length > 0) {
+                        data.notificaciones.forEach(n => {
+                            showToast(n);
+                        });
+                    }
+                })
+                .catch(err => console.debug("Poll failed (expected if logging out or network blip)"));
+        }
+
+        function showToast(n) {
+            const container = document.getElementById('notification-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${n.tipo.toLowerCase()}`;
+
+            let icon = 'information-circle';
+            if (n.tipo === 'SUCCESS') icon = 'checkmark-circle';
+            if (n.tipo === 'ERROR') icon = 'alert-circle';
+            if (n.tipo === 'WARNING') icon = 'warning';
+
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    <ion-icon name="${icon}"></ion-icon>
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${n.tipo === 'SUCCESS' ? 'Completado' : 'Notificación'}</div>
+                    <div class="toast-msg">${n.mensaje}</div>
+                </div>
+                <div class="toast-close">
+                    <ion-icon name="close-outline"></ion-icon>
+                </div>
+            `;
+
+            container.appendChild(toast);
+
+            const closeBtn = toast.querySelector('.toast-close');
+            closeBtn.onclick = () => markAsRead(n.id, toast);
+
+            // Auto-cerrar después de 8 segundos
+            setTimeout(() => {
+                if (toast.parentElement) markAsRead(n.id, toast);
+            }, 8000);
+        }
+
+        function markAsRead(id, element) {
+            fetch('/mantenimiento/api/notifications/read/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': 'Ymg7qUqXaFEIJDIkZvAWqLO61zZhhP9M9wK7z6w94niH4UZUZHjYd7ENvaWit5tZ'
+                },
+                body: JSON.stringify({ notif_id: id })
+            })
+                .then(() => {
+                    element.style.transform = 'translateX(120%)';
+                    setTimeout(() => { if (element.parentElement) element.remove(); }, 300);
+                })
+                .catch(() => {
+                    // Si falla el mark as read, al menos removemos el elemento visual
+                    element.remove();
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', startNotificationPolling);
+    })();
+</script>
+---
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+---
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const trigger = document.getElementById('chatbot-trigger');
+        const window = document.getElementById('chatbot-window');
+        const closeBtn = document.getElementById('close-chatbot');
+        const input = document.getElementById('chatbot-input');
+        const sendBtn = document.getElementById('chatbot-send-btn');
+        const messagesContainer = document.getElementById('chatbot-messages');
+
+        // Persistence Configuration
+        const STORAGE_KEY = 'chatbot_history_1';
+        const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutes in ms
+
+        trigger.addEventListener('click', () => {
+            window.classList.toggle('hidden');
+            saveChatState();
+            if (!window.classList.contains('hidden')) {
+                input.focus();
+            }
+        });
+
+        closeBtn.addEventListener('click', () => {
+            window.classList.add('hidden');
+            saveChatState();
+        });
+
+        // Clear Chat
+        const clearBtn = document.getElementById('clear-chatbot');
+        clearBtn.addEventListener('click', () => {
+            if (confirm('¿Estás seguro de que deseas limpiar el historial del chat?')) {
+                messagesContainer.innerHTML = `
+                    <div class="message bot">
+                        <div class="message-content">
+                            Hola, soy tu asistente administrativo basado en <strong>n8n</strong>. ¿En qué puedo ayudarte hoy?
+                        </div>
+                    </div>
+                `;
+                localStorage.removeItem(STORAGE_KEY);
+                // Reset state in case it was open
+                saveChatState();
+            }
+        });
+
+        // Quick Actions
+        document.querySelectorAll('.quick-action-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.getAttribute('data-action');
+                let message = "";
+
+                if (action === 'crear_aviso') {
+                    message = "Quiero crear un nuevo aviso de falla";
+                } else if (action === 'crear_orden') {
+                    message = "Necesito crear una nueva orden de trabajo";
+                } else if (action === 'consultar_estado') {
+                    message = "¿Cuál es el estado actual de los equipos?";
+                } else if (action === 'ver_calendario') {
+                    message = "Muéstrame el calendario de mantenimiento";
+                } else if (action === 'mis_tareas') {
+                    message = "¿Cuáles son mis tareas pendientes para hoy?";
+                }
+
+                if (message) {
+                    input.value = message;
+                    sendMessage();
+                }
+            });
+        });
+
+        // Send Message
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text) return;
+
+            // Add user message
+            appendMessage(text, 'user');
+            input.value = '';
+
+            // Add loading state
+            const loadingId = appendMessage('Escribiendo...', 'bot', true);
+            sendBtn.disabled = true;
+
+            try {
+                const response = await fetch('/proyectos/chatbot-asistente/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ mensaje: text })
+                });
+
+                const data = await response.json();
+
+                // Remove loading
+                document.getElementById(loadingId).remove();
+
+                if (data.status === 'success') {
+                    appendMessage(data.respuesta, 'bot');
+                } else {
+                    appendMessage('Error: ' + data.message, 'bot');
+                }
+
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                appendMessage('Error de conexión.', 'bot');
+            } finally {
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        function appendMessage(text, type, isLoading = false) {
+            const id = 'msg-' + Date.now();
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${type} ${isLoading ? 'loading' : ''}`;
+            msgDiv.id = id;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (type === 'bot' && !isLoading) {
+                // Renderizar Markdown para el bot
+                contentDiv.innerHTML = marked.parse(text);
+            } else {
+                contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+            }
+
+            msgDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(msgDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            if (!isLoading) {
+                saveChatHistory();
+            }
+
+            return id;
+        }
+
+        // Persistence Logic
+
+        function saveChatHistory() {
+            const messages = [];
+            // Skip the first hardcoded message if we want, or just save all
+            document.querySelectorAll('#chatbot-messages .message:not(.loading)').forEach(msg => {
+                messages.push({
+                    text: msg.querySelector('.message-content').innerHTML,
+                    type: msg.classList.contains('user') ? 'user' : 'bot'
+                });
+            });
+
+            const data = {
+                lastActive: Date.now(),
+                messages: messages,
+                isOpen: !window.classList.contains('hidden')
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function saveChatState() {
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            data.isOpen = !window.classList.contains('hidden');
+            data.lastActive = Date.now();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function loadChatHistory() {
+            const rawData = localStorage.getItem(STORAGE_KEY);
+            if (!rawData) return;
+
+            try {
+                const data = JSON.parse(rawData);
+                const now = Date.now();
+
+                // Check inactivity
+                if (now - data.lastActive > INACTIVITY_LIMIT) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    return;
+                }
+
+                // Restore messages
+                if (data.messages && data.messages.length > 0) {
+                    // Clear current (the hardcoded one is already there, 
+                    // if the first saved is identical, we might want to skip it)
+                    const savedMessages = data.messages;
+
+                    // Identify if the first saved is the welcome message to avoid duplication
+                    const welcomeText = "Hola, soy tu asistente administrativo basado en <strong>n8n</strong>. ¿En qué puedo ayudarte hoy?";
+
+                    messagesContainer.innerHTML = ''; // Clear everything
+
+                    savedMessages.forEach(msg => {
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = `message ${msg.type}`;
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'message-content';
+                        contentDiv.innerHTML = msg.text;
+                        msgDiv.appendChild(contentDiv);
+                        messagesContainer.appendChild(msgDiv);
+                    });
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+
+                // Restore window state
+                if (data.isOpen) {
+                    window.classList.remove('hidden');
+                }
+
+            } catch (e) {
+                console.error("Error restoring chat history", e);
+            }
+        }
+
+        // Initialize history
+        loadChatHistory();
+
+        sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Helper for CSRF
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+---
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+---
+<script>
+    (function () {
+        const POLLING_INTERVAL = 10000; // 10 segundos
+
+        function startNotificationPolling() {
+            setInterval(checkNotifications, POLLING_INTERVAL);
+            checkNotifications();
+        }
+
+        function checkNotifications() {
+            fetch('/mantenimiento/api/notifications/', {
+                method: 'GET'
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' && data.notificaciones.length > 0) {
+                        data.notificaciones.forEach(n => {
+                            showToast(n);
+                        });
+                    }
+                })
+                .catch(err => console.debug("Poll failed (expected if logging out or network blip)"));
+        }
+
+        function showToast(n) {
+            const container = document.getElementById('notification-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${n.tipo.toLowerCase()}`;
+
+            let icon = 'information-circle';
+            if (n.tipo === 'SUCCESS') icon = 'checkmark-circle';
+            if (n.tipo === 'ERROR') icon = 'alert-circle';
+            if (n.tipo === 'WARNING') icon = 'warning';
+
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    <ion-icon name="${icon}"></ion-icon>
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${n.tipo === 'SUCCESS' ? 'Completado' : 'Notificación'}</div>
+                    <div class="toast-msg">${n.mensaje}</div>
+                </div>
+                <div class="toast-close">
+                    <ion-icon name="close-outline"></ion-icon>
+                </div>
+            `;
+
+            container.appendChild(toast);
+
+            const closeBtn = toast.querySelector('.toast-close');
+            closeBtn.onclick = () => markAsRead(n.id, toast);
+
+            // Auto-cerrar después de 8 segundos
+            setTimeout(() => {
+                if (toast.parentElement) markAsRead(n.id, toast);
+            }, 8000);
+        }
+
+        function markAsRead(id, element) {
+            fetch('/mantenimiento/api/notifications/read/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': 'Ymg7qUqXaFEIJDIkZvAWqLO61zZhhP9M9wK7z6w94niH4UZUZHjYd7ENvaWit5tZ'
+                },
+                body: JSON.stringify({ notif_id: id })
+            })
+                .then(() => {
+                    element.style.transform = 'translateX(120%)';
+                    setTimeout(() => { if (element.parentElement) element.remove(); }, 300);
+                })
+                .catch(() => {
+                    // Si falla el mark as read, al menos removemos el elemento visual
+                    element.remove();
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', startNotificationPolling);
+    })();
+</script>
+---
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+---
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const trigger = document.getElementById('chatbot-trigger');
+        const window = document.getElementById('chatbot-window');
+        const closeBtn = document.getElementById('close-chatbot');
+        const input = document.getElementById('chatbot-input');
+        const sendBtn = document.getElementById('chatbot-send-btn');
+        const messagesContainer = document.getElementById('chatbot-messages');
+
+        // Persistence Configuration
+        const STORAGE_KEY = 'chatbot_history_1';
+        const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutes in ms
+
+        trigger.addEventListener('click', () => {
+            window.classList.toggle('hidden');
+            saveChatState();
+            if (!window.classList.contains('hidden')) {
+                input.focus();
+            }
+        });
+
+        closeBtn.addEventListener('click', () => {
+            window.classList.add('hidden');
+            saveChatState();
+        });
+
+        // Clear Chat
+        const clearBtn = document.getElementById('clear-chatbot');
+        clearBtn.addEventListener('click', () => {
+            if (confirm('¿Estás seguro de que deseas limpiar el historial del chat?')) {
+                messagesContainer.innerHTML = `
+                    <div class="message bot">
+                        <div class="message-content">
+                            Hola, soy tu asistente administrativo basado en <strong>n8n</strong>. ¿En qué puedo ayudarte hoy?
+                        </div>
+                    </div>
+                `;
+                localStorage.removeItem(STORAGE_KEY);
+                // Reset state in case it was open
+                saveChatState();
+            }
+        });
+
+        // Quick Actions
+        document.querySelectorAll('.quick-action-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.getAttribute('data-action');
+                let message = "";
+
+                if (action === 'crear_aviso') {
+                    message = "Quiero crear un nuevo aviso de falla";
+                } else if (action === 'crear_orden') {
+                    message = "Necesito crear una nueva orden de trabajo";
+                } else if (action === 'consultar_estado') {
+                    message = "¿Cuál es el estado actual de los equipos?";
+                } else if (action === 'ver_calendario') {
+                    message = "Muéstrame el calendario de mantenimiento";
+                } else if (action === 'mis_tareas') {
+                    message = "¿Cuáles son mis tareas pendientes para hoy?";
+                }
+
+                if (message) {
+                    input.value = message;
+                    sendMessage();
+                }
+            });
+        });
+
+        // Send Message
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text) return;
+
+            // Add user message
+            appendMessage(text, 'user');
+            input.value = '';
+
+            // Add loading state
+            const loadingId = appendMessage('Escribiendo...', 'bot', true);
+            sendBtn.disabled = true;
+
+            try {
+                const response = await fetch('/proyectos/chatbot-asistente/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ mensaje: text })
+                });
+
+                const data = await response.json();
+
+                // Remove loading
+                document.getElementById(loadingId).remove();
+
+                if (data.status === 'success') {
+                    appendMessage(data.respuesta, 'bot');
+                } else {
+                    appendMessage('Error: ' + data.message, 'bot');
+                }
+
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                appendMessage('Error de conexión.', 'bot');
+            } finally {
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        function appendMessage(text, type, isLoading = false) {
+            const id = 'msg-' + Date.now();
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${type} ${isLoading ? 'loading' : ''}`;
+            msgDiv.id = id;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (type === 'bot' && !isLoading) {
+                // Renderizar Markdown para el bot
+                contentDiv.innerHTML = marked.parse(text);
+            } else {
+                contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+            }
+
+            msgDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(msgDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            if (!isLoading) {
+                saveChatHistory();
+            }
+
+            return id;
+        }
+
+        // Persistence Logic
+
+        function saveChatHistory() {
+            const messages = [];
+            // Skip the first hardcoded message if we want, or just save all
+            document.querySelectorAll('#chatbot-messages .message:not(.loading)').forEach(msg => {
+                messages.push({
+                    text: msg.querySelector('.message-content').innerHTML,
+                    type: msg.classList.contains('user') ? 'user' : 'bot'
+                });
+            });
+
+            const data = {
+                lastActive: Date.now(),
+                messages: messages,
+                isOpen: !window.classList.contains('hidden')
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function saveChatState() {
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            data.isOpen = !window.classList.contains('hidden');
+            data.lastActive = Date.now();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function loadChatHistory() {
+            const rawData = localStorage.getItem(STORAGE_KEY);
+            if (!rawData) return;
+
+            try {
+                const data = JSON.parse(rawData);
+                const now = Date.now();
+
+                // Check inactivity
+                if (now - data.lastActive > INACTIVITY_LIMIT) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    return;
+                }
+
+                // Restore messages
+                if (data.messages && data.messages.length > 0) {
+                    // Clear current (the hardcoded one is already there, 
+                    // if the first saved is identical, we might want to skip it)
+                    const savedMessages = data.messages;
+
+                    // Identify if the first saved is the welcome message to avoid duplication
+                    const welcomeText = "Hola, soy tu asistente administrativo basado en <strong>n8n</strong>. ¿En qué puedo ayudarte hoy?";
+
+                    messagesContainer.innerHTML = ''; // Clear everything
+
+                    savedMessages.forEach(msg => {
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = `message ${msg.type}`;
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'message-content';
+                        contentDiv.innerHTML = msg.text;
+                        msgDiv.appendChild(contentDiv);
+                        messagesContainer.appendChild(msgDiv);
+                    });
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+
+                // Restore window state
+                if (data.isOpen) {
+                    window.classList.remove('hidden');
+                }
+
+            } catch (e) {
+                console.error("Error restoring chat history", e);
+            }
+        }
+
+        // Initialize history
+        loadChatHistory();
+
+        sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Helper for CSRF
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+---
+<script>
+    (function ($) {
+        $(document).ready(function () {
+            const userGroups = [];
+    const isAlmacen = true;
+
+    if (!isAlmacen) return;
+
+    // Inyectar icono en Navbar de Jazzmin si existe
+    const navbar = $('.navbar-nav.ml-auto');
+    if (navbar.length) {
+        const notifyItem = $(`
+                    <li class="nav-item dropdown" id="gs-admin-link">
+                        <a class="nav-link" href="#" title="Gestión de Salidas">
+                            <i class="fas fa-shipping-fast"></i>
+                            <span class="badge badge-warning navbar-badge" id="gs-badge-count" style="display:none; animation: pulse 1.5s infinite;">0</span>
+                        </a>
+                    </li>
+                `);
+        navbar.prepend(notifyItem);
+        notifyItem.on('click', function (e) {
+            e.preventDefault();
+            openGSM();
+        });
+    }
+
+    // Función Global para abrir el modal
+    window.openGSM = function (orderId = null) {
+        $('#gestion-salidas-modal').addClass('active');
+        if (orderId) {
+            gsCurrentPedidoId = orderId;
+            gsShowDetalle(orderId);
+        } else {
+            gsLoadPedidos();
+        }
+    };
+
+    // Interceptar clicks en botones de Dashboard y links de Admin
+    $(document).on('click', '#btn-gestion-salidas', function (e) {
+        e.preventDefault();
+        openGSM();
+    });
+
+    // Cerrar modal
+    $('#close-gestion-salidas').on('click', function () {
+        $('#gestion-salidas-modal').removeClass('active');
+    });
+
+    $('#gs-btn-back').on('click', function () {
+        $('#gs-vista-lista').show();
+        $('#gs-vista-detalle').hide();
+        $('#gs-btn-back').hide();
+        $('#gs-title').text('Solicitudes Pendientes');
+    });
+
+    let gsCurrentPedidoId = null;
+
+    async function gsLoadPedidos() {
+        const container = $('#gs-lista-container');
+        container.html('<p class="text-center py-5"><i class="fas fa-sync fa-spin fa-2x"></i><br>Cargando...</p>');
+        try {
+            const res = await fetch('/inventarios/api/pedidos-pendientes/');
+            if (!res.ok) throw new Error(`Status: ${res.status}`);
+            const data = await res.json();
+            $('#gs-badge-count').text(data.count).toggle(data.count > 0);
+
+            if (data.count === 0) {
+                container.html('<div class="text-center py-5" style="color:#64748b;"><ion-icon name="checkmark-done-circle-outline" style="font-size:4rem; color:#10b981;"></ion-icon><p style="font-weight:700; font-size:1.2rem; margin-top:10px;">¡Todo procesado!</p><p>No hay solicitudes pendientes.</p></div>');
+                return;
+            }
+
+            let html = '';
+            data.pedidos.forEach(p => {
+                html += `
+                            <div class="gs-pedido-row" data-id="${p.id}" style="padding:16px; margin-bottom:12px; cursor:pointer; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <div style="font-weight:700; color:#1e293b;">${p.solicitante} <span class="badge badge-secondary" style="margin-left:8px;">${p.items_count} ítems</span></div>
+                                    <div style="font-size:0.85rem; color:#64748b;">${p.fecha} | OT: ${p.ot} | ${p.almacen}</div>
+                                </div>
+                                <ion-icon name="chevron-forward-outline" style="font-size:1.5rem; color:#cbd5e1;"></ion-icon>
+                            </div>
+                        `;
+            });
+            container.html(html);
+            $('.gs-pedido-row').click(function () {
+                gsCurrentPedidoId = $(this).data('id');
+                gsShowDetalle(gsCurrentPedidoId);
+            });
+        } catch (e) {
+            console.error(e);
+            container.html(`<p class="text-center text-danger">Error al cargar pedidos.<br><small>${e.message}</small></p>`);
+        }
+    }
+
+    window.gsShowDetalle = async function (id) {
+        $('#gs-vista-lista').hide();
+        $('#gs-vista-detalle').show();
+        $('#gs-btn-back').show();
+        $('#gs-title').text(`Pedido #${id}`);
+        const tbody = $('#gs-items-body').html('<tr><td colspan="5" class="text-center">Cargando ítems...</td></tr>');
+        try {
+            const res = await fetch(`/inventarios/api/pedidos/${id}/detalle/`);
+            const data = await res.json();
+            $('#gs-det-solicitante').text(data.solicitud.solicitante);
+            $('#gs-det-fecha').text(data.solicitud.fecha);
+            $('#gs-det-almacen').text(data.solicitud.almacen);
+            tbody.empty();
+            data.items.forEach(item => {
+                const max = Math.min(item.cantidad_solicitada, item.stock_disponible);
+                const isPartial = item.stock_disponible < item.cantidad_solicitada;
+                tbody.append(`
+                            <tr>
+                                <td><div style="font-weight:600;">${item.nombre}</div><div style="font-size:0.75rem; color:#64748b;">${item.sku}</div></td>
+                                <td class="text-center">${item.cantidad_solicitada}</td>
+                                <td class="text-center">${item.stock_disponible}</td>
+                                <td class="text-center">
+                                    <input type="number" class="gs-qty form-control form-control-sm" data-mov="${item.mov_id}" value="${max}" max="${item.stock_disponible}" min="0" style="width:70px; margin:0 auto; font-weight:700;">
+                                </td>
+                                <td>
+                                    <span class="gs-badge-status ${isPartial ? 'bg-warning text-dark' : 'bg-success text-white'}">${isPartial ? 'Parcial' : 'OK'}</span>
+                                </td>
+                            </tr>
+                        `);
+            });
+        } catch (e) {
+            tbody.html('<tr><td colspan="5" class="text-center text-danger">Error al cargar detalle.</td></tr>');
+        }
+    }
+
+    // Auto-abrir si viene en el URL ?gs_order=X
+    const gsUrlParams = new URLSearchParams(window.location.search);
+    const gsAutoOrderId = gsUrlParams.get('gs_order');
+    if (gsAutoOrderId && isAlmacen) {
+        // Esperar un momento a que Jazzmin/Admin carguen todo el DOM
+        console.log("[GS] Detectada auto-apertura para pedido:", gsAutoOrderId);
+        setTimeout(() => {
+            openGSM(gsAutoOrderId);
+        }, 800);
+    }
+
+    $('#gs-btn-despachar').click(async function () {
+        const btn = $(this).prop('disabled', true).text('Procesando...');
+        try {
+            const res = await fetch(`/inventarios/api/pedidos/${gsCurrentPedidoId}/despachar/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': 'Ymg7qUqXaFEIJDIkZvAWqLO61zZhhP9M9wK7z6w94niH4UZUZHjYd7ENvaWit5tZ' },
+                body: JSON.stringify({
+                    accion: 'despachar',
+                    comentarios: $('#gs-comentarios-almacen').val(),
+                    cantidades: $('.gs-qty').map(function () { return { mov_id: $(this).data('mov'), cantidad: $(this).val() }; }).get()
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                Swal.fire('¡Éxito!', data.message, 'success');
+                $('#gs-btn-back').click();
+                gsLoadPedidos();
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Fallo de conexión.', 'error');
+        }
+        btn.prop('disabled', false).text('✅ Despachar Materiales');
+    });
+
+    $('#gs-btn-rechazar').click(async function () {
+        const { value: m } = await Swal.fire({
+            title: '¿Rechazar solicitud?',
+            input: 'textarea',
+            inputLabel: 'Motivo del rechazo',
+            inputPlaceholder: 'Escribe el motivo aquí...',
+            showCancelButton: true
+        });
+
+        if (m) {
+            try {
+                const res = await fetch(`/inventarios/api/pedidos/${gsCurrentPedidoId}/despachar/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': 'Ymg7qUqXaFEIJDIkZvAWqLO61zZhhP9M9wK7z6w94niH4UZUZHjYd7ENvaWit5tZ' },
+                    body: JSON.stringify({ accion: 'rechazar', comentarios: m })
+                });
+                const data = await res.json();
+                Swal.fire('Procesado', data.message, 'info');
+                $('#gs-btn-back').click();
+                gsLoadPedidos();
+            } catch (e) {
+                Swal.fire('Error', 'Fallo de conexión.', 'error');
+            }
+        }
+    });
+
+    let lastCount = -1;
+    setInterval(async () => {
+        try {
+            const res = await fetch('/inventarios/api/pedidos-pendientes/');
+            const data = await res.json();
+            $('#gs-badge-count').text(data.count).toggle(data.count > 0);
+            if (data.count > lastCount && lastCount >= 0) {
+                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                audio.play().catch(() => { });
+                if (Notification.permission === 'granted') {
+                    new Notification('📦 Nueva Solicitud de Material', { body: `Hay ${data.count} pedidos pendientes por atender.` });
+                }
+            }
+            lastCount = data.count;
+        } catch (e) { }
+    }, 30000);
+        });
+    }) (django.jQuery || jQuery);
+</script>
+---
+<script src="/static/admin/js/vendor/jquery/jquery.js"></script>
+---
+<script src="/static/vendor/bootstrap/js/bootstrap.min.js"></script>
+---
+<script src="/static/vendor/adminlte/js/adminlte.min.js"></script>
+---
+<script src="/static/jazzmin/js/main.js"></script>
+---
+<script src="/static/core/js/admin_search.js"></script>
+---
+<script>
+    window.ui_changes = {"navbar_small_text": false, "footer_small_text": false, "body_small_text": false, "brand_small_text": false, "brand_colour": "navbar-white", "accent": "accent-primary", "navbar": "navbar-white navbar-light", "no_navbar_border": true, "navbar_fixed": true, "layout_boxed": false, "footer_fixed": false, "sidebar_fixed": true, "sidebar": "sidebar-dark-primary", "sidebar_nav_small_text": false, "sidebar_disable_expand": false, "sidebar_nav_child_indent": false, "sidebar_nav_compact_style": false, "sidebar_nav_legacy_style": false, "sidebar_nav_flat_style": false, "theme": "flatly", "dark_mode_theme": null, "button_classes": {"primary": "btn-primary", "secondary": "btn-outline-secondary", "info": "btn-info", "warning": "btn-warning", "danger": "btn-danger", "success": "btn-success"}, "sidebar_collapse": false};
+</script>
+---
+<script src="/static/jazzmin/js/ui-builder.js"></script>
+---
+<script>
+/**
+ * Admin Search Hijacker - SoftCom CCG
+ * Redirige la búsqueda del navbar a nuestra vista global unificada.
+ */
+(function() {
+    function setupGlobalSearch() {
+        const targetUrl = "/admin/global-search/";
+
+        function doSearch(query) {
+            if (query && query.trim()) {
+                window.location.href = targetUrl + "?q=" + encodeURIComponent(query.trim());
+                return true;
+            }
+            return false;
+        }
+
+        // Interceptar Submit (Enter)
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            const qInput = form.querySelector('input[name="q"]');
+            if (qInput && (form.closest('.navbar') || form.closest('.main-header') || form.closest('.nav-sidebar'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                doSearch(qInput.value);
+                return false;
+            }
+        }, true);
+
+        // Interceptar Click en el botón
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('button');
+            if (btn) {
+                const form = btn.closest('form');
+                if (form) {
+                    const qInput = form.querySelector('input[name="q"]');
+                    if (qInput && (form.closest('.navbar') || form.closest('.main-header'))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        doSearch(qInput.value);
+                    }
+                }
+            }
+        }, true);
+
+        function polishSearchInputs() {
+            const allSearchInputs = document.querySelectorAll('input[name="q"]');
+            allSearchInputs.forEach(function(input) {
+                const form = input.closest('form');
+                if (!form || !(form.closest('.navbar') || form.closest('.main-header') || form.closest('.nav-sidebar'))) return;
+
+                input.placeholder = "Búsqueda Global...";
+                input.title = "Buscar en todo el sistema";
+                input.setAttribute('autocomplete', 'off');
+                input.removeAttribute('data-typeahead');
+                form.action = targetUrl;
+
+                form.querySelectorAll('input[type="hidden"]').forEach(function(hidden) {
+                    if (hidden.name !== 'csrfmiddlewaretoken') {
+                        hidden.remove();
+                    }
+                });
+            });
+        }
+
+        polishSearchInputs();
+        const observer = new MutationObserver(polishSearchInputs);
+        observer.observe(document.body, { childList: true, subtree: true });
+        
+        console.log("[SoftCom] Global Search interceptor ARMED (Embedded).");
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupGlobalSearch);
+    } else {
+        setupGlobalSearch();
+    }
+})();
+</script>
+---
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Interceptar clicks en el enlace del top menu de Jazzmin
+        document.addEventListener('click', function (e) {
+            const link = e.target.closest('a');
+            if (link && link.href && link.href.includes('/admin/chatbot_trigger/')) {
+                e.preventDefault();
+                const trigger = document.getElementById('chatbot-trigger');
+                if (trigger) {
+                    trigger.click();
+                }
+            }
+        });
+    });
+</script>
+---
+<script>
+/**
+ * Admin Search Hijacker - SoftCom CCG
+ * Redirige la búsqueda del navbar a nuestra vista global unificada.
+ */
+(function() {
+    function setupGlobalSearch() {
+        const targetUrl = "/admin/global-search/";
+
+        function doSearch(query) {
+            if (query && query.trim()) {
+                window.location.href = targetUrl + "?q=" + encodeURIComponent(query.trim());
+                return true;
+            }
+            return false;
+        }
+
+        // Interceptar Submit (Enter)
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            const qInput = form.querySelector('input[name="q"]');
+            if (qInput && (form.closest('.navbar') || form.closest('.main-header') || form.closest('.nav-sidebar'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                doSearch(qInput.value);
+                return false;
+            }
+        }, true);
+
+        // Interceptar Click en el botón
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('button');
+            if (btn) {
+                const form = btn.closest('form');
+                if (form) {
+                    const qInput = form.querySelector('input[name="q"]');
+                    if (qInput && (form.closest('.navbar') || form.closest('.main-header'))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        doSearch(qInput.value);
+                    }
+                }
+            }
+        }, true);
+
+        function polishSearchInputs() {
+            const allSearchInputs = document.querySelectorAll('input[name="q"]');
+            allSearchInputs.forEach(function(input) {
+                const form = input.closest('form');
+                if (!form || !(form.closest('.navbar') || form.closest('.main-header') || form.closest('.nav-sidebar'))) return;
+
+                input.placeholder = "Búsqueda Global...";
+                input.title = "Buscar en todo el sistema";
+                input.setAttribute('autocomplete', 'off');
+                input.removeAttribute('data-typeahead');
+                form.action = targetUrl;
+
+                form.querySelectorAll('input[type="hidden"]').forEach(function(hidden) {
+                    if (hidden.name !== 'csrfmiddlewaretoken') {
+                        hidden.remove();
+                    }
+                });
+            });
+        }
+
+        polishSearchInputs();
+        const observer = new MutationObserver(polishSearchInputs);
+        observer.observe(document.body, { childList: true, subtree: true });
+        
+        console.log("[SoftCom] Global Search interceptor ARMED (Embedded).");
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupGlobalSearch);
+    } else {
+        setupGlobalSearch();
+    }
+})();
+</script>
+---
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Interceptar clicks en el enlace del top menu de Jazzmin
+        document.addEventListener('click', function (e) {
+            const link = e.target.closest('a');
+            if (link && link.href && link.href.includes('/admin/chatbot_trigger/')) {
+                e.preventDefault();
+                const trigger = document.getElementById('chatbot-trigger');
+                if (trigger) {
+                    trigger.click();
+                }
+            }
+        });
+    });
+</script>
+---
+<script>
+/**
+ * Admin Search Hijacker - SoftCom CCG
+ * Redirige la búsqueda del navbar a nuestra vista global unificada.
+ */
+(function() {
+    function setupGlobalSearch() {
+        const targetUrl = "/admin/global-search/";
+
+        function doSearch(query) {
+            if (query && query.trim()) {
+                window.location.href = targetUrl + "?q=" + encodeURIComponent(query.trim());
+                return true;
+            }
+            return false;
+        }
+
+        // Interceptar Submit (Enter)
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            const qInput = form.querySelector('input[name="q"]');
+            if (qInput && (form.closest('.navbar') || form.closest('.main-header') || form.closest('.nav-sidebar'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                doSearch(qInput.value);
+                return false;
+            }
+        }, true);
+
+        // Interceptar Click en el botón
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('button');
+            if (btn) {
+                const form = btn.closest('form');
+                if (form) {
+                    const qInput = form.querySelector('input[name="q"]');
+                    if (qInput && (form.closest('.navbar') || form.closest('.main-header'))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        doSearch(qInput.value);
+                    }
+                }
+            }
+        }, true);
+
+        function polishSearchInputs() {
+            const allSearchInputs = document.querySelectorAll('input[name="q"]');
+            allSearchInputs.forEach(function(input) {
+                const form = input.closest('form');
+                if (!form || !(form.closest('.navbar') || form.closest('.main-header') || form.closest('.nav-sidebar'))) return;
+
+                input.placeholder = "Búsqueda Global...";
+                input.title = "Buscar en todo el sistema";
+                input.setAttribute('autocomplete', 'off');
+                input.removeAttribute('data-typeahead');
+                form.action = targetUrl;
+
+                form.querySelectorAll('input[type="hidden"]').forEach(function(hidden) {
+                    if (hidden.name !== 'csrfmiddlewaretoken') {
+                        hidden.remove();
+                    }
+                });
+            });
+        }
+
+        polishSearchInputs();
+        const observer = new MutationObserver(polishSearchInputs);
+        observer.observe(document.body, { childList: true, subtree: true });
+        
+        console.log("[SoftCom] Global Search interceptor ARMED (Global Base Site).");
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupGlobalSearch);
+    } else {
+        setupGlobalSearch();
+    }
+})();
+</script>
+---
+<script type="text/javascript" src="/static/vendor/select2/js/select2.min.js"></script>
+---
+<script>
+        
+        window.filterInputLengthDefault = 0;
+        window.filterInputLength = {
+            
+        }
+    </script>
+---
+<script type="text/javascript" src="/static/jazzmin/js/change_list.js"></script>

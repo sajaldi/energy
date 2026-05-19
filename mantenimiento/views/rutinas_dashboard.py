@@ -794,3 +794,49 @@ def rutina_move_api(request, pk):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+
+@staff_member_required
+def export_rutinas_excel(request):
+    """Exporta todas las rutinas a un archivo Excel (.xlsx) usando el RutinaResource existente."""
+    from ..admin import RutinaResource
+
+    resource = RutinaResource()
+
+    # Aplicar los mismos filtros que el dashboard si vienen en GET
+    qs = Rutina.objects.all().select_related('frecuencia', 'tipo', 'puesto_trabajo',
+                                             'ubicacion_predeterminada', 'categoria_activo',
+                                             'horario_predeterminado')
+
+    frecuencia_id = request.GET.get('frecuencia')
+    puesto_id = request.GET.get('puesto')
+    search = request.GET.get('search', '').strip()
+
+    if frecuencia_id:
+        try:
+            qs = qs.filter(frecuencia_id=int(frecuencia_id))
+        except (ValueError, TypeError):
+            pass
+
+    if puesto_id:
+        try:
+            qs = qs.filter(puesto_trabajo_id=int(puesto_id))
+        except (ValueError, TypeError):
+            pass
+
+    if search:
+        qs = qs.filter(
+            Q(nombre__icontains=search) |
+            Q(codigo_rutina__icontains=search) |
+            Q(descripcion__icontains=search) |
+            Q(tipo__nombre__icontains=search)
+        )
+
+    dataset = resource.export(queryset=qs)
+
+    response = HttpResponse(
+        dataset.xlsx,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="rutinas_mantenimiento.xlsx"'
+    return response
+
