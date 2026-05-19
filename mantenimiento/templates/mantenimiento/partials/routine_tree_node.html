@@ -1,7 +1,13 @@
 {% load static l10n %}
-<div class="tree-node" data-level="{{ node.level }}" data-cat-name="{{ node.categoria.nombre|lower }}" data-cat-code="{{ node.categoria.codigo|default:''|lower }}">
+<div class="tree-node" data-cat-id="{{ node.categoria.id }}" data-level="{{ node.level }}" data-cat-name="{{ node.categoria.nombre|lower }}" data-cat-code="{{ node.categoria.codigo|default:''|lower }}">
     <div class="tree-row cat-row {% if node.subcategorias or node.rutinas %}has-children{% endif %}"
         onclick="toggleNode(this)">
+        <span class="tree-icon drag-handle-cat" style="cursor: grab; margin-right: 4px; color: #cbd5e1;" title="Arrastrar para mover categoría" onclick="event.stopPropagation();">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/>
+                <circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>
+            </svg>
+        </span>
         <span class="tree-icon">
             {% if node.subcategorias or node.rutinas %}
             <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #6a6d70;">
@@ -40,9 +46,11 @@
 
     <div class="tree-content" style="display: none;">
         <!-- Subcategorías -->
-        {% for subnode in node.subcategorias %}
-        {% include "mantenimiento/partials/routine_tree_node.html" with node=subnode %}
-        {% endfor %}
+        <div class="categories-container" data-parent-cat-id="{{ node.categoria.id }}" style="min-height: 10px; padding-bottom: 5px;">
+            {% for subnode in node.subcategorias %}
+            {% include "mantenimiento/partials/routine_tree_node.html" with node=subnode %}
+            {% endfor %}
+        </div>
 
         <!-- Rutinas -->
         <div class="routines-container" data-cat-id="{{ node.categoria.id }}" style="min-height: 10px; padding-bottom: 5px;">

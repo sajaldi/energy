@@ -796,6 +796,37 @@ def rutina_move_api(request, pk):
 
 
 @staff_member_required
+def tipo_move_api(request, pk):
+    """API para mover una categoría (Tipo) debajo de otra (padre)"""
+    from django.http import JsonResponse
+    import json
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        padre_id = data.get('padre_id')
+        
+        tipo = Tipo.objects.get(pk=pk)
+        
+        if padre_id:
+            if int(padre_id) == tipo.id:
+                return JsonResponse({'status': 'error', 'message': 'Una categoría no puede ser padre de sí misma'}, status=400)
+            tipo.padre = Tipo.objects.get(pk=padre_id)
+        else:
+            tipo.padre = None
+            
+        tipo.save(update_fields=['padre'])
+        
+        return JsonResponse({'status': 'success', 'message': 'Categoría movida correctamente'})
+    except Tipo.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'La categoría no existe'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
 def export_rutinas_excel(request):
     """Exporta todas las rutinas a un archivo Excel (.xlsx) usando el RutinaResource existente."""
     from ..admin import RutinaResource

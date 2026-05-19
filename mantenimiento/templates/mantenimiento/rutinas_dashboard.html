@@ -724,15 +724,17 @@
             </div>
 
             <div class="tree-container" id="tree-container">
-                {% if tree %}
-                {% for node in tree %}
-                {% include "mantenimiento/partials/routine_tree_node.html" with node=node %}
-                {% endfor %}
-                {% else %}
-                <div class="empty-state">
-                    <p>No se encontraron resultados para la búsqueda.</p>
+                <div class="categories-container" data-parent-cat-id="" style="min-height: 20px;">
+                    {% if tree %}
+                    {% for node in tree %}
+                    {% include "mantenimiento/partials/routine_tree_node.html" with node=node %}
+                    {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <p>No se encontraron resultados para la búsqueda.</p>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
                 <div id="cat-search-empty" style="display:none; text-align:center; padding:2.5rem; color:var(--text-muted);">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.4; margin-bottom:0.75rem;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <p style="font-size:0.9rem;">No se encontraron categorías que coincidan.</p>
@@ -2376,8 +2378,8 @@
         });
 
         function initSortable() {
-            const containers = document.querySelectorAll('.routines-container');
-            containers.forEach(container => {
+            const routineContainers = document.querySelectorAll('.routines-container');
+            routineContainers.forEach(container => {
                 new Sortable(container, {
                     group: 'rutinas', // allow dragging between containers
                     animation: 150,
@@ -2396,6 +2398,55 @@
                         moveRutina(rutinaId, newCatId, itemEl, fromList, toList);
                     }
                 });
+            });
+
+            const categoryContainers = document.querySelectorAll('.categories-container');
+            categoryContainers.forEach(container => {
+                new Sortable(container, {
+                    group: 'categorias', // allow dragging between category containers
+                    animation: 150,
+                    handle: '.drag-handle-cat', // use the category drag handle icon
+                    ghostClass: 'sortable-ghost',
+                    onEnd: function (evt) {
+                        const itemEl = evt.item;
+                        const toList = evt.to;
+                        const fromList = evt.from;
+                        
+                        if (toList === fromList && evt.newIndex === evt.oldIndex) return; // no change
+
+                        const catId = itemEl.getAttribute('data-cat-id');
+                        const newParentId = toList.getAttribute('data-parent-cat-id');
+
+                        moveCategoria(catId, newParentId, itemEl, fromList, toList);
+                    }
+                });
+            });
+        }
+
+        function moveCategoria(catId, newParentId, itemEl, fromList, toList) {
+            fetch(`/mantenimiento/rutinas/api/tipo/move/${catId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ padre_id: newParentId ? parseInt(newParentId) : null })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    showToast('Categoría movida correctamente', 'success');
+                } else {
+                    alert('Error al mover categoría: ' + res.message);
+                    // Revert UI
+                    fromList.appendChild(itemEl);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error de conexión al mover categoría.');
+                // Revert UI
+                fromList.appendChild(itemEl);
             });
         }
 
