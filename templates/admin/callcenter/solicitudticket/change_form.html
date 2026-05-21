@@ -133,6 +133,45 @@
     }
 
     document.addEventListener("DOMContentLoaded", function () {
+        // Filtrado dinámico de Diagnósticos basado en Falla
+        const fallaSelect = document.getElementById('id_falla_reportada');
+        const diagSelect = document.getElementById('id_diagnostico_reportado');
+
+        if (fallaSelect && diagSelect) {
+            const initialDiagId = diagSelect.value;
+            
+            async function updateDiagnosticos(selectedId = null) {
+                const fallaId = fallaSelect.value;
+                const activeId = selectedId || diagSelect.value;
+                
+                diagSelect.innerHTML = '<option value="">---------</option>';
+                if (!fallaId) return;
+
+                try {
+                    const response = await fetch(`/callcenter/ajax/get-diagnosticos-by-falla/?falla_id=${fallaId}`);
+                    const data = await response.json();
+                    
+                    data.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d.id;
+                        opt.textContent = d.nombre;
+                        if (d.id == activeId) {
+                            opt.selected = true;
+                        }
+                        diagSelect.appendChild(opt);
+                    });
+                } catch (e) {
+                    console.error("Error al cargar diagnósticos:", e);
+                }
+            }
+
+            fallaSelect.addEventListener('change', () => updateDiagnosticos());
+            
+            if (fallaSelect.value) {
+                updateDiagnosticos(initialDiagId);
+            }
+        }
+
         // Enlazar validación a botones existentes y dinámicos
         const paButtons = document.querySelectorAll('a[href*="enviar-power-automate"]');
         paButtons.forEach(btn => {

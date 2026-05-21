@@ -355,10 +355,16 @@
         let currentPage = 1;
         let currentCategory = '';
         let isLoading = false; let hasMore = true;
-        let db;
+        let db = null;
 
-        const dbReq = indexedDB.open('InventarioPWA', 3);
-        dbReq.onsuccess = e => { db = e.target.result; };
+        const dbReq = indexedDB.open('InventarioPWA', 4);
+        dbReq.onsuccess = e => { 
+            db = e.target.result; 
+            // Si ya falló la carga inicial porque no había DB, la reintentamos
+            if (!navigator.onLine && document.getElementById('material-list').children.length === 0) {
+                loadCatalog(1);
+            }
+        };
 
         function getCookie(name) {
             let cookieValue = null;

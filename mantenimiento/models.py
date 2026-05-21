@@ -565,16 +565,14 @@ class Programacion(models.Model):
                 continue
             
             # Ventana laboral
-            try:
-                inicio_laboral = timezone.make_aware(datetime.combine(fecha_actual_cursor, horario_dia.hora_inicio))
-                fin_laboral = timezone.make_aware(datetime.combine(fecha_actual_cursor, horario_dia.hora_fin))
-                if fin_laboral < inicio_laboral:
-                    fin_laboral += timedelta(days=1)
-            except (ValueError, TypeError):
-                inicio_laboral = datetime.combine(fecha_actual_cursor, horario_dia.hora_inicio)
-                fin_laboral = datetime.combine(fecha_actual_cursor, horario_dia.hora_fin)
-                if fin_laboral < inicio_laboral:
-                    fin_laboral += timedelta(days=1)
+            inicio_base = datetime.combine(fecha_actual_cursor, horario_dia.hora_inicio)
+            fin_base = datetime.combine(fecha_actual_cursor, horario_dia.hora_fin)
+            
+            inicio_laboral = inicio_base if timezone.is_aware(inicio_base) else timezone.make_aware(inicio_base)
+            fin_laboral = fin_base if timezone.is_aware(fin_base) else timezone.make_aware(fin_base)
+            
+            if fin_laboral < inicio_laboral:
+                fin_laboral += timedelta(days=1)
             
             # Punto de entrada
             entry_dt = max(current_dt_cursor, inicio_laboral) if current_dt_cursor else inicio_laboral

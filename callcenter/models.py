@@ -73,6 +73,16 @@ class SolicitudTicket(models.Model):
         verbose_name="Falla del Catálogo"
     )
 
+    # Catálogo de Diagnóstico (NUEVO)
+    diagnostico_reportado = models.ForeignKey(
+        'DiagnosticoTicket', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='tickets',
+        verbose_name="Diagnóstico del Catálogo"
+    )
+
     # Estado de Notificación
     cierre_enviado = models.BooleanField(default=False, verbose_name="Cierre Notificado", db_index=True, null=True, blank=True)
     correo_cierre = models.BooleanField(
@@ -151,6 +161,16 @@ class SolicitudTicket(models.Model):
         if self.unidad: parts.append(self.unidad)
         
         return " > ".join(parts) if parts else "-"
+
+    @property
+    def tiempo_resolucion_horas(self):
+        """
+        Calcula el tiempo de resolución en horas si el ticket está cerrado.
+        """
+        if self.fecha_cierre and self.fecha_solicitud:
+            diff = (self.fecha_cierre - self.fecha_solicitud).total_seconds() / 3600.0
+            return round(diff, 2) if diff >= 0 else None
+        return None
 
     @classmethod
     def buscar_vectorial(cls, query_embedding, limit=10, filters=None):
@@ -630,7 +650,42 @@ class FallaTicket(models.Model):
             return f"{self.parent.nombre} > {self.nombre}"
         return self.nombre
 
+    def get_all_diagnosticos(self):
+        """
+        Retorna los diagnósticos de esta falla y de todas sus fallas padres (deduplicados).
+        """
+        diagnosticos = list(self.diagnosticos_asociados.all())
+        if self.parent:
+            parent_diags = self.parent.get_all_diagnosticos()
+            seen = {d.id for d in diagnosticos}
+            for d in parent_diags:
+                if d.id not in seen:
+                    diagnosticos.append(d)
+                    seen.add(d.id)
+        return diagnosticos
+
     class Meta:
         verbose_name = "Catálogo de Falla"
         verbose_name_plural = "Catálogo de Fallas"
-        ordering = ['nombre']
+
+class DiagnosticoTicket(models.Model):
+    """
+    Catálogo de diagnósticos estandarizados relacionados a una FallaTicket.
+    Los hijos de la falla heredan implícitamente estos diagnósticos.
+    """
+    nombre = models.CharField(max_length=255, verbose_name="Nombre del Diagnóstico")
+    falla = models.ForeignKey(
+        FallaTicket,
+        on_delete=models.CASCADE,
+        related_name='diagnosticos_asociados',
+        verbose_name="Falla Asociada"
+    )
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción del Diagnóstico")
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Catálogo de Diagnóstico"
+        verbose_name_plural = "Catálogos de Diagnósticos"
+        ordering = ['falla__nombre', 'nombre']

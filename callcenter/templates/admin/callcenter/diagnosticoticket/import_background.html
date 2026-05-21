@@ -1,0 +1,517 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<!-- Google Fonts: Inter and Outfit -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        --primary-hover: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+        --glass-bg: rgba(255, 255, 255, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.4);
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --shadow-premium: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    #content {
+        background: radial-gradient(circle at 10% 20%, rgba(242, 246, 253, 0.8) 0%, rgba(248, 250, 252, 0.9) 90.1%);
+        min-height: 85vh;
+        padding: 30px 20px;
+    }
+
+    .glass-import-card {
+        max-width: 750px;
+        margin: 40px auto;
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: var(--shadow-premium);
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .glass-import-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .import-title {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 1.8rem;
+        margin-top: 0;
+        margin-bottom: 24px;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .premium-alert-banner {
+        background: rgba(239, 246, 255, 0.7);
+        border-left: 5px solid #3b82f6;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.05);
+        backdrop-filter: blur(5px);
+    }
+
+    .premium-alert-banner p {
+        margin: 0;
+        color: #1e40af;
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+
+    .drag-drop-zone {
+        border: 2px dashed #cbd5e1;
+        background: rgba(255, 255, 255, 0.4);
+        padding: 45px 30px;
+        text-align: center;
+        border-radius: 16px;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .drag-drop-zone::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.03) 0%, rgba(29, 78, 216, 0.03) 100%);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .drag-drop-zone:hover {
+        border-color: #3b82f6;
+        transform: scale(1.005);
+        background: rgba(239, 246, 255, 0.4);
+    }
+
+    .drag-drop-zone:hover::before {
+        opacity: 1;
+    }
+
+    .drag-drop-zone.dragover {
+        border-color: #10b981;
+        background: rgba(209, 250, 229, 0.4);
+    }
+
+    .upload-icon {
+        font-size: 3.5rem;
+        margin-bottom: 16px;
+        display: inline-block;
+        transition: transform 0.3s ease;
+    }
+
+    .drag-drop-zone:hover .upload-icon {
+        transform: translateY(-5px);
+    }
+
+    .upload-title {
+        color: var(--text-main);
+        font-weight: 600;
+        font-size: 1.2rem;
+        margin: 0 0 6px 0;
+    }
+
+    .upload-sub {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .file-name-display {
+        margin-top: 15px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #2563eb;
+        background: rgba(37, 99, 235, 0.08);
+        padding: 8px 16px;
+        border-radius: 20px;
+        display: inline-block;
+        animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .action-group {
+        margin-top: 35px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .btn-premium {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        padding: 12px 24px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .btn-cancel {
+        background: #e2e8f0;
+        color: #475569;
+    }
+
+    .btn-cancel:hover {
+        background: #cbd5e1;
+        color: #1e293b;
+    }
+
+    .btn-primary {
+        background: var(--primary-gradient);
+        color: white;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-hover);
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
+        transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+
+    /* Progress and Loading Section */
+    .progress-section {
+        margin-top: 40px;
+        display: none;
+        animation: fadeIn 0.5s ease;
+    }
+
+    .progress-bar-container {
+        width: 100%;
+        height: 28px;
+        background: rgba(226, 232, 240, 0.6);
+        border-radius: 14px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        backdrop-filter: blur(5px);
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        width: 0%;
+        transition: width 0.4s cubic-bezier(0.1, 0.8, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 700;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .progress-status-box {
+        margin-top: 15px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+        padding: 12px 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+
+    .status-text {
+        font-weight: 600;
+        color: var(--text-main);
+        font-size: 0.95rem;
+    }
+
+    .status-sub {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-import-card">
+    <h2 class="import-title">
+        <span>📑</span> Importación Asíncrona de Catálogo de Diagnósticos
+    </h2>
+
+    <div class="premium-alert-banner">
+        <p>
+            <strong>Validación Inteligente Activa:</strong> Esta herramienta mapea automáticamente los diagnósticos a su respectiva <strong>Falla</strong> usando el nombre exacto de la falla indicado en el archivo. Las filas duplicadas o vacías se analizan antes de ser procesadas para asegurar la integridad de la base de datos.
+        </p>
+    </div>
+
+    <form id="importForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="drag-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+            <input type="file" id="fileInput" name="file" style="display: none;" accept=".xlsx">
+            <div class="upload-icon">📥</div>
+            <h3 class="upload-title">Selecciona o arrastra tu archivo Excel</h3>
+            <p class="upload-sub">Soporta plantillas estándar con extensión <strong>.xlsx</strong></p>
+            <div id="fileName" class="file-name-display" style="display: none;"></div>
+        </div>
+
+        <div class="action-group">
+            <a href="../" class="btn-premium btn-cancel">Cancelar</a>
+            <button type="submit" class="btn-premium btn-primary" id="submitBtn">
+                🚀 Validar y Analizar
+            </button>
+        </div>
+    </form>
+
+    <div class="progress-section" id="progressSection">
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progressFill">0%</div>
+        </div>
+        <div class="progress-status-box">
+            <div class="status-text" id="statusText">Iniciando análisis asíncrono...</div>
+            <div class="status-sub" id="statusSub">El servidor está preparando el entorno de validación</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const importForm = document.getElementById('importForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const dropZone = document.getElementById('dropZone');
+    const progressSection = document.getElementById('progressSection');
+    const progressFill = document.getElementById('progressFill');
+    const statusText = document.getElementById('statusText');
+    const statusSub = document.getElementById('statusSub');
+
+    // Drag and drop handlers
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+        }, false);
+    });
+
+    dropZone.addEventListener('drop', e => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length) {
+            fileInput.files = files;
+            updateFileInfo();
+        }
+    });
+
+    fileInput.addEventListener('change', updateFileInfo);
+
+    function updateFileInfo() {
+        if (fileInput.files && fileInput.files[0]) {
+            fileName.textContent = '📄 ' + fileInput.files[0].name;
+            fileName.style.display = 'inline-block';
+        } else {
+            fileName.style.display = 'none';
+        }
+    }
+
+    importForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (!fileInput.files.length) {
+            Swal.fire({
+                title: 'Archivo Requerido',
+                text: 'Por favor, selecciona un archivo Excel (.xlsx) antes de continuar.',
+                icon: 'warning',
+                confirmButtonColor: '#3b82f6'
+            });
+            return;
+        }
+
+        // Bloquear UI
+        importForm.style.opacity = '0.5';
+        importForm.style.pointerEvents = 'none';
+        submitBtn.disabled = true;
+        progressSection.style.display = 'block';
+
+        const formData = new FormData(this);
+        fetch('', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'started') {
+                startPolling();
+            } else {
+                Swal.fire({
+                    title: 'Error de Inicio',
+                    text: data.message || 'No se pudo iniciar la tarea de importación.',
+                    icon: 'error',
+                    confirmButtonColor: '#3b82f6'
+                });
+                resetUI();
+            }
+        })
+        .catch(err => {
+            Swal.fire('Error', 'Hubo un problema de conexión con el servidor.', 'error');
+            resetUI();
+        });
+    });
+
+    function startPolling() {
+        const interval = setInterval(() => {
+            fetch('?action=status')
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'processing' || data.status === 'starting') {
+                    const p = data.progress || 0;
+                    progressFill.style.width = p + '%';
+                    progressFill.textContent = p + '%';
+                    statusText.textContent = data.message || 'Analizando filas...';
+                    statusSub.textContent = `Progreso actual de validación: ${p}%`;
+                } else if (data.status === 'verified') {
+                    clearInterval(interval);
+                    
+                    let summaryHtml = `
+                        <div style="text-align: left; padding: 10px 15px; background: #f8fafc; border-radius: 12px; margin-top: 10px;">
+                            <p style="margin: 6px 0; color: #10b981;"><strong>🆕 Registros Nuevos:</strong> ${data.totals.new}</p>
+                            <p style="margin: 6px 0; color: #3b82f6;"><strong>🔄 Registros a Actualizar:</strong> ${data.totals.update}</p>
+                            <p style="margin: 6px 0; color: #94a3b8;"><strong>⚠️ Registros Omitidos (Duplicados o vacíos):</strong> ${data.totals.skip}</p>
+                        </div>
+                    `;
+
+                    if (data.errors && data.errors.length > 0) {
+                        summaryHtml += `
+                            <div style="text-align: left; margin-top: 15px;">
+                                <p style="margin: 0 0 5px 0; color: #ef4444; font-weight: bold;">Errores detectados:</p>
+                                <div style="max-height: 100px; overflow-y: auto; background: #fef2f2; border: 1px solid #fee2e2; border-radius: 6px; padding: 8px; font-family: monospace; font-size: 11px; color: #991b1b;">
+                                    ${data.errors.map(err => `• Fila ${err.row || 'N/A'}: ${err.error || err.message}`).join('<br>')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    Swal.fire({
+                        title: 'Análisis Completado',
+                        html: `
+                            <p>Se ha verificado el archivo con éxito. Revisa el resumen a continuación:</p>
+                            ${summaryHtml}
+                            <p style="margin-top: 15px; font-weight: 500;">¿Deseas aplicar e importar definitivamente estos registros al catálogo?</p>
+                        `,
+                        icon: data.errors && data.errors.length > 0 ? 'warning' : 'success',
+                        showCancelButton: true,
+                        confirmButtonText: '✅ Sí, importar catálogo',
+                        cancelButtonText: '❌ Cancelar',
+                        confirmButtonColor: '#3b82f6',
+                        cancelButtonColor: '#94a3b8'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            applyImport();
+                        } else {
+                            resetUI();
+                        }
+                    });
+                } else if (data.status === 'completed') {
+                    clearInterval(interval);
+                    progressFill.style.width = '100%';
+                    progressFill.textContent = '100%';
+                    statusText.textContent = '¡Importación finalizada con éxito!';
+                    statusSub.textContent = 'Guardado en la base de datos';
+                    
+                    Swal.fire({
+                        title: '¡Importación Exitosa!',
+                        text: 'El catálogo de diagnósticos ha sido importado y actualizado en su totalidad.',
+                        icon: 'success',
+                        confirmButtonColor: '#10b981'
+                    }).then(() => {
+                        window.location.href = '../';
+                    });
+                } else if (data.status === 'error') {
+                    clearInterval(interval);
+                    Swal.fire({
+                        title: 'Error de Importación',
+                        text: data.message || 'Se produjo un error al procesar el archivo.',
+                        icon: 'error',
+                        confirmButtonColor: '#ef4444'
+                    });
+                    resetUI();
+                }
+            })
+            .catch(err => {
+                clearInterval(interval);
+                Swal.fire('Error', 'Se perdió la conexión temporalmente.', 'error');
+                resetUI();
+            });
+        }, 1000);
+    }
+
+    function applyImport() {
+        progressFill.style.width = '0%';
+        progressFill.textContent = '0%';
+        statusText.textContent = 'Guardando registros en catálogo...';
+        statusSub.textContent = 'Escribiendo cambios en la base de datos de producción';
+        
+        const formData = new FormData();
+        formData.append('confirm', 'true');
+        fetch('', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'started') {
+                startPolling();
+            } else {
+                Swal.fire('Error', data.message || 'No se pudo aplicar la importación.', 'error');
+                resetUI();
+            }
+        })
+        .catch(err => {
+            Swal.fire('Error', 'Hubo un error al confirmar la importación.', 'error');
+            resetUI();
+        });
+    }
+
+    function resetUI() {
+        importForm.style.opacity = '1';
+        importForm.style.pointerEvents = 'auto';
+        submitBtn.disabled = false;
+        progressSection.style.display = 'none';
+    }
+</script>
+{% endblock %}

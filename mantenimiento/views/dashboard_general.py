@@ -50,6 +50,20 @@ def mantenimiento_dashboard(request):
     prioridades = OrdenTrabajo.PRIORIDAD_CHOICES
     tipos_permiso = TipoPermiso.objects.all().order_by('nombre')
 
+    # Órdenes del departamento del usuario
+    ots_mi_departamento = 0
+    nombre_departamento = ""
+    try:
+        perfil = getattr(request.user, 'perfil', None)
+        if perfil and perfil.departamento:
+            nombre_departamento = perfil.departamento.nombre
+            ots_mi_departamento = OrdenTrabajo.objects.filter(
+                activas_filter,
+                aviso__departamento=perfil.departamento
+            ).count()
+    except Exception:
+        pass
+
     context = {
         'title': 'Sistema de Gestión de Mantenimiento',
         'ots_totales': ots_totales,
@@ -57,6 +71,8 @@ def mantenimiento_dashboard(request):
         'ots_ejecucion': ots_ejecucion,
         'ots_preventivas': ots_preventivas,
         'ots_correctivas': ots_correctivas,
+        'ots_mi_departamento': ots_mi_departamento,
+        'nombre_departamento': nombre_departamento,
         'avisos_abiertos': avisos_abiertos,
         'avisos_criticos': avisos_criticos,
         'tecnicos_total': tecnicos_total,

@@ -98,3 +98,55 @@ def notify_n8n_despacho_material(solicitud):
     except Exception as e:
         logger.error(f"Error en webhook de despacho para solicitud #{solicitud.id}: {e}")
         return False
+
+def notify_n8n_solicitud_autorizacion(solicitud, jefe):
+    """
+    Envía una notificación a n8n cuando se crea una nueva solicitud de materiales
+    que requiere autorización del jefe inmediato.
+    """
+    webhook_url = getattr(settings, 'N8N_SOLICITUD_WEBHOOK_URL', None)
+    if not webhook_url:
+        logger.info("N8N_SOLICITUD_WEBHOOK_URL no configurado. Saltando notificación de autorización.")
+        return False
+
+    try:
+        # Obtener los ítems asociados
+        items = []
+        for mov in solicitud.items.all():
+            items.append({
+                'material_id': mov.material.id,
+                'material_nombre': mov.material.nombre,
+                'sku': mov.material.sku,
+                'cantidad': float(mov.cantidad),
+                'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else "Unidad",
+            })
+
+        # Datos del jefe
+        jefe_perfil = getattr(jefe, 'perfil', None)
+        jefe_telefono = jefe_perfil.telefono if jefe_perfil else "N/A"
+
+        # Preparar datos de la solicitud
+        data = {
+            'event': 'solicitud_material_autorizacion',
+            'solicitud_id': solicitud.id,
+            'fecha': solicitud.fecha_solicitud.isoformat(),
+            'usuario': solicitud.usuario.username,
+            'usuario_nombre': f"{solicitud.usuario.first_name} {solicitud.usuario.last_name}".strip(),
+            'ubicacion_origen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "N/A",
+            'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
+            'comentarios': solicitud.comentarios_solicitud or "",
+            'items': items,
+            'jefe_nombre': f"{jefe.first_name} {jefe.last_name}".strip() or jefe.username,
+            'jefe_telefono': jefe_telefono,
+            'url_api_autorizar': f"{settings.SITE_URL}/inventarios/api/solicitudes/{solicitud.id}/autorizar/",
+        }
+
+        # Enviar el webhook
+        response = requests.post(webhook_url, json=data, timeout=5)
+        response.raise_for_status()
+        
+        logger.info(f"Notificación de autorización enviada a n8n para la solicitud #{solicitud.id} (Jefe: {data['jefe_nombre']})")
+        return True
+    except Exception as e:
+        logger.error(f"Error al enviar notificación de autorización a n8n por solicitud #{solicitud.id}: {e}")
+        return False

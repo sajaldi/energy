@@ -259,9 +259,9 @@ class EvidenciasInline(admin.TabularInline):
 
 @admin.register(SolicitudTicket)
 class SolicitudTicketAdmin(admin.ModelAdmin):
-    list_display = ('folio', 'es_interno', 'id_solicitud', 'solicitante', 'falla_reportada', 'usuario_responsable', 'get_tiempos_acordados', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
-    list_filter = ('es_interno', 'servicio', 'area', 'tipo_solicitud', 'falla_reportada', 'falla_clasificacion', 'categoria_falla', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
-    search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'falla_descripcion', 'falla_reportada__nombre', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
+    list_display = ('folio', 'es_interno', 'id_solicitud', 'solicitante', 'falla_reportada', 'diagnostico_reportado', 'usuario_responsable', 'get_tiempos_acordados', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
+    list_filter = ('es_interno', 'servicio', 'area', 'tipo_solicitud', 'falla_reportada', 'diagnostico_reportado', 'falla_clasificacion', 'categoria_falla', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
+    search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'falla_descripcion', 'falla_reportada__nombre', 'diagnostico_reportado__nombre', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
     autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
     readonly_fields = ('creado_en', 'actualizado_en')
@@ -285,7 +285,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
             'ID', 'Folio', 'ID Solicitud', 'Solicitante', 'Asignado', 'Usuario Responsable', 
             'Ubicación Física', 'Servicio', 'Área', 'Activo Relacionado', 
             'Serie Activo', 'Deductiva (USD)', 'Fecha Solicitud', 'Fecha Cierre', 
-            'Falla Reportada', 'Diagnóstico', 'Actividades', 'Observaciones', 'Estado'
+            'Falla Reportada', 'Diagnóstico Catálogo', 'Diagnóstico', 'Actividades', 'Observaciones', 'Estado'
         ]
         
         data = tablib.Dataset(headers=headers)
@@ -293,7 +293,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
         # Obtenemos un QuerySet limpio ignorando el .only() del changelist original para evitar FieldError
         from .models import SolicitudTicket
         clean_queryset = SolicitudTicket.objects.filter(id__in=queryset.values('id')).select_related(
-            'ubicacion', 'usuario_responsable', 'activo', 'falla_reportada'
+            'ubicacion', 'usuario_responsable', 'activo', 'falla_reportada', 'diagnostico_reportado'
         )
         
         for t in clean_queryset:
@@ -313,6 +313,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
                 t.fecha_solicitud.strftime("%Y-%m-%d %H:%M") if t.fecha_solicitud else '',
                 t.fecha_cierre.strftime("%Y-%m-%d %H:%M") if t.fecha_cierre else '',
                 t.falla_reportada.nombre if t.falla_reportada else '',
+                t.diagnostico_reportado.nombre if t.diagnostico_reportado else '',
                 t.diagnostico or '',
                 t.actividades or '',
                 t.observaciones or '',
@@ -358,10 +359,10 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
             'fields': (('activo', 'ubicacion'), ('area', 'unidad'), ('servicio', 'subservicio'), ('grupo', 'nivel'))
         }),
         ('Detalle de la Solicitud', {
-            'fields': (('solicitante', 'responsable'), 'usuario_responsable', ('tipo_solicitud', 'tiempo_tipo'), 'solicitud_descripcion', 'falla_descripcion', 'falla_clasificacion')
+            'fields': (('solicitante', 'responsable'), 'usuario_responsable', ('tipo_solicitud', 'tiempo_tipo'), 'solicitud_descripcion', 'falla_descripcion', 'falla_clasificacion', 'falla_reportada')
         }),
         ('Seguimiento Técnico', {
-            'fields': (('fecha_diagnostico', 'diagnostico'), ('fecha_actividades', 'actividades'), ('fecha_observaciones', 'observaciones'), ('fecha_observaciones_usuario', 'observaciones_usuario'))
+            'fields': (('fecha_diagnostico', 'diagnostico_reportado', 'diagnostico'), ('fecha_actividades', 'actividades'), ('fecha_observaciones', 'observaciones'), ('fecha_observaciones_usuario', 'observaciones_usuario'))
         }),
         ('Cierre y Clasificación', {
             'fields': (('fecha_suspension', 'fecha_cierre'), ('clasificacion_falla_final', 'categoria_falla'), 'correo_cierre')
@@ -377,16 +378,16 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
 
 
     # Optimización de Performance
-    list_select_related = ('activo', 'ubicacion', 'falla_reportada')
+    list_select_related = ('activo', 'ubicacion', 'falla_reportada', 'diagnostico_reportado')
     list_per_page = 25
 
     show_full_result_count = False # Evita el COUNT(*) lento en tablas grandes
     
     def get_queryset(self, request):
         # Seleccionar solo los campos necesarios para la lista unificada
-        return super().get_queryset(request).select_related('activo', 'ubicacion', 'falla_reportada').only(
+        return super().get_queryset(request).select_related('activo', 'ubicacion', 'falla_reportada', 'diagnostico_reportado').only(
             'id', 'folio', 'es_interno', 'id_solicitud', 'solicitante', 'servicio', 'area', 
-            'falla_descripcion', 'falla_reportada',
+            'falla_descripcion', 'falla_reportada', 'diagnostico_reportado',
             'activo__nombre', 'activo__codigo_interno', 'fecha_solicitud', 'tipo_solicitud',
             'ubicacion__nombre'
         )
@@ -579,6 +580,13 @@ class FallaTicketResource(resources.ModelResource):
                 return None
         return None
 
+from .models import DiagnosticoTicket
+
+class DiagnosticoTicketInline(admin.TabularInline):
+    model = DiagnosticoTicket
+    extra = 1
+    fields = ('nombre', 'descripcion')
+
 @admin.register(FallaTicket)
 class FallaTicketAdmin(ImportExportModelAdmin):
     resource_class = FallaTicketResource
@@ -586,6 +594,7 @@ class FallaTicketAdmin(ImportExportModelAdmin):
     list_filter = ('parent', 'departamento_responsable', 'usuario_responsable')
     search_fields = ('nombre', 'descripcion')
     autocomplete_fields = ('parent', 'usuario_responsable')
+    inlines = [DiagnosticoTicketInline]
     
     change_list_template = "admin/callcenter/fallaticket/change_list.html"
 
@@ -599,3 +608,56 @@ class FallaTicketAdmin(ImportExportModelAdmin):
     def get_tickets_count(self, obj):
         return obj.tickets.count()
     get_tickets_count.short_description = "Tickets vinculados"
+
+class DiagnosticoTicketResource(resources.ModelResource):
+    falla = fields.Field(
+        column_name='falla',
+        attribute='falla',
+        widget=ForeignKeyWidget(FallaTicket, field='nombre')
+    )
+
+    class Meta:
+        model = DiagnosticoTicket
+        fields = ('id', 'nombre', 'falla', 'descripcion')
+        export_order = ('id', 'nombre', 'falla', 'descripcion')
+        import_id_fields = ('id',)
+        skip_unchanged = True
+        report_skipped = True
+
+    def get_instance(self, instance_loader, row):
+        """Intenta buscar por ID o por nombre y falla para actualizaciones."""
+        obj_id = row.get('id')
+        if obj_id:
+            try:
+                return self.get_queryset().get(id=obj_id)
+            except DiagnosticoTicket.DoesNotExist:
+                return None
+        
+        nombre = row.get('nombre')
+        if nombre:
+            try:
+                falla_nombre = row.get('falla')
+                if falla_nombre:
+                    return self.get_queryset().get(nombre=nombre, falla__nombre=falla_nombre)
+                return self.get_queryset().get(nombre=nombre)
+            except (DiagnosticoTicket.DoesNotExist, DiagnosticoTicket.MultipleObjectsReturned):
+                return None
+        return None
+
+
+@admin.register(DiagnosticoTicket)
+class DiagnosticoTicketAdmin(ImportExportModelAdmin):
+    resource_class = DiagnosticoTicketResource
+    list_display = ('nombre', 'falla', 'descripcion')
+    list_filter = ('falla',)
+    search_fields = ('nombre', 'descripcion', 'falla__nombre')
+    autocomplete_fields = ('falla',)
+    
+    change_list_template = "admin/callcenter/diagnosticoticket/change_list.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('importar-background/', self.admin_site.admin_view(views.import_diagnosticos_process), name='callcenter_diagnosticoticket_import_background'),
+        ]
+        return custom_urls + urls

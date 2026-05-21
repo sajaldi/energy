@@ -543,6 +543,13 @@ def ticket_cierre_visual_view(request, ticket_id):
         ticket.actividades = request.POST.get('actividades', '')
         ticket.observaciones = request.POST.get('observaciones', '')
         
+        # Diagnóstico del Catálogo
+        diagnostico_reportado_id = request.POST.get('diagnostico_reportado')
+        if diagnostico_reportado_id:
+            ticket.diagnostico_reportado_id = int(diagnostico_reportado_id)
+        else:
+            ticket.diagnostico_reportado = None
+
         # Nuevos campos: Deductiva y Proveedor
         deductiva_val = request.POST.get('deductiva', '0')
         try:
@@ -565,11 +572,16 @@ def ticket_cierre_visual_view(request, ticket_id):
     from mantenimiento.models import Empresa
     proveedores = Empresa.objects.filter(activo=True).order_by('nombre')
     
+    diagnosticos_disponibles = []
+    if ticket.falla_reportada:
+        diagnosticos_disponibles = ticket.falla_reportada.get_all_diagnosticos()
+
     return render(request, 'callcenter/ticket_cierre_visual.html', {
         'ticket': ticket,
         'evidences': evidences,
         'evidences_count': evidences.count(),
         'proveedores': proveedores,
+        'diagnosticos_disponibles': diagnosticos_disponibles,
         'opts': SolicitudTicket._meta,
     })
 
@@ -839,6 +851,46 @@ def ticket_dashboard_view(request):
     cat_labels = [c['ubicacion__categoria__nombre'] for c in cat_stats]
     cat_data = [c['total'] for c in cat_stats]
 
+    # --- AGREGACIÓN DE DIAGNÓSTICOS POR TIPO DE FALLA (NUEVO) ---
+    from callcenter.models import DiagnosticoTicket
+    catalog_diags = DiagnosticoTicket.objects.select_related('falla').all()
+    
+    falla_diagnosticos_map = {}
+    # Inicializar el mapa con todos los diagnósticos del catálogo con valor 0
+    for diag in catalog_diags:
+        falla_nombre = diag.falla.nombre
+        if falla_nombre not in falla_diagnosticos_map:
+            falla_diagnosticos_map[falla_nombre] = {}
+        falla_diagnosticos_map[falla_nombre][diag.nombre] = 0
+        
+    # Obtener los conteos reales de los tickets filtrados
+    diag_stats = ticket_qs.filter(
+        falla_reportada__isnull=False,
+        diagnostico_reportado__isnull=False
+    ).values(
+        'falla_reportada__nombre',
+        'diagnostico_reportado__nombre'
+    ).annotate(
+        total=Count('id')
+    )
+    
+    for item in diag_stats:
+        falla_nombre = item['falla_reportada__nombre']
+        diag_nombre = item['diagnostico_reportado__nombre']
+        total = item['total']
+        
+        if falla_nombre not in falla_diagnosticos_map:
+            falla_diagnosticos_map[falla_nombre] = {}
+        falla_diagnosticos_map[falla_nombre][diag_nombre] = total
+        
+    # Convertir a estructura de lista ordenada para fácil uso en Chart.js
+    falla_diagnosticos_json_map = {}
+    for falla_nombre, diags_dict in falla_diagnosticos_map.items():
+        sorted_diags = sorted(diags_dict.items(), key=lambda x: x[1], reverse=True)
+        falla_diagnosticos_json_map[falla_nombre] = [
+            {'name': name, 'value': value} for name, value in sorted_diags
+        ]
+
     context = {
         'total': total_tickets,
         'cerrados': tickets_cerrados,
@@ -847,6 +899,7 @@ def ticket_dashboard_view(request):
         'flat_nodes': flat_nodes,
         'cat_labels_json': json.dumps(cat_labels),
         'cat_data_json': json.dumps(cat_data),
+        'falla_diagnosticos_json': json.dumps(falla_diagnosticos_json_map),
         'fecha_inicio': fecha_inicio_str,
         'fecha_fin': fecha_fin_str,
         'title': 'Dashboard de Tickets'
@@ -899,7 +952,7 @@ def cluster_tickets_view(request, cluster_id):
     
     # Optimizamos agregando relaciones necesarias
     tickets = cluster.tickets.all().select_related(
-        'ubicacion', 'usuario_responsable', 'restriccion_acceso', 'falla_reportada', 'falla_reportada__parent'
+        'ubicacion', 'usuario_responsable', 'restriccion_acceso', 'falla_reportada', 'falla_reportada__parent', 'diagnostico_reportado'
     ).annotate(
         num_tiempos_acordados=Count('tiempos_acordados')
     )
@@ -929,12 +982,16 @@ def cluster_tickets_view(request, cluster_id):
     if falla_id:
         tickets = tickets.filter(falla_reportada_id=falla_id)
 
-    # Filtro por Interno/Externo
-    interno_filter = request.GET.get('interno')
-    if interno_filter == '1':
+    # Filtro Especial (Interno, Restricción, Tiempo Acordado)
+    filtro_especial = request.GET.get('filtro_especial')
+    if filtro_especial == 'interno':
         tickets = tickets.filter(es_interno=True)
-    elif interno_filter == '0':
+    elif filtro_especial == 'externo':
         tickets = tickets.filter(es_interno=False)
+    elif filtro_especial == 'restriccion':
+        tickets = tickets.filter(restriccion_acceso__isnull=False)
+    elif filtro_especial == 'tiempo_acordado':
+        tickets = tickets.filter(num_tiempos_acordados__gt=0)
 
     # Obtener fallas únicas presentes en este cluster para el filtro
     fallas_ids = cluster.tickets.values_list('falla_reportada_id', flat=True).distinct()
@@ -1033,11 +1090,23 @@ def cluster_tickets_view(request, cluster_id):
             'u': partes,
             'd': duracion_horas,
             'c': bool(t.fecha_cierre or t.cierre_enviado),
-            'deductiva': float(t.deductiva) if t.deductiva else 0.0
+            'deductiva': float(t.deductiva) if t.deductiva else 0.0,
+            'diag': t.diagnostico_reportado.nombre if t.diagnostico_reportado else None
         })
 
+    # Catálogo de diagnósticos por tipo de falla
+    from callcenter.models import DiagnosticoTicket
+    catalog_diags = DiagnosticoTicket.objects.select_related('falla').all()
+    falla_diagnosticos_catalog = {}
+    for diag in catalog_diags:
+        fname = diag.falla.nombre
+        if fname not in falla_diagnosticos_catalog:
+            falla_diagnosticos_catalog[fname] = []
+        falla_diagnosticos_catalog[fname].append(diag.nombre)
+
     chart_data = {
-        'raw_tickets': raw_tickets
+        'raw_tickets': raw_tickets,
+        'diagnosticos_catalog': falla_diagnosticos_catalog
     }
 
     context = {
@@ -2313,8 +2382,255 @@ def cronograma_predefinido_lista_view(request):
     from django.shortcuts import render
     cronogramas = CronogramaPredefinido.objects.all().select_related('departamento')
     return render(request, 'callcenter/cronograma_predefinido_lista.html', {'cronogramas': cronogramas})
+
+@staff_member_required
+def get_diagnosticos_by_falla_ajax(request):
+    """
+    Vista AJAX para obtener los diagnósticos asociados a una falla (y sus ancestros).
+    """
+    falla_id = request.GET.get('falla_id')
+    if not falla_id:
+        return JsonResponse([], safe=False)
+    
+    from .models import FallaTicket
+    falla = get_object_or_404(FallaTicket, id=falla_id)
+    diagnosticos = falla.get_all_diagnosticos()
+    
+    data = [{'id': d.id, 'nombre': d.nombre} for d in diagnosticos]
+    return JsonResponse(data, safe=False)
+
+@staff_member_required
+def ticket_detail_ajax(request, ticket_id):
+    """
+    Vista AJAX que devuelve los detalles completos de un ticket en formato JSON
+    para el modal SAP Fiori del cluster de tickets.
+    """
+    ticket_id = int(str(ticket_id).replace(',', ''))
+    ticket = get_object_or_404(
+        SolicitudTicket.objects.select_related(
+            'activo', 'activo__modelo', 'activo__modelo__marca',
+            'ubicacion', 'usuario_responsable', 'falla_reportada',
+            'diagnostico_reportado', 'proveedor_deductiva'
+        ),
+        id=ticket_id
+    )
+
+    # Tiempos Acordados
+    tiempos = []
+    for ta in ticket.tiempos_acordados.all().order_by('-creado_en')[:5]:
+        tiempos.append({
+            'folio': str(ta.folio_ta) if hasattr(ta, 'folio_ta') else f"TA-{ta.id}",
+            'fecha_limite': ta.fecha_solucion_final.strftime('%d/%m/%Y %H:%M') if ta.fecha_solucion_final else '—',
+            'motivo': (ta.motivo_extension or '')[:120],
+            'creado_en': ta.creado_en.strftime('%d/%m/%Y %H:%M') if ta.creado_en else '—',
+        })
+
+    # Restricción de acceso
+    restriccion_data = None
+    try:
+        ra = ticket.restriccion_acceso
+        restriccion_data = {
+            'folio': str(ra.folio_ra),
+            'horas': str(ra.horas_restriccion),
+            'creado_en': ra.creado_en.strftime('%d/%m/%Y %H:%M') if ra.creado_en else '—',
+        }
+    except Exception:
+        restriccion_data = None
+
+    # Evidencias (solo contar y primeras 6)
+    evidencias = []
+    for ev in ticket.evidencias.all().order_by('-id')[:6]:
+        evidencias.append({
+            'url': ev.archivo.url if ev.archivo else '',
+            'descripcion': ev.descripcion or '',
+            'es_imagen': any(ev.archivo.name.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']) if ev.archivo else False,
+        })
+
+    def fmt(dt):
+        if not dt:
+            return '—'
+        from django.utils import timezone
+        return timezone.localtime(dt).strftime('%d/%m/%Y %H:%M')
+
+    data = {
+        # Identificadores
+        'id': ticket.id,
+        'id_solicitud': str(ticket.id_solicitud),
+        'folio': ticket.folio or str(ticket.id_solicitud),
+        'es_interno': ticket.es_interno,
+
+        # Estado
+        'abierto': not bool(ticket.fecha_cierre),
+        'cierre_enviado': bool(ticket.cierre_enviado),
+
+        # Personas
+        'solicitante': ticket.solicitante or '—',
+        'responsable': ticket.responsable or '—',
+        'usuario_responsable': ticket.usuario_responsable.get_full_name() if ticket.usuario_responsable else '—',
+
+        # Clasificación
+        'servicio': ticket.servicio or '—',
+        'subservicio': ticket.subservicio or '—',
+        'unidad': ticket.unidad or '—',
+        'area': ticket.area or '—',
+        'grupo': ticket.grupo or '—',
+        'nivel': ticket.nivel or '—',
+
+        # Tipo y recepción
+        'tipo_recepcion': ticket.tipo_recepcion or '—',
+        'tipo_solicitud': ticket.tipo_solicitud or '—',
+
+        # Fechas
+        'fecha_solicitud': fmt(ticket.fecha_solicitud),
+        'fecha_tipo_recepcion': fmt(ticket.fecha_tipo_recepcion),
+        'fecha_suspension': fmt(ticket.fecha_suspension),
+        'fecha_cierre': fmt(ticket.fecha_cierre),
+
+        # Descripciones
+        'solicitud_descripcion': ticket.solicitud_descripcion or '',
+        'falla_descripcion': ticket.falla_descripcion or '',
+        'falla_clasificacion': ticket.falla_clasificacion or '—',
+        'clasificacion_falla_final': ticket.clasificacion_falla_final or '—',
+
+        # Seguimiento técnico
+        'diagnostico': ticket.diagnostico or '',
+        'actividades': ticket.actividades or '',
+        'observaciones': ticket.observaciones or '',
+        'comentarios_internos': ticket.comentarios_internos or '',
+
+        # Activo
+        'activo_nombre': ticket.activo.nombre if ticket.activo else '—',
+        'activo_codigo': ticket.activo.codigo_interno if ticket.activo else '—',
+        'activo_serie': ticket.activo.serie if ticket.activo else '—',
+
+        # Ubicación
+        'ubicacion_nombre': ticket.ubicacion.ruta_completa if ticket.ubicacion and hasattr(ticket.ubicacion, 'ruta_completa') else (str(ticket.ubicacion) if ticket.ubicacion else '—'),
+
+        # Financiero
+        'deductiva': str(ticket.deductiva or '0.00'),
+        'proveedor_deductiva': ticket.proveedor_deductiva.nombre if ticket.proveedor_deductiva else '—',
+
+        # Falla Catálogo
+        'falla_reportada_id': ticket.falla_reportada_id,
+        'falla_reportada': str(ticket.falla_reportada) if ticket.falla_reportada else '—',
+
+        # Diagnóstico Catálogo
+        'diagnostico_reportado_id': ticket.diagnostico_reportado_id,
+        'diagnostico_reportado_nombre': ticket.diagnostico_reportado.nombre if ticket.diagnostico_reportado else '—',
+        'diagnostico_reportado': str(ticket.diagnostico_reportado) if ticket.diagnostico_reportado else '—',
+
+        # Relaciones
+        'tiempos_acordados': tiempos,
+        'restriccion': restriccion_data,
+        'evidencias': evidencias,
+        'num_evidencias': ticket.evidencias.count(),
+
+        # URLs de acción rápida
+        'url_admin': f'/admin/callcenter/solicitudticket/{ticket.id}/change/',
+        'url_cierre_visual': f'/callcenter/ticket/{ticket.id}/cierre-visual/',
+        'url_sync': f'/admin/callcenter/solicitudticket/{ticket.id}/sync-singular/',
+        'url_power_automate': f'/callcenter/ticket/{ticket.id}/enviar-power-automate/',
+
+        # Listas para el formulario de edición
+        'proveedores': list(
+            __import__('mantenimiento.models', fromlist=['Empresa'])
+            .Empresa.objects.filter(activo=True).order_by('nombre')
+            .values('id', 'nombre')
+        ),
+        'usuarios': list(
+            __import__('django.contrib.auth', fromlist=['get_user_model'])
+            .get_user_model().objects.filter(is_active=True).order_by('first_name', 'username')
+            .values('id', 'first_name', 'last_name', 'username')
+        ),
+        'proveedor_deductiva_id': ticket.proveedor_deductiva_id,
+        'usuario_responsable_id': ticket.usuario_responsable_id,
+        'fecha_cierre_raw': ticket.fecha_cierre.astimezone().strftime('%Y-%m-%dT%H:%M') if ticket.fecha_cierre else '',
+    }
+
+    return JsonResponse(data)
+
+
+@staff_member_required
+@require_POST
+@csrf_exempt
+def ticket_quick_edit_ajax(request, ticket_id):
+    """
+    Guarda los campos editables del ticket desde el modal SAP Fiori del cluster.
+    Campos admitidos: fecha_cierre, diagnostico, actividades, observaciones,
+    comentarios_internos, deductiva, proveedor_deductiva, usuario_responsable,
+    clasificacion_falla_final.
+    """
+    import json
+    from decimal import Decimal, InvalidOperation
+    from django.utils import timezone
+    from datetime import datetime
+
+    ticket_id = int(str(ticket_id).replace(',', ''))
+    ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        body = request.POST
+
+    # Fecha cierre
+    fecha_cierre_str = body.get('fecha_cierre', '').strip()
+    if fecha_cierre_str:
+        for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+            try:
+                dt = datetime.strptime(fecha_cierre_str, fmt)
+                ticket.fecha_cierre = timezone.make_aware(dt) if timezone.is_naive(dt) else dt
+                break
+            except ValueError:
+                pass
+    else:
+        ticket.fecha_cierre = None
+
+    # Campos de texto
+    ticket.diagnostico = body.get('diagnostico', ticket.diagnostico or '')
+    ticket.actividades = body.get('actividades', ticket.actividades or '')
+    ticket.observaciones = body.get('observaciones', ticket.observaciones or '')
+    ticket.comentarios_internos = body.get('comentarios_internos', ticket.comentarios_internos or '')
+    ticket.clasificacion_falla_final = body.get('clasificacion_falla_final', ticket.clasificacion_falla_final or '')
+
+    # Diagnóstico del Catálogo
+    diagnostico_reportado_id = body.get('diagnostico_reportado', '')
+    if diagnostico_reportado_id:
+        from .models import DiagnosticoTicket
+        ticket.diagnostico_reportado = DiagnosticoTicket.objects.filter(id=diagnostico_reportado_id).first()
+    else:
+        ticket.diagnostico_reportado = None
+
+    # Deductiva
+    deductiva_raw = body.get('deductiva', '')
+    if deductiva_raw != '':
+        try:
+            ticket.deductiva = Decimal(str(deductiva_raw).replace(',', ''))
+        except (InvalidOperation, ValueError):
+            pass
+
+    # Proveedor
+    proveedor_id = body.get('proveedor_deductiva', '')
+    if proveedor_id:
+        from mantenimiento.models import Empresa
+        ticket.proveedor_deductiva = Empresa.objects.filter(id=proveedor_id).first()
+    else:
+        ticket.proveedor_deductiva = None
+
+    # Usuario responsable
+    usuario_id = body.get('usuario_responsable', '')
+    if usuario_id:
+        from django.contrib.auth import get_user_model
+        ticket.usuario_responsable = get_user_model().objects.filter(id=usuario_id).first()
+    else:
+        ticket.usuario_responsable = None
+
+    ticket.save()
+    return JsonResponse({'success': True, 'message': 'Ticket actualizado correctamente.'})
+
 @login_required
 @mobile_permission_required('mis_avisos')
+
 def mobile_ticket_detalle_view(request, pk):
     """
     Vista premium y optimizada para móviles para visualizar el detalle de un ticket.
@@ -2366,6 +2682,27 @@ def save_comentario_interno_ajax(request, ticket_id):
         'success': True,
         'message': 'Comentario interno guardado con éxito.',
         'comentario': ticket.comentarios_internos
+    })
+
+@staff_member_required
+@require_POST
+@csrf_exempt
+def toggle_ticket_interno_ajax(request, ticket_id):
+    """
+    Alterna el estado del campo es_interno de un ticket.
+    """
+    # Limpiar ID de posibles comas de formateo regional
+    ticket_id = int(str(ticket_id).replace(',', ''))
+    ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
+    
+    ticket.es_interno = not ticket.es_interno
+    ticket.save(update_fields=['es_interno'])
+    
+    estado_str = "interno" if ticket.es_interno else "externo"
+    return JsonResponse({
+        'success': True,
+        'message': f'El ticket se ha marcado como {estado_str}.',
+        'es_interno': ticket.es_interno
     })
 
 @staff_member_required
@@ -2692,6 +3029,56 @@ def import_fallatickets_process(request):
             return JsonResponse({'status': 'started'})
 
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
+@staff_member_required
+def import_diagnosticos_process(request):
+    """
+    Vista para manejar el flujo de importación asíncrona del catálogo de diagnósticos de tickets.
+    """
+    from django.core.cache import cache
+    from django.core.files.storage import default_storage
+    from .tasks import import_diagnosticos_task
+    import os
+
+    cache_key = f"import_diagnosticos_progress_{request.user.id}"
+
+    if request.method == 'GET':
+        action = request.GET.get('action')
+        if action == 'status':
+            progress = cache.get(cache_key)
+            return JsonResponse(progress or {'status': 'idle'})
+        
+        return render(request, 'admin/callcenter/diagnosticoticket/import_background.html', {
+            'title': 'Importación Asíncrona de Catálogo de Diagnósticos'
+        })
+
+    if request.method == 'POST':
+        # Paso 1: Subida de archivo y validación inicial (Verification Mode)
+        if 'file' in request.FILES:
+            file = request.FILES['file']
+            file_path = default_storage.save(f'tmp/diagnosticos_tickets_import_{request.user.id}.xlsx', file)
+            full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+            
+            # Guardar ruta en cache para el siguiente paso
+            cache.set(f"import_diagnosticos_file_{request.user.id}", full_path, 3600)
+            
+            # Lanzar tarea en modo verificación
+            import_diagnosticos_task.delay(full_path, request.user.id, verification_mode=True)
+            return JsonResponse({'status': 'started'})
+
+        # Paso 2: Confirmación de importación real
+        if request.POST.get('confirm') == 'true':
+            full_path = cache.get(f"import_diagnosticos_file_{request.user.id}")
+            if not full_path or not os.path.exists(full_path):
+                return JsonResponse({'status': 'error', 'message': 'Archivo no encontrado. Por favor suba el archivo de nuevo.'})
+            
+            # Lanzar tarea en modo real
+            import_diagnosticos_task.delay(full_path, request.user.id, verification_mode=False)
+            return JsonResponse({'status': 'started'})
+
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
 
 @staff_member_required
 def get_dashboard_node_tickets_ajax(request):

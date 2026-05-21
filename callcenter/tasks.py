@@ -392,3 +392,227 @@ def sync_tickets_by_folio_list_task(folios_list):
     except Exception as e:
         logger.error(f"Error en sync_tickets_by_folio_list_task: {e}")
         return {"status": "error", "message": str(e)}
+
+
+@shared_task(bind=True, name='callcenter.tasks.import_fallatickets_task')
+def import_fallatickets_task(self, file_path, user_id, verification_mode=True):
+    """
+    Tarea asíncrona de Celery para importar y validar el catálogo de fallas de tickets.
+    """
+    from tablib import Dataset
+    from django.core.files.storage import default_storage
+    from django.core.cache import cache
+    from django.conf import settings
+    from .admin import FallaTicketResource
+    from .models import FallaTicket
+    import os
+    import sys
+    import json
+
+    cache_key = f"import_fallatickets_progress_{user_id}"
+    resource = FallaTicketResource()
+    
+    progress_info = {
+        'status': 'starting',
+        'message': 'Cargando archivo y preparando validación...',
+        'progress': 5,
+        'totals': {'new': 0, 'update': 0, 'skip': 0}
+    }
+    cache.set(cache_key, progress_info, 3600)
+
+    try:
+        # 1. Leer archivo
+        file_ext = os.path.splitext(file_path)[1].lower().replace('.', '')
+        if file_ext not in ['xls', 'xlsx', 'csv']:
+            raise ValueError(f"Formato de archivo no soportado: {file_ext}")
+            
+        with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
+            if file_ext == 'csv':
+                dataset = Dataset().load(file_content.decode('utf-8', errors='ignore'), format='csv')
+            else:
+                dataset = Dataset().load(file_content, format=file_ext)
+    except Exception as e:
+        err_res = {'status': 'error', 'message': f'Error al abrir o leer el archivo: {str(e)}'}
+        cache.set(cache_key, err_res, 3600)
+        return err_res
+
+    total_rows = len(dataset)
+    if total_rows == 0:
+        err_res = {'status': 'error', 'message': 'El archivo cargado está vacío.'}
+        cache.set(cache_key, err_res, 3600)
+        return err_res
+
+    progress_info.update({
+        'status': 'processing',
+        'message': f'Procesando {total_rows} filas...',
+        'progress': 10
+    })
+    cache.set(cache_key, progress_info, 3600)
+
+    if verification_mode:
+        # Modo verificación
+        new_count = 0
+        update_count = 0
+        skip_count = 0
+        
+        try:
+            result = resource.import_data(dataset, dry_run=True)
+            new_count = result.totals.get('new', 0)
+            update_count = result.totals.get('update', 0)
+            skip_count = result.totals.get('skip', 0)
+            
+            # Recopilar errores
+            errors = []
+            for error in result.base_errors:
+                errors.append(f"Error General: {str(error.error)}")
+            for line, row_errors in result.row_errors():
+                for error in row_errors:
+                    errors.append(f"Fila {line}: {str(error.error)}")
+            
+            if errors:
+                final_res = {
+                    'status': 'error',
+                    'message': 'Se encontraron errores al validar el catálogo: ' + ', '.join(errors[:5])
+                }
+            else:
+                final_res = {
+                    'status': 'verified',
+                    'message': 'Validación completada.',
+                    'totals': {'new': new_count, 'update': update_count, 'skip': skip_count}
+                }
+        except Exception as e:
+            final_res = {'status': 'error', 'message': f'Error durante la validación: {str(e)}'}
+    else:
+        # Modo importación real
+        try:
+            result = resource.import_data(dataset, dry_run=False)
+            final_res = {
+                'status': 'completed',
+                'message': 'Importación finalizada con éxito.',
+                'totals': {
+                    'new': result.totals.get('new', 0),
+                    'update': result.totals.get('update', 0),
+                    'skip': result.totals.get('skip', 0)
+                }
+            }
+            # Eliminar archivo una vez completado
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except Exception as e:
+            final_res = {'status': 'error', 'message': f'Error al aplicar la importación: {str(e)}'}
+
+    cache.set(cache_key, final_res, 3600)
+    return final_res
+
+
+@shared_task(bind=True, name='callcenter.tasks.import_diagnosticos_task')
+def import_diagnosticos_task(self, file_path, user_id, verification_mode=True):
+    """
+    Tarea asíncrona de Celery para importar y validar el catálogo de diagnósticos de tickets.
+    """
+    from tablib import Dataset
+    from django.core.files.storage import default_storage
+    from django.core.cache import cache
+    from django.conf import settings
+    from .admin import DiagnosticoTicketResource
+    from .models import DiagnosticoTicket
+    import os
+    import sys
+    import json
+
+    cache_key = f"import_diagnosticos_progress_{user_id}"
+    resource = DiagnosticoTicketResource()
+    
+    progress_info = {
+        'status': 'starting',
+        'message': 'Cargando archivo y preparando validación...',
+        'progress': 5,
+        'totals': {'new': 0, 'update': 0, 'skip': 0}
+    }
+    cache.set(cache_key, progress_info, 3600)
+
+    try:
+        # 1. Leer archivo
+        file_ext = os.path.splitext(file_path)[1].lower().replace('.', '')
+        if file_ext not in ['xls', 'xlsx', 'csv']:
+            raise ValueError(f"Formato de archivo no soportado: {file_ext}")
+            
+        with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
+            if file_ext == 'csv':
+                dataset = Dataset().load(file_content.decode('utf-8', errors='ignore'), format='csv')
+            else:
+                dataset = Dataset().load(file_content, format=file_ext)
+    except Exception as e:
+        err_res = {'status': 'error', 'message': f'Error al abrir o leer el archivo: {str(e)}'}
+        cache.set(cache_key, err_res, 3600)
+        return err_res
+
+    total_rows = len(dataset)
+    if total_rows == 0:
+        err_res = {'status': 'error', 'message': 'El archivo cargado está vacío.'}
+        cache.set(cache_key, err_res, 3600)
+        return err_res
+
+    progress_info.update({
+        'status': 'processing',
+        'message': f'Procesando {total_rows} filas...',
+        'progress': 10
+    })
+    cache.set(cache_key, progress_info, 3600)
+
+    if verification_mode:
+        # Modo verificación
+        new_count = 0
+        update_count = 0
+        skip_count = 0
+        
+        try:
+            result = resource.import_data(dataset, dry_run=True)
+            new_count = result.totals.get('new', 0)
+            update_count = result.totals.get('update', 0)
+            skip_count = result.totals.get('skip', 0)
+            
+            # Recopilar errores
+            errors = []
+            for error in result.base_errors:
+                errors.append(f"Error General: {str(error.error)}")
+            for line, row_errors in result.row_errors():
+                for error in row_errors:
+                    errors.append(f"Fila {line}: {str(error.error)}")
+            
+            if errors:
+                final_res = {
+                    'status': 'error',
+                    'message': 'Se encontraron errores al validar el catálogo: ' + ', '.join(errors[:5])
+                }
+            else:
+                final_res = {
+                    'status': 'verified',
+                    'message': 'Validación completada.',
+                    'totals': {'new': new_count, 'update': update_count, 'skip': skip_count}
+                }
+        except Exception as e:
+            final_res = {'status': 'error', 'message': f'Error durante la validación: {str(e)}'}
+    else:
+        # Modo importación real
+        try:
+            result = resource.import_data(dataset, dry_run=False)
+            final_res = {
+                'status': 'completed',
+                'message': 'Importación finalizada con éxito.',
+                'totals': {
+                    'new': result.totals.get('new', 0),
+                    'update': result.totals.get('update', 0),
+                    'skip': result.totals.get('skip', 0)
+                }
+            }
+            # Eliminar archivo una vez completado
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except Exception as e:
+            final_res = {'status': 'error', 'message': f'Error al aplicar la importación: {str(e)}'}
+
+    cache.set(cache_key, final_res, 3600)
+    return final_res

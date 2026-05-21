@@ -211,11 +211,13 @@
                                 <option value="cerrados" {% if request.GET.status == 'cerrados' %}selected{% endif %}>🔴 Solo Cerrados</option>
                             </select>
 
-                            <!-- Internal/External Filter -->
-                            <select name="interno" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 130px;">
-                                <option value="">Todos los Tipos</option>
-                                <option value="1" {% if request.GET.interno == '1' %}selected{% endif %}>🏠 Solo Internos</option>
-                                <option value="0" {% if request.GET.interno == '0' %}selected{% endif %}>🌐 Solo Externos</option>
+                            <!-- Filtros Especiales -->
+                            <select name="filtro_especial" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 180px;">
+                                <option value="">Todos los Tickets</option>
+                                <option value="interno" {% if request.GET.filtro_especial == 'interno' %}selected{% endif %}>🏠 Solo Internos</option>
+                                <option value="externo" {% if request.GET.filtro_especial == 'externo' %}selected{% endif %}>🌐 Solo Externos</option>
+                                <option value="restriccion" {% if request.GET.filtro_especial == 'restriccion' %}selected{% endif %}>🛡️ Con Restricción de Acceso</option>
+                                <option value="tiempo_acordado" {% if request.GET.filtro_especial == 'tiempo_acordado' %}selected{% endif %}>📅 Con Tiempo Acordado</option>
                             </select>
 
                             <!-- Falla Filter -->
@@ -240,10 +242,10 @@
                             <button type="button" onclick="importDeductivasExcel()" class="btn-fiori" style="height: 40px; width: 40px; padding: 0; background: #107e3e !important; border-color: #107e3e !important; color: white !important;" title="Importar Deductivas desde Excel">
                                 <i class="ph ph-file-arrow-up" style="font-size: 1.2rem;"></i>
                             </button>
-                            <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-fiori btn-excel" style="height: 40px; width: 40px; padding: 0;" title="Exportar Excel">
+                            <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}{% if request.GET.filtro_especial %}&filtro_especial={{ request.GET.filtro_especial }}{% endif %}{% if request.GET.falla %}&falla={{ request.GET.falla }}{% endif %}" class="btn-fiori btn-excel" style="height: 40px; width: 40px; padding: 0;" title="Exportar Excel">
                                 <i class="ph ph-file-xls" style="font-size: 1.2rem;"></i>
                             </a>
-                            <a href="?export=pdf{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-fiori btn-pdf" style="height: 40px; width: 40px; padding: 0;" title="Exportar PDF">
+                            <a href="?export=pdf{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}{% if request.GET.filtro_especial %}&filtro_especial={{ request.GET.filtro_especial }}{% endif %}{% if request.GET.falla %}&falla={{ request.GET.falla }}{% endif %}" class="btn-fiori btn-pdf" style="height: 40px; width: 40px; padding: 0;" title="Exportar PDF">
                                 <i class="ph ph-file-pdf" style="font-size: 1.2rem;"></i>
                             </a>
                             <button type="button" onclick="vectorizeClusterIA()" class="btn-fiori btn-ai" style="height: 40px; width: 40px; padding: 0;" title="Sincronizar IA">
@@ -344,6 +346,21 @@
                     </div>
                 </div>
                 
+                <div class="chart-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; color: #444; font-size: 1.1rem;">Diagnósticos del Catálogo por Falla</h3>
+                        <select id="diagFallaSelector" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.85rem; color: #333; outline: none; cursor: pointer;">
+                            <option value="">-- Mostrar Todo --</option>
+                        </select>
+                    </div>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="chartDiagnostics"></canvas>
+                        <div id="noDiagDataMessage" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: #888; font-size: 0.9rem; padding: 1rem; pointer-events: none; display: none;">
+                            Selecciona una falla o haz clic en una falla en la gráfica de Distribución por Falla para ver sus diagnósticos.
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="chart-card" style="grid-column: 1 / -1;">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">
                         <h3 style="margin: 0; color: #444; font-size: 1.1rem;" id="ubicaciones-title">Ubicaciones principales con más fallas</h3>
@@ -372,6 +389,7 @@
                         <th>Técnico Asignado</th>
                         <th>Descripción</th>
                         <th>Fecha</th>
+                        <th>Tiempo Resolución (Hrs)</th>
                         <th style="white-space: nowrap; color: #b81d24; font-weight: 700;">Deductiva (USD)</th>
                         <th style="cursor: pointer; white-space: nowrap; color: var(--sap-primary);" onclick="applySort('estado')">
                             Estado 
@@ -405,6 +423,7 @@
                                    data-has-restriccion="{% if t.restriccion_acceso %}true{% else %}false{% endif %}"
                                    data-restriccion-id="{{ t.restriccion_acceso.id|default:'' }}"
                                    data-comentario-interno="{{ t.comentarios_internos|default:'' }}"
+                                   data-es-interno="{% if t.es_interno %}true{% else %}false{% endif %}"
                                    style="color: var(--sap-primary); font-weight: 600; text-decoration: none;">
                                     {{ t.folio|default:t.id_solicitud }}
                                 </a>
@@ -438,6 +457,7 @@
                             </td>
                             <td><span style="color: var(--sap-text-muted);" title="{{ t.solicitud_descripcion }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
                             <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                            <td style="text-align: center; font-weight: 500;">{{ t.tiempo_resolucion_horas|default:"-" }}</td>
                             <td style="font-weight: 600; color: #b81d24;">
                                 {% if t.deductiva and t.deductiva > 0 %}
                                     ${{ t.deductiva|floatformat:2|intcomma }}
@@ -511,7 +531,15 @@
                     {% for t in tickets %}
                     <tr style="transition: background 0.3s;" id="row-deductiva-{{ t.id_unlocalized }}">
                         <td style="font-weight: 700;">
-                            <a href="#" class="ticket-detail-link" data-id="{{ t.id_unlocalized }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
+                            <a href="#" class="ticket-detail-link" 
+                               data-id="{{ t.id_unlocalized }}" 
+                               data-folio="{{ t.folio|default:t.id_solicitud }}" 
+                               data-is-closed="{% if t.fecha_cierre or t.cierre_enviado %}true{% else %}false{% endif %}"
+                               data-has-restriccion="{% if t.restriccion_acceso %}true{% else %}false{% endif %}"
+                               data-restriccion-id="{{ t.restriccion_acceso.id|default:'' }}"
+                               data-comentario-interno="{{ t.comentarios_internos|default:'' }}"
+                               data-es-interno="{% if t.es_interno %}true{% else %}false{% endif %}"
+                               style="color: var(--sap-blue); text-decoration: none;">
                                 {{ t.folio|default:t.id_solicitud }}
                             </a>
                         </td>
@@ -571,22 +599,262 @@
         </div>
     </div>
 
-    <!-- Ticket Details Modal HTML -->
-    <div id="ticket-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
-        <div style="background: white; width: 95%; max-width: 1400px; height: 90vh; border-radius: var(--sap-radius); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.2);">
-            <div style="padding: 16px 24px; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center; background: #fafafa;">
-                <h3 style="margin: 0; font-size: 1.1rem; color: var(--sap-text);"><i class="ph ph-ticket" style="margin-right: 8px;"></i> Detalles del Ticket</h3>
-                <button class="btn-icon" onclick="closeTicketModal()" style="font-size: 1.5rem; color: var(--sap-label); cursor: pointer; border: none; background: transparent;"><i class="ph ph-x"></i></button>
+    <!-- Ticket Details Modal — SAP Fiori Premium -->
+    <div id="ticket-modal" style="display: none; position: fixed; inset: 0; background: rgba(10,15,30,0.55); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 1rem;">
+        <div id="ticket-modal-inner" style="background: #fff; width: 100%; max-width: 1100px; max-height: 92vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.22); transform: scale(0.97); transition: transform 0.22s cubic-bezier(0.16,1,0.3,1);">
+
+            <!-- Modal Header -->
+            <div id="tm-header" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 28px 14px; border-bottom: 1px solid #edf0f3; background: linear-gradient(135deg, #0057b7, #0078d4); flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
+                    <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 10px;">
+                        <i class="ph ph-ticket" style="font-size: 1.5rem; color: white;"></i>
+                    </div>
+                    <div style="min-width: 0;">
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.7); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;">Detalle del Ticket</div>
+                        <div id="tm-folio" style="font-size: 1.3rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">—</div>
+                    </div>
+                    <div id="tm-badges" style="display: flex; gap: 6px; flex-shrink: 0;"></div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: 16px;">
+                    <!-- Action Buttons -->
+                    <a id="tm-btn-sync" href="#" target="_blank" title="Sincronizar SIG" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; font-size: 0.78rem; font-weight: 600; text-decoration: none; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+                        <i class="ph ph-arrows-clockwise"></i> Sincronizar
+                    </a>
+                    <a id="tm-btn-visual" href="#" target="_blank" title="Cierre Visual" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; font-size: 0.78rem; font-weight: 600; text-decoration: none; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+                        <i class="ph ph-eye"></i> Cierre Visual
+                    </a>
+                    <a id="tm-btn-admin" href="#" target="_blank" title="Abrir en Admin" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; font-size: 0.78rem; font-weight: 600; text-decoration: none; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+                        <i class="ph ph-arrows-out"></i> Admin
+                    </a>
+                    <!-- Editar Button - toggle -->
+                    <button id="tm-btn-editar" onclick="enterEditMode()" title="Editar Ticket" style="display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; background: #ffffff; border: none; border-radius: 6px; color: #0057b7; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);" onmouseover="this.style.background='#f0f7ff'; this.style.boxShadow='0 2px 8px rgba(0,87,183,0.2)';" onmouseout="this.style.background='#ffffff'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.15)';">
+                        <i class="ph ph-pencil-simple" style="font-size: 1rem;"></i> Editar
+                    </button>
+                    <button onclick="closeTicketModal()" style="padding: 7px 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white; font-size: 1rem; cursor: pointer; transition: background 0.15s; display: flex;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
             </div>
-            <div style="flex: 1; position: relative;">
-                <iframe id="ticket-iframe" style="width: 100%; height: 100%; border: none;"></iframe>
-                <div id="ticket-loader" style="position: absolute; inset: 0; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                    <div style="border: 3px solid #f3f3f3; border-top: 3px solid var(--sap-blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
-                    <p style="margin-top: 16px; color: var(--sap-label); font-weight: 500;">Cargando detalles...</p>
+
+            <!-- Spinner -->
+            <div id="ticket-loader" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 14px; background: #fafbfc;">
+                <div style="width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: #0078d4; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                <p style="margin: 0; color: #64748b; font-size: 0.9rem; font-weight: 500;">Cargando detalles del ticket...</p>
+            </div>
+
+            <!-- Modal Body (hidden while loading) -->
+            <div id="tm-body" style="display: none; flex-direction: column; flex: 1; overflow: hidden;">
+
+                <!-- Tabs -->
+                <div style="display: flex; gap: 0; border-bottom: 2px solid #edf0f3; background: #f8fafc; padding: 0 28px; flex-shrink: 0; overflow-x: auto;">
+                    <button class="tm-tab active" data-panel="tm-panel-general" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #0078d4; background: none; border: none; border-bottom: 2px solid #0078d4; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-info"></i> General</button>
+                    <button class="tm-tab" data-panel="tm-panel-desc" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-chat-text"></i> Descripción</button>
+                    <button class="tm-tab" data-panel="tm-panel-tecnico" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-wrench"></i> Seguimiento Técnico</button>
+                    <button class="tm-tab" data-panel="tm-panel-financiero" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-currency-dollar"></i> Financiero</button>
+                    <button id="tm-tab-tiempos" class="tm-tab" data-panel="tm-panel-tiempos" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-calendar-check"></i> Tiempos Acordados <span id="tm-tiempos-badge" style="background: #0078d4; color: white; border-radius: 10px; padding: 1px 7px; font-size: 0.7rem; display: none;"></span></button>
+                </div>
+
+                <!-- Panels -->
+                <div style="flex: 1; overflow-y: auto; padding: 24px 28px;">
+
+                    <!-- Panel: General -->
+                    <div id="tm-panel-general" class="tm-panel" style="display: block;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 22px;">
+                            <div class="tm-field"><span class="tm-label">ID Solicitud</span><span id="tm-id-solicitud" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Solicitante</span><span id="tm-solicitante" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Responsable SIG</span><span id="tm-responsable" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Técnico Asignado</span><span id="tm-usuario-resp" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Fecha Solicitud</span><span id="tm-fecha-solicitud" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Tipo Recepción</span><span id="tm-tipo-recepcion" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Fecha Tipo Recepción</span><span id="tm-fecha-tipo-recepcion" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Fecha Cierre</span><span id="tm-fecha-cierre" class="tm-value">—</span></div>
+                        </div>
+                        <div style="border-top: 1px solid #f1f5f9; padding-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 22px;">
+                            <div class="tm-field"><span class="tm-label">Servicio</span><span id="tm-servicio" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Subservicio</span><span id="tm-subservicio" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Área</span><span id="tm-area" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Unidad</span><span id="tm-unidad" class="tm-value">—</span></div>
+                            <div class="tm-field" style="grid-column: span 2;"><span class="tm-label">Ubicación Física</span><span id="tm-ubicacion" class="tm-value">—</span></div>
+                        </div>
+                        <div style="border-top: 1px solid #f1f5f9; padding-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px;">
+                            <div class="tm-field" style="grid-column: span 2;"><span class="tm-label">Activo / Equipo</span><span id="tm-activo" class="tm-value">—</span></div>
+                        </div>
+                        <!-- Restricción -->
+                        <div id="tm-restriccion-block" style="display: none; margin-top: 20px; background: linear-gradient(135deg, #fff0f6, #ffe4f0); border: 1px solid #ffadd2; border-left: 4px solid #e7327d; border-radius: 8px; padding: 16px 20px;">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: #e7327d; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;"><i class="ph ph-lock-simple"></i> Restricción de Acceso</div>
+                            <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                                <div class="tm-field"><span class="tm-label">Folio RA</span><span id="tm-ra-folio" class="tm-value" style="color: #e7327d;">—</span></div>
+                                <div class="tm-field"><span class="tm-label">Horas Restringidas</span><span id="tm-ra-horas" class="tm-value">—</span></div>
+                                <div class="tm-field"><span class="tm-label">Registrado</span><span id="tm-ra-fecha" class="tm-value">—</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel: Descripción -->
+                    <div id="tm-panel-desc" class="tm-panel" style="display: none;">
+                        <div style="margin-bottom: 20px;">
+                            <div class="tm-label" style="margin-bottom: 8px;">Solicitud / Problema Reportado</div>
+                            <div id="tm-solicitud-desc" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #334155; min-height: 60px; white-space: pre-wrap;">—</div>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <div class="tm-label" style="margin-bottom: 8px;">Falla Detectada</div>
+                            <div id="tm-falla-desc" style="background: #fff8f0; border: 1px solid #fed7aa; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #92400e; min-height: 40px; white-space: pre-wrap;">—</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px;">
+                            <div class="tm-field"><span class="tm-label">Clasificación de Falla</span><span id="tm-falla-clas" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Clasificación Final</span><span id="tm-clas-final" class="tm-value">—</span></div>
+                            <div class="tm-field"><span class="tm-label">Falla Catálogo</span><span id="tm-falla-catalogo" class="tm-value">—</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Panel: Seguimiento Técnico -->
+                    <div id="tm-panel-tecnico" class="tm-panel" style="display: none;">
+                        <div style="margin-bottom: 20px;">
+                            <div class="tm-label" style="margin-bottom: 8px;"><i class="ph ph-stethoscope" style="margin-right: 4px;"></i> Diagnóstico Catálogo</div>
+                            <div id="tm-diagnostico-catalogo" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; font-size: 0.9rem; font-weight: 600; color: #1e293b; min-height: 20px;">—</div>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <div class="tm-label" style="margin-bottom: 8px;"><i class="ph ph-stethoscope" style="margin-right: 4px;"></i> Diagnóstico Detalle</div>
+                            <div id="tm-diagnostico" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #166534; min-height: 60px; white-space: pre-wrap;"></div>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <div class="tm-label" style="margin-bottom: 8px;"><i class="ph ph-list-checks" style="margin-right: 4px;"></i> Actividades Realizadas</div>
+                            <div id="tm-actividades" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #1e40af; min-height: 60px; white-space: pre-wrap;"></div>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <div class="tm-label" style="margin-bottom: 8px;"><i class="ph ph-note" style="margin-right: 4px;"></i> Observaciones</div>
+                            <div id="tm-observaciones" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #334155; min-height: 40px; white-space: pre-wrap;"></div>
+                        </div>
+                        <div id="tm-comentarios-block" style="display: none; margin-bottom: 20px;">
+                            <div class="tm-label" style="margin-bottom: 8px;"><i class="ph ph-chat-centered-text" style="margin-right: 4px; color: #0984e3;"></i> Comentarios Internos</div>
+                            <div id="tm-comentarios" style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #92400e; white-space: pre-wrap;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Panel: Financiero -->
+                    <div id="tm-panel-financiero" class="tm-panel" style="display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 24px;">
+                            <div style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 1px solid #fed7aa; border-radius: 10px; padding: 20px; text-align: center;">
+                                <div style="font-size: 0.72rem; font-weight: 700; color: #c2410c; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;"><i class="ph ph-currency-dollar"></i> Deductiva</div>
+                                <div id="tm-deductiva" style="font-size: 2rem; font-weight: 800; color: #ea580c;">$0.00</div>
+                            </div>
+                            <div class="tm-field" style="align-self: center;"><span class="tm-label">Proveedor Deductiva</span><span id="tm-proveedor" class="tm-value">—</span></div>
+                            <div class="tm-field" style="align-self: center;"><span class="tm-label">Estado Notificación</span><span id="tm-estado-notif" class="tm-value">—</span></div>
+                        </div>
+                        <!-- Evidencias Preview -->
+                        <div style="border-top: 1px solid #f1f5f9; padding-top: 18px;">
+                            <div class="tm-label" style="margin-bottom: 12px;"><i class="ph ph-images" style="margin-right: 4px;"></i> Evidencias Adjuntas <span id="tm-ev-count" style="background: #e2e8f0; border-radius: 10px; padding: 1px 8px; font-size: 0.72rem;">0</span></div>
+                            <div id="tm-ev-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px;"></div>
+                            <div id="tm-ev-empty" style="display: none; text-align: center; padding: 20px; color: #94a3b8; font-size: 0.85rem;"><i class="ph ph-image" style="font-size: 1.5rem; display: block; margin-bottom: 6px;"></i> Sin evidencias adjuntas</div>
+                        </div>
+                    </div>
+
+                    <!-- Panel: Tiempos Acordados -->
+                    <div id="tm-panel-tiempos" class="tm-panel" style="display: none;">
+                        <div id="tm-tiempos-list"></div>
+                        <div id="tm-tiempos-empty" style="display: none; text-align: center; padding: 32px; color: #94a3b8;">
+                            <i class="ph ph-calendar" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i>
+                            Sin tiempos acordados registrados.
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ===== PANEL DE EDICIÓN (oculto por defecto) ===== -->
+            <div id="tm-edit-panel" style="display: none; flex-direction: column; flex: 1; overflow: hidden;">
+                <!-- Edit toolbar -->
+                <div style="display: flex; align-items: center; gap: 10px; padding: 14px 28px; background: #fffbeb; border-bottom: 2px solid #fcd34d; flex-shrink: 0;">
+                    <i class="ph ph-pencil-simple" style="color: #b45309; font-size: 1.1rem;"></i>
+                    <span style="font-weight: 700; color: #b45309; font-size: 0.9rem;">Modo Edición</span>
+                    <span style="font-size: 0.8rem; color: #92400e;">— Modifica los campos y haz clic en Guardar</span>
+                    <div style="margin-left: auto; display: flex; gap: 8px;">
+                        <button onclick="exitEditMode()" style="padding: 8px 18px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #374151; font-weight: 600; font-size: 0.82rem; cursor: pointer;"><i class="ph ph-x"></i> Cancelar</button>
+                        <button id="tm-save-btn" onclick="saveTmEdit()" style="padding: 8px 18px; border-radius: 6px; border: none; background: #0078d4; color: white; font-weight: 700; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-floppy-disk"></i> Guardar Cambios</button>
+                    </div>
+                </div>
+                <!-- Edit form -->
+                <div style="flex: 1; overflow-y: auto; padding: 24px 28px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 24px; margin-bottom: 24px;">
+                        <!-- Fecha Cierre -->
+                        <div class="tm-edit-group">
+                            <label class="tm-edit-label"><i class="ph ph-calendar-check"></i> Fecha de Cierre</label>
+                            <input type="datetime-local" id="te-fecha-cierre" class="tm-edit-input">
+                        </div>
+                        <!-- Deductiva -->
+                        <div class="tm-edit-group">
+                            <label class="tm-edit-label"><i class="ph ph-currency-dollar"></i> Deductiva (USD)</label>
+                            <div style="position: relative;">
+                                <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-weight: 600;">$</span>
+                                <input type="number" step="0.01" id="te-deductiva" class="tm-edit-input" style="padding-left: 26px;">
+                            </div>
+                        </div>
+                        <!-- Proveedor -->
+                        <div class="tm-edit-group">
+                            <label class="tm-edit-label"><i class="ph ph-buildings"></i> Proveedor Deductiva</label>
+                            <select id="te-proveedor" class="tm-edit-input">
+                                <option value="">-- Sin proveedor --</option>
+                            </select>
+                        </div>
+                        <!-- Técnico -->
+                        <div class="tm-edit-group">
+                            <label class="tm-edit-label"><i class="ph ph-user-gear"></i> Técnico Responsable</label>
+                            <select id="te-usuario" class="tm-edit-input">
+                                <option value="">-- Sin asignar --</option>
+                            </select>
+                        </div>
+                        <!-- Diagnóstico Catálogo -->
+                        <div class="tm-edit-group">
+                            <label class="tm-edit-label"><i class="ph ph-stethoscope"></i> Diagnóstico Catálogo</label>
+                            <select id="te-diagnostico-catalogo" class="tm-edit-input">
+                                <option value="">-- Selecciona un diagnóstico --</option>
+                            </select>
+                        </div>
+                        <!-- Clasificación Final -->
+                        <div class="tm-edit-group">
+                            <label class="tm-edit-label"><i class="ph ph-tag"></i> Clasificación Falla Final</label>
+                            <input type="text" id="te-clas-final" class="tm-edit-input" placeholder="Clasificación...">
+                        </div>
+                    </div>
+                    <!-- Campos de texto largo -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px;">
+                        <div class="tm-edit-group">
+                            <label class="tm-edit-label"><i class="ph ph-stethoscope"></i> Diagnóstico</label>
+                            <textarea id="te-diagnostico" class="tm-edit-textarea" rows="5" placeholder="¿Qué se encontró?"></textarea>
+                        </div>
+                        <div class="tm-edit-group">
+                            <label class="tm-edit-label"><i class="ph ph-list-checks"></i> Actividades Realizadas</label>
+                            <textarea id="te-actividades" class="tm-edit-textarea" rows="5" placeholder="¿Qué se hizo?"></textarea>
+                        </div>
+                        <div class="tm-edit-group">
+                            <label class="tm-edit-label"><i class="ph ph-note"></i> Observaciones</label>
+                            <textarea id="te-observaciones" class="tm-edit-textarea" rows="4" placeholder="Notas adicionales"></textarea>
+                        </div>
+                        <div class="tm-edit-group">
+                            <label class="tm-edit-label" style="color: #0984e3;"><i class="ph ph-chat-centered-text"></i> Comentarios Internos</label>
+                            <textarea id="te-comentarios" class="tm-edit-textarea" rows="4" placeholder="Solo visible internamente..."></textarea>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <style>
+        .tm-field { display: flex; flex-direction: column; gap: 3px; }
+        .tm-label { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+        .tm-value { font-size: 0.9rem; font-weight: 600; color: #1e293b; }
+        .tm-tab:hover { color: #0078d4 !important; }
+        .tm-tab.active { color: #0078d4 !important; border-bottom-color: #0078d4 !important; }
+        .tm-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        /* Edit Form Styles */
+        .tm-edit-group { display: flex; flex-direction: column; gap: 6px; }
+        .tm-edit-label { font-size: 0.72rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 5px; }
+        .tm-edit-input { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #1e293b; background: #fff; box-sizing: border-box; transition: border-color 0.15s, box-shadow 0.15s; outline: none; font-family: inherit; }
+        .tm-edit-input:focus { border-color: #0078d4; box-shadow: 0 0 0 3px rgba(0,120,212,0.1); }
+        .tm-edit-textarea { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #1e293b; background: #fff; box-sizing: border-box; resize: vertical; transition: border-color 0.15s, box-shadow 0.15s; outline: none; font-family: inherit; line-height: 1.6; }
+        .tm-edit-textarea:focus { border-color: #0078d4; box-shadow: 0 0 0 3px rgba(0,120,212,0.1); }
+    </style>
 
     {{ chart_data_json|json_script:"chart-data-script" }}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -719,26 +987,400 @@
             }
         }
 
-        function openTicketModal(ticketId, folio) {
+        async function openTicketModal(ticketId, folio) {
             const modal = document.getElementById('ticket-modal');
-            const iframe = document.getElementById('ticket-iframe');
+            const inner = document.getElementById('ticket-modal-inner');
             const loader = document.getElementById('ticket-loader');
-            
-            modal.querySelector('h3').innerHTML = `<i class="ph ph-ticket" style="margin-right: 8px;"></i> Detalles del Ticket #${folio}`;
-            modal.style.display = 'flex';
+            const body = document.getElementById('tm-body');
+
+            // Reset state
+            document.getElementById('tm-folio').textContent = folio || '...';
+            document.getElementById('tm-badges').innerHTML = '';
             loader.style.display = 'flex';
-            
-            iframe.onload = function() {
+            body.style.display = 'none';
+            modal.style.display = 'flex';
+            requestAnimationFrame(() => { inner.style.transform = 'scale(1)'; });
+
+            // Activate first tab
+            document.querySelectorAll('.tm-tab').forEach(t => {
+                const isFirst = t.dataset.panel === 'tm-panel-general';
+                t.style.color = isFirst ? '#0078d4' : '#64748b';
+                t.style.borderBottomColor = isFirst ? '#0078d4' : 'transparent';
+                t.classList.toggle('active', isFirst);
+            });
+            document.querySelectorAll('.tm-panel').forEach(p => {
+                p.style.display = p.id === 'tm-panel-general' ? 'block' : 'none';
+            });
+
+            try {
+                const resp = await fetch(`/callcenter/ticket/${ticketId}/detail-ajax/`);
+                if (!resp.ok) throw new Error('Error HTTP ' + resp.status);
+                const d = await resp.json();
+
+                // Store for edit mode
+                _tmCurrentData = d;
+                _tmCurrentTicketId = ticketId;
+
+                // --- Header ---
+                document.getElementById('tm-folio').textContent = d.folio;
+                document.getElementById('tm-btn-sync').href = d.url_sync;
+                document.getElementById('tm-btn-visual').href = d.url_cierre_visual;
+                document.getElementById('tm-btn-admin').href = d.url_admin;
+                document.getElementById('tm-btn-editar').href = d.url_admin;
+
+                const badgesEl = document.getElementById('tm-badges');
+                badgesEl.innerHTML = '';
+                const estadoBadge = document.createElement('span');
+                estadoBadge.className = 'tm-badge';
+                estadoBadge.style.cssText = d.abierto
+                    ? 'background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.35);'
+                    : 'background: #16a34a; color: #fff;';
+                estadoBadge.innerHTML = d.abierto
+                    ? '<i class="ph ph-clock"></i> Abierto'
+                    : '<i class="ph ph-check-circle"></i> Cerrado';
+                badgesEl.appendChild(estadoBadge);
+                if (d.es_interno) {
+                    const intBadge = document.createElement('span');
+                    intBadge.className = 'tm-badge';
+                    intBadge.style.cssText = 'background: rgba(255,255,255,0.15); color: #ffe484; border: 1px solid rgba(255,220,100,0.4);';
+                    intBadge.innerHTML = '<i class="ph ph-lock-key"></i> Interno';
+                    badgesEl.appendChild(intBadge);
+                }
+                if (d.cierre_enviado) {
+                    const cBadge = document.createElement('span');
+                    cBadge.className = 'tm-badge';
+                    cBadge.style.cssText = 'background: rgba(255,255,255,0.15); color: #86efac; border: 1px solid rgba(134,239,172,0.4);';
+                    cBadge.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Notificado';
+                    badgesEl.appendChild(cBadge);
+                }
+
+                // --- Panel General ---
+                document.getElementById('tm-id-solicitud').textContent = d.id_solicitud;
+                document.getElementById('tm-solicitante').textContent = d.solicitante;
+                document.getElementById('tm-responsable').textContent = d.responsable;
+                document.getElementById('tm-usuario-resp').textContent = d.usuario_responsable;
+                document.getElementById('tm-fecha-solicitud').textContent = d.fecha_solicitud;
+                document.getElementById('tm-tipo-recepcion').textContent = d.tipo_recepcion;
+                document.getElementById('tm-fecha-tipo-recepcion').textContent = d.fecha_tipo_recepcion;
+                document.getElementById('tm-fecha-cierre').textContent = d.fecha_cierre;
+                document.getElementById('tm-servicio').textContent = d.servicio;
+                document.getElementById('tm-subservicio').textContent = d.subservicio;
+                document.getElementById('tm-area').textContent = d.area;
+                document.getElementById('tm-unidad').textContent = d.unidad;
+                document.getElementById('tm-ubicacion').textContent = d.ubicacion_nombre;
+                const activoStr = d.activo_nombre !== '—'
+                    ? `${d.activo_nombre} | Cód: ${d.activo_codigo} | S/N: ${d.activo_serie}`
+                    : '—';
+                document.getElementById('tm-activo').textContent = activoStr;
+
+                // Restricción
+                const raBlock = document.getElementById('tm-restriccion-block');
+                if (d.restriccion) {
+                    raBlock.style.display = 'block';
+                    document.getElementById('tm-ra-folio').textContent = d.restriccion.folio;
+                    document.getElementById('tm-ra-horas').textContent = d.restriccion.horas + ' hrs hábiles';
+                    document.getElementById('tm-ra-fecha').textContent = d.restriccion.creado_en;
+                } else {
+                    raBlock.style.display = 'none';
+                }
+
+                // --- Panel Descripción ---
+                document.getElementById('tm-solicitud-desc').textContent = d.solicitud_descripcion || '(Sin descripción)';
+                document.getElementById('tm-falla-desc').textContent = d.falla_descripcion || '(Sin descripción de falla)';
+                document.getElementById('tm-falla-clas').textContent = d.falla_clasificacion;
+                document.getElementById('tm-clas-final').textContent = d.clasificacion_falla_final;
+                document.getElementById('tm-falla-catalogo').textContent = d.falla_reportada;
+
+                // --- Panel Técnico ---
+                document.getElementById('tm-diagnostico-catalogo').textContent = d.diagnostico_reportado_nombre || '—';
+                document.getElementById('tm-diagnostico').textContent = d.diagnostico || '(Sin diagnóstico registrado)';
+                document.getElementById('tm-actividades').textContent = d.actividades || '(Sin actividades registradas)';
+                document.getElementById('tm-observaciones').textContent = d.observaciones || '(Sin observaciones)';
+                const comBlock = document.getElementById('tm-comentarios-block');
+                if (d.comentarios_internos) {
+                    comBlock.style.display = 'block';
+                    document.getElementById('tm-comentarios').textContent = d.comentarios_internos;
+                } else {
+                    comBlock.style.display = 'none';
+                }
+
+                // --- Panel Financiero ---
+                document.getElementById('tm-deductiva').textContent = `$${parseFloat(d.deductiva).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                document.getElementById('tm-proveedor').textContent = d.proveedor_deductiva;
+                const notifEl = document.getElementById('tm-estado-notif');
+                notifEl.textContent = d.cierre_enviado ? 'Notificado (PA)' : 'Pendiente de envío';
+                notifEl.style.color = d.cierre_enviado ? '#16a34a' : '#92400e';
+
+                // Evidencias
+                document.getElementById('tm-ev-count').textContent = d.num_evidencias;
+                const evGrid = document.getElementById('tm-ev-grid');
+                const evEmpty = document.getElementById('tm-ev-empty');
+                evGrid.innerHTML = '';
+                if (d.evidencias && d.evidencias.length > 0) {
+                    evEmpty.style.display = 'none';
+                    evGrid.style.display = 'grid';
+                    d.evidencias.forEach(ev => {
+                        const box = document.createElement('div');
+                        box.style.cssText = 'aspect-ratio: 1; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8f9fa; cursor: pointer;';
+                        if (ev.es_imagen && ev.url) {
+                            box.innerHTML = `<img src="${ev.url}" style="width:100%;height:100%;object-fit:cover;" title="${ev.descripcion}">`;
+                            box.onclick = () => window.open(ev.url, '_blank');
+                        } else if (ev.url) {
+                            box.style.display = 'flex'; box.style.flexDirection = 'column'; box.style.alignItems = 'center'; box.style.justifyContent = 'center'; box.style.color = '#64748b';
+                            box.innerHTML = `<i class="ph ph-file" style="font-size:1.5rem;"></i><span style="font-size:0.65rem;margin-top:4px;text-align:center;padding:0 4px;">${ev.descripcion || 'Archivo'}</span>`;
+                            box.onclick = () => window.open(ev.url, '_blank');
+                        }
+                        evGrid.appendChild(box);
+                    });
+                } else {
+                    evGrid.style.display = 'none';
+                    evEmpty.style.display = 'block';
+                }
+
+                // --- Panel Tiempos Acordados ---
+                const tabTiempos = document.getElementById('tm-tab-tiempos');
+                const tiemposBadge = document.getElementById('tm-tiempos-badge');
+                const list = document.getElementById('tm-tiempos-list');
+                const emptyEl = document.getElementById('tm-tiempos-empty');
+                list.innerHTML = '';
+                if (d.tiempos_acordados && d.tiempos_acordados.length > 0) {
+                    tiemposBadge.textContent = d.tiempos_acordados.length;
+                    tiemposBadge.style.display = 'inline';
+                    emptyEl.style.display = 'none';
+                    d.tiempos_acordados.forEach(ta => {
+                        const card = document.createElement('div');
+                        card.style.cssText = 'background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0078d4; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px;';
+                        card.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <span style="font-weight:700;color:#0078d4;font-size:0.95rem;">${ta.folio}</span>
+                                <span style="font-size:0.75rem;color:#64748b;">Límite: <b>${ta.fecha_limite}</b></span>
+                            </div>
+                            <div style="font-size:0.85rem;color:#475569;line-height:1.5;">${ta.motivo || '—'}</div>
+                            <div style="font-size:0.72rem;color:#94a3b8;margin-top:6px;">Creado: ${ta.creado_en}</div>
+                        `;
+                        list.appendChild(card);
+                    });
+                } else {
+                    tiemposBadge.style.display = 'none';
+                    emptyEl.style.display = 'block';
+                }
+
+                // Show body
                 loader.style.display = 'none';
-            };
-            
-            iframe.src = `/admin/callcenter/solicitudticket/${ticketId}/change/?_popup=1`;
+                body.style.display = 'flex';
+
+            } catch (err) {
+                loader.innerHTML = `<div style="text-align:center;color:#dc2626;"><i class="ph ph-warning" style="font-size:2rem;display:block;margin-bottom:8px;"></i><b>Error al cargar</b><br><small>${err.message}</small></div>`;
+            }
         }
 
         function closeTicketModal() {
-            document.getElementById('ticket-modal').style.display = 'none';
-            document.getElementById('ticket-iframe').src = '';
+            const modal = document.getElementById('ticket-modal');
+            const inner = document.getElementById('ticket-modal-inner');
+            inner.style.transform = 'scale(0.97)';
+            setTimeout(() => { modal.style.display = 'none'; inner.style.transform = 'scale(0.97)'; }, 180);
+            exitEditMode();
         }
+
+        // Stores current ticket data and ID for edit mode
+        let _tmCurrentData = null;
+        let _tmCurrentTicketId = null;
+
+        function enterEditMode() {
+            if (!_tmCurrentData) return;
+            const d = _tmCurrentData;
+
+            // Pre-fill fields
+            document.getElementById('te-fecha-cierre').value = d.fecha_cierre_raw || '';
+            document.getElementById('te-diagnostico').value = d.diagnostico || '';
+            document.getElementById('te-actividades').value = d.actividades || '';
+            document.getElementById('te-observaciones').value = d.observaciones || '';
+            document.getElementById('te-comentarios').value = d.comentarios_internos || '';
+            document.getElementById('te-deductiva').value = d.deductiva || '0';
+            document.getElementById('te-clas-final').value = d.clasificacion_falla_final !== '—' ? d.clasificacion_falla_final : '';
+
+            // Populate proveedor select
+            const selProv = document.getElementById('te-proveedor');
+            selProv.innerHTML = '<option value="">-- Sin proveedor --</option>';
+            (d.proveedores || []).forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.nombre;
+                if (d.proveedor_deductiva_id && p.id == d.proveedor_deductiva_id) opt.selected = true;
+                selProv.appendChild(opt);
+            });
+
+            // Populate usuario select
+            const selUser = document.getElementById('te-usuario');
+            selUser.innerHTML = '<option value="">-- Sin asignar --</option>';
+            (d.usuarios || []).forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.id;
+                const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username;
+                opt.textContent = name;
+                if (d.usuario_responsable_id && u.id == d.usuario_responsable_id) opt.selected = true;
+                selUser.appendChild(opt);
+            });
+
+            // Populate diagnostico-catalogo select
+            const selDiag = document.getElementById('te-diagnostico-catalogo');
+            selDiag.innerHTML = '<option value="">-- Cargando diagnósticos... --</option>';
+            selDiag.disabled = true;
+
+            if (d.falla_reportada_id) {
+                fetch(`/callcenter/ajax/get-diagnosticos-by-falla/?falla_id=${d.falla_reportada_id}`)
+                    .then(response => response.json())
+                    .then(diagnosticos => {
+                        selDiag.innerHTML = '<option value="">-- Selecciona un diagnóstico --</option>';
+                        diagnosticos.forEach(diag => {
+                            const opt = document.createElement('option');
+                            opt.value = diag.id;
+                            opt.textContent = diag.nombre;
+                            if (d.diagnostico_reportado_id && diag.id == d.diagnostico_reportado_id) {
+                                opt.selected = true;
+                            }
+                            selDiag.appendChild(opt);
+                        });
+                        selDiag.disabled = false;
+                    })
+                    .catch(err => {
+                        console.error('Error fetching diagnostics:', err);
+                        selDiag.innerHTML = '<option value="">-- Error al cargar --</option>';
+                    });
+            } else {
+                selDiag.innerHTML = '<option value="">-- Sin falla reportada --</option>';
+            }
+
+            // Show edit panel, hide view body
+            document.getElementById('tm-body').style.display = 'none';
+            document.getElementById('tm-edit-panel').style.display = 'flex';
+
+            // Update Editar button appearance
+            const btn = document.getElementById('tm-btn-editar');
+            btn.style.background = '#fcd34d';
+            btn.style.color = '#92400e';
+            btn.innerHTML = '<i class="ph ph-pencil-simple" style="font-size:1rem;"></i> Editando...';
+            btn.onclick = null;
+        }
+
+        function exitEditMode() {
+            document.getElementById('tm-edit-panel').style.display = 'none';
+            document.getElementById('tm-body').style.display = 'flex';
+
+            const btn = document.getElementById('tm-btn-editar');
+            if (btn) {
+                btn.style.background = '#ffffff';
+                btn.style.color = '#0057b7';
+                btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.15)';
+                btn.innerHTML = '<i class="ph ph-pencil-simple" style="font-size:1rem;"></i> Editar';
+                btn.onclick = enterEditMode;
+            }
+        }
+
+        async function saveTmEdit() {
+            if (!_tmCurrentTicketId) return;
+            const btn = document.getElementById('tm-save-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph ph-spinner"></i> Guardando...';
+
+            const payload = {
+                fecha_cierre: document.getElementById('te-fecha-cierre').value,
+                diagnostico: document.getElementById('te-diagnostico').value,
+                actividades: document.getElementById('te-actividades').value,
+                observaciones: document.getElementById('te-observaciones').value,
+                comentarios_internos: document.getElementById('te-comentarios').value,
+                deductiva: document.getElementById('te-deductiva').value,
+                proveedor_deductiva: document.getElementById('te-proveedor').value,
+                usuario_responsable: document.getElementById('te-usuario').value,
+                clasificacion_falla_final: document.getElementById('te-clas-final').value,
+                diagnostico_reportado: document.getElementById('te-diagnostico-catalogo').value,
+            };
+
+            try {
+                const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+                const resp = await fetch(`/callcenter/ticket/${_tmCurrentTicketId}/quick-edit/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify(payload)
+                });
+                const result = await resp.json();
+                if (result.success) {
+                    // Reload detail data
+                    const detailResp = await fetch(`/callcenter/ticket/${_tmCurrentTicketId}/detail-ajax/`);
+                    _tmCurrentData = await detailResp.json();
+
+                    // Refresh view panel
+                    refreshTmViewFromData(_tmCurrentData);
+                    exitEditMode();
+
+                    // Toast
+                    Swal.fire({ icon: 'success', title: 'Guardado', text: 'Ticket actualizado correctamente.', timer: 2000, showConfirmButton: false });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: result.message || 'No se pudo guardar.' });
+                }
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Error de red', text: err.message });
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Guardar Cambios';
+            }
+        }
+
+        function refreshTmViewFromData(d) {
+            // Header
+            document.getElementById('tm-folio').textContent = d.folio;
+            // General
+            document.getElementById('tm-id-solicitud').textContent = d.id_solicitud;
+            document.getElementById('tm-solicitante').textContent = d.solicitante;
+            document.getElementById('tm-responsable').textContent = d.responsable;
+            document.getElementById('tm-usuario-resp').textContent = d.usuario_responsable;
+            document.getElementById('tm-fecha-solicitud').textContent = d.fecha_solicitud;
+            document.getElementById('tm-tipo-recepcion').textContent = d.tipo_recepcion;
+            document.getElementById('tm-fecha-tipo-recepcion').textContent = d.fecha_tipo_recepcion;
+            document.getElementById('tm-fecha-cierre').textContent = d.fecha_cierre;
+            document.getElementById('tm-servicio').textContent = d.servicio;
+            document.getElementById('tm-subservicio').textContent = d.subservicio;
+            document.getElementById('tm-area').textContent = d.area;
+            document.getElementById('tm-unidad').textContent = d.unidad;
+            document.getElementById('tm-ubicacion').textContent = d.ubicacion_nombre;
+            // Técnico
+            document.getElementById('tm-diagnostico-catalogo').textContent = d.diagnostico_reportado_nombre || '—';
+            document.getElementById('tm-diagnostico').textContent = d.diagnostico || '(Sin diagnóstico registrado)';
+            document.getElementById('tm-actividades').textContent = d.actividades || '(Sin actividades registradas)';
+            document.getElementById('tm-observaciones').textContent = d.observaciones || '(Sin observaciones)';
+            const comBlock = document.getElementById('tm-comentarios-block');
+            comBlock.style.display = d.comentarios_internos ? 'block' : 'none';
+            document.getElementById('tm-comentarios').textContent = d.comentarios_internos || '';
+            // Descripción
+            document.getElementById('tm-falla-clas').textContent = d.falla_clasificacion;
+            document.getElementById('tm-clas-final').textContent = d.clasificacion_falla_final;
+            // Financiero
+            document.getElementById('tm-deductiva').textContent = `$${parseFloat(d.deductiva).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            document.getElementById('tm-proveedor').textContent = d.proveedor_deductiva;
+        }
+
+
+        // Tab switching for ticket modal
+        document.addEventListener('click', function(e) {
+            const tab = e.target.closest('.tm-tab');
+            if (!tab) return;
+            const panelId = tab.dataset.panel;
+            if (!panelId) return;
+            document.querySelectorAll('.tm-tab').forEach(t => {
+                const active = t === tab;
+                t.classList.toggle('active', active);
+                t.style.color = active ? '#0078d4' : '#64748b';
+                t.style.borderBottomColor = active ? '#0078d4' : 'transparent';
+            });
+            document.querySelectorAll('.tm-panel').forEach(p => {
+                p.style.display = p.id === panelId ? 'block' : 'none';
+            });
+        });
+
+        // Close modal on backdrop click
+        document.getElementById('ticket-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeTicketModal();
+        });
 
         // --- Lógica del Menú Contextual para Restricción de Acceso ---
         const contextMenu = document.createElement('div');
@@ -758,6 +1400,14 @@
             <div class="ctx-item" id="ctx-add-comentario" style="padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #444; font-size: 0.9rem; transition: background 0.2s;">
                 <i class="ph ph-chat-centered-text" style="font-size: 1.1rem; color: #0984e3;"></i> <span>Agregar Comentario Interno</span>
             </div>
+            <div style="height: 1px; background: #eee; margin: 4px 0;"></div>
+            <div class="ctx-item" id="ctx-toggle-interno" style="padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #444; font-size: 0.9rem; transition: background 0.2s;">
+                <i class="ph ph-toggle-left" id="ctx-toggle-interno-icon" style="font-size: 1.3rem; color: #888; transition: color 0.2s;"></i> <span>Es Ticket Interno</span>
+            </div>
+            <div style="height: 1px; background: #eee; margin: 4px 0;"></div>
+            <div class="ctx-item" id="ctx-create-tiempo-acordado" style="padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #444; font-size: 0.9rem; transition: background 0.2s;">
+                <i class="ph ph-calendar-plus" style="font-size: 1.1rem; color: #e9730c;"></i> Crear Tiempo Acordado
+            </div>
         `;
         document.body.appendChild(contextMenu);
 
@@ -771,6 +1421,7 @@
         let currentContextHasRestriccion = false;
         let currentContextRestriccionId = null;
         let currentContextComentarioInterno = '';
+        let currentContextEsInterno = false;
 
         document.addEventListener('contextmenu', function(e) {
             const detailLink = e.target.closest('.ticket-detail-link');
@@ -781,6 +1432,7 @@
                 currentContextHasRestriccion = detailLink.dataset.hasRestriccion === 'true';
                 currentContextRestriccionId = detailLink.dataset.restriccionId;
                 currentContextComentarioInterno = detailLink.dataset.comentarioInterno || '';
+                currentContextEsInterno = detailLink.dataset.esInterno === 'true';
 
                 // Configurar visibilidad del menú restricción
                 if (currentContextHasRestriccion) {
@@ -799,6 +1451,16 @@
                     commentTextSpan.innerText = 'Agregar Comentario Interno';
                 }
 
+                // Configurar toggle de interno
+                const toggleIcon = document.getElementById('ctx-toggle-interno-icon');
+                if (currentContextEsInterno) {
+                    toggleIcon.className = 'ph ph-toggle-right';
+                    toggleIcon.style.color = 'var(--sap-primary)';
+                } else {
+                    toggleIcon.className = 'ph ph-toggle-left';
+                    toggleIcon.style.color = '#888';
+                }
+
                 // Posicionar y mostrar
                 contextMenu.style.left = e.pageX + 'px';
                 contextMenu.style.top = e.pageY + 'px';
@@ -810,7 +1472,7 @@
 
         document.addEventListener('click', function(e) {
             // Ocultar el menú contextual al hacer clic en cualquier lado
-            if (!e.target.closest('#ctx-add-restriccion') && !e.target.closest('#ctx-download-restriccion') && !e.target.closest('#ctx-add-comentario')) {
+            if (!e.target.closest('#ctx-add-restriccion') && !e.target.closest('#ctx-download-restriccion') && !e.target.closest('#ctx-add-comentario') && !e.target.closest('#ctx-toggle-interno')) {
                 contextMenu.style.display = 'none';
             }
 
@@ -920,6 +1582,57 @@
                         });
                     }
                 });
+            }
+
+            // Click en Es Ticket Interno
+            if (e.target.closest('#ctx-toggle-interno')) {
+                Swal.fire({
+                    title: currentContextEsInterno ? '¿Marcar como Externo?' : '¿Marcar como Interno?',
+                    text: currentContextEsInterno ? 'El ticket dejará de ser considerado interno.' : 'El ticket se marcará como interno.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, cambiar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: 'var(--sap-primary)',
+                    showLoaderOnConfirm: true,
+                    preConfirm: async () => {
+                        try {
+                            const response = await fetch(`/callcenter/ticket/${currentContextTicketId}/toggle-interno/`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+                            const data = await response.json();
+                            if (!data.success) {
+                                throw new Error(data.message || 'Error al cambiar estado');
+                            }
+                            return data;
+                        } catch (error) {
+                            Swal.showValidationMessage(`Error: ${error.message}`);
+                        }
+                    },
+                    allowOutsideClick: () => !Swal.isLoading()
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({
+                            title: '¡Guardado!',
+                            text: result.value.message,
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    }
+                });
+            }
+
+            // Click en Crear Tiempo Acordado
+            if (e.target.closest('#ctx-create-tiempo-acordado')) {
+                window.open(`/callcenter/app/tiempo-acordado/nuevo/?ticket=${currentContextTicketId}`, '_blank');
             }
 
             const detailLink = e.target.closest('.ticket-detail-link');
@@ -1227,8 +1940,9 @@
         });
 
         let chartsRendered = false;
-        let chartFallas, chartTiempos, chartUbic, chartEstado, chartPareto;
+        let chartFallas, chartTiempos, chartUbic, chartEstado, chartPareto, chartDiagnostics;
         let globalTickets = [];
+        let chartData = {};
         let currentUbicacionPath = [];
         let selectedFalla = null; // Cross-filter por falla
         let selectedEstado = null; // Cross-filter por estado ('abierto', 'cerrado' o null)
@@ -1253,7 +1967,6 @@
             const rawData = scriptEl.textContent;
             if (!rawData) return;
             
-            let chartData;
             try {
                 // If the backend passes json.dumps(chart_data) directly to json_script, it's double-encoded.
                 // Usually json_script expects a dict, but we passed a string (json.dumps).
@@ -1281,6 +1994,24 @@
                     fallaColors[f] = presetColors[idx % presetColors.length];
                 }
             });
+
+            // Rellenar selector de fallas de la tarjeta de diagnósticos
+            const diagSelector = document.getElementById('diagFallaSelector');
+            if (diagSelector) {
+                diagSelector.innerHTML = '<option value="">-- Mostrar Todo --</option>';
+                const sortedFallas = uniqueFallas.filter(f => f !== 'Sin Clasificar').sort();
+                sortedFallas.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f;
+                    opt.textContent = f;
+                    diagSelector.appendChild(opt);
+                });
+                
+                diagSelector.addEventListener('change', function() {
+                    selectedFalla = this.value || null;
+                    updateAllCharts();
+                });
+            }
             
             updateAllCharts();
         }
@@ -1356,6 +2087,11 @@
         }
 
         function updateAllCharts() {
+            const diagSelector = document.getElementById('diagFallaSelector');
+            if (diagSelector) {
+                diagSelector.value = selectedFalla || '';
+            }
+
             // 1. Filtrar por Ubicación (dataset base para charts)
             let ticketsFiltradosPorUbicacion = globalTickets.filter(t => {
                 for (let i=0; i<currentUbicacionPath.length; i++) {
@@ -1562,6 +2298,76 @@
                 const pct = totalParetoSum > 0 ? (runningSum / totalParetoSum) * 100 : 0;
                 paretoPercentages.push(Math.round(pct * 10) / 10);
             });
+
+            // 6.7. Calcular Diagnósticos del Catálogo (NUEVO)
+            let diagLabels = [];
+            let diagValues = [];
+            
+            if (selectedFalla) {
+                // Find parent failure name if it exists in tickets
+                let parentFalla = null;
+                const matchingTicket = globalTickets.find(t => t.f === selectedFalla);
+                if (matchingTicket) {
+                    parentFalla = matchingTicket.fp;
+                }
+                const catalogDiagsDirect = (chartData.diagnosticos_catalog && chartData.diagnosticos_catalog[selectedFalla]) || [];
+                const catalogDiagsParent = (parentFalla && parentFalla !== selectedFalla && chartData.diagnosticos_catalog) ? (chartData.diagnosticos_catalog[parentFalla] || []) : [];
+                const catalogDiags = Array.from(new Set([...catalogDiagsDirect, ...catalogDiagsParent]));
+
+                const counts = {};
+                catalogDiags.forEach(d => { counts[d] = 0; });
+                
+                let sinClasificarCount = 0;
+                ticketsCompletamenteFiltrados.forEach(t => {
+                    if (t.diag) {
+                        if (counts[t.diag] !== undefined) {
+                            counts[t.diag]++;
+                        } else {
+                            counts[t.diag] = (counts[t.diag] || 0) + 1;
+                        }
+                    } else {
+                        sinClasificarCount++;
+                    }
+                });
+
+                catalogDiags.forEach(d => {
+                    diagLabels.push(d);
+                    diagValues.push(counts[d]);
+                });
+
+                Object.keys(counts).forEach(d => {
+                    if (!catalogDiags.includes(d)) {
+                        diagLabels.push(`${d} (No en catálogo)`);
+                        diagValues.push(counts[d]);
+                    }
+                });
+
+                if (sinClasificarCount > 0) {
+                    diagLabels.push('Sin Diagnóstico');
+                    diagValues.push(sinClasificarCount);
+                }
+            } else {
+                const counts = {};
+                let sinClasificarCount = 0;
+                ticketsCompletamenteFiltrados.forEach(t => {
+                    if (t.diag) {
+                        counts[t.diag] = (counts[t.diag] || 0) + 1;
+                    } else {
+                        sinClasificarCount++;
+                    }
+                });
+
+                const sortedDiags = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0, 10);
+                sortedDiags.forEach(([d, count]) => {
+                    diagLabels.push(d);
+                    diagValues.push(count);
+                });
+
+                if (sinClasificarCount > 0 && diagLabels.length < 10) {
+                    diagLabels.push('Sin Diagnóstico');
+                    diagValues.push(sinClasificarCount);
+                }
+            }
             
             // 7. Renderizar todas las gráficas
             drawFallas(topFallas.map(x=>x[0]), topFallas.map(x=>x[1]));
@@ -1569,6 +2375,7 @@
             drawTiempos(topTiempos.map(x=>x[0]), topTiempos.map(x=>x[1]));
             drawUbicaciones(labelsWithCounts, datasets, hasChildrenMap);
             drawPareto(paretoLabels, paretoAmounts, paretoPercentages);
+            drawDiagnostics(diagLabels, diagValues);
             
             // UI Updates - Ubicación
             const btnBack = document.getElementById('btn-back-ubicaciones');
@@ -1874,6 +2681,86 @@
                         onClick: (e, elements) => {
                             if (elements.length === 0) {
                                 maximizeChart(chartPareto, "Pareto de Monto Deductiva por Falla");
+                            }
+                        },
+                        onHover: (e, elements) => {
+                            const canvas = e.native ? e.native.target : e.target;
+                            canvas.style.cursor = elements.length > 0 ? 'pointer' : 'zoom-in';
+                        }
+                    }
+                });
+            }
+        }
+
+        function drawDiagnostics(labels, data) {
+            const colors = labels.map((l, i) => {
+                const hue = (i * 360 / Math.max(labels.length, 5)) % 360;
+                return `hsla(${hue}, 60%, 50%, 0.8)`;
+            });
+            
+            const noDataEl = document.getElementById('noDiagDataMessage');
+            if (data.length === 0 || data.reduce((a,b)=>a+b, 0) === 0) {
+                if (noDataEl) noDataEl.style.display = 'flex';
+            } else {
+                if (noDataEl) noDataEl.style.display = 'none';
+            }
+
+            const multilineLabels = labels.map((l, i) => {
+                const cleanLabel = l.replace(' (No en catálogo)', '');
+                const lines = splitLabel(cleanLabel, 22);
+                lines.push(`📋 ${data[i]} tkt(s)`);
+                return lines;
+            });
+
+            if (chartDiagnostics) {
+                chartDiagnostics.data.labels = multilineLabels;
+                chartDiagnostics.data.datasets[0].data = data;
+                chartDiagnostics.data.datasets[0].backgroundColor = colors;
+                chartDiagnostics.update();
+            } else {
+                chartDiagnostics = new Chart(document.getElementById('chartDiagnostics'), {
+                    type: 'bar',
+                    data: {
+                        labels: multilineLabels,
+                        datasets: [{ 
+                            label: 'Tickets', 
+                            data: data, 
+                            backgroundColor: colors, 
+                            borderRadius: 4 
+                        }]
+                    },
+                    options: { 
+                        indexAxis: 'y',
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { 
+                            legend: { display: false } 
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1,
+                                    precision: 0
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Número de Tickets'
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    autoSkip: false,
+                                    font: {
+                                        size: 10,
+                                        weight: '500'
+                                    }
+                                }
+                            }
+                        },
+                        onClick: (e, elements) => {
+                            if (elements.length === 0) {
+                                maximizeChart(chartDiagnostics, selectedFalla ? `Diagnósticos para: ${selectedFalla}` : "Diagnósticos de Tickets");
                             }
                         },
                         onHover: (e, elements) => {
@@ -2207,8 +3094,10 @@
                             </button>
                         </div>
                         <!-- Body -->
-                        <div style="flex: 1; padding: 2.5rem; position: relative; display: flex; justify-content: center; align-items: center; background: #ffffff;">
-                            <canvas id="chartMaximizeCanvas" style="width: 100%; height: 100%;"></canvas>
+                        <div style="flex: 1; position: relative; background: #ffffff;">
+                            <div style="position: absolute; top: 2.5rem; left: 2.5rem; right: 2.5rem; bottom: 2.5rem;">
+                                <canvas id="chartMaximizeCanvas"></canvas>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2308,7 +3197,8 @@
                 { canvasId: 'chartEstado', title: 'Estado de los Tickets (Abiertos vs Cerrados)', getInstance: () => chartEstado },
                 { canvasId: 'chartTiempos', title: 'Tiempos de Resolución Promedio (Horas)', getInstance: () => chartTiempos },
                 { canvasId: 'chartPareto', title: 'Pareto de Monto Deductiva por Falla', getInstance: () => chartPareto },
-                { canvasId: 'chartUbicaciones', title: 'Ubicaciones principales con más fallas', getInstance: () => chartUbic }
+                { canvasId: 'chartUbicaciones', title: 'Ubicaciones principales con más fallas', getInstance: () => chartUbic },
+                { canvasId: 'chartDiagnostics', title: 'Diagnósticos del Catálogo por Falla', getInstance: () => chartDiagnostics }
             ];
 
             cardMapping.forEach(({ canvasId, title, getInstance }) => {

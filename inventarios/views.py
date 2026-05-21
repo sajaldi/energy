@@ -386,6 +386,10 @@ def cart_checkout(request):
             nivel = Ubicacion.objects.filter(id=nivel_id).first() if nivel_id else None
             
             with transaction.atomic():
+                # Verificar si el usuario tiene un jefe inmediato
+                jefe = getattr(request.user, 'perfil', None) and getattr(request.user.perfil, 'responsable', None)
+                estado_inicial = 'PENDIENTE_AUTORIZACION' if jefe else 'PENDIENTE'
+
                 # Crear la cabecera de la orden
                 solicitud = SolicitudMaterial.objects.create(
                     usuario=request.user,
@@ -393,7 +397,8 @@ def cart_checkout(request):
                     ubicacion_origen=ubicacion,
                     edificio_destino=edificio,
                     nivel_destino=nivel,
-                    comentarios_solicitud=comentarios
+                    comentarios_solicitud=comentarios,
+                    estado=estado_inicial
                 )
 
                 # Crear los movimientos asociados
@@ -413,7 +418,11 @@ def cart_checkout(request):
                     )
             
             # Notificar a n8n (Webhook)
-            notify_n8n_solicitud_material(solicitud)
+            if estado_inicial == 'PENDIENTE_AUTORIZACION':
+                from .utils_n8n import notify_n8n_solicitud_autorizacion
+                notify_n8n_solicitud_autorizacion(solicitud, jefe)
+            else:
+                notify_n8n_solicitud_material(solicitud)
             # Limpiar carrito solo si venimos de la vista de carrito
             if not items_json:
                 Cart(request).clear()
@@ -1808,9 +1817,10 @@ def pwa_sw(request):
     Este SW es la clave para la operatividad en el "Sótano" (Sin señal).
     """
     js = """
-const CACHE_NAME = 'inventarios-pwa-v2';
+const CACHE_NAME = 'inventarios-pwa-v3';
 const urlsToCache = [
   '/inventarios/mobile/dashboard/',
+  '/inventarios/mobile/catalog/',
   '/inventarios/catalogo/',
   '/inventarios/escanear/',
   '/static/core/img/icon-512.png',
@@ -1848,10 +1858,19 @@ self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
+        .then(response => {
+          if (!response.ok && response.status >= 500) {
+            return caches.match(event.request).then(cachedRes => {
+              return cachedRes || response;
+            });
+          }
+          return response;
+        })
         .catch(() => caches.match(event.request))
     );
     return;
   }
+
 
   // Para otros recursos (fotos, scripts), Cache-First
   event.respondWith(
@@ -2008,3 +2027,82 @@ def api_resolver_discrepancia(request):
         'message': f'Ajuste de {diferencia} aplicado correctamente.',
         'nuevo_stock': float(conteo_real)
     })
+
+@csrf_exempt
+def api_autorizar_solicitud(request, pk):
+    """
+    Endpoint (Webhook) para que n8n confirme la autorización
+    de una solicitud de materiales por parte del jefe inmediato.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+    
+    if solicitud.estado != 'PENDIENTE_AUTORIZACION':
+        return JsonResponse({'status': 'error', 'message': f'La solicitud ya no está pendiente de autorización. Estado actual: {solicitud.estado}'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+    except:
+        data = request.POST
+
+    accion = data.get('accion', '').lower()
+    
+    if accion == 'aprobar':
+        solicitud.estado = 'PENDIENTE'
+        solicitud.save()
+        
+        # Notificar al almacén que la orden ya fue aprobada y está lista
+        from .utils_n8n import notify_n8n_solicitud_material
+        notify_n8n_solicitud_material(solicitud)
+        
+        return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} aprobada. Almacén notificado.'})
+        
+    elif accion == 'rechazar':
+        solicitud.estado = 'RECHAZADO'
+        solicitud.save()
+        # Rechazar todos los movimientos asociados
+        solicitud.items.update(estado='RECHAZADO')
+        
+        return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} rechazada.'})
+        
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Acción inválida. Use "aprobar" o "rechazar".'}, status=400)
+
+@csrf_exempt
+@login_required
+def api_sync_offline_queue(request):
+    if request.method != 'POST': return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    import json
+    from decimal import Decimal
+    try:
+        data = json.loads(request.body)
+        queue = data.get('queue', [])
+        if not queue: return JsonResponse({'status': 'success', 'message': 'Cola vacía'})
+        procesados = 0
+        errores = []
+        from django.db import transaction
+        from .models import Material, MovimientoInventario
+        from activos.models import Ubicacion
+        with transaction.atomic():
+            for mov_data in queue:
+                try:
+                    material_id = mov_data.get('material_id')
+                    tipo = mov_data.get('tipo', 'ENTRADA').upper()
+                    cantidad = Decimal(str(mov_data.get('cantidad', 0)))
+                    ubicacion_id = mov_data.get('ubicacion_id')
+                    comentarios = mov_data.get('comentarios', 'Registro Offline (Sincronizado)')
+                    if not material_id or not ubicacion_id or cantidad <= 0: raise ValueError('Datos inválidos')
+                    material = Material.objects.get(id=material_id)
+                    ubicacion = Ubicacion.objects.get(id=ubicacion_id)
+                    movimiento = MovimientoInventario(material=material, tipo=tipo, cantidad=cantidad, usuario=request.user, comentarios=comentarios)
+                    if tipo == 'ENTRADA': movimiento.ubicacion_destino = ubicacion
+                    elif tipo == 'SALIDA': movimiento.ubicacion_origen = ubicacion
+                    else: movimiento.ubicacion_destino = ubicacion
+                    movimiento.save()
+                    movimiento.liquidar(request.user)
+                    procesados += 1
+                except Exception as e: errores.append({'item': mov_data, 'error': str(e)})
+        return JsonResponse({'status': 'success', 'message': f'{procesados} movimientos sincronizados', 'errores': errores})
+    except Exception as e: return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

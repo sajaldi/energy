@@ -416,7 +416,19 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Diagnóstico</label>
+                    <label><i class="ph ph-stethoscope" style="margin-right: 4px;"></i> Diagnóstico Catálogo</label>
+                    <select name="diagnostico_reportado" class="visual-input">
+                        <option value="">-- Selecciona un diagnóstico del catálogo --</option>
+                        {% for diag in diagnosticos_disponibles %}
+                            <option value="{{ diag.id }}" {% if ticket.diagnostico_reportado_id == diag.id %}selected{% endif %}>{{ diag }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if not diagnosticos_disponibles %}
+                        <p style="font-size: 11px; color: var(--sap-label); margin: 4px 0 0; font-style: italic;">Sin diagnósticos de catálogo disponibles para la falla reportada.</p>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label>Diagnóstico Detalle</label>
                     <textarea name="diagnostico" class="visual-textarea" placeholder="¿Qué se encontró?">{{ ticket.diagnostico }}</textarea>
                 </div>
                 <div class="form-group">

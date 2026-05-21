@@ -5,6 +5,7 @@ from decimal import Decimal
 
 class SolicitudMaterial(models.Model):
     ESTADO_CHOICES = [
+        ('PENDIENTE_AUTORIZACION', 'Pendiente de Autorización'),
         ('PENDIENTE', 'Pendiente'),
         ('ENTREGADO', 'Entregado / Completado'),
         ('RECHAZADO', 'Rechazado'),
@@ -12,7 +13,7 @@ class SolicitudMaterial(models.Model):
 
     usuario = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='solicitudes_inventario')
     fecha_solicitud = models.DateTimeField(auto_now_add=True)
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE', db_index=True)
+    estado = models.CharField(max_length=30, choices=ESTADO_CHOICES, default='PENDIENTE', db_index=True)
     
     orden_trabajo = models.ForeignKey('mantenimiento.OrdenTrabajo', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_material')
     ubicacion_origen = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='solicitudes_salida')

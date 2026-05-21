@@ -265,8 +265,58 @@
     </a>
 
     <div class="container">
+        <!-- Modal Ajuste Offline -->
+    <div class="detail-overlay" id="offline-adjustment-overlay" style="display: none; background: rgba(0,0,0,0.5);">
+        <div class="form-section" style="margin: auto; margin-top: 10%; width: 90%; max-width: 400px; padding: 20px;">
+            <div class="detail-header" style="justify-content: space-between;">
+                <h3>Ajuste Rápido (Offline)</h3>
+                <button class="close-btn" onclick="closeOfflineAdjustment()"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <div class="modal-body">
+                <p style="color: #ef4444; font-size: 0.85rem; margin-bottom: 15px;">Estás trabajando sin conexión. El ajuste se guardará y se sincronizará cuando tengas internet.</p>
+                <input type="hidden" id="offline-material-id">
+                <div class="form-group">
+                    <label>Material / SKU</label>
+                    <input type="text" id="offline-sku-display" class="form-control" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Movimiento</label>
+                    <select id="offline-tipo" class="form-control">
+                        <option value="ENTRADA">METER (Entrada)</option>
+                        <option value="SALIDA">SACAR (Salida)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" id="offline-cantidad" class="form-control" min="0.01" step="any" placeholder="Ej: 5">
+                </div>
+                <div class="form-group">
+                    <label>Ubicación</label>
+                    <select id="offline-ubicacion" class="form-control">
+                        <option value="">Cargando ubicaciones...</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveOfflineAdjustment()">Guardar en Cola</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nueva Solicitud (Requisición de Almacén) -->
+        <div id="offline-sync-banner" style="display: none; background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: 500; cursor: pointer; text-align: center;" onclick="syncOfflineQueue()">
+            <ion-icon name="cloud-upload-outline" style="vertical-align: middle;"></ion-icon>
+            Tienes <span id="offline-queue-count">0</span> movimientos pendientes de sincronizar. Clic aquí para subir.
+        </div>
+
         <h2 class="section-title">Gestión de Almacén</h2>
+
         <div class="action-grid">
+            <a href="#" class="action-card" onclick="downloadCatalogOffline(); return false;">
+                <div class="icon-box" style="background: #f1f5f9; color: #475569;"><ion-icon name="cloud-download-outline"></ion-icon></div>
+                <div class="action-card-text">
+                    <h3>Modo Offline</h3>
+                    <p>Descargar Info</p>
+                </div>
+            </a>
             <a href="#" class="action-card" onclick="openQuickCreate(); return false;">
                 <div class="icon-box" style="background: #eef2ff; color: #6366f1;"><ion-icon name="cube-outline"></ion-icon></div>
                 <div class="action-card-text">
@@ -603,7 +653,16 @@
                 Swal.close();
                 if (data.status === 'success') { openQuickCreate(); document.getElementById('qc-sku').value = data.sku; }
                 else { openQuickCreate(); document.getElementById('qc-sku').value = sku; }
-            } catch (err) { Swal.fire('Error', 'Fallo', 'error'); }
+            } catch (err) { 
+                // Fallback Offline
+                Swal.close();
+                const found = await lookupMaterialOffline(sku);
+                if (found) {
+                    openOfflineAdjustment(found);
+                } else {
+                    Swal.fire('Offline', 'No hay conexión y el material no está en la base de datos descargada.', 'warning'); 
+                }
+            }
         }
 
         async function resolveDiscrepancy(movId, materialNombre, sku) {
@@ -625,7 +684,199 @@
             }
         }
 
-        window.onload = loadRequests;
+        // ---- LOGICA OFFLINE (IndexedDB) ----
+        let offlineDb = null;
+        async function initOfflineDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('InventarioPWA', 4);
+                request.onupgradeneeded = event => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('catalog_cache')) {
+                        db.createObjectStore('catalog_cache', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('locations_cache')) {
+                        db.createObjectStore('locations_cache', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('offline_sync_queue')) {
+                        db.createObjectStore('offline_sync_queue', { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+                request.onsuccess = event => {
+                    offlineDb = event.target.result;
+                    updateOfflineQueueBanner();
+                    resolve(offlineDb);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function downloadCatalogOffline() {
+            Swal.fire({ title: 'Descargando Catálogo...', text: 'Esto puede tardar unos segundos.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                const res = await fetch('/inventarios/api/sync-master/');
+                const data = await res.json();
+                if (!offlineDb) await initOfflineDB();
+                
+                const tx = offlineDb.transaction(['catalog_cache', 'locations_cache'], 'readwrite');
+                const storeCat = tx.objectStore('catalog_cache');
+                const storeLoc = tx.objectStore('locations_cache');
+                
+                storeCat.clear();
+                storeLoc.clear();
+                
+                if (data.materials) {
+                    data.materials.forEach(m => storeCat.put(m));
+                }
+                if (data.locations) {
+                    data.locations.forEach(u => storeLoc.put(u));
+                }
+                
+                tx.oncomplete = () => {
+                    Swal.fire('¡Listo!', `Se guardaron ${data.materials ? data.materials.length : 0} materiales para uso offline.`, 'success');
+                };
+            } catch (err) {
+                console.error("Error en downloadCatalogOffline:", err);
+                Swal.fire('Error', 'No se pudo descargar el catálogo. Revisa tu conexión.', 'error');
+            }
+        }
+
+        async function lookupMaterialOffline(sku) {
+            if (!offlineDb) await initOfflineDB();
+            return new Promise((resolve) => {
+                const tx = offlineDb.transaction('catalog_cache', 'readonly');
+                const store = tx.objectStore('catalog_cache');
+                let found = null;
+                store.openCursor().onsuccess = event => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        if (cursor.value.sku === sku || cursor.value.codigo_barras === sku) {
+                            found = cursor.value;
+                        } else {
+                            cursor.continue();
+                        }
+                    } else {
+                        resolve(found);
+                    }
+                };
+            });
+        }
+
+        async function openOfflineAdjustment(material) {
+            document.getElementById('offline-material-id').value = material.id;
+            document.getElementById('offline-sku-display').value = `${material.sku} - ${material.nombre}`;
+            document.getElementById('offline-cantidad').value = '';
+            
+            // Cargar ubicaciones offline
+            if (!offlineDb) await initOfflineDB();
+            const tx = offlineDb.transaction('locations_cache', 'readonly');
+            const store = tx.objectStore('locations_cache');
+            store.getAll().onsuccess = event => {
+                const locs = event.target.result;
+                const select = document.getElementById('offline-ubicacion');
+                select.innerHTML = '<option value="">Seleccione una ubicación...</option>';
+                locs.forEach(l => {
+                    select.innerHTML += `<option value="${l.id}">${l.nombre || l.path || 'Ubicación ' + l.id}</option>`;
+                });
+            };
+            
+            document.getElementById('offline-adjustment-overlay').style.display = 'flex';
+        }
+
+        function closeOfflineAdjustment() {
+            document.getElementById('offline-adjustment-overlay').style.display = 'none';
+        }
+
+        async function saveOfflineAdjustment() {
+            const matId = document.getElementById('offline-material-id').value;
+            const tipo = document.getElementById('offline-tipo').value;
+            const cantidad = document.getElementById('offline-cantidad').value;
+            const ubiId = document.getElementById('offline-ubicacion').value;
+            
+            if (!cantidad || cantidad <= 0 || !ubiId) {
+                Swal.fire('Atención', 'Ingresa una cantidad válida y selecciona una ubicación.', 'warning');
+                return;
+            }
+            
+            if (!offlineDb) await initOfflineDB();
+            const tx = offlineDb.transaction('offline_sync_queue', 'readwrite');
+            const store = tx.objectStore('offline_sync_queue');
+            
+            store.add({
+                material_id: parseInt(matId),
+                tipo: tipo,
+                cantidad: cantidad,
+                ubicacion_id: parseInt(ubiId),
+                timestamp: new Date().toISOString()
+            });
+            
+            tx.oncomplete = () => {
+                closeOfflineAdjustment();
+                Swal.fire({
+                    title: 'Guardado Local',
+                    text: 'El ajuste se guardó en tu dispositivo. Recuerda sincronizar cuando tengas conexión.',
+                    icon: 'success',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+                updateOfflineQueueBanner();
+            };
+        }
+
+        async function updateOfflineQueueBanner() {
+            if (!offlineDb) return;
+            const tx = offlineDb.transaction('offline_sync_queue', 'readonly');
+            const countReq = tx.objectStore('offline_sync_queue').count();
+            countReq.onsuccess = () => {
+                const banner = document.getElementById('offline-sync-banner');
+                const badge = document.getElementById('offline-queue-count');
+                if (countReq.result > 0) {
+                    banner.style.display = 'block';
+                    badge.innerText = countReq.result;
+                } else {
+                    banner.style.display = 'none';
+                }
+            };
+        }
+
+        async function syncOfflineQueue() {
+            if (!offlineDb) await initOfflineDB();
+            const tx = offlineDb.transaction('offline_sync_queue', 'readonly');
+            const store = tx.objectStore('offline_sync_queue');
+            store.getAll().onsuccess = async (event) => {
+                const items = event.target.result;
+                if (items.length === 0) return;
+                
+                Swal.fire({ title: 'Sincronizando...', didOpen: () => Swal.showLoading() });
+                try {
+                    const res = await fetch('/inventarios/api/sync-offline-queue/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify({ queue: items })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        // Limpiar cola local
+                        const dTx = offlineDb.transaction('offline_sync_queue', 'readwrite');
+                        dTx.objectStore('offline_sync_queue').clear();
+                        dTx.oncomplete = () => {
+                            updateOfflineQueueBanner();
+                            Swal.fire('¡Sincronizado!', data.message, 'success');
+                        };
+                    } else {
+                        Swal.fire('Error al sincronizar', data.message, 'error');
+                    }
+                } catch (err) {
+                    Swal.fire('Sin Conexión', 'No se pudo contactar al servidor. Intenta de nuevo más tarde.', 'warning');
+                }
+            };
+        }
+
+        window.onload = () => {
+            initOfflineDB();
+            loadRequests();
+        };
     </script>
 </body>
 </html>
