@@ -94,7 +94,8 @@ def sync_single_ticket_task(ticket_id):
             password=password, 
             company_name=company, 
             ticket_folio=ticket.folio, 
-            fecha_solicitud=ticket.fecha_solicitud
+            fecha_solicitud=ticket.fecha_solicitud,
+            diagnostico_django=ticket.diagnostico
         )
         
         return result

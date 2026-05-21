@@ -165,7 +165,7 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
             browser.close()
             return None
 
-def sync_individual_ticket(username, password, company_name, ticket_folio, fecha_solicitud):
+def sync_individual_ticket(username, password, company_name, ticket_folio, fecha_solicitud, diagnostico_django=None):
     """
     Robot que sincroniza un ticket individual en SIG.
     Sigue los pasos: Login -> SSA -> Búsqueda -> Filtros -> Ojito.
@@ -298,11 +298,14 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                     # Seleccionar el único textarea que suele haber en este modal
                     textarea = page.locator("div[role='dialog'] textarea, textarea").first
                     if textarea.count() > 0:
-                        # Hacemos clic, vamos al final y agregamos el punto
+                        # Hacemos clic, seleccionamos todo, borramos e ingresamos el diagnostico
                         textarea.click()
-                        page.keyboard.press("End")
-                        page.keyboard.type(".")
-                        print("Punto agregado al diagnóstico.")
+                        page.keyboard.press("Control+A")
+                        page.keyboard.press("Backspace")
+                        
+                        diag_to_type = (diagnostico_django or ".").strip()[:500]
+                        page.keyboard.type(diag_to_type)
+                        print(f"Texto ingresado en el diagnóstico: {diag_to_type}")
                         
                         # Guardar cambio (Botón APLICAR dentro del modal)
                         # Restringimos al diálogo para no confundir con 'Aplicar filtros' del fondo
