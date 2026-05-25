@@ -276,12 +276,12 @@ def pick_mui_datetime(page, dt):
         for name_val in [hour_str, f"Select {hour_str} hours", f"Seleccionar {hour_str} horas"]:
             btn = page.get_by_role("button", name=name_val, exact=True).first
             if btn.count() > 0 and btn.is_visible():
-                btn.click()
+                btn.click(force=True)
                 hour_clicked = True
                 print(f"[pick_mui_datetime] Hora {hour_str} seleccionada por accesible label.")
                 break
         if not hour_clicked:
-            page.get_by_text(hour_str, exact=True).first.click()
+            page.get_by_text(hour_str, exact=True).first.click(force=True)
             print(f"[pick_mui_datetime] Hora {hour_str} seleccionada por texto.")
         page.wait_for_timeout(500)
     except Exception as e:
@@ -296,7 +296,7 @@ def pick_mui_datetime(page, dt):
             for name_val in [m_str, f"Select {m_str} minutes", f"Seleccionar {m_str} minutos"]:
                 btn = page.get_by_role("button", name=name_val, exact=True).first
                 if btn.count() > 0 and btn.is_visible():
-                    btn.click()
+                    btn.click(force=True)
                     minute_clicked = True
                     print(f"[pick_mui_datetime] Minuto {m_str} seleccionado por accesible label.")
                     break
@@ -306,7 +306,7 @@ def pick_mui_datetime(page, dt):
         if not minute_clicked:
             # Fallback a texto directo
             try:
-                page.get_by_text(minute_str, exact=True).first.click(timeout=1500)
+                page.get_by_text(minute_str, exact=True).first.click(timeout=1500, force=True)
                 minute_clicked = True
                 print(f"[pick_mui_datetime] Minuto {minute_str} seleccionado por texto.")
             except Exception:
@@ -314,7 +314,7 @@ def pick_mui_datetime(page, dt):
                     rounded_m = f"{5*round(int(minute_str)/5):02d}"
                     if int(rounded_m) == 60:
                         rounded_m = "55"
-                    page.get_by_text(rounded_m, exact=True).first.click(timeout=1500)
+                    page.get_by_text(rounded_m, exact=True).first.click(timeout=1500, force=True)
                     minute_clicked = True
                     print(f"[pick_mui_datetime] Minuto {rounded_m} seleccionado por texto redondeado.")
                 except Exception:
@@ -322,7 +322,7 @@ def pick_mui_datetime(page, dt):
         
         if not minute_clicked:
             # Fallback final
-            page.locator('div:nth-child(11) > div').first().click(timeout=2000)
+            page.locator('div:nth-child(11) > div').first.click(timeout=2000, force=True)
             print("[pick_mui_datetime] Selección de minutos mediante fallback de clic en dial.")
 
         page.wait_for_timeout(800)
