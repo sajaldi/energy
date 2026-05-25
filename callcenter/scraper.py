@@ -301,6 +301,17 @@ def pick_mui_datetime(page, dt):
                 print(f"[pick_mui_datetime] Minuto {minute_str} redondeado a {rounded_minute_str} y seleccionado.")
             else:
                 page.locator('div:nth-child(11) > div').first().click()
+        page.wait_for_timeout(800)
+
+        # Cerrar el popover de la hora haciendo clic en un área neutral del modal Cerro (esquina superior izquierda)
+        try:
+            page.locator("div[role='dialog']").first.click(position={'x': 10, 'y': 10}, force=True)
+            print("[pick_mui_datetime] Popover cerrado haciendo clic en esquina neutral del modal.")
+        except Exception:
+            try:
+                page.keyboard.press("Escape")
+            except Exception:
+                pass
         page.wait_for_timeout(500)
     except Exception as e:
         print(f"[pick_mui_datetime] Error al seleccionar minuto: {e}")
@@ -512,9 +523,7 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
             capturar_seccion(page, 2, observaciones_django, "Observaciones")
 
             # ========== 7. ASIGNAR / CERRO (MODAL CIERRE) ==========
-            # DESACTIVADO TEMPORALMENTE: Cambiado a `if False` para enfocar las pruebas en la subida de adjuntos
-            # como lo solicitó el usuario. Para reactivarlo más adelante, simplemente cambiar a `if fecha_cierre:`
-            if False:  # fecha_cierre:
+            if fecha_cierre:
                 print("Accediendo a Asignar/Cierre...")
                 try:
                     # Abrir el modal "Cerro" (4to botón Asignar)
@@ -527,23 +536,74 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                     # Rellenado 100% visual mediante el calendario y reloj de MUI.
                     # No intentamos escribir directamente ya que no son elementos del tipo input interactivos.
                     pick_mui_datetime(page, fecha_local_cierre)
+                    time.sleep(1.5)
+
+                    # Abrir el buscador de responsable
+                    print("Abriendo el buscador de responsable...")
+                    search_opened = False
+                    for selector in [
+                        "div[role='dialog'] button:has(svg[data-testid='SearchIcon'])",
+                        "div[role='dialog'] button:has-text('Search')",
+                        # El tercer botón del modal (después del calendario y reloj)
+                        "div[role='dialog'] button:nth-of-type(3)",
+                        "div[role='dialog'] button.MuiIconButton-root:nth-child(3)",
+                    ]:
+                        try:
+                            btn = page.locator(selector).first
+                            if btn.count() > 0:
+                                btn.click(timeout=2000)
+                                print(f"Buscador abierto usando: {selector}")
+                                search_opened = True
+                                break
+                        except Exception:
+                            continue
+
+                    if not search_opened:
+                        # Fallback seguro: el tercer botón del diálogo
+                        print("Intentando fallback del tercer botón en el diálogo...")
+                        page.locator("div[role='dialog'] button").nth(2).click(timeout=5000)
                     
-                    time.sleep(1)
+                    time.sleep(2.0)
 
-                    # Buscar y seleccionar responsable por defecto "Oscar Posadas Mendieta"
-                    try:
-                        page.get_by_role("combobox").get_by_role("button").click()
-                    except Exception:
-                        page.locator("div[role='dialog'] button").nth(2).click()
-                    time.sleep(1.5)
-
+                    # Filtrar responsable
+                    print("Filtrando por 'oscar'...")
                     page.get_by_role("textbox", name="Filtrar").fill("oscar")
-                    time.sleep(2.5)
+                    time.sleep(2.0)
 
-                    # Hacer doble click en "Oscar Posadas Mendieta" para seleccionarlo
-                    page.get_by_role("gridcell", name="Oscar Posadas Mendieta").first.dblclick()
+                    # Seleccionar "Oscar Posadas Mendieta" en la grilla y hacer clic en OK
+                    selected = False
+                    for selector in [
+                        "gridcell:has-text('Oscar Posadas Mendieta')",
+                        "div[role='gridcell']:has-text('Oscar Posadas Mendieta')",
+                        "td:has-text('Oscar Posadas Mendieta')",
+                        "text=Oscar Posadas Mendieta"
+                    ]:
+                        try:
+                            cell = page.locator(selector).first
+                            if cell.count() > 0:
+                                cell.click(timeout=2000)
+                                print(f"Responsable seleccionado vía: {selector}")
+                                selected = True
+                                break
+                        except Exception:
+                            continue
+
+                    # Hacer clic en OK
+                    try:
+                        ok_btn = page.get_by_role("button", name="OK")
+                        if ok_btn.count() > 0:
+                            ok_btn.click()
+                            print("Botón OK del buscador clickeado.")
+                        else:
+                            page.locator("button:has-text('OK')").first.click(timeout=2000)
+                    except Exception as e_ok:
+                        print(f"No se pudo clickear OK, intentando doble clic como fallback: {e_ok}")
+                        try:
+                            page.get_by_role("gridcell", name="Oscar Posadas Mendieta").first.dblclick(timeout=3000)
+                        except Exception:
+                            pass
+                    
                     time.sleep(1.5)
-
                     take_screenshot(page, "06_modal_cierre_llenado")
 
                     # Click en Aplicar para guardar y cerrar modal
