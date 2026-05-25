@@ -285,9 +285,9 @@ def pick_mui_datetime(page, dt):
             print(f"[pick_mui_datetime] Hora {hour_str} seleccionada por texto.")
         page.wait_for_timeout(500)
     except Exception as e:
-        print(f"[pick_mui_datetime] No se pudo clickear hora {hour_str}: {e}")
+        print(f"[pick_mui_datetime] Error al seleccionar hora: {e}")
 
-    # Minuto
+    # === MINUTO ===
     try:
         minute_clicked = False
         for m_str in [minute_str, f"{5*round(int(minute_str)/5):02d}"]:
@@ -326,8 +326,54 @@ def pick_mui_datetime(page, dt):
             print("[pick_mui_datetime] Selección de minutos mediante fallback de clic en dial.")
 
         page.wait_for_timeout(800)
+    except Exception as e:
+        print(f"[pick_mui_datetime] Error al seleccionar minuto: {e}")
 
-        # Cerrar el popover de la hora usando Escape (método universal no intersecable)
+    # === SEGUNDOS ===
+    try:
+        second_str = dt.strftime("%S")
+        second_clicked = False
+        print(f"[pick_mui_datetime] Iniciando selección de segundos: {second_str}")
+        
+        second_int = int(second_str)
+        rounded_second = 5 * round(second_int / 5)
+        if rounded_second == 60:
+            rounded_second = 55
+        rounded_second_str = f"{rounded_second:02d}"
+
+        for s_str in [second_str, rounded_second_str]:
+            for name_val in [s_str, f"Select {s_str} seconds", f"Seleccionar {s_str} segundos"]:
+                btn = page.get_by_role("button", name=name_val, exact=True).first
+                if btn.count() > 0 and btn.is_visible():
+                    btn.click(force=True)
+                    second_clicked = True
+                    print(f"[pick_mui_datetime] Segundo {s_str} seleccionado por accesible label.")
+                    break
+            if second_clicked:
+                break
+        
+        if not second_clicked:
+            # Fallback a texto directo
+            try:
+                page.get_by_text(second_str, exact=True).first.click(timeout=1500, force=True)
+                second_clicked = True
+                print(f"[pick_mui_datetime] Segundo {second_str} seleccionado por texto.")
+            except Exception:
+                try:
+                    page.get_by_text(rounded_second_str, exact=True).first.click(timeout=1500, force=True)
+                    second_clicked = True
+                    print(f"[pick_mui_datetime] Segundo {rounded_second_str} seleccionado por texto redondeado.")
+                except Exception:
+                    pass
+        
+        if not second_clicked:
+            # Fallback final a clic en dial
+            page.locator('div:nth-child(11) > div').first.click(timeout=2000, force=True)
+            print("[pick_mui_datetime] Selección de segundos mediante fallback de clic en dial.")
+
+        page.wait_for_timeout(800)
+
+        # Cerrar el popover usando Escape por si acaso no se cerró solo
         try:
             page.keyboard.press("Escape")
             print("[pick_mui_datetime] Popover cerrado con Escape.")
@@ -335,7 +381,7 @@ def pick_mui_datetime(page, dt):
             pass
         page.wait_for_timeout(500)
     except Exception as e:
-        print(f"[pick_mui_datetime] Error al seleccionar minuto: {e}")
+        print(f"[pick_mui_datetime] Error al seleccionar segundos: {e}")
 
 
 def subir_evidencias(page, evidencias):
