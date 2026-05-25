@@ -597,32 +597,9 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                     pick_mui_datetime(page, fecha_local_cierre)
                     time.sleep(1.5)
 
-                    # Abrir el buscador de responsable
+                    # Abrir el buscador de responsable (el botón lupa está dentro del combobox)
                     print("Abriendo el buscador de responsable...")
-                    search_opened = False
-                    for selector in [
-                        ".MuiSvgIcon-root.MuiSvgIcon-colorPrimary",
-                        "div[role='dialog'] button:has(svg[data-testid='SearchIcon'])",
-                        "div[role='dialog'] button:has-text('Search')",
-                        # El tercer botón del modal (después del calendario y reloj)
-                        "div[role='dialog'] button:nth-of-type(3)",
-                        "div[role='dialog'] button.MuiIconButton-root:nth-child(3)",
-                    ]:
-                        try:
-                            btn = page.locator(selector).first
-                            if btn.count() > 0:
-                                btn.click(timeout=2000)
-                                print(f"Buscador abierto usando: {selector}")
-                                search_opened = True
-                                break
-                        except Exception:
-                            continue
-
-                    if not search_opened:
-                        # Fallback seguro: el tercer botón del diálogo
-                        print("Intentando fallback del tercer botón en el diálogo...")
-                        page.locator("div[role='dialog'] button").nth(2).click(timeout=5000)
-                    
+                    page.get_by_role("combobox").get_by_role("button").click()
                     time.sleep(2.0)
 
                     # Filtrar responsable
@@ -630,40 +607,10 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                     page.get_by_role("textbox", name="Filtrar").fill("oscar")
                     time.sleep(2.0)
 
-                    # Seleccionar "Oscar Posadas Mendieta" en la grilla y hacer clic en OK
-                    selected = False
-                    for selector in [
-                        "gridcell:has-text('Oscar Posadas Mendieta')",
-                        "div[role='gridcell']:has-text('Oscar Posadas Mendieta')",
-                        "td:has-text('Oscar Posadas Mendieta')",
-                        "text=Oscar Posadas Mendieta"
-                    ]:
-                        try:
-                            cell = page.locator(selector).first
-                            if cell.count() > 0:
-                                cell.click(timeout=2000)
-                                print(f"Responsable seleccionado vía: {selector}")
-                                selected = True
-                                break
-                        except Exception:
-                            continue
+                    # Doble clic en "Oscar Posadas Mendieta" para seleccionarlo
+                    page.get_by_role("gridcell", name="Oscar Posadas Mendieta").dblclick()
+                    time.sleep(1.0)
 
-                    # Hacer clic en OK
-                    try:
-                        ok_btn = page.get_by_role("button", name="OK")
-                        if ok_btn.count() > 0:
-                            ok_btn.click()
-                            print("Botón OK del buscador clickeado.")
-                        else:
-                            page.locator("button:has-text('OK')").first.click(timeout=2000)
-                    except Exception as e_ok:
-                        print(f"No se pudo clickear OK, intentando doble clic como fallback: {e_ok}")
-                        try:
-                            page.get_by_role("gridcell", name="Oscar Posadas Mendieta").first.dblclick(timeout=3000)
-                        except Exception:
-                            pass
-                    
-                    time.sleep(1.5)
                     take_screenshot(page, "06_modal_cierre_llenado")
 
                     # Click en Aplicar para guardar y cerrar modal
