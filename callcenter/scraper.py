@@ -272,46 +272,67 @@ def pick_mui_datetime(page, dt):
 
     # Hora
     try:
-        hour_btn = page.get_by_role("button", name=hour_str, exact=True).first
-        if hour_btn.count() > 0:
-            hour_btn.click()
-            page.wait_for_timeout(500)
-        else:
+        hour_clicked = False
+        for name_val in [hour_str, f"Select {hour_str} hours", f"Seleccionar {hour_str} horas"]:
+            btn = page.get_by_role("button", name=name_val, exact=True).first
+            if btn.count() > 0 and btn.is_visible():
+                btn.click()
+                hour_clicked = True
+                print(f"[pick_mui_datetime] Hora {hour_str} seleccionada por accesible label.")
+                break
+        if not hour_clicked:
             page.get_by_text(hour_str, exact=True).first.click()
-            page.wait_for_timeout(500)
+            print(f"[pick_mui_datetime] Hora {hour_str} seleccionada por texto.")
+        page.wait_for_timeout(500)
     except Exception as e:
         print(f"[pick_mui_datetime] No se pudo clickear hora {hour_str}: {e}")
 
     # Minuto
     try:
-        minute_btn = page.get_by_role("button", name=minute_str, exact=True)
-        if minute_btn.count() > 0 and minute_btn.first.is_visible():
-            minute_btn.first.click()
-            print(f"[pick_mui_datetime] Minuto {minute_str} seleccionado por botón exacto.")
-        else:
-            minute_int = int(minute_str)
-            rounded_minute = 5 * round(minute_int / 5)
-            if rounded_minute == 60:
-                rounded_minute = 55
-            rounded_minute_str = f"{rounded_minute:02d}"
-            
-            rounded_btn = page.get_by_role("button", name=rounded_minute_str, exact=True)
-            if rounded_btn.count() > 0:
-                rounded_btn.first.click()
-                print(f"[pick_mui_datetime] Minuto {minute_str} redondeado a {rounded_minute_str} y seleccionado.")
-            else:
-                page.locator('div:nth-child(11) > div').first().click()
+        minute_clicked = False
+        for m_str in [minute_str, f"{5*round(int(minute_str)/5):02d}"]:
+            if int(m_str) == 60:
+                m_str = "55"
+            for name_val in [m_str, f"Select {m_str} minutes", f"Seleccionar {m_str} minutos"]:
+                btn = page.get_by_role("button", name=name_val, exact=True).first
+                if btn.count() > 0 and btn.is_visible():
+                    btn.click()
+                    minute_clicked = True
+                    print(f"[pick_mui_datetime] Minuto {m_str} seleccionado por accesible label.")
+                    break
+            if minute_clicked:
+                break
+        
+        if not minute_clicked:
+            # Fallback a texto directo
+            try:
+                page.get_by_text(minute_str, exact=True).first.click(timeout=1500)
+                minute_clicked = True
+                print(f"[pick_mui_datetime] Minuto {minute_str} seleccionado por texto.")
+            except Exception:
+                try:
+                    rounded_m = f"{5*round(int(minute_str)/5):02d}"
+                    if int(rounded_m) == 60:
+                        rounded_m = "55"
+                    page.get_by_text(rounded_m, exact=True).first.click(timeout=1500)
+                    minute_clicked = True
+                    print(f"[pick_mui_datetime] Minuto {rounded_m} seleccionado por texto redondeado.")
+                except Exception:
+                    pass
+        
+        if not minute_clicked:
+            # Fallback final
+            page.locator('div:nth-child(11) > div').first().click(timeout=2000)
+            print("[pick_mui_datetime] Selección de minutos mediante fallback de clic en dial.")
+
         page.wait_for_timeout(800)
 
-        # Cerrar el popover de la hora haciendo clic en un área neutral del modal Cerro (esquina superior izquierda)
+        # Cerrar el popover de la hora usando Escape (método universal no intersecable)
         try:
-            page.locator("div[role='dialog']").first.click(position={'x': 10, 'y': 10}, force=True)
-            print("[pick_mui_datetime] Popover cerrado haciendo clic en esquina neutral del modal.")
+            page.keyboard.press("Escape")
+            print("[pick_mui_datetime] Popover cerrado con Escape.")
         except Exception:
-            try:
-                page.keyboard.press("Escape")
-            except Exception:
-                pass
+            pass
         page.wait_for_timeout(500)
     except Exception as e:
         print(f"[pick_mui_datetime] Error al seleccionar minuto: {e}")
@@ -542,6 +563,7 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                     print("Abriendo el buscador de responsable...")
                     search_opened = False
                     for selector in [
+                        ".MuiSvgIcon-root.MuiSvgIcon-colorPrimary",
                         "div[role='dialog'] button:has(svg[data-testid='SearchIcon'])",
                         "div[role='dialog'] button:has-text('Search')",
                         # El tercer botón del modal (después del calendario y reloj)
