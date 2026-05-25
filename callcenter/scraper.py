@@ -371,14 +371,6 @@ def pick_mui_datetime(page, dt):
             page.locator('div:nth-child(11) > div').first.click(timeout=2000, force=True)
             print("[pick_mui_datetime] Selección de segundos mediante fallback de clic en dial.")
 
-        page.wait_for_timeout(800)
-
-        # Cerrar el popover usando Escape por si acaso no se cerró solo
-        try:
-            page.keyboard.press("Escape")
-            print("[pick_mui_datetime] Popover cerrado con Escape.")
-        except Exception:
-            pass
         page.wait_for_timeout(500)
     except Exception as e:
         print(f"[pick_mui_datetime] Error al seleccionar segundos: {e}")
