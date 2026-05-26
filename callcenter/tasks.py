@@ -88,20 +88,72 @@ def sync_single_ticket_task(ticket_id):
         if not username or not password:
             return {"status": "error", "message": "Credenciales no configuradas."}
 
+        # Descargar evidencias a archivos temporales
+        from .models import EvidenciaTicket
+        import tempfile
+        evidencias = []
+        for ev in EvidenciaTicket.objects.filter(ticket_id=ticket.id):
+            if ev.archivo:
+                try:
+                    ext = os.path.splitext(ev.archivo.name)[1] or '.bin'
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+                    tmp.write(ev.archivo.read())
+                    tmp.close()
+                    evidencias.append({
+                        'path': tmp.name,
+                        'descripcion': ev.descripcion or 'Sin descripción'
+                    })
+                except Exception as e:
+                    logger.warning(f"No se pudo descargar evidencia {ev.id}: {e}")
+
         # Ejecutar el robot scraper
-        result = sync_individual_ticket(
-            username=username, 
-            password=password, 
-            company_name=company, 
-            ticket_folio=ticket.folio, 
-            fecha_solicitud=ticket.fecha_solicitud,
-            diagnostico_django=ticket.diagnostico
-        )
+        try:
+            result = sync_individual_ticket(
+                username=username, 
+                password=password, 
+                company_name=company, 
+                ticket_folio=ticket.folio, 
+                fecha_solicitud=ticket.fecha_solicitud,
+                diagnostico_django=ticket.diagnostico,
+                actividades_django=ticket.actividades,
+                observaciones_django=ticket.observaciones,
+                observaciones_usuario_django=ticket.observaciones_usuario,
+                fecha_observaciones_usuario=ticket.fecha_observaciones_usuario,
+                fecha_cierre=ticket.fecha_cierre,
+                evidencias=evidencias,
+                solicitud_adicional=ticket.solicitud_adicional
+            )
+            
+            # Guardar el estado y logs en el ticket de Django
+            if result.get("status") == "success":
+                ticket.robot_estatus = result.get("robot_estatus", "TICKET COMPLETAMENTE DOCUMENTADO")
+            else:
+                ticket.robot_estatus = "TICKET INCOMPLETO"
+                
+            ticket.robot_log = result.get("robot_log", result.get("message", "Error desconocido en el robot."))
+            ticket.save(update_fields=["robot_estatus", "robot_log"])
+            
+        finally:
+            # Limpiar archivos temporales
+            for ev in evidencias:
+                try:
+                    os.unlink(ev['path'])
+                except Exception:
+                    pass
         
         return result
 
     except Exception as e:
         logger.error(f"Error en sync_single_ticket_task para ticket {ticket_id}: {e}")
+        try:
+            from .models import SolicitudTicket
+            t = SolicitudTicket.objects.filter(id=ticket_id).first()
+            if t:
+                t.robot_estatus = "TICKET INCOMPLETO"
+                t.robot_log = f"Error crítico en la ejecución de la tarea: {e}"
+                t.save(update_fields=["robot_estatus", "robot_log"])
+        except Exception as e_inner:
+            logger.error(f"No se pudo guardar log de error en el ticket: {e_inner}")
         return {"status": "error", "message": str(e)}
 
 @shared_task(name='callcenter.tasks.vectorize_ticket_n8n')

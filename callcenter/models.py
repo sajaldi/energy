@@ -12,6 +12,7 @@ class SolicitudTicket(models.Model):
     id_solicitud = models.BigIntegerField(unique=True, verbose_name="ID Solicitud Servicio")
     folio = models.CharField(max_length=100, blank=True, null=True, verbose_name="Folio", db_index=True)
     es_interno = models.BooleanField(default=False, verbose_name="Es Ticket Interno", db_index=True)
+    solicitud_adicional = models.BooleanField(default=False, verbose_name="Solicitud Adicional", db_index=True)
     
     # Personas
     solicitante = models.CharField(max_length=255, blank=True, null=True, db_index=True)
@@ -111,6 +112,21 @@ class SolicitudTicket(models.Model):
     # Auditoría Interna
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+
+    # Estado y Logs de Automatización (Robot Playwright)
+    robot_estatus = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        verbose_name="Estatus de Automatización",
+        help_text="Indica si el ticket fue documentado completa o parcialmente."
+    )
+    robot_log = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Log de Automatización",
+        help_text="Historial detallado del proceso de guardado y carga de evidencias en SIG GIA."
+    )
 
     # Información Financiera / Deductivas
     deductiva = models.DecimalField(

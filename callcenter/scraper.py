@@ -164,27 +164,77 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
         except Exception as e:
             print(f"Error durante la descarga: {e}")
             browser.close()
+def _click_clock_face(page, value, mode):
+    """Hace clic en el squareMask del reloj MUI a la posición geométrica
+    correcta para el valor dado. Esto genera los eventos de puntero correctos
+    que MUI necesita para registrar la selección y auto-cerrar el panel.
+
+    mode: 'hour'   -> value es 1-12 (reloj 12h)
+          'minute' -> value es 0-59
+          'second' -> value es 0-59
+    """
+    import math
+    try:
+        mask = page.locator("div[role='menu'].MuiPickersClock-squareMask").first
+        if mask.count() == 0 or not mask.is_visible():
+            print(f"[_click_clock_face] squareMask no visible para mode={mode} value={value}")
+            return False
+        box = mask.bounding_box()
+        if not box:
+            return False
+
+        cx = box['x'] + box['width'] / 2
+        cy = box['y'] + box['height'] / 2
+        # Radio donde están los números (aprox 80% del radio del contenedor)
+        radius = min(box['width'], box['height']) * 0.38
+
+        if mode == 'hour':
+            # Reloj 12h: hora n a ángulo (n % 12) * 30 - 90 grados
+            angle_deg = (int(value) % 12) * 30 - 90
+        else:
+            # Minutos/segundos: valor n a ángulo n * 6 - 90 grados
+            angle_deg = int(value) * 6 - 90
+
+        angle_rad = math.radians(angle_deg)
+        x = cx + radius * math.cos(angle_rad)
+        y = cy + radius * math.sin(angle_rad)
+
+        page.mouse.click(x, y)
+        print(f"[_click_clock_face] Clic en squareMask mode={mode} value={value} pos=({x:.0f},{y:.0f})")
+        return True
+    except Exception as e:
+        print(f"[_click_clock_face] Error: {e}")
+        return False
+
+
 def pick_mui_datetime(page, dt):
     """Navega el MUI DateTimePicker para seleccionar fecha+hora exacta.
-    Soporta calendarios en Inglés y Español.
+    Usa clicks geométricos sobre el squareMask del reloj para que MUI
+    reciba correctamente los eventos de puntero y auto-cierre el panel.
     """
     target_day = str(dt.day)
     target_year = str(dt.year)
-    hour_str = str(int(dt.strftime("%I")))   # 12h sin cero leading
+    hour_val = int(dt.strftime("%I"))    # 12h sin cero leading (1-12)
+    hour_str = str(hour_val)
+    minute_val = dt.minute               # 0-59
     minute_str = dt.strftime("%M")
+    second_val = dt.second               # 0-59
+    second_str = dt.strftime("%S")
     ampm_str = dt.strftime("%p").upper()
-    
+
     month_names_en = ["", "January", "February", "March", "April", "May", "June",
                       "July", "August", "September", "October", "November", "December"]
     month_names_es = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
                       "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-    
+
     target_month_en = month_names_en[dt.month]
     target_month_es = month_names_es[dt.month]
 
-    print(f"[pick_mui_datetime] Iniciando selección visual de fecha: {target_day}/{dt.month}/{target_year} y hora: {hour_str}:{minute_str} {ampm_str}")
+    print(f"[pick_mui_datetime] Iniciando selección: {target_day}/{dt.month}/{target_year} {hour_str}:{minute_str}:{second_str} {ampm_str}")
 
-    # === FECHA ===
+    # ================================================================
+    # === FECHA (Calendario) ===
+    # ================================================================
     try:
         page.get_by_role("button", name="change date").click()
         page.wait_for_timeout(1000)
@@ -209,8 +259,7 @@ def pick_mui_datetime(page, dt):
         pass
 
     if not day_selected:
-        print("[pick_mui_datetime] No se pudo seleccionar el día directamente, intentando navegar año y mes...")
-        # Ir a selección de año (click año actual en el header)
+        print("[pick_mui_datetime] Navegando año/mes para seleccionar el día...")
         current_year = datetime.now().year
         for y in [current_year, current_year - 1, current_year + 1]:
             try:
@@ -221,37 +270,30 @@ def pick_mui_datetime(page, dt):
                     break
             except Exception:
                 continue
-
-        # Click año destino
         try:
             page.get_by_role("button", name=target_year, exact=True).first.click()
             page.wait_for_timeout(800)
         except Exception as e:
-            print(f"[pick_mui_datetime] Error seleccionando año {target_year}: {e}")
-
-        # Click mes destino
+            print(f"[pick_mui_datetime] Error seleccionando año: {e}")
         try:
             month_btn = page.get_by_role("button", name=target_month_en, exact=True)
             if month_btn.count() > 0:
                 month_btn.click()
-                page.wait_for_timeout(500)
             else:
-                month_btn = page.get_by_role("button", name=target_month_es, exact=True)
-                if month_btn.count() > 0:
-                    month_btn.click()
-                    page.wait_for_timeout(500)
+                page.get_by_role("button", name=target_month_es, exact=True).click()
+            page.wait_for_timeout(500)
         except Exception as e:
-            print(f"[pick_mui_datetime] Error seleccionando mes {target_month_es}: {e}")
-
-        # Click día final
+            print(f"[pick_mui_datetime] Error seleccionando mes: {e}")
         try:
             page.get_by_role("button", name=target_day, exact=True).first.click()
             page.wait_for_timeout(800)
-            print(f"[pick_mui_datetime] Día {target_day} seleccionado después de navegación.")
+            print(f"[pick_mui_datetime] Día {target_day} seleccionado tras navegación.")
         except Exception as e:
-            print(f"[pick_mui_datetime] Error crítico al hacer click en el día: {e}")
+            print(f"[pick_mui_datetime] Error crítico seleccionando día: {e}")
 
-    # === HORA ===
+    # ================================================================
+    # === HORA (Reloj MUI) — clicks geométricos sobre squareMask ===
+    # ================================================================
     try:
         page.get_by_role("button", name="change time").click()
         page.wait_for_timeout(1000)
@@ -263,117 +305,52 @@ def pick_mui_datetime(page, dt):
         except Exception:
             pass
 
-    # AM/PM
+    # --- AM/PM (primero, antes de hora/minuto/segundo) ---
     try:
-        page.get_by_role("button", name=ampm_str).click()
-        page.wait_for_timeout(500)
+        ampm_btn = page.get_by_role("button", name=ampm_str)
+        if ampm_btn.count() > 0 and ampm_btn.is_visible():
+            ampm_btn.click()
+            print(f"[pick_mui_datetime] {ampm_str} seleccionado.")
+            page.wait_for_timeout(500)
+        else:
+            print(f"[pick_mui_datetime] Botón {ampm_str} no visible.")
     except Exception as e:
-        print(f"[pick_mui_datetime] No se pudo clickear AM/PM ({ampm_str}): {e}")
+        print(f"[pick_mui_datetime] Error seleccionando AM/PM: {e}")
 
-    # Hora
+    # --- Hora (squareMask geométrico) ---
     try:
-        hour_clicked = False
-        for name_val in [hour_str, f"Select {hour_str} hours", f"Seleccionar {hour_str} horas"]:
-            btn = page.get_by_role("button", name=name_val, exact=True).first
-            if btn.count() > 0 and btn.is_visible():
-                btn.click(force=True)
-                hour_clicked = True
-                print(f"[pick_mui_datetime] Hora {hour_str} seleccionada por accesible label.")
-                break
-        if not hour_clicked:
+        if not _click_clock_face(page, hour_val, 'hour'):
+            # Fallback a texto con force
             page.get_by_text(hour_str, exact=True).first.click(force=True)
-            print(f"[pick_mui_datetime] Hora {hour_str} seleccionada por texto.")
-        page.wait_for_timeout(500)
+            print(f"[pick_mui_datetime] Hora {hour_str} seleccionada por texto (fallback).")
+        else:
+            print(f"[pick_mui_datetime] Hora {hour_str} seleccionada por squareMask.")
+        page.wait_for_timeout(600)
     except Exception as e:
-        print(f"[pick_mui_datetime] Error al seleccionar hora: {e}")
+        print(f"[pick_mui_datetime] Error seleccionando hora: {e}")
 
-    # === MINUTO ===
+    # --- Minuto (squareMask geométrico) ---
     try:
-        minute_clicked = False
-        for m_str in [minute_str, f"{5*round(int(minute_str)/5):02d}"]:
-            if int(m_str) == 60:
-                m_str = "55"
-            for name_val in [m_str, f"Select {m_str} minutes", f"Seleccionar {m_str} minutos"]:
-                btn = page.get_by_role("button", name=name_val, exact=True).first
-                if btn.count() > 0 and btn.is_visible():
-                    btn.click(force=True)
-                    minute_clicked = True
-                    print(f"[pick_mui_datetime] Minuto {m_str} seleccionado por accesible label.")
-                    break
-            if minute_clicked:
-                break
-        
-        if not minute_clicked:
-            # Fallback a texto directo
-            try:
-                page.get_by_text(minute_str, exact=True).first.click(timeout=1500, force=True)
-                minute_clicked = True
-                print(f"[pick_mui_datetime] Minuto {minute_str} seleccionado por texto.")
-            except Exception:
-                try:
-                    rounded_m = f"{5*round(int(minute_str)/5):02d}"
-                    if int(rounded_m) == 60:
-                        rounded_m = "55"
-                    page.get_by_text(rounded_m, exact=True).first.click(timeout=1500, force=True)
-                    minute_clicked = True
-                    print(f"[pick_mui_datetime] Minuto {rounded_m} seleccionado por texto redondeado.")
-                except Exception:
-                    pass
-        
-        if not minute_clicked:
-            # Fallback final
-            page.locator('div:nth-child(11) > div').first.click(timeout=2000, force=True)
-            print("[pick_mui_datetime] Selección de minutos mediante fallback de clic en dial.")
+        if not _click_clock_face(page, minute_val, 'minute'):
+            page.get_by_text(minute_str, exact=True).first.click(force=True)
+            print(f"[pick_mui_datetime] Minuto {minute_str} seleccionado por texto (fallback).")
+        else:
+            print(f"[pick_mui_datetime] Minuto {minute_str} seleccionado por squareMask.")
+        page.wait_for_timeout(600)
+    except Exception as e:
+        print(f"[pick_mui_datetime] Error seleccionando minuto: {e}")
 
+    # --- Segundos (squareMask geométrico — el clic correcto auto-cierra el popover) ---
+    try:
+        print(f"[pick_mui_datetime] Seleccionando segundos: {second_str}")
+        if not _click_clock_face(page, second_val, 'second'):
+            page.get_by_text(second_str, exact=True).first.click(force=True)
+            print(f"[pick_mui_datetime] Segundo {second_str} seleccionado por texto (fallback).")
+        else:
+            print(f"[pick_mui_datetime] Segundo {second_str} seleccionado por squareMask. Popover se cierra automáticamente.")
         page.wait_for_timeout(800)
     except Exception as e:
-        print(f"[pick_mui_datetime] Error al seleccionar minuto: {e}")
-
-    # === SEGUNDOS ===
-    try:
-        second_str = dt.strftime("%S")
-        second_clicked = False
-        print(f"[pick_mui_datetime] Iniciando selección de segundos: {second_str}")
-        
-        second_int = int(second_str)
-        rounded_second = 5 * round(second_int / 5)
-        if rounded_second == 60:
-            rounded_second = 55
-        rounded_second_str = f"{rounded_second:02d}"
-
-        for s_str in [second_str, rounded_second_str]:
-            for name_val in [s_str, f"Select {s_str} seconds", f"Seleccionar {s_str} segundos"]:
-                btn = page.get_by_role("button", name=name_val, exact=True).first
-                if btn.count() > 0 and btn.is_visible():
-                    btn.click(force=True)
-                    second_clicked = True
-                    print(f"[pick_mui_datetime] Segundo {s_str} seleccionado por accesible label.")
-                    break
-            if second_clicked:
-                break
-        
-        if not second_clicked:
-            # Fallback a texto directo
-            try:
-                page.get_by_text(second_str, exact=True).first.click(timeout=1500, force=True)
-                second_clicked = True
-                print(f"[pick_mui_datetime] Segundo {second_str} seleccionado por texto.")
-            except Exception:
-                try:
-                    page.get_by_text(rounded_second_str, exact=True).first.click(timeout=1500, force=True)
-                    second_clicked = True
-                    print(f"[pick_mui_datetime] Segundo {rounded_second_str} seleccionado por texto redondeado.")
-                except Exception:
-                    pass
-        
-        if not second_clicked:
-            # Fallback final a clic en dial
-            page.locator('div:nth-child(11) > div').first.click(timeout=2000, force=True)
-            print("[pick_mui_datetime] Selección de segundos mediante fallback de clic en dial.")
-
-        page.wait_for_timeout(500)
-    except Exception as e:
-        print(f"[pick_mui_datetime] Error al seleccionar segundos: {e}")
+        print(f"[pick_mui_datetime] Error seleccionando segundos: {e}")
 
 
 def subir_evidencias(page, evidencias):
@@ -425,7 +402,7 @@ def subir_evidencias(page, evidencias):
                 page.screenshot(path=os.path.join(settings.BASE_DIR, "downloads", f"error_adjuntos_{i+1}.png"))
 
 
-def sync_individual_ticket(username, password, company_name, ticket_folio, fecha_solicitud, diagnostico_django, actividades_django, observaciones_django, observaciones_usuario_django, fecha_observaciones_usuario, fecha_cierre, evidencias=None):
+def sync_individual_ticket(username, password, company_name, ticket_folio, fecha_solicitud, diagnostico_django, actividades_django, observaciones_django, observaciones_usuario_django, fecha_observaciones_usuario, fecha_cierre, evidencias=None, solicitud_adicional=False):
     """
     Robot que sincroniza un ticket individual en SIG GIA.
     """
@@ -453,10 +430,17 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
             print(f"Captura realizada: {path}")
 
         try:
-            print(f"Sincronizando ticket {ticket_folio}...")
+            # Logger interno que acumula los logs
+            robot_logs = []
+            def robot_log(msg):
+                robot_logs.append(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}")
+                print(msg)
+
+            robot_log(f"Sincronizando ticket {ticket_folio}...")
+            secciones_fallidas = []
 
             # ========== 1. LOGIN ==========
-            print("Paso 1: Login...")
+            robot_log("Paso 1: Login...")
             page.goto("https://sig.gia.mx/webapp/seguridad/entrar")
             page.wait_for_selector("#usaurio", timeout=30000)
             page.get_by_role("textbox", name="Usuario...").fill(username)
@@ -466,11 +450,11 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
             page.get_by_text(company_name).first.click()
             page.get_by_role("button", name="INGRESAR").click()
             page.wait_for_selector("text=Solicitudes", timeout=60000)
-            print("Login exitoso.")
+            robot_log("Login exitoso.")
             take_screenshot(page, "01_login_exitoso")
 
             # ========== 2. NAVEGAR A SSA ==========
-            print("Paso 2: Navegando a SSA...")
+            robot_log("Paso 2: Navegando a SSA...")
             try:
                 page.get_by_role("link", name="Solicitudes").click()
             except Exception:
@@ -480,19 +464,18 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
             try:
                 page.get_by_role("link", name="SSA Seguimiento de solicitud").click()
             except Exception:
-                print("Link SSA no encontrado, intentando con texto...")
+                robot_log("Link SSA no encontrado, intentando con texto...")
                 page.get_by_text("Seguimiento de solicitud").first.click()
             page.wait_for_selector("input.MuiSwitch-input", timeout=60000)
-            print("Navegado a SSA Seguimiento.")
+            robot_log("Navegado a SSA Seguimiento.")
 
             # ========== 3. BÚSQUEDA AVANZADA ==========
             page.locator("input.MuiSwitch-input").click()
             time.sleep(3)
-            print("Búsqueda avanzada activada.")
+            robot_log("Búsqueda avanzada activada.")
 
             # ========== 4. CONFIGURAR FILTROS ==========
-            # Llenar la búsqueda avanzada con el folio del ticket para que cargue instantáneamente
-            print("Buscando el campo de búsqueda avanzada...")
+            robot_log("Buscando el campo de búsqueda avanzada...")
             try:
                 search_input = page.locator("#busqueda")
                 if search_input.count() == 0:
@@ -500,9 +483,9 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                 
                 search_input.click()
                 search_input.fill(ticket_folio)
-                print(f"Búsqueda avanzada filtrada por folio: {ticket_folio}")
+                robot_log(f"Búsqueda avanzada filtrada por folio: {ticket_folio}")
             except Exception as e:
-                print(f"No se pudo escribir en el campo de búsqueda avanzada: {e}")
+                robot_log(f"No se pudo escribir en el campo de búsqueda avanzada: {e}")
             
             take_screenshot(page, "02_busqueda_aplicada")
 
@@ -510,14 +493,14 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                 page.get_by_role("button", name="Aplicar filtros").click()
             except Exception:
                 page.locator("id=btnBuscar").click()
-            print("Filtros aplicados. Esperando carga de tabla...")
+            robot_log("Filtros aplicados. Esperando carga de tabla...")
             time.sleep(3)
 
             # ========== 5. ESPERAR TABLA Y CLIC OJITO ==========
             row_selector = f"tr:has(td:text('{ticket_folio}'))"
             try:
                 page.wait_for_selector(row_selector, timeout=120000, state="visible")
-                print(f"Ticket {ticket_folio} encontrado en la tabla.")
+                robot_log(f"Ticket {ticket_folio} encontrado en la tabla.")
             except Exception:
                 debug_path = os.path.join(settings.BASE_DIR, "downloads", f"debug_table_{ticket_folio}.png")
                 page.screenshot(path=debug_path)
@@ -533,10 +516,10 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
 
                 if ojito_title.count() > 0:
                     ojito_title.click()
-                    print("Ojito clickeado por title.")
+                    robot_log("Ojito clickeado por title.")
                 elif ojito_icon.count() > 0:
                     ojito_icon.locator("xpath=..").click()
-                    print("Ojito clickeado por icono.")
+                    robot_log("Ojito clickeado por icono.")
                 else:
                     debug_path = os.path.join(settings.BASE_DIR, "downloads", f"error_row_{ticket_folio}.png")
                     page.screenshot(path=debug_path)
@@ -551,31 +534,49 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
 
             # ========== 6. CAPTURAS ==========
             def capturar_seccion(page, indice, texto, nombre_seccion):
-                print(f"Accediendo a captura de {nombre_seccion}...")
+                robot_log(f"Accediendo a captura de {nombre_seccion}...")
                 try:
                     btn = page.get_by_role("button", name="Capturar").nth(indice)
                     if btn.count() > 0:
                         btn.click()
-                        print(f"Botón CAPTURAR ({nombre_seccion}) clickeado.")
+                        robot_log(f"Botón CAPTURAR ({nombre_seccion}) clickeado.")
                         time.sleep(3)
 
                         textarea = page.locator("textarea").first
                         if textarea.count() > 0:
                             textarea.click()
                             textarea.fill(str(texto or ".")[:500])
-                            print(f"Texto ingresado en {nombre_seccion}: {(str(texto or '')[:60])}...")
+                            robot_log(f"Texto ingresado en {nombre_seccion}: {(str(texto or '')[:60])}...")
                             time.sleep(1)
 
                             page.get_by_role("button", name="Aplicar").first.click()
-                            print(f"Clic en APLICAR ({nombre_seccion}) realizado.")
+                            robot_log(f"Clic en APLICAR ({nombre_seccion}) realizado.")
                             time.sleep(3)
                             take_screenshot(page, f"04_captura_{nombre_seccion}_exitosa")
                         else:
-                            print(f"No se encontró textarea en modal de {nombre_seccion}.")
+                            robot_log(f"No se encontró textarea en modal de {nombre_seccion}.")
+                            secciones_fallidas.append(nombre_seccion)
                     else:
-                        print(f"No se encontró botón CAPTURAR #{indice} ({nombre_seccion}).")
+                        robot_log(f"No se encontró botón CAPTURAR #{indice} ({nombre_seccion}).")
+                        secciones_fallidas.append(nombre_seccion)
                 except Exception as e:
-                    print(f"Error en captura de {nombre_seccion}: {e}")
+                    robot_log(f"Error en captura de {nombre_seccion}: {e}")
+                    secciones_fallidas.append(nombre_seccion)
+
+            # ========== SOLICITUD ADICIONAL ==========
+            if solicitud_adicional:
+                robot_log("Solicitud Adicional marcada — aplicando campo en SIG...")
+                try:
+                    page.get_by_role("button", name="Modificar").first.click()
+                    page.wait_for_timeout(1000)
+                    page.get_by_role("textbox", name="Filtrar").fill("solicitud adicional")
+                    page.wait_for_timeout(500)
+                    page.get_by_role("gridcell", name="SOLICITUD ADICIONAL", exact=True).dblclick()
+                    page.wait_for_timeout(1500)
+                    robot_log("Campo 'Solicitud Adicional' aplicado en SIG.")
+                except Exception as e:
+                    robot_log(f"Error al marcar Solicitud Adicional en SIG: {e}")
+                    secciones_fallidas.append("Solicitud Adicional")
 
             capturar_seccion(page, 0, diagnostico_django, "Diagnóstico")
             capturar_seccion(page, 1, actividades_django, "Actividades")
@@ -583,7 +584,7 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
 
             # ========== 7. ASIGNAR / CERRO (MODAL CIERRE) ==========
             if fecha_cierre:
-                print("Accediendo a Asignar/Cierre...")
+                robot_log("Accediendo a Asignar/Cierre...")
                 try:
                     # Abrir el modal "Cerro" (4to botón Asignar)
                     page.get_by_role("button", name="Asignar").nth(3).click(timeout=60000)
@@ -597,29 +598,86 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                     pick_mui_datetime(page, fecha_local_cierre)
                     time.sleep(1.5)
 
+                    # Antes de abrir el catálogo, cerrar cualquier SweetAlert que esté bloqueando
+                    try:
+                        swal_blocking = page.locator(".swal2-container")
+                        if swal_blocking.count() > 0 and swal_blocking.is_visible():
+                            page.locator(".swal2-confirm, .swal2-close, button:has-text('OK')").first.click()
+                            robot_log("[Asignar/Cierre] SweetAlert descartado antes de abrir catálogo.")
+                            page.wait_for_timeout(1000)
+                    except Exception:
+                        pass
+
                     # Abrir el buscador de responsable (el botón lupa está dentro del combobox)
-                    print("Abriendo el buscador de responsable...")
+                    robot_log("Abriendo el buscador de responsable...")
                     page.get_by_role("combobox").get_by_role("button").click()
-                    time.sleep(2.0)
 
-                    # Filtrar responsable
-                    print("Filtrando por 'oscar'...")
-                    page.get_by_role("textbox", name="Filtrar").fill("oscar")
-                    time.sleep(2.0)
+                    # Esperar explícitamente a que aparezca el diálogo del catálogo
+                    try:
+                        page.wait_for_selector("text=Catálogo de responsables", timeout=10000)
+                        robot_log("[Asignar/Cierre] Diálogo 'Catálogo de responsables' abierto.")
+                    except Exception:
+                        robot_log("[Asignar/Cierre] ADVERTENCIA: No se confirmó apertura de catálogo, continuando...")
+                    page.wait_for_timeout(800)
 
-                    # Doble clic en "Oscar Posadas Mendieta" para seleccionarlo
+                    # Filtrar responsable — usar get_by_placeholder como selector primario
+                    robot_log("Filtrando por 'oscar'...")
+                    filtrar_loc = None
+                    for loc_fn in [
+                        lambda: page.get_by_placeholder("Filtrar"),
+                        lambda: page.get_by_placeholder("filtrar"),
+                        lambda: page.get_by_role("textbox", name="Filtrar"),
+                        lambda: page.locator("input[placeholder*='iltrar']"),
+                        lambda: page.locator(".MuiDialogContent-root input, .MuiPaper-root input").first,
+                    ]:
+                        try:
+                            loc = loc_fn()
+                            if loc.count() > 0 and loc.is_visible():
+                                filtrar_loc = loc
+                                break
+                        except Exception:
+                            continue
+
+                    if filtrar_loc:
+                        filtrar_loc.fill("oscar")
+                        robot_log("[Asignar/Cierre] Campo 'Filtrar' llenado con 'oscar'.")
+                    else:
+                        # Último fallback: escribir en cualquier input visible dentro del diálogo
+                        page.keyboard.type("oscar")
+                        robot_log("[Asignar/Cierre] Filtrar llenado vía keyboard (fallback).")
+                    page.wait_for_timeout(1500)
+
+                    # Doble clic en Oscar Posadas Mendieta para seleccionarlo y cerrar el catálogo automáticamente
                     page.get_by_role("gridcell", name="Oscar Posadas Mendieta").dblclick()
-                    time.sleep(1.0)
+                    page.wait_for_timeout(1000)
 
                     take_screenshot(page, "06_modal_cierre_llenado")
 
                     # Click en Aplicar para guardar y cerrar modal
                     page.get_by_role("button", name="Aplicar").click()
-                    print(f"Asignar/Cierre guardado: {fecha_local_cierre.strftime('%d/%m/%Y %I:%M %p')} - Oscar Posadas Mendieta")
+                    robot_log(f"Asignar/Cierre guardado: {fecha_local_cierre.strftime('%d/%m/%Y %I:%M %p')} - Oscar Posadas Mendieta")
                     time.sleep(3)
 
+                    # Manejar cualquier SweetAlert de confirmación o advertencia que aparezca
+                    try:
+                        swal_title = page.locator("#swal2-title")
+                        swal_content = page.locator("#swal2-content, .swal2-html-container")
+                        if swal_title.count() > 0 and swal_title.is_visible():
+                            title_text = swal_title.inner_text()
+                            content_text = swal_content.inner_text() if swal_content.count() > 0 else ""
+                            robot_log(f"[Asignar/Cierre] [SWEETALERT] {title_text}: {content_text}")
+                            
+                            confirm_btn = page.locator(".swal2-confirm, button:has-text('OK'), button:has-text('Aceptar'), button:has-text('Entendido')").first
+                            if confirm_btn.count() > 0:
+                                confirm_btn.click()
+                                robot_log("[Asignar/Cierre] Diálogo SweetAlert descartado.")
+                                time.sleep(1.5)
+                    except Exception as e_swal:
+                        robot_log(f"[Asignar/Cierre] No se pudo procesar SweetAlert pop-up: {e_swal}")
+
                 except Exception as e:
-                    print(f"Error en fase de Asignar/Cierre: {e}")
+                    robot_log(f"Error en fase de Asignar/Cierre: {e}")
+                    secciones_fallidas.append("Asignar/Cierre")
                     take_screenshot(page, "05_error_cierre")
                     # Cerrar usando el botón Salir / SALIR del modal para evitar que obstruya la página
                     try:
@@ -631,29 +689,92 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                             if salir_btn_upper.count() > 0:
                                 salir_btn_upper.first.click()
                     except Exception as e_salir:
-                        print(f"No se pudo hacer clic en Salir para cerrar modal: {e_salir}")
+                        robot_log(f"No se pudo hacer clic en Salir para cerrar modal: {e_salir}")
                     time.sleep(1.5)
             else:
-                print("fecha_cierre no proporcionada, saltando Asignar/Cierre.")
+                robot_log("fecha_cierre no proporcionada, saltando Asignar/Cierre.")
 
             # ========== 8. ADJUNTOS (EVIDENCIAS) ==========
             # NO presionar Escape aquí: eso cierra el panel del ticket y vuelve a la tabla
             time.sleep(1)
             take_screenshot(page, "07_antes_adjuntos")
-            subir_evidencias(page, evidencias)
+            
+            # Subir evidencias con logs acumulativos
+            if evidencias:
+                for i, ev in enumerate(evidencias):
+                    robot_log(f"Subiendo evidencia {i+1}/{len(evidencias)}: {ev['descripcion'][:60]}...")
+                    try:
+                        # 1. Llenar descripción del adjunto
+                        desc = page.locator("#adjDescripcion")
+                        desc.scroll_into_view_if_needed(timeout=15000)
+                        desc.click()
+                        desc.fill(ev['descripcion'])
+                        time.sleep(1.0)
+                        
+                        # 2. Cargar el archivo usando el file chooser al hacer click en el botón Agregar
+                        robot_log("Esperando botón Agregar...")
+                        agregar_btn = page.locator("span#confirmar, button:has-text('Agregar'), [label='Agregar']").first
+                        agregar_btn.scroll_into_view_if_needed(timeout=10000)
+                        
+                        # Usar expect_file_chooser para interceptar el diálogo de archivos
+                        with page.expect_file_chooser() as fc_info:
+                            agregar_btn.click()
+                        
+                        file_chooser = fc_info.value
+                        file_chooser.set_files(ev['path'])
+                        robot_log(f"Evidencia {i+1} cargada mediante file chooser.")
+                        time.sleep(3.0)
+                        
+                    except Exception as e:
+                        robot_log(f"Error en evidencia {i+1}: {e}")
+                        # Intentar fallback directo
+                        try:
+                            robot_log("Intentando fallback directo a input[type='file']...")
+                            input_file = page.locator("input[type='file']").first
+                            if input_file.count() > 0:
+                                input_file.set_input_files(ev['path'])
+                                robot_log("Evidencia subida exitosamente vía input[type='file'] fallback.")
+                                time.sleep(3.0)
+                            else:
+                                raise Exception("No se encontró input[type='file']")
+                        except Exception as e_fallback:
+                            robot_log(f"Fallback también falló: {e_fallback}")
+                            secciones_fallidas.append(f"Evidencia {i+1}: {ev['descripcion']}")
+                            page.screenshot(path=os.path.join(settings.BASE_DIR, "downloads", f"error_adjuntos_{i+1}.png"))
 
             # ========== 9. FINALIZAR ==========
             screenshot_path = os.path.join(settings.BASE_DIR, "downloads", f"final_sync_{ticket_folio}.png")
             page.screenshot(path=screenshot_path)
             browser.close()
-            return {"status": "success", "message": "Sincronización exitosa.", "screenshot": screenshot_path}
+
+            # Evaluar estatus de automatización
+            if secciones_fallidas:
+                estatus = "TICKET INCOMPLETO"
+                msg = f"Sincronización parcial. Fallas detectadas en: {', '.join(secciones_fallidas)}."
+            else:
+                estatus = "TICKET COMPLETAMENTE DOCUMENTADO"
+                msg = "Sincronización totalmente exitosa sin fallas."
+
+            return {
+                "status": "success", 
+                "robot_estatus": estatus,
+                "message": msg, 
+                "screenshot": screenshot_path,
+                "robot_log": "\n".join(robot_logs)
+            }
 
         except Exception as e:
             error_screenshot = os.path.join(settings.BASE_DIR, "downloads", f"error_robot_{ticket_folio}.png")
-            print(f"Error en el robot: {e}")
+            robot_log(f"Error crítico en el robot: {e}")
             page.screenshot(path=error_screenshot)
             browser.close()
-            return {"status": "error", "message": str(e), "screenshot": error_screenshot}
+            return {
+                "status": "error", 
+                "robot_estatus": "TICKET INCOMPLETO",
+                "message": str(e), 
+                "screenshot": error_screenshot,
+                "robot_log": "\n".join(robot_logs)
+            }
 
 def download_tickets_by_folio_list(username, password, company_name, folios_list, download_dir="downloads"):
     """

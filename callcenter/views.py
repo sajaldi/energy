@@ -564,6 +564,8 @@ def ticket_cierre_visual_view(request, ticket_id):
             ticket.proveedor_deductiva = Empresa.objects.filter(id=proveedor_id).first()
         else:
             ticket.proveedor_deductiva = None
+
+        ticket.solicitud_adicional = request.POST.get('solicitud_adicional') == 'on'
             
         ticket.save()
         return JsonResponse({'success': True})
@@ -2814,6 +2816,49 @@ def export_restriccion_acceso_pdf(request, pk):
     except Exception as e:
         logger.error(f"Error generando PDF para Restricción {ra.id}: {e}")
         return HttpResponse(f"Error al generar el PDF: {e}", status=500)
+
+@staff_member_required
+def exportar_solicitudticket_pdf(request, ticket_id):
+    """
+    Exporta un ticket individual a PDF como ficha técnica.
+    """
+    ticket_id = int(ticket_id.replace(',', '').replace('.', ''))
+    ticket = get_object_or_404(SolicitudTicket.objects.select_related(
+        'activo', 'ubicacion', 'falla_reportada', 'diagnostico_reportado', 'usuario_responsable', 'proveedor_deductiva'
+    ), id=ticket_id)
+
+    evidencias = EvidenciaTicket.objects.filter(ticket=ticket)
+
+    logo_dcc_b64 = ""
+    logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'activos', 'static', 'activos', 'img', 'logo_operadora_cc.png')
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as image_file:
+            logo_dcc_b64 = base64.b64encode(image_file.read()).decode('utf-8')
+
+    html_content = render_to_string('callcenter/solicitudticket_export_pdf.html', {
+        'ticket': ticket,
+        'evidencias': evidencias,
+        'ahora': timezone.now(),
+        'user': request.user,
+        'logo_dcc_b64': logo_dcc_b64,
+    }, request=request)
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
+            page = browser.new_page()
+            page.set_content(html_content, wait_until='networkidle')
+            pdf_bytes = page.pdf(format="A4", print_background=True)
+            browser.close()
+
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            filename = f"Ticket_{ticket.folio or ticket.id_solicitud}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+    except Exception as e:
+        logger.error(f"Error generando PDF para ticket {ticket.id}: {e}")
+        return HttpResponse(f"Error al generar el PDF: {e}", status=500)
+
 
 @csrf_exempt
 def webhook_ticket_vector_callback(request):

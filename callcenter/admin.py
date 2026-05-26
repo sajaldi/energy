@@ -259,12 +259,12 @@ class EvidenciasInline(admin.TabularInline):
 
 @admin.register(SolicitudTicket)
 class SolicitudTicketAdmin(admin.ModelAdmin):
-    list_display = ('folio', 'es_interno', 'id_solicitud', 'solicitante', 'falla_reportada', 'diagnostico_reportado', 'usuario_responsable', 'get_tiempos_acordados', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
-    list_filter = ('es_interno', 'servicio', 'area', 'tipo_solicitud', 'falla_reportada', 'diagnostico_reportado', 'falla_clasificacion', 'categoria_falla', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
+    list_display = ('folio', 'es_interno', 'solicitud_adicional', 'id_solicitud', 'solicitante', 'falla_reportada', 'diagnostico_reportado', 'usuario_responsable', 'robot_estatus', 'get_tiempos_acordados', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
+    list_filter = ('robot_estatus', 'es_interno', 'servicio', 'area', 'tipo_solicitud', 'falla_reportada', 'diagnostico_reportado', 'falla_clasificacion', 'categoria_falla', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
     search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'falla_descripcion', 'falla_reportada__nombre', 'diagnostico_reportado__nombre', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
     autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
-    readonly_fields = ('creado_en', 'actualizado_en')
+    readonly_fields = ('creado_en', 'actualizado_en', 'robot_estatus', 'robot_log')
     actions = ['analizar_con_ia', 'exportar_a_excel']
 
     @admin.action(description="Analizar tickets con IA (n8n)")
@@ -353,7 +353,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     # Organización por Fieldsets (Secciones)
     fieldsets = (
         ('Información General', {
-            'fields': (('id_solicitud', 'folio', 'es_interno'), ('fecha_solicitud', 'tipo_recepcion'), 'fecha_tipo_recepcion')
+            'fields': (('id_solicitud', 'folio', 'es_interno', 'solicitud_adicional'), ('fecha_solicitud', 'tipo_recepcion'), 'fecha_tipo_recepcion')
         }),
         ('Ubicación y Activos', {
             'fields': (('activo', 'ubicacion'), ('area', 'unidad'), ('servicio', 'subservicio'), ('grupo', 'nivel'))
@@ -366,6 +366,9 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
         }),
         ('Cierre y Clasificación', {
             'fields': (('fecha_suspension', 'fecha_cierre'), ('clasificacion_falla_final', 'categoria_falla'), 'correo_cierre')
+        }),
+        ('Automatización del Robot (Playwright)', {
+            'fields': ('robot_estatus', 'robot_log')
         }),
         ('Información Financiera / Deductivas', {
             'fields': (('deductiva', 'proveedor_deductiva'),)
@@ -386,10 +389,10 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         # Seleccionar solo los campos necesarios para la lista unificada
         return super().get_queryset(request).select_related('activo', 'ubicacion', 'falla_reportada', 'diagnostico_reportado').only(
-            'id', 'folio', 'es_interno', 'id_solicitud', 'solicitante', 'servicio', 'area', 
+            'id', 'folio', 'es_interno', 'solicitud_adicional', 'id_solicitud', 'solicitante', 'servicio', 'area', 
             'falla_descripcion', 'falla_reportada', 'diagnostico_reportado',
             'activo__nombre', 'activo__codigo_interno', 'fecha_solicitud', 'tipo_solicitud',
-            'ubicacion__nombre'
+            'ubicacion__nombre', 'robot_estatus'
         )
 
     def get_urls(self):

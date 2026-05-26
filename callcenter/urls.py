@@ -41,6 +41,7 @@ urlpatterns = [
     path('restriccion-acceso/<int:pk>/pdf/', views.export_restriccion_acceso_pdf, name='export_restriccion_acceso_pdf'),
     path('api/webhook/correo-cierre-callback/', views.webhook_correo_cierre_callback, name='webhook_correo_cierre_callback'),
     path('app/ticket/<int:pk>/', views.mobile_ticket_detalle_view, name='mobile_ticket_detalle'),
+    path('ticket/<str:ticket_id>/exportar-pdf/', views.exportar_solicitudticket_pdf, name='exportar_solicitudticket_pdf'),
     
     # Tiempo Acordado Module
     path('tiempo-acordado/dashboard/', views.tiempo_acordado_dashboard_view, name='tiempo_acordado_dashboard'),

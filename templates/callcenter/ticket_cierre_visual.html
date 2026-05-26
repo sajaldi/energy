@@ -344,12 +344,20 @@
                 <div class="info-item"><label>Área</label><span>{{ ticket.area|default:"-" }}</span></div>
                 <div class="info-item"><label>Servicio</label><span>{{ ticket.servicio|default:"-" }}</span></div>
                 <div class="info-item"><label>Responsable</label><span>{{ ticket.responsable|default:"-" }}</span></div>
+                <div class="info-item"><label>Solicitud Adicional</label><span>{% if ticket.solicitud_adicional %}<i class="ph ph-check-circle" style="color: #1e7e34;"></i> Sí{% else %}<i class="ph ph-x-circle" style="color: #999;"></i> No{% endif %}</span></div>
             </div>
             <div style="margin-top: 24px;">
                 <label style="font-size: 11px; font-weight: 700; color: var(--sap-label); text-transform: uppercase;">Descripción de Solicitud</label>
                 <div style="background: #fdfdfd; padding: 16px; border-radius: var(--sap-radius); border: 1px solid #eee; margin-top: 8px; font-size: 14px; line-height: 1.6;">
                     {{ ticket.solicitud_descripcion|linebreaks }}
                 </div>
+            </div>
+
+            <div style="margin-top: 24px; border-top: 1px dashed #ddd; padding-top: 20px;">
+                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--sap-text);">
+                    <input type="checkbox" name="solicitud_adicional" id="id_solicitud_adicional" style="width: 20px; height: 20px; accent-color: var(--sap-blue);" {% if ticket.solicitud_adicional %}checked{% endif %}>
+                    <i class="ph ph-file-plus" style="font-size: 1.2rem; color: var(--sap-blue);"></i> Marcar como Solicitud Adicional
+                </label>
             </div>
 
             <div style="margin-top: 32px; border-top: 1px dashed #ddd; padding-top: 24px;">
@@ -709,7 +717,17 @@
     async function completeClosure() {
         // Primero guardamos el progreso actual
         await saveProgress(true);
-        
+
+        // Disparamos sincronización SIG en segundo plano
+        try {
+            await fetch('/admin/callcenter/solicitudticket/{{ ticket.id }}/sync-singular/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+        } catch (e) {
+            console.warn("Sync SIG falló, continuando con envío...");
+        }
+
         // Redirigimos a la acción de envío que ya tiene toda la lógica de PDF + Power Automate
         // y que también valida campos obligatorios en el backend.
         const sendUrl = "../enviar-power-automate/";
