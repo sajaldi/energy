@@ -830,6 +830,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'documentos.tasks.sync_document_embeddings',
         'schedule': 60.0,  # Revisa documentos nuevos cada minuto
     },
+    'sync-tickets-from-sig-every-hour': {
+        'task': 'callcenter.tasks.sync_tickets_task',
+        'schedule': 3600.0,  # Sincroniza tickets desde SIG GIA cada hora
+        'kwargs': {'days': 1},  # Tickets del día actual
+    },
 }
 
 # Configuración de Web Push Notifications
