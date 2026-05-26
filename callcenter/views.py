@@ -260,6 +260,9 @@ def send_ticket_to_power_automate_view(request, ticket_id):
         if response.status_code in [200, 202]:
             ticket.cierre_enviado = True
             ticket.save(update_fields=['cierre_enviado'])
+            # Disparar sync SIG solo después de notificación exitosa
+            from .tasks import sync_single_ticket_task
+            sync_single_ticket_task.delay(ticket.id)
             messages.success(request, "Ticket enviado exitosamente a Power Automate.")
         else:
             messages.warning(request, f"Power Automate respondió con error {response.status_code}")

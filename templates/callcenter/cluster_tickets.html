@@ -396,6 +396,8 @@
                             {% if request.GET.sort == 'estado' %}<i class="ph ph-caret-up"></i>{% elif request.GET.sort == '-estado' %}<i class="ph ph-caret-down"></i>{% endif %}
                             {% if not request.GET.sort %}<i class="ph ph-arrows-down-up" style="opacity: 0.3;"></i>{% endif %}
                         </th>
+                        <th style="text-align: center; white-space: nowrap;">Correo Cierre</th>
+                        <th style="text-align: center; white-space: nowrap;">Sync SIG</th>
                         <th>Acción</th>
                     </tr>
                 </thead>
@@ -403,7 +405,7 @@
                     {% regroup tickets by falla_reportada.parent.nombre as grouped_tickets %}
                     {% for group in grouped_tickets %}
                         <tr class="group-header" onclick="toggleGroup(this)" data-group-id="group-{{ forloop.counter }}" style="cursor: pointer; background: #f8f9fa;">
-                            <td colspan="10" style="padding: 0.8rem 1.25rem; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; box-shadow: inset 5px 0 0 var(--sap-primary);">
+                            <td colspan="13" style="padding: 0.8rem 1.25rem; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; box-shadow: inset 5px 0 0 var(--sap-primary);">
                                 <div style="display: flex; align-items: center; gap: 1rem;">
                                     <i class="ph ph-caret-right caret-icon" style="transition: transform 0.3s; {% if q %}transform: rotate(90deg);{% endif %}"></i>
                                     <span style="font-weight: 700; color: var(--sap-primary);">{{ group.grouper|default:"Sin Clasificar" }}</span>
@@ -472,6 +474,22 @@
                                     <span class="badge badge-warning"><i class="ph ph-clock"></i> Abierto</span>
                                 {% endif %}
                             </td>
+                            <td style="text-align: center;">
+                                {% if t.correo_cierre %}
+                                    <i class="ph ph-check-circle" style="color: #1e7e34; font-size: 1.2rem;" title="Correo de cierre enviado"></i>
+                                {% else %}
+                                    <i class="ph ph-x-circle" style="color: #ccc; font-size: 1.2rem;" title="Pendiente"></i>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                {% if t.robot_estatus == "TICKET COMPLETAMENTE DOCUMENTADO" %}
+                                    <i class="ph ph-check-circle" style="color: #1e7e34; font-size: 1.2rem;" title="Completamente documentado en SIG"></i>
+                                {% elif t.robot_estatus == "TICKET INCOMPLETO" %}
+                                    <i class="ph ph-warning-circle" style="color: #e67e22; font-size: 1.2rem;" title="Sincronización parcial en SIG"></i>
+                                {% else %}
+                                    <i class="ph ph-minus-circle" style="color: #ccc; font-size: 1.2rem;" title="Sin sincronizar"></i>
+                                {% endif %}
+                            </td>
                             <td style="display: flex; gap: 0.4rem; align-items: center;">
                                 <a href="{% url 'callcenter:ticket_cierre_visual' t.id_unlocalized %}" class="btn-fiori ghost" title="Cerrar Ticket" style="padding: 0; width: 2rem; height: 2rem;">
                                     <i class="ph ph-pencil-simple" style="font-size: 1.1rem;"></i>
@@ -495,7 +513,7 @@
                         {% endfor %}
                     {% empty %}
                         <tr id="empty-tickets-message">
-                            <td colspan="10" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
+                            <td colspan="13" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
                                 No hay tickets que coincidan con los filtros.
                             </td>
                         </tr>

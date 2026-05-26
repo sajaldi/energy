@@ -718,16 +718,6 @@
         // Primero guardamos el progreso actual
         await saveProgress(true);
 
-        // Disparamos sincronización SIG en segundo plano
-        try {
-            await fetch('/admin/callcenter/solicitudticket/{{ ticket.id }}/sync-singular/', {
-                method: 'POST',
-                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-            });
-        } catch (e) {
-            console.warn("Sync SIG falló, continuando con envío...");
-        }
-
         // Redirigimos a la acción de envío que ya tiene toda la lógica de PDF + Power Automate
         // y que también valida campos obligatorios en el backend.
         const sendUrl = "../enviar-power-automate/";
