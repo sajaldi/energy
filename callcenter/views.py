@@ -21,7 +21,7 @@ from playwright.sync_api import sync_playwright
 from .models import SolicitudTicket, EvidenciaTicket, CronogramaPredefinido, CronogramaItemPredefinido, RestriccionAcceso, GrupoTicket, FallaTicket
 from .utils import resolve_ticket_ubicacion
 import requests
-from core.models import PerfilUsuario
+from core.models import PerfilUsuario, Departamento
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -896,6 +896,8 @@ def ticket_dashboard_view(request):
             {'name': name, 'value': value} for name, value in sorted_diags
         ]
 
+    departamentos_qs = Departamento.objects.all().order_by('nombre')
+
     context = {
         'total': total_tickets,
         'cerrados': tickets_cerrados,
@@ -907,7 +909,8 @@ def ticket_dashboard_view(request):
         'falla_diagnosticos_json': json.dumps(falla_diagnosticos_json_map),
         'fecha_inicio': fecha_inicio_str,
         'fecha_fin': fecha_fin_str,
-        'title': 'Dashboard de Tickets'
+        'title': 'Dashboard de Tickets',
+        'departamentos': departamentos_qs,
     }
     return render(request, 'callcenter/ticket_dashboard.html', context)
 
@@ -2040,7 +2043,6 @@ def tiempo_acordado_dashboard_view(request):
     Filtrado por departamento del usuario.
     """
     from .models import TiempoAcordado
-    from core.models import PerfilUsuario
     
     # 1. Obtener departamento del usuario para filtrado
     user_dept = None
@@ -2536,7 +2538,23 @@ def ticket_detail_ajax(request, ticket_id):
         'url_sync': f'/admin/callcenter/solicitudticket/{ticket.id}/sync-singular/',
         'url_power_automate': f'/callcenter/ticket/{ticket.id}/enviar-power-automate/',
 
+        # Departamento actual
+        'departamento_id': ticket.falla_reportada.departamento_responsable_id if ticket.falla_reportada and ticket.falla_reportada.departamento_responsable_id else None,
+        'departamento_nombre': ticket.falla_reportada.departamento_responsable.nombre if ticket.falla_reportada and ticket.falla_reportada.departamento_responsable else '—',
+
         # Listas para el formulario de edición
+        'departamentos': list(
+            Departamento.objects.all().order_by('nombre')
+            .values('id', 'nombre')
+        ),
+        'fallas_por_departamento': {
+            str(did): list(
+                FallaTicket.objects.filter(departamento_responsable_id=did)
+                .order_by('nombre')
+                .values('id', 'nombre')
+            )
+            for did in Departamento.objects.all().values_list('id', flat=True)
+        },
         'proveedores': list(
             __import__('mantenimiento.models', fromlist=['Empresa'])
             .Empresa.objects.filter(activo=True).order_by('nombre')
@@ -2629,6 +2647,12 @@ def ticket_quick_edit_ajax(request, ticket_id):
         ticket.usuario_responsable = get_user_model().objects.filter(id=usuario_id).first()
     else:
         ticket.usuario_responsable = None
+
+    # Falla reportada (cambio de departamento)
+    falla_id = body.get('falla_reportada', '')
+    if falla_id:
+        from .models import FallaTicket
+        ticket.falla_reportada = FallaTicket.objects.filter(id=falla_id).first()
 
     ticket.save()
     return JsonResponse({'success': True, 'message': 'Ticket actualizado correctamente.'})
@@ -3445,3 +3469,52 @@ def download_deductivas_template(request):
     )
     response['Content-Disposition'] = 'attachment; filename="plantilla_importacion_deductivas.xlsx"'
     return response
+
+@staff_member_required
+def create_cluster_manual_ajax(request):
+    """
+    Crea un cluster manualmente sin wizard.
+    POST: correlativo, descripcion, departamento_id
+    """
+    from django.urls import reverse
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Solo POST permitido'})
+    
+    correlativo = request.POST.get('correlativo', '').strip()
+    descripcion = request.POST.get('descripcion', '').strip()
+    depto_id = request.POST.get('departamento_id')
+    
+    if not correlativo:
+        return JsonResponse({'success': False, 'error': 'El nombre del cluster es obligatorio.'})
+    if not depto_id:
+        return JsonResponse({'success': False, 'error': 'El departamento es obligatorio.'})
+    
+    from django.contrib.auth.models import User
+    from core.models import Departamento
+    
+    try:
+        depto = Departamento.objects.get(id=depto_id)
+    except Departamento.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Departamento no encontrado.'})
+    
+    # Asegurar unicidad del correlativo
+    base_correlativo = correlativo
+    counter = 1
+    while GrupoTicket.objects.filter(correlativo=correlativo).exists():
+        correlativo = f"{base_correlativo} ({counter})"
+        counter += 1
+    
+    cluster = GrupoTicket.objects.create(
+        correlativo=correlativo,
+        descripcion=descripcion or f"Cluster manual - {correlativo}",
+        departamento=depto,
+        usuario_creador=request.user if request.user.is_authenticated else None,
+    )
+    
+    return JsonResponse({
+        'success': True,
+        'cluster_id': cluster.id,
+        'correlativo': cluster.correlativo,
+        'redirect_url': reverse('callcenter:cluster_tickets', args=[cluster.id])
+    })

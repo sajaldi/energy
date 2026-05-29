@@ -64,5 +64,6 @@ urlpatterns = [
     path('api/cronograma-predefinido/<int:pk>/items/', views.api_get_cronograma_items_ajax, name='api_get_cronograma_items_ajax'),
     path('api/webhook/vector-update/', views.webhook_ticket_vector_callback, name='webhook_ticket_vector_callback'),
     path('app/ticket/new-cierre/<int:pk>/', views.mobile_ticket_cierre_view, name='mobile_ticket_cierre'),
+    path('cluster/create-manual-ajax/', views.create_cluster_manual_ajax, name='create_cluster_manual_ajax'),
 ]
 
