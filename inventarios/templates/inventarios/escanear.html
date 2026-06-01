@@ -691,8 +691,7 @@
 
                 if (data.status !== 'error') {
                     currentMaterial = data;
-                    displayMaterial(data);
-                    // Detener cámara para centrar en el formulario
+                    try { displayMaterial(data); } catch (e) { console.error('displayMaterial error:', e); }
                     if (scanner) scanner.stop();
                 } else {
                     Swal.fire('No encontrado', 'El código informado no existe en el catálogo.', 'warning');
@@ -735,6 +734,9 @@
             let found = false;
             try {
                 const tx = db.transaction('catalog_cache', 'readonly');
+                tx.onerror = () => {
+                    Swal.fire('Error de caché', 'No se pudo acceder al almacén local.', 'error');
+                };
                 const store = tx.objectStore('catalog_cache');
                 const req = store.openCursor();
                 req.onsuccess = event => {
@@ -744,7 +746,7 @@
                             found = true;
                             Swal.close();
                             currentMaterial = cursor.value;
-                            displayMaterial({ ...cursor.value, existencias: [] });
+                            try { displayMaterial({ ...cursor.value, existencias: [] }); } catch (e) { console.error('displayMaterial offline error:', e); }
                             if (scanner) scanner.stop();
                         } else cursor.continue();
                     } else if (!found) {
