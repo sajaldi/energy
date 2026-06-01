@@ -355,23 +355,19 @@
         let currentPage = 1;
         let currentCategory = '';
         let isLoading = false; let hasMore = true;
-        let db = null;
 
-        const dbReq = indexedDB.open('InventarioPWA', 6);
-        dbReq.onupgradeneeded = e => {
-            const d = e.target.result;
-            if (!d.objectStoreNames.contains('catalog_cache')) d.createObjectStore('catalog_cache', { keyPath: 'id' });
-            if (!d.objectStoreNames.contains('locations_cache')) d.createObjectStore('locations_cache', { keyPath: 'id' });
-            if (!d.objectStoreNames.contains('offline_sync_queue')) d.createObjectStore('offline_sync_queue', { keyPath: 'id', autoIncrement: true });
-            if (!d.objectStoreNames.contains('sync_history')) d.createObjectStore('sync_history', { keyPath: 'id', autoIncrement: true });
-        };
-        dbReq.onsuccess = e => { 
-            db = e.target.result; 
-            if (!navigator.onLine && document.getElementById('material-list').children.length === 0) {
-                loadCatalog(1);
-            }
-        };
-        dbReq.onerror = () => console.error('IndexedDB error en catálogo');
+        const dbReady = new Promise(resolve => {
+            const dbReq = indexedDB.open('InventarioPWA', 6);
+            dbReq.onupgradeneeded = e => {
+                const d = e.target.result;
+                if (!d.objectStoreNames.contains('catalog_cache')) d.createObjectStore('catalog_cache', { keyPath: 'id' });
+                if (!d.objectStoreNames.contains('locations_cache')) d.createObjectStore('locations_cache', { keyPath: 'id' });
+                if (!d.objectStoreNames.contains('offline_sync_queue')) d.createObjectStore('offline_sync_queue', { keyPath: 'id', autoIncrement: true });
+                if (!d.objectStoreNames.contains('sync_history')) d.createObjectStore('sync_history', { keyPath: 'id', autoIncrement: true });
+            };
+            dbReq.onsuccess = e => resolve(e.target.result);
+            dbReq.onerror = () => { console.error('IndexedDB error en catálogo'); resolve(null); };
+        });
 
         function getCookie(name) {
             let cookieValue = null;
@@ -426,10 +422,11 @@
             isLoading = false;
         }
 
-        function handleOfflineMode(query, cat) {
+        async function handleOfflineMode(query, cat) {
             document.getElementById('offline-indicator').style.display = 'block';
-            if (!db) return;
-            const tx = db.transaction('catalog_cache', 'readonly');
+            const localDb = await dbReady;
+            if (!localDb || !localDb.objectStoreNames.contains('catalog_cache')) return;
+            const tx = localDb.transaction('catalog_cache', 'readonly');
             const store = tx.objectStore('catalog_cache');
             const req = store.getAll();
             req.onsuccess = () => {
@@ -448,7 +445,9 @@
                     image_url: '' 
                 })));
                 hasMore = false;
+                console.log(`Offline: ${mats.length} materiales desde caché`);
             };
+            req.onerror = () => console.error('Error leyendo catalog_cache');
         }
 
         function renderMaterials(mats) {
@@ -485,8 +484,9 @@
                 const res = await fetch(`/inventarios/api/stock/${id}/`);
                 data = await res.json();
             } catch (e) {
-                if (!db) return Swal.fire('Sin conexión', 'No hay detalle disponible offline.', 'warning');
-                const tx = db.transaction('catalog_cache', 'readonly');
+                const localDb = await dbReady;
+                if (!localDb) return Swal.fire('Sin conexión', 'No hay detalle disponible offline.', 'warning');
+                const tx = localDb.transaction('catalog_cache', 'readonly');
                 const cached = await new Promise(r => { const req = tx.objectStore('catalog_cache').get(id); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
                 if (!cached) return Swal.fire('Sin conexión', 'Material no encontrado en caché.', 'warning');
                 data = { ...cached, stock_total: cached.stock || 0, stock_nuevo: 0, stock_usado: 0, stock_minimo: 0, categoria: 'CACHÉ', categoria_id: null, descripcion: cached.descripcion || '', image_url: '', existencias: [], movimientos: [] };
@@ -600,7 +600,10 @@
             loadCatalog(1);
         }
 
-        loadCatalog();
+        (async () => {
+            await dbReady;
+            loadCatalog();
+        })();
 
         // Restaurar listeners de búsqueda y scroll
         let searchWait;
