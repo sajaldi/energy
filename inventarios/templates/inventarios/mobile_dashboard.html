@@ -736,7 +736,16 @@
                 storeLoc.clear();
                 
                 if (data.materials) {
-                    data.materials.forEach(m => storeCat.put(m));
+                    data.materials.forEach(m => {
+                        storeCat.put({
+                            id: m.id,
+                            sku: m.sku,
+                            nombre: m.nombre,
+                            unidad: m.uni || 'UND',
+                            descripcion: m.desc || '',
+                            precio: m.precio || 0
+                        });
+                    });
                 }
                 if (data.locations) {
                     data.locations.forEach(u => storeLoc.put(u));

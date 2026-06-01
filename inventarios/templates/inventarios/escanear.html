@@ -599,13 +599,48 @@
             {% endfor %}
         ];
 
+        async function downloadCatalog() {
+            if (!db || !db.objectStoreNames.contains('catalog_cache')) return;
+            const countReq = db.transaction('catalog_cache', 'readonly').objectStore('catalog_cache').count();
+            countReq.onsuccess = async () => {
+                if (countReq.result > 0) {
+                    console.log('Catálogo ya en caché');
+                    return;
+                }
+                try {
+                    const resp = await fetch('/inventarios/api/sync-master/');
+                    const data = await resp.json();
+                    if (data.materials && data.materials.length) {
+                        const tx = db.transaction('catalog_cache', 'readwrite');
+                        data.materials.forEach(m => {
+                            tx.objectStore('catalog_cache').put({
+                                id: m.id,
+                                sku: m.sku,
+                                nombre: m.nombre,
+                                unidad: m.uni || 'UND',
+                                descripcion: m.desc || '',
+                                precio: m.precio || 0
+                            });
+                        });
+                    }
+                    if (data.locations && data.locations.length) {
+                        const tx = db.transaction('locations_cache', 'readwrite');
+                        data.locations.forEach(u => tx.objectStore('locations_cache').put(u));
+                    }
+                    console.log(`Catálogo descargado: ${data.materials ? data.materials.length : 0} materiales`);
+                } catch (e) { console.warn('No se pudo descargar catálogo', e); }
+            };
+        }
+
         window.onload = async () => {
             await initDB();
+            if (navigator.onLine) {
+                downloadCatalog();
+                setTimeout(syncOfflineMovementsSilent, 1000);
+            } else {
+                actualizarBadgeSync();
+            }
             startScanner();
-            setTimeout(() => {
-                if (navigator.onLine) syncOfflineMovementsSilent();
-                else actualizarBadgeSync();
-            }, 1000);
         };
 
         async function syncOfflineMovementsSilent() {
