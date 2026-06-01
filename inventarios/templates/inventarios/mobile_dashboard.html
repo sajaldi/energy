@@ -752,7 +752,16 @@
                 }
                 
                 tx.oncomplete = () => {
-                    Swal.fire('¡Listo!', `Se guardaron ${data.materials ? data.materials.length : 0} materiales para uso offline.`, 'success');
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Listo!',
+                        text: `Se guardaron ${data.materials ? data.materials.length : 0} materiales para uso offline.`,
+                        confirmButtonText: 'Ver Catálogo',
+                        showCancelButton: true,
+                        cancelButtonText: 'Cerrar'
+                    }).then(result => {
+                        if (result.isConfirmed) window.location.href = '{% url "inventarios:mobile_catalog" %}';
+                    });
                 };
             } catch (err) {
                 console.error("Error en downloadCatalogOffline:", err);
