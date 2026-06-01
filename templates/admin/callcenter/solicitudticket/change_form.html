@@ -17,9 +17,15 @@
 </li>
 {% endif %}
 <li>
-    <a href="/admin/callcenter/solicitudticket/{{ original.pk }}/enviar-power-automate/" class="addlink" style="background-color: #28a745 !important; color: white !important;">
+    <a href="/admin/callcenter/solicitudticket/{{ original.pk|stringformat:'d' }}/enviar-power-automate/" class="addlink" style="background-color: #28a745 !important; color: white !important;">
         <i class="fas fa-paper-plane"></i>
         Enviar Cierre (Power Automate)
+    </a>
+</li>
+<li>
+    <a href="/callcenter/ticket/{{ original.pk|stringformat:'d' }}/exportar-pdf/" class="addlink" style="background-color: #007bff !important; color: white !important;">
+        <i class="fas fa-file-pdf"></i>
+        Exportar PDF
     </a>
 </li>
 {{ block.super }}
@@ -132,6 +138,36 @@
         });
     }
 
+    function confirmSyncSIG(event) {
+        event.preventDefault();
+        // Obtener la URL del atributo href o del contexto del elemento de forma 100% segura
+        const url = this.href || event.currentTarget.href || '../sync-singular/';
+
+        Swal.fire({
+            title: 'Sincronizar con SIG GIA',
+            html: '¿Estás seguro de lanzar la sincronización en segundo plano?<br><br><small style="color:red; font-weight:bold;">¡IMPORTANTE! Se enviará la información que esté GUARDADA actualmente en la base de datos de Django. Si has hecho cambios en el formulario, haz clic en GUARDAR antes de sincronizar.</small>',
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonColor: '#007bff',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, sincronizar ahora',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Iniciando robot...',
+                    html: 'Se ha disparado la sincronización en segundo plano.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                setTimeout(() => {
+                    window.location.href = url;
+                }, 800);
+            }
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         // Filtrado dinámico de Diagnósticos basado en Falla
         const fallaSelect = document.getElementById('id_falla_reportada');
@@ -180,7 +216,7 @@
 
         var submitRow = document.querySelector('.submit-row');
         if (submitRow && !document.querySelector('#btn-sync-dynamic')) {
-            var ticketId = "{{ original.pk }}";
+            var ticketId = "{{ original.pk|stringformat:'d' }}";
             if (ticketId && ticketId !== "None") {
                 // Botón Sincronizar
                 var btn = document.createElement('a');
@@ -188,11 +224,12 @@
                 btn.href = '../sync-singular/';
                 btn.className = 'btn-dynamics btn-sync-sig';
                 btn.innerHTML = '<i class="fas fa-sync"></i> <span>Sincronizar SIG</span>';
+                btn.onclick = confirmSyncSIG;
 
                 // Botón Cierre Visual
                 var btnVisual = document.createElement('a');
                 btnVisual.id = 'btn-visual-dynamic';
-                btnVisual.href = '/callcenter/ticket/{{ original.pk }}/cierre-visual/';
+                btnVisual.href = '/callcenter/ticket/{{ original.pk|stringformat:'d' }}/cierre-visual/';
                 btnVisual.className = 'btn-dynamics';
                 btnVisual.style.backgroundColor = '#0070f2';
                 btnVisual.style.color = 'white';
@@ -201,7 +238,7 @@
                 // Botón Cierre (Power Automate)
                 var btnPA = document.createElement('a');
                 btnPA.id = 'btn-pa-dynamic';
-                btnPA.href = '/callcenter/ticket/{{ original.pk }}/enviar-power-automate/';
+                btnPA.href = '/callcenter/ticket/{{ original.pk|stringformat:'d' }}/enviar-power-automate/';
                 btnPA.className = 'btn-dynamics';
                 btnPA.style.backgroundColor = '#28a745';
                 btnPA.style.color = 'white';
@@ -211,8 +248,18 @@
                 submitRow.appendChild(btn);
                 submitRow.appendChild(btnVisual);
                 submitRow.appendChild(btnPA);
+
+                // Botón Exportar PDF
+                var btnPDF = document.createElement('a');
+                btnPDF.id = 'btn-pdf-dynamic';
+                btnPDF.href = '/callcenter/ticket/{{ original.pk|stringformat:'d' }}/exportar-pdf/';
+                btnPDF.className = 'btn-dynamics';
+                btnPDF.style.backgroundColor = '#007bff';
+                btnPDF.style.color = 'white';
+                btnPDF.innerHTML = '<i class="fas fa-file-pdf"></i> <span>Exportar PDF</span>';
+                submitRow.appendChild(btnPDF);
             }
         }
     });
 </script>
-{% endblock %}
+{% endblock %}

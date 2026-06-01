@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Exportar Ticket - {{ ticket.folio|default:ticket.id_solicitud }}</title>
+    <style>
+        @page { margin: 0.5cm; size: A4; }
+        body { font-family: Arial, sans-serif; font-size: 11px; color: black; margin: 0; padding: 0; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        td { border: 1px solid black; padding: 4px 6px; vertical-align: top; word-wrap: break-word; }
+        .header-logo { border: none; text-align: center; }
+        .title-container { text-align: center; border: none; }
+        .title { font-size: 18px; font-weight: bold; margin: 0; }
+        .subtitle { font-size: 14px; margin: 5px 0 0 0; }
+        .section-header { background-color: #d9d9d9; font-weight: bold; text-transform: uppercase; }
+        .label { background-color: #f2f2f2; font-weight: bold; width: 120px; }
+        .value { background-color: white; }
+        .logo-img { max-height: 50px; }
+        .ccg-logo-text { border: none; padding: 0; }
+        .ccg-logo-text h2 { margin: 0; font-size: 24px; letter-spacing: 2px; border-bottom: 2px solid navy; }
+        .ccg-logo-text p { margin: 2px 0 0 0; font-size: 8px; font-weight: bold; }
+        .large-field { height: 40px; }
+        .full-width { width: 100%; }
+    </style>
+</head>
+<body>
+    <table style="border: none; margin-bottom: 5px;">
+        <tr>
+            <td style="border: none; width: 25%;">
+                <div class="ccg-logo-text">
+                    <h2>CCG</h2>
+                    <p>José Cecilio del Valle</p>
+                </div>
+            </td>
+            <td style="border: none; width: 50%; text-align: center;">
+                <div class="title">Ficha Técnica - Solicitud Atención</div>
+                <div class="subtitle">Centro Cívico Gubernamental de Honduras</div>
+            </td>
+            <td style="border: none; width: 25%; text-align: right;">
+                {% if logo_dcc_b64 %}
+                <img src="data:image/png;base64,{{ logo_dcc_b64 }}" class="logo-img">
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <table>
+        <tr>
+            <td class="label">Folio</td>
+            <td class="value">{{ ticket.folio|default:"-" }}</td>
+            <td class="label">ID Solicitud</td>
+            <td class="value">{{ ticket.id_solicitud }}</td>
+            <td class="label">Interno</td>
+            <td class="value">{{ ticket.es_interno|yesno:"Sí,No" }}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header" colspan="6">Información General</td></tr>
+        <tr>
+            <td class="label">Solicitante</td>
+            <td class="value" colspan="2">{{ ticket.solicitante|default:"-" }}</td>
+            <td class="label">Responsable</td>
+            <td class="value" colspan="2">{{ ticket.responsable|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Usuario Responsable</td>
+            <td class="value" colspan="5">{% if ticket.usuario_responsable %}{{ ticket.usuario_responsable.get_full_name|default:ticket.usuario_responsable.username }}{% else %}-{% endif %}</td>
+        </tr>
+        <tr>
+            <td class="label">Fecha Solicitud</td>
+            <td class="value">{{ ticket.fecha_solicitud|date:"d/m/Y H:i:s"|default:"-" }}</td>
+            <td class="label">Fecha Cierre</td>
+            <td class="value">{{ ticket.fecha_cierre|date:"d/m/Y H:i:s"|default:"-" }}</td>
+            <td class="label">Estado</td>
+            <td class="value">{% if ticket.fecha_cierre %}Cerrado{% else %}Abierto{% endif %}</td>
+        </tr>
+        <tr>
+            <td class="label">Tipo Solicitud</td>
+            <td class="value">{{ ticket.tipo_solicitud|default:"-" }}</td>
+            <td class="label">Tipo Recepción</td>
+            <td class="value">{{ ticket.tipo_recepcion|default:"-" }}</td>
+            <td class="label">Deductiva</td>
+            <td class="value">{{ ticket.deductiva|default:"0.00" }}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header" colspan="4">Ubicación y Servicio</td></tr>
+        <tr>
+            <td class="label">Ubicación</td>
+            <td class="value">{{ ticket.ubicacion.nombre|default:"-" }}</td>
+            <td class="label">Servicio</td>
+            <td class="value">{{ ticket.servicio|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Área</td>
+            <td class="value">{{ ticket.area|default:"-" }}</td>
+            <td class="label">Unidad</td>
+            <td class="value">{{ ticket.unidad|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Activo</td>
+            <td class="value" colspan="3">{% if ticket.activo %}{{ ticket.activo.nombre }} ({{ ticket.activo.codigo_interno|default:"S/C" }}) - Serie: {{ ticket.activo.serie|default:"N/S" }}{% else %}-{% endif %}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header" colspan="2">Detalle de la Solicitud</td></tr>
+        <tr>
+            <td class="label">Descripción Solicitud</td>
+            <td class="value large-field">{{ ticket.solicitud_descripcion|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Descripción Falla</td>
+            <td class="value large-field">{{ ticket.falla_descripcion|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Falla Reportada</td>
+            <td class="value">{{ ticket.falla_reportada.nombre|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Clasificación Falla</td>
+            <td class="value">{{ ticket.falla_clasificacion|default:"-" }}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header" colspan="2">Seguimiento Técnico</td></tr>
+        <tr>
+            <td class="label">Diagnóstico</td>
+            <td class="value large-field">{{ ticket.diagnostico|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Diagnóstico Catálogo</td>
+            <td class="value">{{ ticket.diagnostico_reportado.nombre|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Actividades</td>
+            <td class="value large-field">{{ ticket.actividades|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Observaciones</td>
+            <td class="value large-field">{{ ticket.observaciones|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Observaciones Usuario</td>
+            <td class="value large-field">{{ ticket.observaciones_usuario|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Comentarios Internos</td>
+            <td class="value large-field">{{ ticket.comentarios_internos|default:"-" }}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header" colspan="4">Clasificación Final</td></tr>
+        <tr>
+            <td class="label">Clasificación Falla Final</td>
+            <td class="value">{{ ticket.clasificacion_falla_final|default:"-" }}</td>
+            <td class="label">Categoría Falla</td>
+            <td class="value">{{ ticket.categoria_falla|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Proveedor Deductiva</td>
+            <td class="value" colspan="3">{{ ticket.proveedor_deductiva.nombre|default:"-" }}</td>
+        </tr>
+    </table>
+
+    {% if evidencias %}
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header" colspan="2">Evidencias</td></tr>
+        {% for ev in evidencias %}
+        <tr>
+            <td class="label" style="width: 80px;">{{ forloop.counter }}</td>
+            <td class="value">{{ ev.descripcion|default:"Sin descripción" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    <div style="margin-top: 10px; font-size: 8px; color: #666; text-align: center;">
+        Documento exportado el {{ ahora|date:"d/m/Y H:i:s" }} por {{ user.get_full_name|default:user.username }}
+    </div>
+</body>
+</html>

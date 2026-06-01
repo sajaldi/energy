@@ -740,7 +740,7 @@ def mobile_mis_avisos(request):
         puesto = puesto_tecnico.puesto
         query |= Q(solicitante__perfil_tecnico__puesto=puesto)
     
-    avisos = Aviso.objects.filter(query).select_related('activo', 'ubicacion', 'falla', 'solicitante').order_by('-creado_en')
+    avisos = Aviso.objects.filter(query).select_related('activo', 'ubicacion', 'falla', 'solicitante').prefetch_related('fotos').order_by('-creado_en')
     
     return render(request, 'mantenimiento/mobile_mis_avisos.html', {
         'avisos': avisos,

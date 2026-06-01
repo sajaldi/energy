@@ -8,15 +8,16 @@
     {% include 'core/pwa_tags.html' %}
     {% include 'core/fiori_tokens.html' %}
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <style>
         :root {
             --safe-area-top: env(safe-area-inset-top);
             --safe-area-bottom: env(safe-area-inset-bottom);
         }
+
+        * { box-sizing: border-box; }
 
         body {
             font-family: var(--sap-font-family);
@@ -31,10 +32,10 @@
             flex-direction: column;
         }
 
-        /* Header Estilo SAP Classic */
-        .fiori-header {
-            background: var(--sap-shell-bg);
-            padding: calc(12px + var(--safe-area-top)) 16px 12px;
+        header {
+            background-color: var(--sap-shell-bg);
+            color: white;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -42,16 +43,6 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            color: white;
-        }
-
-        .fiori-header h1 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 700;
-            color: white;
-            flex: 1;
-            text-transform: uppercase;
         }
 
         .back-btn {
@@ -69,7 +60,14 @@
 
         .back-btn:active { background: rgba(255, 255, 255, 0.3); }
 
-        /* SAP Infobar (Centro de Trabajo) - Classic */
+        .shell-title {
+            font-size: 16px;
+            font-weight: 700;
+            flex: 1;
+            text-transform: uppercase;
+            color: white;
+        }
+
         .sap-infobar {
             background-color: white;
             border: 1px solid var(--sap-border-color);
@@ -106,7 +104,6 @@
             color: var(--sap-text-color);
         }
 
-        /* Scroll Content */
         .fiori-scroll-content {
             flex: 1;
             overflow-y: auto;
@@ -117,21 +114,23 @@
             padding-bottom: calc(100px + var(--safe-area-bottom));
         }
 
-        /* Card Aviso - Classic */
-        .fiori-card {
+        .aviso-card {
             background: var(--sap-card-bg);
             border: 1px solid var(--sap-border-color);
             border-radius: var(--sap-border-radius);
-            padding: 16px;
+            padding: 0;
             text-decoration: none;
             color: inherit;
             display: flex;
-            flex-direction: column;
-            gap: 10px;
             box-shadow: var(--sap-card-shadow);
             transition: all 0.2s;
             position: relative;
             overflow: hidden;
+            min-height: 100px;
+        }
+
+        .aviso-card:active {
+            background: #f0f7fd;
         }
 
         .prioridad-indicator {
@@ -142,19 +141,51 @@
             width: 4px;
         }
 
-        .prioridad-CRITICA .prioridad-indicator, .prioridad-ALTA .prioridad-indicator { background: var(--sap-error); }
+        .prioridad-CRITICA .prioridad-indicator,
+        .prioridad-ALTA .prioridad-indicator { background: var(--sap-error); }
+
         .prioridad-MEDIA .prioridad-indicator { background: var(--sap-warning); }
+
         .prioridad-BAJA .prioridad-indicator { background: var(--sap-success); }
 
-        .fiori-card:active {
-            background: #f0f7fd;
+        .aviso-thumb {
+            width: 90px;
+            min-height: 100px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: var(--sap-bg-color);
+            border-right: 1px solid var(--sap-border-color);
         }
 
-        .card-header {
+        .aviso-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .aviso-thumb .thumb-placeholder {
+            color: var(--sap-text-muted);
+            font-size: 28px;
+            opacity: 0.3;
+        }
+
+        .aviso-body {
+            flex: 1;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .aviso-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 12px;
+            gap: 8px;
         }
 
         .aviso-id {
@@ -162,33 +193,45 @@
             font-weight: 800;
             color: var(--sap-text-muted);
             text-transform: uppercase;
+            white-space: nowrap;
         }
 
         .aviso-title {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
-            margin: 4px 0 0;
+            margin: 2px 0 0;
             color: var(--sap-text-color);
             line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .obj-attribute {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             font-size: 12px;
             color: var(--sap-text-muted);
             font-weight: 500;
         }
 
         .obj-attribute ion-icon {
-            font-size: 16px;
+            font-size: 14px;
             color: var(--sap-brand-color);
+            flex-shrink: 0;
         }
 
-        .card-footer {
-            margin-top: 4px;
-            padding-top: 12px;
+        .obj-attribute span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .aviso-footer {
+            margin-top: auto;
+            padding-top: 8px;
             border-top: 1px solid #f0f0f0;
             display: flex;
             justify-content: space-between;
@@ -198,24 +241,31 @@
         .footer-user {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 12px;
+            gap: 4px;
+            font-size: 11px;
             color: var(--sap-text-muted);
             font-weight: 600;
+            min-width: 0;
+        }
+
+        .footer-user span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .footer-date {
             font-size: 11px;
             color: var(--sap-text-muted);
             font-weight: 700;
+            white-space: nowrap;
         }
 
-        /* Badges Classic */
         .sap-badge {
             font-size: 10px;
             font-weight: 800;
-            padding: 4px 10px;
-            border-radius: 2px;
+            padding: 3px 8px;
+            border-radius: var(--sap-border-radius);
             text-transform: uppercase;
             white-space: nowrap;
             border: 1px solid transparent;
@@ -223,9 +273,9 @@
 
         .status-ABIERTO { background: var(--sap-error-bg); color: var(--sap-error); border-color: var(--sap-error); }
         .status-PROCESO { background: var(--sap-warning-bg); color: var(--sap-warning); border-color: var(--sap-warning); }
-        .status-REALIZADO { background: var(--sap-success-bg); color: var(--sap-success); border-color: var(--sap-success); }
+        .status-CERRADO { background: var(--sap-success-bg); color: var(--sap-success); border-color: var(--sap-success); }
+        .status-CANCELADO { background: #f2f2f2; color: #6a6d70; border-color: #ccc; }
 
-        /* FAB Classic */
         .fiori-fab {
             position: fixed;
             right: 20px;
@@ -262,11 +312,11 @@
 </head>
 <body>
 
-    <header class="fiori-header">
+    <header>
         <a href="{% url 'core:mobile_dashboard' %}" class="back-btn">
-            <ion-icon name="arrow-back-outline"></ion-icon>
+            <ion-icon name="chevron-back-outline"></ion-icon>
         </a>
-        <h1>Mis Avisos</h1>
+        <div class="shell-title">Mis Avisos</div>
     </header>
 
     {% if puesto %}
@@ -281,43 +331,65 @@
 
     <div class="fiori-scroll-content">
         {% for aviso in avisos %}
-        <a href="{% url 'mantenimiento:mobile_aviso_detalle' aviso.id %}" class="fiori-card prioridad-{{ aviso.prioridad }}">
+        <a href="{% url 'mantenimiento:mobile_aviso_detalle' aviso.id %}" class="aviso-card prioridad-{{ aviso.prioridad }}">
             <div class="prioridad-indicator"></div>
-            <div class="card-header">
-                <div style="flex: 1;">
-                    <span class="aviso-id">AVISO #{{ aviso.id }}</span>
-                    <h2 class="aviso-title">{{ aviso.descripcion|truncatechars:80 }}</h2>
-                </div>
-                <span class="sap-badge status-{{ aviso.estado }}">{{ aviso.get_estado_display }}</span>
-            </div>
 
-            <div class="card-body" style="padding: 0;">
+            {% with first_foto=aviso.fotos.all.first %}
+            {% if first_foto %}
+            <div class="aviso-thumb">
+                <img src="{{ first_foto.foto.url }}" alt="Evidencia">
+            </div>
+            {% elif aviso.foto %}
+            <div class="aviso-thumb">
+                <img src="{{ aviso.foto.url }}" alt="Evidencia">
+            </div>
+            {% else %}
+            <div class="aviso-thumb">
+                <ion-icon name="image-outline" class="thumb-placeholder"></ion-icon>
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <div class="aviso-body">
+                <div class="aviso-header">
+                    <div style="min-width: 0; flex: 1;">
+                        <span class="aviso-id">AVISO #{{ aviso.id }}</span>
+                        <h2 class="aviso-title">{{ aviso.descripcion|truncatechars:80 }}</h2>
+                    </div>
+                    <span class="sap-badge status-{{ aviso.estado }}">{{ aviso.get_estado_display }}</span>
+                </div>
+
                 {% if aviso.falla %}
-                <div class="obj-attribute" style="margin-bottom: 8px;">
+                <div class="obj-attribute">
                     <ion-icon name="warning-outline"></ion-icon>
                     <span>{{ aviso.falla.nombre }}</span>
                 </div>
                 {% endif %}
-                
-                {% if aviso.activo %}
+
                 <div class="obj-attribute">
+                    {% if aviso.activo %}
                     <ion-icon name="cube-outline"></ion-icon>
                     <span>{{ aviso.activo.nombre }}</span>
-                </div>
-                {% elif aviso.ubicacion %}
-                <div class="obj-attribute">
+                    {% elif aviso.ubicacion %}
                     <ion-icon name="location-outline"></ion-icon>
                     <span>{{ aviso.ubicacion.nombre }}</span>
+                    {% endif %}
+                </div>
+
+                {% if aviso.fotos.all.count > 1 %}
+                <div class="obj-attribute" style="font-size: 11px; color: var(--sap-brand-color);">
+                    <ion-icon name="images-outline"></ion-icon>
+                    <span>+{{ aviso.fotos.all.count|add:-1 }} foto(s) más</span>
                 </div>
                 {% endif %}
-            </div>
 
-            <div class="card-footer">
-                <div class="footer-user">
-                    <ion-icon name="person-circle-outline"></ion-icon>
-                    <span>{{ aviso.solicitante.get_full_name|default:aviso.solicitante.username }}</span>
+                <div class="aviso-footer">
+                    <div class="footer-user">
+                        <ion-icon name="person-circle-outline"></ion-icon>
+                        <span>{{ aviso.solicitante.get_full_name|default:aviso.solicitante.username }}</span>
+                    </div>
+                    <span class="footer-date">{{ aviso.creado_en|date:"d M, H:i" }}</span>
                 </div>
-                <span class="footer-date">{{ aviso.creado_en|date:"d M, H:i" }}</span>
             </div>
         </a>
         {% empty %}

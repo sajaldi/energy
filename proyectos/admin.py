@@ -49,6 +49,21 @@ class ActividadInline(admin.TabularInline):
     ordering = ('orden', 'creado_en')
 
 
+class AnalisisCostoInline(admin.TabularInline):
+    from costos.models import AnalisisCostoUnitario
+    model = AnalisisCostoUnitario
+    extra = 0
+    fields = ('codigo', 'nombre', 'unidad', 'estado', 'costo_total')
+    readonly_fields = ('codigo', 'costo_total')
+    show_change_link = True
+    verbose_name = "ACU"
+    verbose_name_plural = "Análisis de Costos Unitarios"
+
+    def costo_total(self, obj):
+        return obj.costo_total
+    costo_total.short_description = "Costo Total"
+
+
 @admin.register(Proyecto)
 class ProyectoAdmin(admin.ModelAdmin):
     list_display = ('codigo', 'nombre', 'estado_badge', 'responsable', 'avance_bar', 'ver_cronograma', 'ver_repositorio_docs', 'total_docs', 'abrir_visores')
@@ -56,7 +71,7 @@ class ProyectoAdmin(admin.ModelAdmin):
     search_fields = ('codigo', 'nombre', 'descripcion', 'visores__nombre')
     autocomplete_fields = ('responsable', 'ubicacion')
     readonly_fields = ('creado_en', 'actualizado_en', 'resumen_actividades', 'ver_cronograma_btn', 'ver_repositorio_docs_btn', 'visor_planos_dinamico', 'cronograma_interactivo')
-    inlines = [ActividadInline, DocumentoProyectoInline, AvisoInline]
+    inlines = [ActividadInline, DocumentoProyectoInline, AvisoInline, AnalisisCostoInline]
     
     filter_horizontal = ('visores',)
     

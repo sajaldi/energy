@@ -1001,6 +1001,13 @@ def cluster_tickets_view(request, cluster_id):
     elif filtro_especial == 'tiempo_acordado':
         tickets = tickets.filter(num_tiempos_acordados__gt=0)
 
+    # Filtro por Correo de Cierre
+    correo_cierre = request.GET.get('correo_cierre')
+    if correo_cierre == 'con':
+        tickets = tickets.filter(correo_cierre=True)
+    elif correo_cierre == 'sin':
+        tickets = tickets.filter(Q(correo_cierre=False) | Q(correo_cierre__isnull=True))
+
     # Obtener fallas únicas presentes en este cluster para el filtro
     fallas_ids = cluster.tickets.values_list('falla_reportada_id', flat=True).distinct()
     fallas_opciones = FallaTicket.objects.filter(id__in=fallas_ids).order_by('nombre')

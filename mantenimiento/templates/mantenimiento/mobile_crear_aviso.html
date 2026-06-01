@@ -4,12 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Reportar Aviso | SoftCoM-CCG</title>
+    <title>{% if aviso %}Editar Aviso #{{ aviso.id }}{% else %}Nuevo Aviso{% endif %} | SoftCoM-CCG</title>
     {% include 'core/pwa_tags.html' %}
     {% include 'core/fiori_tokens.html' %}
 
-    <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -20,73 +19,81 @@
             --safe-area-bottom: env(safe-area-inset-bottom);
         }
 
+        * { box-sizing: border-box; }
+
         body {
             font-family: var(--sap-font-family);
             background-color: var(--sap-bg-color);
             color: var(--sap-text-color);
             margin: 0;
-            padding: 0;
+            padding: 0 0 90px;
             -webkit-font-smoothing: antialiased;
-            height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            overflow-x: hidden;
         }
 
-        /* Header SAP Classic */
-        .fiori-header {
-            background: var(--sap-shell-bg);
-            padding: calc(12px + var(--safe-area-top)) 16px 12px;
+        header {
+            background-color: var(--sap-shell-bg);
+            color: white;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
-            gap: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             position: sticky;
             top: 0;
-            z-index: 100;
-            color: white;
-        }
-
-        .fiori-header h1 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 700;
-            color: white;
-            flex: 1;
-            text-transform: uppercase;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .back-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 36px;
-            height: 36px;
-            border-radius: 4px;
             color: white;
+            font-size: 24px;
+            margin-right: 12px;
+            display: flex;
             text-decoration: none;
             background: rgba(255,255,255,0.15);
+            padding: 4px;
+            border-radius: 4px;
             border: 1px solid rgba(255,255,255,0.2);
+            cursor: pointer;
         }
 
-        /* Content Area */
-        .fiori-scroll-content {
-            flex: 1;
-            overflow-y: auto;
+        .shell-title {
+            font-size: 16px;
+            font-weight: 700;
+            flex-grow: 1;
+            text-transform: uppercase;
+        }
+
+        .container {
             padding: 16px;
             display: flex;
             flex-direction: column;
             gap: 16px;
-            padding-bottom: calc(100px + var(--safe-area-bottom));
         }
 
-        /* Cards SAP Classic */
+        .error-banner {
+            background: var(--sap-error-bg);
+            border-left: 4px solid var(--sap-error);
+            color: var(--sap-error);
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: var(--sap-border-radius);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .error-banner ion-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
         .fiori-card {
             background: var(--sap-card-bg);
-            border-radius: var(--sap-border-radius);
             border: 1px solid var(--sap-border-color);
-            box-shadow: var(--sap-card-shadow);
+            border-radius: var(--sap-border-radius);
             overflow: hidden;
+            box-shadow: var(--sap-card-shadow);
         }
 
         .card-header {
@@ -96,6 +103,11 @@
             align-items: center;
             gap: 10px;
             background: #fafafa;
+        }
+
+        .card-header ion-icon {
+            font-size: 20px;
+            color: var(--sap-brand-color);
         }
 
         .card-header h2 {
@@ -109,7 +121,6 @@
 
         .card-content { padding: 16px; }
 
-        /* Form Controls */
         .fiori-form-group {
             margin-bottom: 16px;
         }
@@ -118,10 +129,10 @@
 
         .fiori-label {
             display: block;
-            font-size: 13px;
-            font-weight: 700;
+            font-size: 11px;
+            font-weight: 800;
             color: var(--sap-text-muted);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             text-transform: uppercase;
         }
 
@@ -143,11 +154,10 @@
             box-shadow: inset 0 0 0 1px var(--sap-brand-color);
         }
 
-        .fiori-textarea { height: 100px; resize: none; }
+        .fiori-textarea { height: 100px; resize: vertical; }
 
-        /* Search Box with Suggestions */
         .search-wrapper { position: relative; }
-        
+
         .search-results {
             position: absolute;
             top: 100%;
@@ -172,7 +182,6 @@
         .search-item:last-child { border-bottom: none; }
         .search-item:active { background: #f0f7fd; }
 
-        /* Asset Detail Card (Compact) */
         #asset-details-card {
             background: var(--sap-information-bg);
             border: 1px solid rgba(10, 110, 209, 0.2);
@@ -187,7 +196,6 @@
         .asset-info-item b { font-size: 10px; color: var(--sap-text-muted); text-transform: uppercase; display: block; margin-bottom: 2px; }
         .asset-info-item span { font-size: 12px; font-weight: 700; color: var(--sap-text-color); }
 
-        /* Toggle Switch */
         .fiori-switch {
             display: flex;
             align-items: center;
@@ -229,7 +237,6 @@
         input:checked + .slider { background-color: var(--sap-error); }
         input:checked + .slider:before { transform: translateX(24px); }
 
-        /* Photo Upload UI */
         .photo-uploader {
             display: flex;
             flex-direction: column;
@@ -267,9 +274,9 @@
             justify-content: center;
             font-size: 14px;
             border: none;
+            cursor: pointer;
         }
 
-        /* Toolbar Actions (Classic) */
         .fiori-toolbar {
             position: fixed;
             bottom: 0; left: 0; right: 0;
@@ -282,40 +289,28 @@
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         }
 
-        .fiori-btn {
+        .fiori-toolbar .fiori-btn {
             flex: 1;
             height: 48px;
             border-radius: var(--sap-border-radius);
             font-size: 14px;
-            font-weight: 700;
+            font-weight: 800;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             cursor: pointer;
             transition: all 0.2s;
-            border: none;
+            border: 1px solid transparent;
             text-transform: uppercase;
+            font-family: inherit;
+            text-decoration: none;
         }
+
+        .fiori-toolbar .fiori-btn:active { transform: scale(0.98); opacity: 0.9; }
 
         .fiori-btn-primary { background: var(--sap-brand-color); color: white; }
-        .fiori-btn-ghost { background: transparent; border: 1px solid var(--sap-brand-color); color: var(--sap-brand-color); }
-        .fiori-btn:active { transform: scale(0.98); opacity: 0.9; }
-
-        /* Scanner Overlay */
-        #scanner-modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.9);
-            z-index: 2000;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        #reader { width: 100%; max-width: 400px; border-radius: var(--sap-border-radius); overflow: hidden; }
+        .fiori-btn-ghost { background: transparent; border-color: var(--sap-border-color); color: var(--sap-text-muted); }
 
         .scan-btn-main {
             background: var(--sap-brand-color);
@@ -331,29 +326,46 @@
             width: 100%;
             justify-content: center;
             text-transform: uppercase;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
         }
+
+        #scanner-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        #reader { width: 100%; max-width: 400px; border-radius: var(--sap-border-radius); overflow: hidden; }
     </style>
 </head>
 <body>
 
-    <header class="fiori-header">
+    <header>
         <button onclick="window.history.back()" class="back-btn">
             <ion-icon name="chevron-back-outline"></ion-icon>
         </button>
-        <h1>Aviso de Avería</h1>
+        <div class="shell-title">{% if aviso %}Editar Aviso #{{ aviso.id }}{% else %}Nuevo Aviso{% endif %}</div>
     </header>
 
-    <div class="fiori-scroll-content">
+    <div class="container">
         {% if error_mensaje %}
-        <div style="background: var(--sap-error-bg); border-left: 4px solid var(--sap-error); color: var(--sap-error); padding: 12px; border-radius: 8px; font-size: 14px;">
-            {{ error_mensaje }}
+        <div class="error-banner">
+            <ion-icon name="alert-circle-outline"></ion-icon>
+            <span>{{ error_mensaje }}</span>
         </div>
         {% endif %}
 
         <form method="post" enctype="multipart/form-data" id="order-form">
             {% csrf_token %}
 
-            <!-- SECCIÓN 1: Identificación -->
             <div class="fiori-card">
                 <div class="card-header">
                     <ion-icon name="cube-outline"></ion-icon>
@@ -375,7 +387,6 @@
                             <div id="search-results" class="search-results"></div>
                         </div>
 
-                        <!-- Detalle Compacto del Activo -->
                         <div id="asset-details-card">
                             <div class="asset-info-item"><b>Marca</b><span id="detail-marca">-</span></div>
                             <div class="asset-info-item"><b>Modelo</b><span id="detail-modelo">-</span></div>
@@ -386,7 +397,6 @@
                 </div>
             </div>
 
-            <!-- SECCIÓN 2: Ubicación -->
             <div class="fiori-card">
                 <div class="card-header">
                     <ion-icon name="location-outline"></ion-icon>
@@ -394,19 +404,19 @@
                 </div>
                 <div class="card-content">
                     <div class="fiori-form-group">
-                        <label class="fiori-label">Edificio / Sede</label>
+                        <label class="fiori-label">Edificio</label>
                         <select id="select-sede" class="fiori-select">
                             <option value="">Seleccione Edificio...</option>
                         </select>
                     </div>
                     <div class="fiori-form-group">
-                        <label class="fiori-label">Nivel / Piso</label>
+                        <label class="fiori-label">Nivel</label>
                         <select id="select-edificio" class="fiori-select" disabled>
                             <option value="">Primero seleccione Edificio</option>
                         </select>
                     </div>
                     <div class="fiori-form-group">
-                        <label class="fiori-label">Área / Recinto</label>
+                        <label class="fiori-label">Área</label>
                         <select id="select-area" class="fiori-select" disabled>
                             <option value="">Primero seleccione Nivel</option>
                         </select>
@@ -415,7 +425,6 @@
                 </div>
             </div>
 
-            <!-- SECCIÓN 3: Detalles -->
             <div class="fiori-card">
                 <div class="card-header">
                     <ion-icon name="alert-circle-outline"></ion-icon>
@@ -488,7 +497,6 @@
                 </div>
             </div>
 
-            <!-- SECCIÓN 4: Evidencias -->
             <div class="fiori-card">
                 <div class="card-header">
                     <ion-icon name="images-outline"></ion-icon>
@@ -496,7 +504,7 @@
                 </div>
                 <div class="card-content">
                     <div class="photo-uploader">
-                        <button type="button" class="fiori-btn fiori-btn-ghost" onclick="document.getElementById('foto-input').click()">
+                        <button type="button" class="fiori-btn fiori-btn-ghost" style="width: 100%; padding: 12px; text-transform: uppercase;" onclick="document.getElementById('foto-input').click()">
                             <ion-icon name="camera-outline"></ion-icon>
                             Capturar Imagen
                         </button>
@@ -508,15 +516,16 @@
         </form>
     </div>
 
-    <!-- Botones de Acción -->
     <div class="fiori-toolbar">
-        <button type="button" class="fiori-btn fiori-btn-ghost" onclick="window.history.back()">Cancelar</button>
+        <button type="button" class="fiori-btn fiori-btn-ghost" onclick="window.history.back()">
+            <ion-icon name="close-outline"></ion-icon> Cancelar
+        </button>
         <button type="submit" form="order-form" class="fiori-btn fiori-btn-primary" id="submit-trigger">
-            <ion-icon name="checkmark-done-outline"></ion-icon> Crear Aviso
+            <ion-icon name="{% if aviso %}create-outline{% else %}checkmark-done-outline{% endif %}"></ion-icon>
+            {% if aviso %}Guardar Cambios{% else %}Crear Aviso{% endif %}
         </button>
     </div>
 
-    <!-- Scanner Overlay -->
     <div id="scanner-modal">
         <div id="reader"></div>
         <button id="close-scanner" style="margin-top: 20px; background: white; border-radius: 50%; width: 50px; height: 50px; border: none; display: flex; align-items: center; justify-content: center; font-size: 24px;">
@@ -526,7 +535,6 @@
 
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script>
-        // Datos de Ubicaciones
         const rawUbicaciones = [
             {% for u in ubicaciones %}
             { id: {{ u.id }}, nombre: "{{ u.nombre }}", padre: {{ u.padre_id|default:"null" }}, tipo: "{{ u.tipo }}" },
@@ -571,11 +579,10 @@
 
         populateSedes();
 
-        // Asset Search Logic
         const assetSearch = document.getElementById('asset-search');
         const assetIdInput = document.getElementById('asset-id');
         const resultsContainer = document.getElementById('search-results');
-        const searchStatus = document.getElementById('search-status');
+        
         let searchTimeout;
 
         assetSearch.oninput = function () {
@@ -641,7 +648,6 @@
             finalUbiInput.value = leafId;
         }
 
-        // Falla Catalog Logic
         const rawFallas = {{ fallas_json|default:"[]"|safe }};
         const currentFallaId = "{{ aviso.falla_id|default:'' }}";
         const tipoSelect = document.querySelector('select[name="tipo"]');
@@ -661,7 +667,6 @@
         tipoSelect.addEventListener('change', updateFallaCatalog);
         updateFallaCatalog();
 
-        // Scanner Logic
         const scannerModal = document.getElementById('scanner-modal');
         let html5QrCode;
         document.getElementById('start-scan').onclick = () => {
@@ -682,7 +687,6 @@
             else scannerModal.style.display = 'none';
         };
 
-        // Photo Logic
         const photoInput = document.getElementById('foto-input');
         const photoGrid = document.getElementById('photo-grid-container');
         let selectedFiles = [];
@@ -719,7 +723,6 @@
             this.value = '';
         };
 
-        // Offline Logic
         async function saveAvisoOffline(payload) {
             const dbRequest = indexedDB.open('SoftcomOfflineDB', 1);
             dbRequest.onupgradeneeded = (e) => {
@@ -751,11 +754,10 @@
                     await saveAvisoOffline(payload);
                     await Swal.fire('Guardado Offline', 'Se enviará cuando recuperes señal.', 'info');
                     window.location.href = "{% url 'mantenimiento:mobile_mis_avisos' %}";
-                } catch (err) { btn.disabled = false; btn.innerText = 'Crear Aviso'; }
+                } catch (err) { btn.disabled = false; btn.innerText = '{% if aviso %}Guardar Cambios{% else %}Crear Aviso{% endif %}'; }
             } else { btn.disabled = true; btn.innerText = 'Procesando...'; }
         };
 
-        // Initial department filter
         const depSelect = document.querySelector('select[name="departamento"]');
         const resSelect = document.querySelector('select[name="responsable"]');
         if (depSelect && resSelect) {
@@ -779,7 +781,7 @@
                 marca: "{{ activo.modelo.marca.nombre|default:activo.marca_legacy|default:'S/M' }}",
                 modelo: "{{ activo.modelo.nombre|default:activo.modelo_legacy|default:'S/M' }}",
                 categoria: "{{ activo.modelo.categoria.nombre|default:'S/C' }}",
-                serie: "{{ aviso.activo.serie|default:'S/S' }}"
+                serie: "{{ activo.serie|default:'S/S' }}"
             });{% endif %}
         });
     </script>

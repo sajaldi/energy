@@ -77,6 +77,8 @@ class WorkOrderService:
         working_days_cache = {}
         
         for prog in proyecciones:
+            if not prog.rutina or not prog.rutina.frecuencia:
+                continue
             fecha_ciclo = prog.fecha_inicio
             limite = min(prog.fecha_fin or (prog.fecha_inicio + timedelta(days=365)), date(year, 12, 31))
             frec_dias = prog.rutina.frecuencia.dias

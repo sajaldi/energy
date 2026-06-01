@@ -2,6 +2,8 @@ from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from ..models import OrdenTrabajo, Aviso, TecnicoPuesto, Empresa
 from seguridad.models import TipoPermiso
+from callcenter.models import SolicitudTicket, FallaTicket
+from core.models import Departamento
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
@@ -64,6 +66,34 @@ def mantenimiento_dashboard(request):
     except Exception:
         pass
 
+    # Tickets abiertos del mes del departamento del usuario
+    tickets_mi_depto = 0
+    tickets_list = []
+    inicio_mes = today.replace(day=1)
+    try:
+        perfil = getattr(request.user, 'perfil', None)
+        if perfil and perfil.departamento:
+            tickets_qs = SolicitudTicket.objects.filter(
+                fecha_cierre__isnull=True, cierre_enviado=False,
+                fecha_solicitud__gte=inicio_mes,
+                falla_reportada__departamento_responsable=perfil.departamento
+            ).select_related('ubicacion').order_by('-fecha_solicitud')[:50]
+            tickets_mi_depto = tickets_qs.count()
+            tickets_list = [
+                {
+                    'id': t.id,
+                    'folio': t.folio or f"TKT-{t.id_solicitud}",
+                    'solicitante': t.solicitante or '—',
+                    'descripcion': (t.solicitud_descripcion or t.falla_descripcion or '')[:120],
+                    'fecha': t.fecha_solicitud,
+                    'ubicacion': t.ubicacion.nombre if t.ubicacion else '—',
+                    'estado': 'Abierto',
+                }
+                for t in tickets_qs
+            ]
+    except Exception:
+        pass
+
     context = {
         'title': 'Sistema de Gestión de Mantenimiento',
         'ots_totales': ots_totales,
@@ -83,6 +113,8 @@ def mantenimiento_dashboard(request):
         'empresas': empresas,
         'prioridades': prioridades,
         'tipos_permiso': tipos_permiso,
+        'tickets_mi_depto': tickets_mi_depto,
+        'tickets_list': tickets_list,
     }
     
     return render(request, 'mantenimiento/dashboard.html', context)

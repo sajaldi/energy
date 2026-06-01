@@ -302,9 +302,9 @@
     </div>
 
     <!-- Modal Nueva Solicitud (Requisición de Almacén) -->
-        <div id="offline-sync-banner" style="display: none; background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: 500; cursor: pointer; text-align: center;" onclick="syncOfflineQueue()">
+        <div id="offline-sync-banner" style="display: none; background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: 500; cursor: pointer; text-align: center;" onclick="showSyncList()">
             <ion-icon name="cloud-upload-outline" style="vertical-align: middle;"></ion-icon>
-            Tienes <span id="offline-queue-count">0</span> movimientos pendientes de sincronizar. Clic aquí para subir.
+            Tienes <span id="offline-queue-count">0</span> movimientos pendientes de sincronizar. 📋 Clic para ver listado.
         </div>
 
         <h2 class="section-title">Gestión de Almacén</h2>
@@ -837,6 +837,42 @@
                 } else {
                     banner.style.display = 'none';
                 }
+            };
+        }
+
+        async function showSyncList() {
+            if (!offlineDb) await initOfflineDB();
+            const tx = offlineDb.transaction('offline_sync_queue', 'readonly');
+            const store = tx.objectStore('offline_sync_queue');
+            store.getAll().onsuccess = async (event) => {
+                const items = event.target.result;
+                if (items.length === 0) return;
+
+                let html = '<div style="max-height:60vh;overflow-y:auto;">';
+                html += '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+                html += '<thead><tr style="background:#f1f5f9;"><th style="padding:6px;text-align:left;">Material</th><th style="padding:6px;text-align:center;">Tipo</th><th style="padding:6px;text-align:center;">Cant.</th><th style="padding:6px;text-align:center;">Fecha</th></tr></thead><tbody>';
+                items.forEach((item, i) => {
+                    const mat = item.material || {};
+                    const fecha = item.fecha ? new Date(item.fecha).toLocaleDateString() : '—';
+                    html += `<tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:6px;">${mat.nombre || mat.sku || '#'+i}</td>
+                        <td style="padding:6px;text-align:center;">${item.tipo || '—'}</td>
+                        <td style="padding:6px;text-align:center;font-weight:700;">${item.cantidad || 0}</td>
+                        <td style="padding:6px;text-align:center;">${fecha}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+
+                Swal.fire({
+                    title: `📋 Sincronización (${items.length})`,
+                    html,
+                    showCancelButton: true,
+                    confirmButtonText: '⬆ Sincronizar todo',
+                    cancelButtonText: 'Cerrar',
+                    confirmButtonColor: '#0070f2',
+                }).then(result => {
+                    if (result.isConfirmed) syncOfflineQueue();
+                });
             };
         }
 

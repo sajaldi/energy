@@ -640,12 +640,6 @@ JAZZMIN_SETTINGS = {
                 "icon": "fas fa-warehouse",
                 "permissions": ["inventarios.view_material"],
             },
-            {
-                "name": "📷 Escáner de Inventario",
-                "url": "/inventarios/escanear/",
-                "icon": "fas fa-qrcode",
-                "permissions": ["inventarios.view_material"],
-            },
         ],
         "documentos": [
             {

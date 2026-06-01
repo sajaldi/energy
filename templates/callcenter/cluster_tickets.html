@@ -220,6 +220,13 @@
                                 <option value="tiempo_acordado" {% if request.GET.filtro_especial == 'tiempo_acordado' %}selected{% endif %}>📅 Con Tiempo Acordado</option>
                             </select>
 
+                            <!-- Correo de Cierre Filter -->
+                            <select name="correo_cierre" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 180px;">
+                                <option value="">Correo de Cierre</option>
+                                <option value="con" {% if request.GET.correo_cierre == 'con' %}selected{% endif %}>📧 Con correo de cierre</option>
+                                <option value="sin" {% if request.GET.correo_cierre == 'sin' %}selected{% endif %}>🚫 Sin correo de cierre</option>
+                            </select>
+
                             <!-- Falla Filter -->
                             <select name="falla" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; max-width: 250px;">
                                 <option value="">Todas las Fallas</option>
@@ -242,10 +249,10 @@
                             <button type="button" onclick="importDeductivasExcel()" class="btn-fiori" style="height: 40px; width: 40px; padding: 0; background: #107e3e !important; border-color: #107e3e !important; color: white !important;" title="Importar Deductivas desde Excel">
                                 <i class="ph ph-file-arrow-up" style="font-size: 1.2rem;"></i>
                             </button>
-                            <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}{% if request.GET.filtro_especial %}&filtro_especial={{ request.GET.filtro_especial }}{% endif %}{% if request.GET.falla %}&falla={{ request.GET.falla }}{% endif %}" class="btn-fiori btn-excel" style="height: 40px; width: 40px; padding: 0;" title="Exportar Excel">
+                            <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}{% if request.GET.filtro_especial %}&filtro_especial={{ request.GET.filtro_especial }}{% endif %}{% if request.GET.correo_cierre %}&correo_cierre={{ request.GET.correo_cierre }}{% endif %}{% if request.GET.falla %}&falla={{ request.GET.falla }}{% endif %}" class="btn-fiori btn-excel" style="height: 40px; width: 40px; padding: 0;" title="Exportar Excel">
                                 <i class="ph ph-file-xls" style="font-size: 1.2rem;"></i>
                             </a>
-                            <a href="?export=pdf{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}{% if request.GET.filtro_especial %}&filtro_especial={{ request.GET.filtro_especial }}{% endif %}{% if request.GET.falla %}&falla={{ request.GET.falla }}{% endif %}" class="btn-fiori btn-pdf" style="height: 40px; width: 40px; padding: 0;" title="Exportar PDF">
+                            <a href="?export=pdf{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}{% if request.GET.filtro_especial %}&filtro_especial={{ request.GET.filtro_especial }}{% endif %}{% if request.GET.correo_cierre %}&correo_cierre={{ request.GET.correo_cierre }}{% endif %}{% if request.GET.falla %}&falla={{ request.GET.falla }}{% endif %}" class="btn-fiori btn-pdf" style="height: 40px; width: 40px; padding: 0;" title="Exportar PDF">
                                 <i class="ph ph-file-pdf" style="font-size: 1.2rem;"></i>
                             </a>
                             <button type="button" onclick="vectorizeClusterIA()" class="btn-fiori btn-ai" style="height: 40px; width: 40px; padding: 0;" title="Sincronizar IA">
