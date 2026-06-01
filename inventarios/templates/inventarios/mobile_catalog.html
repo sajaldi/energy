@@ -357,14 +357,21 @@
         let isLoading = false; let hasMore = true;
         let db = null;
 
-        const dbReq = indexedDB.open('InventarioPWA', 4);
+        const dbReq = indexedDB.open('InventarioPWA', 6);
+        dbReq.onupgradeneeded = e => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains('catalog_cache')) d.createObjectStore('catalog_cache', { keyPath: 'id' });
+            if (!d.objectStoreNames.contains('locations_cache')) d.createObjectStore('locations_cache', { keyPath: 'id' });
+            if (!d.objectStoreNames.contains('offline_sync_queue')) d.createObjectStore('offline_sync_queue', { keyPath: 'id', autoIncrement: true });
+            if (!d.objectStoreNames.contains('sync_history')) d.createObjectStore('sync_history', { keyPath: 'id', autoIncrement: true });
+        };
         dbReq.onsuccess = e => { 
             db = e.target.result; 
-            // Si ya falló la carga inicial porque no había DB, la reintentamos
             if (!navigator.onLine && document.getElementById('material-list').children.length === 0) {
                 loadCatalog(1);
             }
         };
+        dbReq.onerror = () => console.error('IndexedDB error en catálogo');
 
         function getCookie(name) {
             let cookieValue = null;
@@ -435,8 +442,8 @@
                     id: m.id, 
                     nombre: m.nombre, 
                     sku: m.sku, 
-                    stock: m.stock, 
-                    unidad: m.uni, 
+                    stock: m.stock || 0, 
+                    unidad: m.unidad || m.uni || 'UND', 
                     categoria: 'CACHÉ', 
                     image_url: '' 
                 })));
@@ -473,8 +480,17 @@
 
         async function openDetail(id) {
             currentMaterialId = id;
-            const res = await fetch(`/inventarios/api/stock/${id}/`);
-            const data = await res.json();
+            let data;
+            try {
+                const res = await fetch(`/inventarios/api/stock/${id}/`);
+                data = await res.json();
+            } catch (e) {
+                if (!db) return Swal.fire('Sin conexión', 'No hay detalle disponible offline.', 'warning');
+                const tx = db.transaction('catalog_cache', 'readonly');
+                const cached = await new Promise(r => { const req = tx.objectStore('catalog_cache').get(id); req.onsuccess = () => r(req.result); req.onerror = () => r(null); });
+                if (!cached) return Swal.fire('Sin conexión', 'Material no encontrado en caché.', 'warning');
+                data = { ...cached, stock_total: cached.stock || 0, stock_nuevo: 0, stock_usado: 0, stock_minimo: 0, categoria: 'CACHÉ', categoria_id: null, descripcion: cached.descripcion || '', image_url: '', existencias: [], movimientos: [] };
+            }
 
             document.getElementById('ov-sku').innerText = data.sku;
             document.getElementById('ov-name').innerText = data.nombre;
