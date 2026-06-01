@@ -346,6 +346,14 @@
                     <p>Stock vs Real</p>
                 </div>
             </a>
+            <a href="#" class="action-card" onclick="showSyncList(); return false;" id="sync-card">
+                <div id="sync-badge" style="display:none;" class="badge-notif">0</div>
+                <div class="icon-box" style="background: #fef3c7; color: #d97706;"><ion-icon name="cloud-upload-outline"></ion-icon></div>
+                <div class="action-card-text">
+                    <h3>Sincronizar</h3>
+                    <p>Pendientes</p>
+                </div>
+            </a>
         </div>
 
         <h2 class="section-title">Seguridad y Recorridos</h2>
@@ -832,13 +840,18 @@
                 const store = tx.objectStore('offline_sync_queue');
                 const countReq = store.count();
                 countReq.onsuccess = () => {
+                    const count = countReq.result;
                     const banner = document.getElementById('offline-sync-banner');
                     const badge = document.getElementById('offline-queue-count');
-                    if (countReq.result > 0) {
+                    const syncBadge = document.getElementById('sync-badge');
+                    if (count > 0) {
                         banner.style.display = 'block';
-                        badge.innerText = countReq.result;
+                        badge.innerText = count;
+                        syncBadge.style.display = 'block';
+                        syncBadge.innerText = count;
                     } else {
                         banner.style.display = 'none';
+                        syncBadge.style.display = 'none';
                     }
                 };
             } catch (e) { console.warn('sync store not ready', e); }
