@@ -599,10 +599,9 @@
             {% endfor %}
         ];
 
-        window.onload = () => {
-            initDB();
-            startScanner(); // Auto-inicio SAP Fiori
-            // Intentar sincronizar movimientos offline pendientes al cargar
+        window.onload = async () => {
+            await initDB();
+            startScanner();
             setTimeout(() => {
                 if (navigator.onLine) syncOfflineMovementsSilent();
                 else actualizarBadgeSync();
@@ -637,26 +636,29 @@
         }
 
         function initDB() {
-            const request = indexedDB.open('InventarioPWA', 6);
-            request.onupgradeneeded = event => {
-                const d = event.target.result;
-                if (!d.objectStoreNames.contains('catalog_cache')) {
-                    d.createObjectStore('catalog_cache', { keyPath: 'sku' });
-                }
-                if (!d.objectStoreNames.contains('movimientos_sync')) {
-                    d.createObjectStore('movimientos_sync', { autoIncrement: true });
-                }
-                if (!d.objectStoreNames.contains('locations_cache')) {
-                    d.createObjectStore('locations_cache', { keyPath: 'id' });
-                }
-                if (!d.objectStoreNames.contains('offline_sync_queue')) {
-                    d.createObjectStore('offline_sync_queue', { keyPath: 'id', autoIncrement: true });
-                }
-                if (!d.objectStoreNames.contains('sync_history')) {
-                    d.createObjectStore('sync_history', { keyPath: 'id', autoIncrement: true });
-                }
-            };
-            request.onsuccess = event => { db = event.target.result; };
+            return new Promise(resolve => {
+                const request = indexedDB.open('InventarioPWA', 6);
+                request.onupgradeneeded = event => {
+                    const d = event.target.result;
+                    if (!d.objectStoreNames.contains('catalog_cache')) {
+                        d.createObjectStore('catalog_cache', { keyPath: 'sku' });
+                    }
+                    if (!d.objectStoreNames.contains('movimientos_sync')) {
+                        d.createObjectStore('movimientos_sync', { autoIncrement: true });
+                    }
+                    if (!d.objectStoreNames.contains('locations_cache')) {
+                        d.createObjectStore('locations_cache', { keyPath: 'id' });
+                    }
+                    if (!d.objectStoreNames.contains('offline_sync_queue')) {
+                        d.createObjectStore('offline_sync_queue', { keyPath: 'id', autoIncrement: true });
+                    }
+                    if (!d.objectStoreNames.contains('sync_history')) {
+                        d.createObjectStore('sync_history', { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+                request.onsuccess = event => { db = event.target.result; resolve(); };
+                request.onerror = () => { console.error('IndexedDB init failed'); resolve(); };
+            });
         }
 
         let isScanningFlag = false;
@@ -787,16 +789,13 @@
         }
 
         async function lookupOffline(sku) {
-            if (!db) {
-                Swal.fire('Sin conexión', 'No hay caché local disponible y no hay conexión de red.', 'error');
+            if (!db || !db.objectStoreNames.contains('catalog_cache')) {
+                Swal.fire('Sin conexión', 'No hay caché local disponible. Descarga el catálogo desde "Modo Offline" en el dashboard.', 'error');
                 return;
             }
             let found = false;
             try {
                 const tx = db.transaction('catalog_cache', 'readonly');
-                tx.onerror = () => {
-                    Swal.fire('Error de caché', 'No se pudo acceder al almacén local.', 'error');
-                };
                 const store = tx.objectStore('catalog_cache');
                 const req = store.openCursor();
                 req.onsuccess = event => {
