@@ -637,27 +637,30 @@
 
         function initDB() {
             return new Promise(resolve => {
-                const request = indexedDB.open('InventarioPWA', 6);
-                request.onupgradeneeded = event => {
-                    const d = event.target.result;
-                    if (!d.objectStoreNames.contains('catalog_cache')) {
-                        d.createObjectStore('catalog_cache', { keyPath: 'sku' });
-                    }
-                    if (!d.objectStoreNames.contains('movimientos_sync')) {
-                        d.createObjectStore('movimientos_sync', { autoIncrement: true });
-                    }
-                    if (!d.objectStoreNames.contains('locations_cache')) {
-                        d.createObjectStore('locations_cache', { keyPath: 'id' });
-                    }
-                    if (!d.objectStoreNames.contains('offline_sync_queue')) {
-                        d.createObjectStore('offline_sync_queue', { keyPath: 'id', autoIncrement: true });
-                    }
-                    if (!d.objectStoreNames.contains('sync_history')) {
-                        d.createObjectStore('sync_history', { keyPath: 'id', autoIncrement: true });
-                    }
-                };
-                request.onsuccess = event => { db = event.target.result; resolve(); };
-                request.onerror = () => { console.error('IndexedDB init failed'); resolve(); };
+                try {
+                    const request = indexedDB.open('InventarioPWA', 6);
+                    request.onupgradeneeded = event => {
+                        const d = event.target.result;
+                        if (!d.objectStoreNames.contains('catalog_cache')) {
+                            d.createObjectStore('catalog_cache', { keyPath: 'id' });
+                        }
+                        if (!d.objectStoreNames.contains('movimientos_sync')) {
+                            d.createObjectStore('movimientos_sync', { autoIncrement: true });
+                        }
+                        if (!d.objectStoreNames.contains('locations_cache')) {
+                            d.createObjectStore('locations_cache', { keyPath: 'id' });
+                        }
+                        if (!d.objectStoreNames.contains('offline_sync_queue')) {
+                            d.createObjectStore('offline_sync_queue', { keyPath: 'id', autoIncrement: true });
+                        }
+                        if (!d.objectStoreNames.contains('sync_history')) {
+                            d.createObjectStore('sync_history', { keyPath: 'id', autoIncrement: true });
+                        }
+                    };
+                    request.onsuccess = event => { db = event.target.result; resolve(); };
+                    request.onerror = () => { console.error('IndexedDB init failed'); resolve(); };
+                    request.onblocked = () => { console.warn('IndexedDB blocked'); resolve(); };
+                } catch (e) { console.error('IndexedDB exception', e); resolve(); }
             });
         }
 
@@ -790,30 +793,53 @@
 
         async function lookupOffline(sku) {
             if (!db || !db.objectStoreNames.contains('catalog_cache')) {
-                Swal.fire('Sin conexión', 'No hay caché local disponible. Descarga el catálogo desde "Modo Offline" en el dashboard.', 'error');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sin conexión',
+                    text: 'No hay catálogo en caché. Ve al Dashboard → "Modo Offline" y descarga la info estando conectado.',
+                    confirmButtonText: 'Entendido'
+                });
                 return;
             }
             let found = false;
             try {
                 const tx = db.transaction('catalog_cache', 'readonly');
                 const store = tx.objectStore('catalog_cache');
-                const req = store.openCursor();
-                req.onsuccess = event => {
-                    const cursor = event.target.result;
-                    if (cursor) {
-                        if (cursor.value.sku === sku) {
-                            found = true;
-                            Swal.close();
-                            currentMaterial = cursor.value;
-                            try { displayMaterial({ ...cursor.value, existencias: [] }); } catch (e) { console.error('displayMaterial offline error:', e); }
-                            if (scanner) scanner.stop();
-                        } else cursor.continue();
-                    } else if (!found) {
-                        Swal.fire('No encontrado', 'El código no está en el catálogo local. Conéctate a internet para buscar.', 'warning');
+                const countReq = store.count();
+                countReq.onsuccess = () => {
+                    if (countReq.result === 0) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Catálogo vacío',
+                            text: 'El caché local está vacío. Conéctate a internet, escanea al menos un material para que se guarde en caché, o descarga el catálogo desde el Dashboard.',
+                            confirmButtonText: 'OK'
+                        });
+                        return;
                     }
+                    const req = store.openCursor();
+                    req.onsuccess = event => {
+                        const cursor = event.target.result;
+                        if (cursor) {
+                            const raw = String(cursor.value.sku || '').trim();
+                            if (raw === String(sku).trim()) {
+                                found = true;
+                                Swal.close();
+                                currentMaterial = cursor.value;
+                                try { displayMaterial({ ...cursor.value, existencias: [] }); } catch (e) { console.error('displayMaterial offline error:', e); }
+                                if (scanner) scanner.stop();
+                            } else cursor.continue();
+                        } else if (!found) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'No encontrado',
+                                text: 'Ese código no está en el caché local. Conéctate a internet para buscar en línea, o escanea el material estando online para que se guarde en caché.'
+                            });
+                        }
+                    };
                 };
             } catch (e) {
-                Swal.fire('Error de caché', 'No se pudo leer el caché local.', 'error');
+                console.error('lookupOffline error:', e);
+                Swal.fire({ icon: 'error', title: 'Error de caché', text: 'No se pudo leer el almacén local.' });
             }
         }
 
