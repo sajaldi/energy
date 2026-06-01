@@ -194,7 +194,8 @@
     </header>
 
     <div id="offline-indicator" style="display:none; background: #fffbeb; color: #92400e; padding: 8px; font-size: 11px; font-weight: 700; text-align: center; border-bottom: 1px solid #fde68a;">
-        <ion-icon name="cloud-offline-outline"></ion-icon> MODO OFFLINE (SÓTANO) ACTIVADO
+        <ion-icon name="cloud-offline-outline"></ion-icon> MODO OFFLINE — <span id="cache-status">Cargando...</span>
+        &nbsp;<a href="#" onclick="forzarRecargaCache(); return false;" style="color:#0070f2;text-decoration:underline;">Reintentar</a>
     </div>
 
     <div class="filter-panel">
@@ -422,32 +423,75 @@
             isLoading = false;
         }
 
+        async function forzarRecargaCache() {
+            document.getElementById('cache-status').innerText = 'Descargando...';
+            try {
+                const resp = await fetch('/inventarios/api/sync-master/');
+                const data = await resp.json();
+                const localDb = await dbReady;
+                if (!localDb || !localDb.objectStoreNames.contains('catalog_cache')) {
+                    document.getElementById('cache-status').innerText = 'BD no disponible';
+                    return;
+                }
+                const tx = localDb.transaction('catalog_cache', 'readwrite');
+                tx.objectStore('catalog_cache').clear();
+                let count = 0;
+                if (data.materials) {
+                    data.materials.forEach(m => {
+                        tx.objectStore('catalog_cache').put({
+                            id: m.id, sku: m.sku, nombre: m.nombre,
+                            unidad: m.uni || 'UND', descripcion: m.desc || '',
+                            precio: m.precio || 0, stock: m.stock || 0,
+                            stock_total: m.stock || 0, cat_id: m.cat_id
+                        });
+                        count++;
+                    });
+                }
+                document.getElementById('cache-status').innerText = `Descargado (${count} mats)`;
+                loadCatalog(1);
+            } catch (e) {
+                document.getElementById('cache-status').innerText = 'Error: ' + e.message;
+            }
+        }
+
         async function handleOfflineMode(query, cat) {
             document.getElementById('offline-indicator').style.display = 'block';
+            document.getElementById('cache-status').innerText = 'Conectando BD...';
             const localDb = await dbReady;
-            if (!localDb || !localDb.objectStoreNames.contains('catalog_cache')) return;
+            if (!localDb) { document.getElementById('cache-status').innerText = 'BD no soportada'; return; }
+            if (!localDb.objectStoreNames.contains('catalog_cache')) {
+                document.getElementById('cache-status').innerText = 'Caché no existe. Click Reintentar.';
+                return;
+            }
             const tx = localDb.transaction('catalog_cache', 'readonly');
             const store = tx.objectStore('catalog_cache');
-            const req = store.getAll();
-            req.onsuccess = () => {
-                let mats = req.result.filter(m => {
-                    const matchQ = !query || (m.nombre.toLowerCase().includes(query.toLowerCase()) || m.sku.toLowerCase().includes(query.toLowerCase()));
-                    const matchC = !cat || m.cat_id == cat;
-                    return matchQ && matchC;
-                });
-                renderMaterials(mats.map(m => ({ 
-                    id: m.id, 
-                    nombre: m.nombre, 
-                    sku: m.sku, 
-                    stock: m.stock || 0, 
-                    unidad: m.unidad || m.uni || 'UND', 
-                    categoria: 'CACHÉ', 
-                    image_url: '' 
-                })));
-                hasMore = false;
-                console.log(`Offline: ${mats.length} materiales desde caché`);
+            const countReq = store.count();
+            countReq.onsuccess = () => {
+                const total = countReq.result;
+                document.getElementById('cache-status').innerText = total + ' materiales en caché';
+                if (total === 0) return;
+                const getReq = store.getAll();
+                getReq.onsuccess = () => {
+                    let mats = getReq.result.filter(m => {
+                        const matchQ = !query || (m.nombre && m.nombre.toLowerCase().includes(query.toLowerCase())) || (m.sku && m.sku.toLowerCase().includes(query.toLowerCase()));
+                        const matchC = !cat || m.cat_id == cat;
+                        return matchQ && matchC;
+                    });
+                    renderMaterials(mats.map(m => ({ 
+                        id: m.id, 
+                        nombre: m.nombre || '—', 
+                        sku: m.sku || '', 
+                        stock: m.stock || m.stock_total || 0, 
+                        unidad: m.unidad || m.uni || 'UND', 
+                        categoria: 'CACHÉ', 
+                        image_url: '' 
+                    })));
+                    hasMore = false;
+                    document.getElementById('cache-status').innerText = `Mostrando ${mats.length} de ${total}`;
+                };
+                getReq.onerror = () => document.getElementById('cache-status').innerText = 'Error leyendo caché';
             };
-            req.onerror = () => console.error('Error leyendo catalog_cache');
+            countReq.onerror = () => document.getElementById('cache-status').innerText = 'Error contando caché';
         }
 
         function renderMaterials(mats) {
