@@ -1,0 +1,69 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block title %}{% if object %}Editar{% else %}Nuevo{% endif %} ACU{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'costos:analisis_list' %}">ACU</a></li>
+      <li class="breadcrumb-item active">{% if object %}Editar: {{ object.codigo }}{% else %}Nuevo ACU{% endif %}</li>
+    </ol>
+  </nav>
+  <div class="card">
+    <div class="card-header">
+      <h4>{% if object %}Editar{% else %}Nuevo{% endif %} Análisis de Costo Unitario</h4>
+    </div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group mb-3">
+              <label class="form-label">{{ form.nombre.label }}</label>
+              {{ form.nombre }}
+              {% if form.nombre.errors %}<div class="text-danger small">{{ form.nombre.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group mb-3">
+              <label class="form-label">{{ form.unidad.label }}</label>
+              {{ form.unidad }}
+              {% if form.unidad.errors %}<div class="text-danger small">{{ form.unidad.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label">{{ form.descripcion.label }}</label>
+          {{ form.descripcion }}
+          {% if form.descripcion.errors %}<div class="text-danger small">{{ form.descripcion.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group mb-3">
+              <label class="form-label">{{ form.proyecto.label }}</label>
+              {{ form.proyecto }}
+              {% if form.proyecto.errors %}<div class="text-danger small">{{ form.proyecto.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+          {% if form.estado %}
+          <div class="col-md-6">
+            <div class="form-group mb-3">
+              <label class="form-label">{{ form.estado.label }}</label>
+              {{ form.estado }}
+              {% if form.estado.errors %}<div class="text-danger small">{{ form.estado.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+          <a href="{% url 'costos:analisis_list' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

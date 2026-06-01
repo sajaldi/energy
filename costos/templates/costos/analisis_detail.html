@@ -1,0 +1,165 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load presupuesto_tags %}
+{% block title %}{{ analisis.codigo }} - {{ analisis.nombre }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'costos:analisis_list' %}">ACU</a></li>
+      <li class="breadcrumb-item active">{{ analisis.codigo }}</li>
+    </ol>
+  </nav>
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h4 class="mb-0">{{ analisis.codigo }} - {{ analisis.nombre }}</h4>
+      <div>
+        {% include "costos/_badge_estado.html" with estado=analisis.estado %}
+        <span class="badge bg-info ms-1">v{{ analisis.version }}</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <p><strong>Descripción:</strong> {{ analisis.descripcion|default:"—" }}</p>
+          <p><strong>Unidad:</strong> {{ analisis.unidad.nombre }} ({{ analisis.unidad.abreviatura }})</p>
+          {% if analisis.proyecto %}
+          <p><strong>Proyecto:</strong> {{ analisis.proyecto.codigo }} - {{ analisis.proyecto.nombre }}</p>
+          {% endif %}
+        </div>
+        <div class="col-md-6">
+          <p><strong>Creado por:</strong> {{ analisis.creado_por.get_full_name|default:analisis.creado_por.username|default:"—" }}</p>
+          <p><strong>Creado:</strong> {{ analisis.creado_en|date:"d/m/Y H:i" }}</p>
+          {% if analisis.aprobado_por %}
+          <p><strong>Aprobado por:</strong> {{ analisis.aprobado_por.get_full_name|default:analisis.aprobado_por.username }}</p>
+          <p><strong>Aprobado:</strong> {{ analisis.fecha_aprobacion|date:"d/m/Y H:i" }}</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="row mt-3">
+        <div class="col-md-4"><div class="border rounded p-3 text-center bg-light">
+          <small class="text-muted">Costo Directo</small>
+          <h3 class="mb-0 text-primary">{{ analisis.costo_directo_total|floatformat:2 }}</h3>
+        </div></div>
+        <div class="col-md-4"><div class="border rounded p-3 text-center bg-light">
+          <small class="text-muted">Indirectos</small>
+          <h3 class="mb-0 text-warning">{{ analisis.total_indirectos|floatformat:2 }}</h3>
+        </div></div>
+        <div class="col-md-4"><div class="border rounded p-3 text-center bg-success text-white">
+          <small>Costo Total</small>
+          <h3 class="mb-0">{{ analisis.costo_total|floatformat:2 }}</h3>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-cubes"></i> Recursos Directos</h5>
+      <a href="{% url 'costos:detalle_create' analisis.pk %}" class="btn btn-sm btn-success"><i class="fas fa-plus"></i> Agregar Recurso</a>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Tipo</th>
+            <th>Recurso</th>
+            <th>U.M.</th>
+            <th>Cantidad</th>
+            <th>P. Unit.</th>
+            <th>Rendim.</th>
+            <th class="text-end">Parcial</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in detalles %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td><span class="badge bg-secondary">{{ d.get_tipo_recurso_display }}</span></td>
+            <td>{{ d.display_nombre }}</td>
+            <td>{{ d.unidad.abreviatura }}</td>
+            <td>{{ d.cantidad|floatformat:4 }}</td>
+            <td class="text-end">{{ d.precio_unitario|floatformat:2 }}</td>
+            <td>{{ d.factor_rendimiento|floatformat:4 }}</td>
+            <td class="text-end"><strong>{{ d.total_parcial|floatformat:2 }}</strong></td>
+            <td class="text-nowrap">
+              <a href="{% url 'costos:detalle_update' analisis.pk d.pk %}" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></a>
+              <a href="{% url 'costos:detalle_delete' analisis.pk d.pk %}" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" class="text-center text-muted py-3">Sin recursos registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="table-active">
+            <th colspan="7" class="text-end">Costo Directo Total</th>
+            <th class="text-end">{{ analisis.costo_directo_total|floatformat:2 }}</th>
+            <th></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-percent"></i> Factores Indirectos</h5>
+      <a href="{% url 'costos:factor_create' analisis.pk %}" class="btn btn-sm btn-success"><i class="fas fa-plus"></i> Agregar Factor</a>
+    </div>
+    <div class="card-body p-0">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Tipo</th>
+            <th>Valor</th>
+            <th class="text-end">Monto</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in factores %}
+          <tr>
+            <td>{{ f.nombre }}</td>
+            <td>{{ f.get_tipo_display }}</td>
+            <td>{{ f.valor|floatformat:2 }}{% if f.tipo == 'PORCENTAJE' %}%{% endif %}</td>
+            <td class="text-end">
+              {% if f.tipo == 'PORCENTAJE' %}
+                {{ analisis.costo_directo_total|mul:f.valor|div:100|floatformat:2 }}
+              {% else %}
+                {{ f.valor|floatformat:2 }}
+              {% endif %}
+            </td>
+            <td class="text-nowrap">
+              <a href="{% url 'costos:factor_update' analisis.pk f.pk %}" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></a>
+              <a href="{% url 'costos:factor_delete' analisis.pk f.pk %}" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center text-muted py-3">Sin factores indirectos.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'costos:analisis_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Volver</a>
+    <a href="{% url 'costos:analisis_update' analisis.pk %}" class="btn btn-warning"><i class="fas fa-edit"></i> Editar ACU</a>
+    {% if analisis.estado == 'BORRADOR' %}
+    <form method="post" action="{% url 'costos:analisis_aprobar' analisis.pk %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-success"><i class="fas fa-check-circle"></i> Aprobar</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{% url 'costos:analisis_clonar' analisis.pk %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-info text-white"><i class="fas fa-copy"></i> Clonar</button>
+    </form>
+    <a href="{% url 'costos:analisis_delete' analisis.pk %}" class="btn btn-danger"><i class="fas fa-trash"></i> Eliminar</a>
+  </div>
+</div>
+{% endblock %}

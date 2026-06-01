@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block title %}Recurso - {{ analisis.codigo }}{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'costos:analisis_list' %}">ACU</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'costos:analisis_detail' analisis.pk %}">{{ analisis.codigo }}</a></li>
+      <li class="breadcrumb-item active">{% if object %}Editar{% else %}Agregar{% endif %} Recurso</li>
+    </ol>
+  </nav>
+  <div class="card">
+    <div class="card-header"><h4>{% if object %}Editar{% else %}Agregar{% endif %} Recurso a {{ analisis.codigo }}</h4></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <div class="row">
+          <div class="col-md-4">
+            <div class="form-group mb-3">
+              <label class="form-label">{{ form.tipo_recurso.label }}</label>
+              {{ form.tipo_recurso }}
+              {% if form.tipo_recurso.errors %}<div class="text-danger small">{{ form.tipo_recurso.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group mb-3">
+              <label class="form-label">{{ form.unidad.label }}</label>
+              {{ form.unidad }}
+              {% if form.unidad.errors %}<div class="text-danger small">{{ form.unidad.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group mb-3">
+              <label class="form-label">{{ form.material.label }}</label>
+              {{ form.material }}
+              {% if form.material.errors %}<div class="text-danger small">{{ form.material.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label">{{ form.descripcion.label }}</label>
+          {{ form.descripcion }}
+          {% if form.descripcion.errors %}<div class="text-danger small">{{ form.descripcion.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="row">
+          <div class="col-md-4">
+            <div class="form-group mb-3">
+              <label class="form-label">{{ form.cantidad.label }}</label>
+              {{ form.cantidad }}
+              {% if form.cantidad.errors %}<div class="text-danger small">{{ form.cantidad.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group mb-3">
+              <label class="form-label">{{ form.precio_unitario.label }}</label>
+              {{ form.precio_unitario }}
+              {% if form.precio_unitario.errors %}<div class="text-danger small">{{ form.precio_unitario.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group mb-3">
+              <label class="form-label">{{ form.factor_rendimiento.label }}</label>
+              {{ form.factor_rendimiento }}
+              <div class="form-text">{{ form.factor_rendimiento.help_text }}</div>
+              {% if form.factor_rendimiento.errors %}<div class="text-danger small">{{ form.factor_rendimiento.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+          <a href="{% url 'costos:analisis_detail' analisis.pk %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
