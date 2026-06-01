@@ -496,6 +496,7 @@ JAZZMIN_SETTINGS = {
     "topmenu_links": [
         {"name": "Inicio", "url": "admin:index", "permissions": ["auth.view_user"]},
         {"name": "📊 Dashboard de Mantenimiento", "url": "/mantenimiento/", "permissions": ["mantenimiento.view_ordentrabajo"]},
+        {"name": "📅 Cronograma", "url": "/mantenimiento/cronograma/", "permissions": ["mantenimiento.view_ordentrabajo"]},
         {"name": "📈 Dashboard de Importaciones", "url": "/activos/import-dashboard/", "permissions": ["activos.view_registroimportacion"]},
         {"name": "🎫 Dashboard de tickets", "url": "/callcenter/dashboard/", "permissions": ["callcenter.view_solicitudticket"]},
         {"name": "📋 Dashboard de Requisiciones", "url": "/presupuestos/requisiciones/dashboard/", "permissions": ["presupuestos.view_requisicion"]},
@@ -637,6 +638,12 @@ JAZZMIN_SETTINGS = {
                 "name": "📦 Dashboard Inventarios",
                 "url": "/inventarios/",
                 "icon": "fas fa-warehouse",
+                "permissions": ["inventarios.view_material"],
+            },
+            {
+                "name": "📷 Escáner de Inventario",
+                "url": "/inventarios/escanear/",
+                "icon": "fas fa-qrcode",
                 "permissions": ["inventarios.view_material"],
             },
         ],
