@@ -688,7 +688,7 @@
         let offlineDb = null;
         async function initOfflineDB() {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open('InventarioPWA', 4);
+                const request = indexedDB.open('InventarioPWA', 5);
                 request.onupgradeneeded = event => {
                     const db = event.target.result;
                     if (!db.objectStoreNames.contains('catalog_cache')) {
@@ -826,18 +826,22 @@
 
         async function updateOfflineQueueBanner() {
             if (!offlineDb) return;
-            const tx = offlineDb.transaction('offline_sync_queue', 'readonly');
-            const countReq = tx.objectStore('offline_sync_queue').count();
-            countReq.onsuccess = () => {
-                const banner = document.getElementById('offline-sync-banner');
-                const badge = document.getElementById('offline-queue-count');
-                if (countReq.result > 0) {
-                    banner.style.display = 'block';
-                    badge.innerText = countReq.result;
-                } else {
-                    banner.style.display = 'none';
-                }
-            };
+            if (!offlineDb.objectStoreNames.contains('offline_sync_queue')) return;
+            try {
+                const tx = offlineDb.transaction('offline_sync_queue', 'readonly');
+                const store = tx.objectStore('offline_sync_queue');
+                const countReq = store.count();
+                countReq.onsuccess = () => {
+                    const banner = document.getElementById('offline-sync-banner');
+                    const badge = document.getElementById('offline-queue-count');
+                    if (countReq.result > 0) {
+                        banner.style.display = 'block';
+                        badge.innerText = countReq.result;
+                    } else {
+                        banner.style.display = 'none';
+                    }
+                };
+            } catch (e) { console.warn('sync store not ready', e); }
         }
 
         async function showSyncList() {

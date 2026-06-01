@@ -637,7 +637,7 @@
         }
 
         function initDB() {
-            const request = indexedDB.open('InventarioPWA', 4);
+            const request = indexedDB.open('InventarioPWA', 5);
             request.onupgradeneeded = event => {
                 const d = event.target.result;
                 if (!d.objectStoreNames.contains('catalog_cache')) {
@@ -645,6 +645,12 @@
                 }
                 if (!d.objectStoreNames.contains('movimientos_sync')) {
                     d.createObjectStore('movimientos_sync', { autoIncrement: true });
+                }
+                if (!d.objectStoreNames.contains('locations_cache')) {
+                    d.createObjectStore('locations_cache', { keyPath: 'id' });
+                }
+                if (!d.objectStoreNames.contains('offline_sync_queue')) {
+                    d.createObjectStore('offline_sync_queue', { keyPath: 'id', autoIncrement: true });
                 }
             };
             request.onsuccess = event => { db = event.target.result; };
