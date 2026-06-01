@@ -636,6 +636,11 @@
             startScanner();
         };
 
+        window.addEventListener('online', () => {
+            downloadCatalog();
+            setTimeout(syncOfflineMovementsSilent, 500);
+        });
+
         async function syncOfflineMovementsSilent() {
             if (!db || !db.objectStoreNames.contains('movimientos_sync')) return;
             const tx = db.transaction('movimientos_sync', 'readonly');

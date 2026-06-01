@@ -983,6 +983,24 @@
             initOfflineDB();
             loadRequests();
         };
+
+        window.addEventListener('online', () => {
+            updateOfflineQueueBanner();
+            const dbCheck = offlineDb;
+            if (dbCheck && dbCheck.objectStoreNames.contains('offline_sync_queue')) {
+                const tx = dbCheck.transaction('offline_sync_queue', 'readonly');
+                const req = tx.objectStore('offline_sync_queue').count();
+                req.onsuccess = () => { if (req.result > 0) syncOfflineQueue(); };
+            }
+        });
+
+        setInterval(() => {
+            if (navigator.onLine && offlineDb && offlineDb.objectStoreNames.contains('offline_sync_queue')) {
+                const tx = offlineDb.transaction('offline_sync_queue', 'readonly');
+                const req = tx.objectStore('offline_sync_queue').count();
+                req.onsuccess = () => { if (req.result > 0) updateOfflineQueueBanner(); };
+            }
+        }, 10000);
     </script>
 </body>
 </html>
