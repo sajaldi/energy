@@ -474,7 +474,10 @@
             <ion-icon name="chevron-back-outline"></ion-icon>
         </button>
         <span class="shell-bar-title">Surtido de Inventario</span>
-        <ion-icon name="qr-code-outline" style="font-size: 24px;"></ion-icon>
+        <div style="position:relative; display:inline-flex; align-items:center;">
+            <ion-icon name="sync-outline" style="font-size: 22px; cursor:pointer;" onclick="syncOfflineMovements()" title="Sincronizar movimientos pendientes"></ion-icon>
+            <span id="sync-badge" style="display:none; position:absolute; top:-6px; right:-8px; background:#dc3545; color:white; font-size:10px; font-weight:bold; border-radius:50%; min-width:16px; height:16px; align-items:center; justify-content:center; padding:0 4px;"></span>
+        </div>
     </div>
 
     <div id="main-container">
@@ -599,7 +602,39 @@
         window.onload = () => {
             initDB();
             startScanner(); // Auto-inicio SAP Fiori
+            // Intentar sincronizar movimientos offline pendientes al cargar
+            setTimeout(() => {
+                if (navigator.onLine) syncOfflineMovementsSilent();
+                else actualizarBadgeSync();
+            }, 1000);
         };
+
+        async function syncOfflineMovementsSilent() {
+            if (!db || !db.objectStoreNames.contains('movimientos_sync')) return;
+            const tx = db.transaction('movimientos_sync', 'readonly');
+            const store = tx.objectStore('movimientos_sync');
+            const all = await new Promise((resolve, reject) => {
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            if (!all || all.length === 0) return;
+            for (const entry of all) {
+                try {
+                    const resp = await fetch('{% url "inventarios:api_registrar_movimiento_rapido" %}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify(entry.data)
+                    });
+                    const data = await resp.json();
+                    if (data.status === 'success') {
+                        const delTx = db.transaction('movimientos_sync', 'readwrite');
+                        delTx.objectStore('movimientos_sync').delete(entry.id);
+                    }
+                } catch (e) {}
+            }
+            actualizarBadgeSync();
+        }
 
         function initDB() {
             const request = indexedDB.open('InventarioPWA', 4);
@@ -957,6 +992,64 @@
             if (!db) return;
             const tx = db.transaction('movimientos_sync', 'readwrite');
             tx.objectStore('movimientos_sync').add({ data: payload, timestamp: new Date().toISOString() });
+            actualizarBadgeSync();
+        }
+
+        async function syncOfflineMovements() {
+            if (!db || !db.objectStoreNames.contains('movimientos_sync')) return;
+            const tx = db.transaction('movimientos_sync', 'readonly');
+            const store = tx.objectStore('movimientos_sync');
+            const all = await new Promise((resolve, reject) => {
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            if (!all || all.length === 0) {
+                Swal.fire('Sin pendientes', 'No hay movimientos offline para sincronizar.', 'info');
+                return;
+            }
+            Swal.fire({ title: 'Sincronizando...', text: `0/${all.length}`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            let ok = 0, fail = 0;
+            for (let i = 0; i < all.length; i++) {
+                const entry = all[i];
+                try {
+                    const resp = await fetch('{% url "inventarios:api_registrar_movimiento_rapido" %}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify(entry.data)
+                    });
+                    const data = await resp.json();
+                    if (data.status === 'success') {
+                        ok++;
+                        const delTx = db.transaction('movimientos_sync', 'readwrite');
+                        delTx.objectStore('movimientos_sync').delete(entry.id);
+                    } else {
+                        fail++;
+                    }
+                } catch (e) {
+                    fail++;
+                }
+                Swal.update({ text: `${i + 1}/${all.length} (OK: ${ok}, Error: ${fail})` });
+            }
+            Swal.fire({ icon: ok > 0 ? 'success' : 'warning', title: 'Sincronización completada', text: `${ok} sincronizados, ${fail} fallaron.` });
+            actualizarBadgeSync();
+            if (ok > 0) location.reload();
+        }
+
+        async function actualizarBadgeSync() {
+            if (!db || !db.objectStoreNames.contains('movimientos_sync')) return;
+            const tx = db.transaction('movimientos_sync', 'readonly');
+            const store = tx.objectStore('movimientos_sync');
+            const count = await new Promise((resolve) => {
+                const req = store.count();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve(0);
+            });
+            const badge = document.getElementById('sync-badge');
+            if (badge) {
+                badge.style.display = count > 0 ? 'flex' : 'none';
+                badge.textContent = count;
+            }
         }
     </script>
 </body>
