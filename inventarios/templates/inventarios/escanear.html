@@ -637,7 +637,7 @@
         }
 
         function initDB() {
-            const request = indexedDB.open('InventarioPWA', 5);
+            const request = indexedDB.open('InventarioPWA', 6);
             request.onupgradeneeded = event => {
                 const d = event.target.result;
                 if (!d.objectStoreNames.contains('catalog_cache')) {
@@ -651,6 +651,9 @@
                 }
                 if (!d.objectStoreNames.contains('offline_sync_queue')) {
                     d.createObjectStore('offline_sync_queue', { keyPath: 'id', autoIncrement: true });
+                }
+                if (!d.objectStoreNames.contains('sync_history')) {
+                    d.createObjectStore('sync_history', { keyPath: 'id', autoIncrement: true });
                 }
             };
             request.onsuccess = event => { db = event.target.result; };
