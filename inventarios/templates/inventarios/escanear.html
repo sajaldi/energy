@@ -691,7 +691,21 @@
 
                 if (data.status !== 'error') {
                     currentMaterial = data;
-                    try { displayMaterial(data); } catch (e) { console.error('displayMaterial error:', e); }
+                    try {
+                        displayMaterial(data);
+                        // Guardar en caché offline para futuras búsquedas sin conexión
+                        if (db && db.objectStoreNames.contains('catalog_cache')) {
+                            const tx = db.transaction('catalog_cache', 'readwrite');
+                            tx.objectStore('catalog_cache').put({
+                                sku: data.sku,
+                                id: data.id,
+                                nombre: data.nombre,
+                                unidad: data.unidad || 'UND',
+                                descripcion: data.descripcion || '',
+                                precio: data.precio || 0
+                            });
+                        }
+                    } catch (e) { console.error('displayMaterial error:', e); }
                     if (scanner) scanner.stop();
                 } else {
                     Swal.fire('No encontrado', 'El código informado no existe en el catálogo.', 'warning');
