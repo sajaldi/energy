@@ -3,6 +3,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .dynamics_registry import SYNC_CONFIG
 from .tasks import task_sync_to_dynamics
+from kombu.exceptions import OperationalError
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +21,13 @@ def handle_dynamics_sync(sender, instance, created, **kwargs):
         from django.db import transaction
         
         def call_sync():
-            logger.info(f"Encolando sincronización para {full_name} ID: {instance.pk}")
-            task_sync_to_dynamics.delay(app_label, model_name, instance.pk)
+            try:
+                logger.info(f"Encolando sincronización para {full_name} ID: {instance.pk}")
+                task_sync_to_dynamics.delay(app_label, model_name, instance.pk)
+            except OperationalError as e:
+                logger.warning(f"No se pudo encolar sync a Dynamics (broker no disponible): {e}")
+            except Exception as e:
+                logger.error(f"Error al encolar sync a Dynamics: {e}")
         
         transaction.on_commit(call_sync)
 

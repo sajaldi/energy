@@ -424,6 +424,7 @@ def detalle_mes(request, year, month):
         working_days_cache = {}
 
         for prog in proyecciones_qs:
+            if not prog.rutina or not prog.rutina.frecuencia: continue
             limite = min(prog.fecha_fin or (prog.fecha_inicio + timedelta(days=365)), month_end)
             fecha_ciclo = prog.fecha_inicio
             frec_dias = prog.rutina.frecuencia.dias

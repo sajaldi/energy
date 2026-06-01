@@ -13,7 +13,13 @@ from activos.models import Marca
 class StockRecordInline(admin.TabularInline):
     model = StockRecord
     extra = 0
-    readonly_fields = ('actualizado_en',)
+    max_num = 10
+    can_delete = False
+    raw_id_fields = ('lote', 'ubicacion')
+    readonly_fields = ('material', 'actualizado_en')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('lote', 'ubicacion')
 
 @admin.register(CategoriaMaterial)
 class CategoriaMaterialAdmin(admin.ModelAdmin):
@@ -35,7 +41,12 @@ class UnidadMedidaAdmin(admin.ModelAdmin):
 class MovimientoInventarioInline(admin.TabularInline):
     model = MovimientoInventario
     extra = 0
+    max_num = 15
+    show_change_link = True
     raw_id_fields = ('material', 'ubicacion_origen', 'ubicacion_destino')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('usuario', 'lote')
 
 @admin.register(SolicitudMaterial)
 class SolicitudMaterialAdmin(admin.ModelAdmin):
@@ -184,14 +195,21 @@ class MaterialResource(resources.ModelResource):
 class MaterialMovimientoInline(admin.TabularInline):
     model = MovimientoInventario
     extra = 0
-    readonly_fields = ('fecha_movimiento', 'tipo', 'cantidad', 'ubicacion_origen', 'ubicacion_destino', 'estado', 'usuario')
+    max_num = 20
     can_delete = False
+    show_change_link = True
+    readonly_fields = ('fecha_movimiento', 'tipo', 'cantidad', 'ubicacion_origen', 'ubicacion_destino', 'estado', 'usuario')
     verbose_name = "Historial de Movimiento"
     verbose_name_plural = "Historial de Movimientos"
     ordering = ('-fecha_movimiento',)
 
     def has_add_permission(self, request, obj=None):
         return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'usuario', 'ubicacion_origen', 'ubicacion_destino', 'lote', 'solicitud'
+        )
 
 @admin.register(Material)
 class MaterialAdmin(ImportExportModelAdmin):
@@ -217,6 +235,7 @@ class MaterialAdmin(ImportExportModelAdmin):
     def get_queryset(self, request):
         from django.db.models import Sum
         qs = super().get_queryset(request)
+        qs = qs.select_related('categoria', 'marca', 'unidad_medida').prefetch_related('departamentos')
         return qs.annotate(db_stock_total=Sum('existencias__cantidad'))
 
     def get_stock_total(self, obj):

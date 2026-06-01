@@ -206,6 +206,7 @@ INSTALLED_APPS = [
     'servicios',
     'ayuda.apps.AyudaConfig',
     'iot',
+    'costos.apps.CostosConfig',
 ]
 
 
@@ -497,6 +498,7 @@ JAZZMIN_SETTINGS = {
         {"name": "📊 Dashboard de Mantenimiento", "url": "/mantenimiento/", "permissions": ["mantenimiento.view_ordentrabajo"]},
         {"name": "📈 Dashboard de Importaciones", "url": "/activos/import-dashboard/", "permissions": ["activos.view_registroimportacion"]},
         {"name": "🎫 Dashboard de tickets", "url": "/callcenter/dashboard/", "permissions": ["callcenter.view_solicitudticket"]},
+        {"name": "📋 Dashboard de Requisiciones", "url": "/presupuestos/requisiciones/dashboard/", "permissions": ["presupuestos.view_requisicion"]},
         {"name": "❓ Ayuda", "url": "/ayuda/", "new_window": True},
     ],
     "show_sidebar": True,
@@ -585,10 +587,14 @@ JAZZMIN_SETTINGS = {
         "iot.BACnetDevice": "fas fa-server",
         "iot.BACnetPoint": "fas fa-broadcast-tower",
         "iot.Telemetry": "fas fa-chart-line",
+        "costos": "fas fa-calculator",
+        "costos.AnalisisCostoUnitario": "fas fa-file-invoice-dollar",
+        "costos.DetalleCostoUnitario": "fas fa-cubes",
+        "costos.FactorCosto": "fas fa-percent",
     },
     "order_with_respect_to": [
         "core", "activos", "documentos", "proyectos", "mantenimiento", 
-        "inventarios", "callcenter", "presupuestos", "seguridad",
+        "inventarios", "callcenter", "presupuestos", "costos", "seguridad",
         "iot",
         "auth", "servicios", "ayuda", "plantillas", "django_celery_results"
     ],
@@ -648,6 +654,12 @@ JAZZMIN_SETTINGS = {
                 "url": "/presupuestos/pagos/dashboard/",
                 "icon": "fas fa-chart-pie",
                 "permissions": ["presupuestos.view_solicitudpago"],
+            },
+            {
+                "name": "📋 Dashboard de Requisiciones",
+                "url": "/presupuestos/requisiciones/dashboard/",
+                "icon": "fas fa-file-signature",
+                "permissions": ["presupuestos.view_requisicion"],
             },
         ],
         "servicios": [
