@@ -2253,3 +2253,16 @@ def api_solicitud_update_items(request, pk):
         'message': f"{resultados['creados']} creado(s), {resultados['actualizados']} actualizado(s), {resultados['eliminados']} eliminado(s)",
         **resultados
     })
+
+
+@login_required
+def api_resolicitud_webhook(request, pk):
+    """Reenvía el webhook a Power Automate para una solicitud."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
+    from .utils_n8n import notify_powerautomate_solicitud
+    ok = notify_powerautomate_solicitud(solicitud)
+    if ok:
+        return JsonResponse({'status': 'success', 'message': 'Webhook reenviado correctamente'})
+    return JsonResponse({'status': 'error', 'message': 'Error al enviar webhook'}, status=500)

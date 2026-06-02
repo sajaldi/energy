@@ -55,6 +55,7 @@ urlpatterns = [
     path('api/sync-master/', api_master_sync, name='api_master_sync'),
     path('api/check-ot-solicitud/<int:ot_id>/', views.api_check_ot_solicitud, name='api_check_ot_solicitud'),
     path('api/solicitudes/<int:pk>/update-items/', views.api_solicitud_update_items, name='api_solicitud_update_items'),
+    path('api/solicitudes/<int:pk>/resend-webhook/', views.api_resolicitud_webhook, name='api_resolicitud_webhook'),
     path('api/recalcular-stock/<int:material_id>/', views.api_recalcular_stock, name='api_recalcular_stock'),
     path('registrar-salida/', views.registrar_salida_view, name='registrar_salida'),
     path('manifest.json', views.pwa_manifest, name='pwa_manifest'),

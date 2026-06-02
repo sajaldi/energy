@@ -132,6 +132,12 @@
 
         {% if pedido.comentarios_solicitud %}<div class="section-title">Comentarios Solicitud</div><div class="comment-box"><div class="comment-header">Técnico</div>{{ pedido.comentarios_solicitud }}</div>{% endif %}
         {% if pedido.comentarios_almacen %}<div class="section-title">Notas del Almacén</div><div class="comment-box" style="border-left-color: var(--sapSuccessColor);"><div class="comment-header">Almacén</div>{{ pedido.comentarios_almacen }}</div>{% endif %}
+
+        {% if pedido.estado != 'ENTREGADO' and pedido.estado != 'RECHAZADO' %}
+        <div style="text-align:center; margin:16px 0;">
+            <button onclick="resendWebhook()" style="background:none; border:1px solid #cbd5e1; border-radius:8px; padding:12px 20px; color:#64748b; font-weight:600; font-size:14px; cursor:pointer;"><ion-icon name="refresh-outline" style="vertical-align:middle;"></ion-icon> Reenviar solicitud (webhook)</button>
+        </div>
+        {% endif %}
     </div>
 
     <div class="save-bar" id="save-bar">
@@ -303,6 +309,22 @@
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error', text: data.message });
                 }
+            } catch(e) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red' });
+            }
+        }
+
+        async function resendWebhook() {
+            const res = await Swal.fire({ title: '¿Reenviar solicitud?', text: 'Se enviará el webhook a Power Automate con los datos actuales.', icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, reenviar' });
+            if (!res.isConfirmed) return;
+            Swal.fire({ title: 'Enviando...', didOpen: () => Swal.showLoading() });
+            try {
+                const r = await fetch(`/inventarios/api/solicitudes/${solicitudPk}/resend-webhook/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+                });
+                const d = await r.json();
+                Swal.fire({ icon: d.status === 'success' ? 'success' : 'error', title: d.status === 'success' ? 'Enviado' : 'Error', text: d.message });
             } catch(e) {
                 Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red' });
             }
