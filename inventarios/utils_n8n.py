@@ -65,30 +65,36 @@ def notify_n8n_despacho_material(solicitud):
         return False
 
     try:
-        # Detalles de lo entregado
+        perfil = getattr(solicitud.usuario, 'perfil', None)
+        telefono = perfil.telefono if perfil else "N/A"
+
         items_entregados = []
         for mov in solicitud.items.filter(estado='APROBADO'):
             items_entregados.append({
+                'material_id': mov.material.id,
                 'material': mov.material.nombre,
-                'cantidad': float(mov.cantidad),
+                'sku': mov.material.sku,
+                'cantidad': int(mov.cantidad),
+                'cantidad_solicitada': int(mov.cantidad_solicitada),
                 'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else "Unidad",
+                'comentarios': mov.comentarios or "",
             })
-
-        # Datos del usuario (con su nuevo campo teléfono si existe)
-        perfil = getattr(solicitud.usuario, 'perfil', None)
-        telefono = perfil.telefono if perfil else "N/A"
 
         data = {
             'event': 'solicitud_material_despachada',
             'solicitud_id': solicitud.id,
-            'fecha_entrega': solicitud.fecha_entrega.isoformat() if solicitud.fecha_entrega else None,
+            'fecha_solicitud': solicitud.fecha_solicitud.isoformat() if solicitud.fecha_solicitud else "",
+            'fecha_entrega': solicitud.fecha_entrega.isoformat() if solicitud.fecha_entrega else "",
             'usuario_solicitante': solicitud.usuario.username,
             'usuario_nombre': f"{solicitud.usuario.first_name} {solicitud.usuario.last_name}".strip(),
+            'usuario_email': solicitud.usuario.email,
             'usuario_telefono': telefono,
             'almacenista': solicitud.entregado_por.get_full_name() if solicitud.entregado_por else "Sistema",
             'ubicacion_almacen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "Almacén",
+            'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
             'comentarios_almacen': solicitud.comentarios_almacen or "",
             'items': items_entregados,
+            'total_materiales': len(items_entregados),
             'url_app': f"{settings.SITE_URL}/inventarios/mobile/pedidos/{solicitud.id}/",
         }
 
