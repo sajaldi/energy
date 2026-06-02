@@ -464,7 +464,7 @@
                                 {% endif %}
                                 </a>
                             </td>
-<td><span class="desc-cell" data-desc="{{ t.solicitud_descripcion|default:'-' }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
+<td><span class="desc-cell" data-folio="{{ t.folio|default:t.id_solicitud }}" data-ubicacion="{{ t.ubicacion_jerarquica }}" data-desc="{{ t.solicitud_descripcion|default:'-' }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
                             <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                             <td style="text-align: center; font-weight: 500;">{{ t.tiempo_resolucion_horas|default:"-" }}</td>
                             <td style="font-weight: 600; color: #b81d24;">
@@ -577,7 +577,7 @@
                                 {{ t.falla_reportada.nombre_completo|default:"Sin Clasificar" }}
                             </span>
                         </td>
-                        <td><span class="desc-cell" data-desc="{{ t.solicitud_descripcion|default:'-' }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
+<td><span class="desc-cell" data-folio="{{ t.folio|default:t.id_solicitud }}" data-ubicacion="{{ t.ubicacion_jerarquica }}" data-desc="{{ t.solicitud_descripcion|default:'-' }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
                         <td>
                             {% if t.fecha_cierre or t.cierre_enviado %}
                                 <span class="badge badge-success" id="state-badge-{{ t.id_unlocalized }}"><i class="ph ph-check-circle"></i> Cerrado</span>
@@ -3301,7 +3301,20 @@
     </style>
 
     <div id="descTooltipBackdrop" class="desc-tooltip-backdrop"></div>
-    <div id="descTooltip" class="desc-tooltip"><div class="desc-label">Descripción</div><div id="descTooltipText"></div></div>
+    <div id="descTooltip" class="desc-tooltip">
+        <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #e2e8f0;">
+            <div style="font-size:0.75rem; color:#94a3b8;">Folio</div>
+            <div id="descTooltipFolio" style="font-size:1rem; font-weight:700; color:#1e293b;"></div>
+        </div>
+        <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #e2e8f0;">
+            <div style="font-size:0.75rem; color:#94a3b8;">Ubicación</div>
+            <div id="descTooltipUbicacion" style="font-size:0.85rem; color:#475569;"></div>
+        </div>
+        <div>
+            <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:4px;">Descripción</div>
+            <div id="descTooltipText" style="font-size:0.9rem; line-height:1.5; color:#1e293b; white-space:pre-wrap; word-break:break-word;"></div>
+        </div>
+    </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -3310,9 +3323,15 @@
         const backdrop = document.getElementById('descTooltipBackdrop');
         let hideTimeout = null;
 
-        function showTooltip(text) {
+        function showTooltip(el) {
             clearTimeout(hideTimeout);
-            tooltipText.textContent = text;
+            const folio = el.getAttribute('data-folio') || '-';
+            const ubicacion = el.getAttribute('data-ubicacion') || '-';
+            const desc = el.getAttribute('data-desc');
+            if (!desc || desc === '-') return;
+            document.getElementById('descTooltipFolio').textContent = folio;
+            document.getElementById('descTooltipUbicacion').textContent = ubicacion;
+            tooltipText.textContent = desc;
             tooltip.style.left = '50%';
             tooltip.style.top = '50%';
             tooltip.style.transform = 'translate(-50%, -50%)';
@@ -3329,9 +3348,7 @@
 
         document.querySelectorAll('.desc-cell').forEach(el => {
             el.addEventListener('mouseenter', (e) => {
-                const text = el.getAttribute('data-desc');
-                if (!text || text === '-') return;
-                showTooltip(text);
+                showTooltip(el);
             });
             el.addEventListener('mouseleave', hideTooltip);
         });
