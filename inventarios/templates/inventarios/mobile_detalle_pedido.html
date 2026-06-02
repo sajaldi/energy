@@ -93,7 +93,13 @@
         <div id="items-container">
         {% for item in items %}
             <div class="fiori-card fade-in" data-mov-id="{{ item.id }}" data-material-id="{{ item.material.id }}" data-material-nombre="{{ item.material.nombre }}" data-sku="{{ item.material.sku }}" data-unidad="{{ item.material.unidad_medida.abreviatura|default:'UND' }}" data-cantidad="{{ item.cantidad|floatformat:2 }}">
-                <div class="fiori-card-content">
+                <div class="fiori-card-content" style="display:flex; gap:12px;">
+                    <div style="flex-shrink:0;">
+                        {% if item.image_url %}
+                        <img src="{{ item.image_url }}" style="width:72px; height:72px; border-radius:6px; object-fit:cover; border:1px solid #e2e8f0;" onclick="zoomImage(this.src)" onerror="this.style.display='none'">
+                        {% endif %}
+                    </div>
+                    <div style="flex:1; min-width:0;">
                     <div class="material-name">{{ item.material.nombre }}</div>
                     <div class="material-sku">SKU: {{ item.material.sku }}</div>
                     <div class="qty-grid">
@@ -112,6 +118,7 @@
                         <button type="button" onclick="adjQty(this, -1)">−</button>
                         <input type="number" step="0.01" class="edit-qty-input" value="{{ item.cantidad_solicitada|default:item.cantidad|floatformat:2 }}" min="0.01">
                         <button type="button" onclick="adjQty(this, 1)">+</button>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -312,6 +319,10 @@
             } catch(e) {
                 Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red' });
             }
+        }
+
+        function zoomImage(url) {
+            Swal.fire({ imageUrl: url, imageWidth: '95%', showConfirmButton: false, showCloseButton: true, background: 'rgba(255,255,255,0.98)', backdrop: 'rgba(0,0,0,0.85)' });
         }
 
         async function resendWebhook() {

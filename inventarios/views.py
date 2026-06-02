@@ -760,8 +760,9 @@ def mobile_detalle_pedido(request, pk):
     pedido = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
     items = pedido.items.select_related('material', 'material__unidad_medida').all()
     
-    # Asegurar que para ítems antiguos cantidad_solicitada != 0 en el contexto si es necesario,
-    # aunque lo manejaremos mejor en el template con el filtro |default
+    for item in items:
+        m = item.material
+        item.image_url = m.imagen.url if m.imagen else ''
     
     return render(request, 'inventarios/mobile_detalle_pedido.html', {
         'pedido': pedido,
