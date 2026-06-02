@@ -154,6 +154,8 @@ def notify_n8n_solicitud_autorizacion(solicitud, jefe):
 
 POWERAUTOMATE_SOLICITUD_URL = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/db1b240ffc614eb3a94903f652c3050f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=QqwOO3oTcQi7uZvHzQ247cn5Ev4oOf1FuieAVhFLmu4"
 
+POWERAUTOMATE_SITE_URL = "https://softcom.ccg.hn"
+
 def notify_powerautomate_solicitud(solicitud):
     """
     Envía un webhook a Power Automate cuando se crea una solicitud de materiales.
@@ -190,8 +192,8 @@ def notify_powerautomate_solicitud(solicitud):
             'comentarios': solicitud.comentarios_solicitud or "",
             'estado': solicitud.estado,
             'items': items,
-            'url_detalle': f"{getattr(settings, 'SITE_URL', '')}/inventarios/mobile/pedidos/{solicitud.id}/",
-            'url_api_autorizar': f"{getattr(settings, 'SITE_URL', '')}/inventarios/api/solicitudes/{solicitud.id}/autorizar/",
+            'url_detalle': f"{POWERAUTOMATE_SITE_URL}/inventarios/mobile/pedidos/{solicitud.id}/",
+            'url_api_autorizar': f"{POWERAUTOMATE_SITE_URL}/inventarios/api/solicitudes/{solicitud.id}/autorizar/",
         }
 
         response = requests.post(POWERAUTOMATE_SOLICITUD_URL, json=data, timeout=10)
