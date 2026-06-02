@@ -169,12 +169,21 @@ def notify_powerautomate_solicitud(solicitud):
                 'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else "Unidad",
             })
 
+        user = solicitud.usuario
+        perfil = getattr(user, 'perfil', None)
+        jefe_directo = perfil.responsable if perfil else None
+        jefe_departamento = perfil.departamento.responsable if perfil and perfil.departamento else None
+        superior = jefe_directo or jefe_departamento
+
         data = {
             'event': 'solicitud_material_created',
             'solicitud_id': solicitud.id,
             'fecha': solicitud.fecha_solicitud.isoformat(),
-            'usuario': solicitud.usuario.username,
-            'usuario_nombre': f"{solicitud.usuario.first_name} {solicitud.usuario.last_name}".strip(),
+            'usuario': user.username,
+            'usuario_nombre': f"{user.first_name} {user.last_name}".strip(),
+            'usuario_email': user.email,
+            'superior_nombre': f"{superior.first_name} {superior.last_name}".strip() if superior else '',
+            'superior_email': superior.email if superior else '',
             'ubicacion_origen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "N/A",
             'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
             'ot_id': solicitud.orden_trabajo.id if solicitud.orden_trabajo else None,
