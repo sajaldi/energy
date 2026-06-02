@@ -2176,3 +2176,54 @@ def api_check_ot_solicitud(request, ot_id):
             }
         })
     return JsonResponse({'has_pending': False})
+
+
+@login_required
+def api_solicitud_add_items(request, pk):
+    """
+    Agrega materiales a una solicitud existente (solo si está pendiente).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
+    if solicitud.estado in ('ENTREGADO', 'RECHAZADO'):
+        return JsonResponse({'status': 'error', 'message': 'La solicitud ya está finalizada'}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except:
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
+
+    items = data.get('items', [])
+    if not items:
+        return JsonResponse({'status': 'error', 'message': 'No hay materiales'}, status=400)
+
+    creados = 0
+    for it in items:
+        material_id = it.get('material_id')
+        cantidad = it.get('cantidad', 1)
+        if not material_id or float(cantidad) <= 0:
+            continue
+        try:
+            material = Material.objects.get(id=material_id)
+            MovimientoInventario.objects.create(
+                solicitud=solicitud,
+                material=material,
+                tipo='SALIDA',
+                cantidad=Decimal(str(cantidad)),
+                cantidad_solicitada=Decimal(str(cantidad)),
+                ubicacion_origen=solicitud.ubicacion_origen,
+                orden_trabajo=solicitud.orden_trabajo,
+                usuario=request.user,
+                comentarios=solicitud.comentarios_solicitud or ''
+            )
+            creados += 1
+        except Material.DoesNotExist:
+            continue
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'{creados} material(es) agregado(s) a la solicitud #{solicitud.id}',
+        'creados': creados
+    })

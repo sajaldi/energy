@@ -54,6 +54,7 @@ urlpatterns = [
     path('api/discrepancy/resolve/', views.api_resolver_discrepancia, name='api_resolver_discrepancia'),
     path('api/sync-master/', api_master_sync, name='api_master_sync'),
     path('api/check-ot-solicitud/<int:ot_id>/', views.api_check_ot_solicitud, name='api_check_ot_solicitud'),
+    path('api/solicitudes/<int:pk>/add-items/', views.api_solicitud_add_items, name='api_solicitud_add_items'),
     path('api/recalcular-stock/<int:material_id>/', views.api_recalcular_stock, name='api_recalcular_stock'),
     path('registrar-salida/', views.registrar_salida_view, name='registrar_salida'),
     path('manifest.json', views.pwa_manifest, name='pwa_manifest'),

@@ -302,6 +302,120 @@
         {% endif %}
     </div>
     </div>
+
+    {% if pedido.estado != 'ENTREGADO' and pedido.estado != 'RECHAZADO' %}
+    <button id="btn-add-materials" onclick="openAddMaterials()" style="position:fixed; bottom:20px; right:20px; width:56px; height:56px; border-radius:50%; background:#0064d1; color:white; border:none; box-shadow:0 4px 12px rgba(0,100,209,0.4); font-size:28px; z-index:999; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <ion-icon name="add-outline"></ion-icon>
+    </button>
+
+    <div id="add-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999;">
+        <div style="position:absolute; bottom:0; left:0; right:0; background:white; border-radius:16px 16px 0 0; max-height:85vh; display:flex; flex-direction:column; animation:slideUp 0.3s ease-out;">
+            <style>
+                @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+            </style>
+            <div style="padding:16px 20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-weight:700;">Agregar Materiales</h3>
+                <button onclick="closeAddMaterials()" style="background:none; border:none; font-size:24px; cursor:pointer;">✕</button>
+            </div>
+            <div style="padding:12px 20px; border-bottom:1px solid #e2e8f0;">
+                <input type="text" id="add-search" placeholder="Buscar por nombre o SKU..." oninput="searchMaterials()" style="width:100%; padding:12px; border:2px solid #e2e8f0; border-radius:8px; font-size:16px; box-sizing:border-box;">
+            </div>
+            <div id="add-results" style="flex:1; overflow-y:auto; padding:12px 20px 80px;">
+                <p style="color:#94a3b8; text-align:center; margin-top:40px;">Escribe al menos 2 caracteres para buscar</p>
+            </div>
+            <div style="padding:12px 20px 20px; border-top:1px solid #e2e8f0; display:flex; gap:10px;">
+                <button onclick="closeAddMaterials()" style="flex:1; padding:14px; border:2px solid #e2e8f0; border-radius:8px; background:white; font-weight:600; cursor:pointer;">Cancelar</button>
+                <button id="btn-confirm-add" onclick="confirmAddMaterials()" style="flex:2; padding:14px; border:none; border-radius:8px; background:#0064d1; color:white; font-weight:700; cursor:pointer;">Agregar seleccionados (0)</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        let addMateriales = new Map();
+        let solicitudPk = {{ pedido.id }};
+
+        function openAddMaterials() {
+            document.getElementById('add-modal').style.display = 'block';
+            document.getElementById('add-search').focus();
+        }
+
+        function closeAddMaterials() {
+            document.getElementById('add-modal').style.display = 'none';
+        }
+
+        let searchTimeout;
+        async function searchMaterials() {
+            const q = document.getElementById('add-search').value;
+            if (q.length < 2) { document.getElementById('add-results').innerHTML = '<p style="color:#94a3b8; text-align:center; margin-top:40px;">Escribe al menos 2 caracteres para buscar</p>'; return; }
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/inventarios/api/materials/?q=${q}&category=&ubicacion=`);
+                    const data = await res.json();
+                    const container = document.getElementById('add-results');
+                    if (!data.results || data.results.length === 0) {
+                        container.innerHTML = '<p style="color:#94a3b8; text-align:center; margin-top:40px;">Sin resultados</p>';
+                        return;
+                    }
+                    container.innerHTML = data.results.map(m => {
+                        const sel = addMateriales.has(m.id);
+                        return `<div onclick="toggleMat(${m.id})" style="display:flex; align-items:center; gap:12px; padding:12px; margin-bottom:8px; border-radius:8px; border:2px solid ${sel ? '#0064d1' : '#e2e8f0'}; background:${sel ? '#f0f7ff' : 'white'}; cursor:pointer;">
+                            <div style="flex:1;">
+                                <div style="font-weight:600; font-size:15px;">${m.nombre}</div>
+                                <div style="font-size:12px; color:#64748b;">SKU: ${m.sku} · Stock: ${m.stock || 0}</div>
+                            </div>
+                            ${sel ? `<input type="number" value="${addMateriales.get(m.id)}" min="1" onclick="event.stopPropagation()" onchange="updateQty(${m.id}, this.value)" style="width:60px; padding:6px; border:2px solid #0064d1; border-radius:6px; text-align:center; font-weight:700;">` : '<span style="color:#0064d1; font-weight:600; font-size:13px;">+ Agregar</span>'}
+                        </div>`;
+                    }).join('');
+                    updateCounter();
+                } catch(e) { console.error(e); }
+            }, 300);
+        }
+
+        function toggleMat(id) {
+            if (addMateriales.has(id)) {
+                addMateriales.delete(id);
+            } else {
+                addMateriales.set(id, 1);
+            }
+            searchMaterials();
+        }
+
+        function updateQty(id, val) {
+            const q = parseFloat(val) || 1;
+            addMateriales.set(id, q);
+            updateCounter();
+        }
+
+        function updateCounter() {
+            const total = Array.from(addMateriales.values()).reduce((a, b) => a + b, 0);
+            document.getElementById('btn-confirm-add').textContent = `Agregar seleccionados (${total})`;
+        }
+
+        async function confirmAddMaterials() {
+            if (addMateriales.size === 0) return;
+            const items = Array.from(addMateriales.entries()).map(([id, qty]) => ({ material_id: id, cantidad: qty }));
+            try {
+                const res = await fetch(`/inventarios/api/solicitudes/${solicitudPk}/add-items/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ items })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    await Swal.fire({ icon: 'success', title: 'Agregados', text: data.message });
+                    location.reload();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+                }
+            } catch(e) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red' });
+            }
+        }
+    </script>
+    {% endif %}
+
 </body>
 
 </html>
