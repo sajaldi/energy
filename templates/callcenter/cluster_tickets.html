@@ -3254,21 +3254,61 @@
         position: fixed;
         z-index: 99999;
         background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 16px 20px;
-        max-width: 480px;
-        max-height: 300px;
+        border-radius: 12px;
+        padding: 20px 24px;
+        width: 420px;
+        max-height: 70vh;
         overflow-y: auto;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        box-shadow: 0 16px 48px rgba(0,0,0,0.2);
         font-size: 0.9rem;
         line-height: 1.5;
         color: #1e293b;
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.2s ease;
+    }
+    .desc-tooltip.visible {
+        opacity: 1;
+    }
+    .desc-tooltip .dt-row {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .desc-tooltip .dt-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        min-width: 70px;
+        flex-shrink: 0;
+    }
+    .desc-tooltip .dt-value {
+        font-size: 0.9rem;
+        color: #1e293b;
+    }
+    .desc-tooltip .dt-value.folio {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #0070f2;
+    }
+    .desc-tooltip .dt-divider {
+        height: 1px;
+        background: #e2e8f0;
+        margin: 10px 0 12px;
+    }
+    .desc-tooltip .dt-desc {
+        font-size: 0.85rem;
+        line-height: 1.6;
+        color: #334155;
         white-space: pre-wrap;
         word-break: break-word;
+        background: #f8fafc;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 4px;
     }
     .desc-tooltip.visible {
         opacity: 1;
@@ -3302,18 +3342,11 @@
 
     <div id="descTooltipBackdrop" class="desc-tooltip-backdrop"></div>
     <div id="descTooltip" class="desc-tooltip">
-        <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #e2e8f0;">
-            <div style="font-size:0.75rem; color:#94a3b8;">Folio</div>
-            <div id="descTooltipFolio" style="font-size:1rem; font-weight:700; color:#1e293b;"></div>
-        </div>
-        <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #e2e8f0;">
-            <div style="font-size:0.75rem; color:#94a3b8;">Ubicación</div>
-            <div id="descTooltipUbicacion" style="font-size:0.85rem; color:#475569;"></div>
-        </div>
-        <div>
-            <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:4px;">Descripción</div>
-            <div id="descTooltipText" style="font-size:0.9rem; line-height:1.5; color:#1e293b; white-space:pre-wrap; word-break:break-word;"></div>
-        </div>
+        <div class="dt-row"><span class="dt-label">Folio</span><span class="dt-value folio" id="descTooltipFolio"></span></div>
+        <div class="dt-row"><span class="dt-label">Ubicación</span><span class="dt-value" id="descTooltipUbicacion"></span></div>
+        <div class="dt-divider"></div>
+        <div style="font-size:0.75rem; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:6px;">Descripción</div>
+        <div class="dt-desc" id="descTooltipText"></div>
     </div>
 
     <script>
