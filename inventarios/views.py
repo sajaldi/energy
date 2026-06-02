@@ -2076,46 +2076,64 @@ def api_sync_offline_queue(request):
     if request.method != 'POST': return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
     import json
     from decimal import Decimal
+    from collections import defaultdict
     try:
         data = json.loads(request.body)
         queue = data.get('queue', [])
         if not queue: return JsonResponse({'status': 'success', 'message': 'Cola vacía'})
-        procesados = 0
         errores = []
         from django.db import transaction
-        from .models import Material, MovimientoInventario
+        from .models import Material, MovimientoInventario, StockRecord
         from activos.models import Ubicacion
+
+        # Agrupar por material + ubicacion + tipo
+        groups = defaultdict(lambda: defaultdict(Decimal))
+        for mov_data in queue:
+            try:
+                material_id = mov_data.get('material_id')
+                tipo = mov_data.get('tipo', 'ENTRADA').upper()
+                cantidad = Decimal(str(mov_data.get('cantidad', 0)))
+                ubicacion_id = mov_data.get('ubicacion_id')
+                if not material_id or not ubicacion_id or cantidad <= 0:
+                    raise ValueError('Datos inválidos')
+                groups[(material_id, ubicacion_id)][tipo] += cantidad
+            except Exception as e:
+                errores.append({'item': mov_data, 'error': str(e)})
+
+        procesados = 0
         with transaction.atomic():
-            for mov_data in queue:
+            for (material_id, ubicacion_id), tipos in groups.items():
                 try:
-                    material_id = mov_data.get('material_id')
-                    tipo = mov_data.get('tipo', 'ENTRADA').upper()
-                    cantidad = Decimal(str(mov_data.get('cantidad', 0)))
-                    ubicacion_id = mov_data.get('ubicacion_id')
-                    comentarios = mov_data.get('comentarios', 'Registro Offline (Sincronizado)')
-                    if not material_id or not ubicacion_id or cantidad <= 0: raise ValueError('Datos inválidos')
                     material = Material.objects.get(id=material_id)
                     ubicacion = Ubicacion.objects.get(id=ubicacion_id)
-                    from .models import StockRecord
-                    if tipo == 'AJUSTE':
+                    neto = tipos.get('ENTRADA', Decimal('0')) - tipos.get('SALIDA', Decimal('0'))
+                    if 'AJUSTE' in tipos:
                         stock_record = StockRecord.objects.filter(material=material, ubicacion=ubicacion).first()
                         stock_actual = stock_record.cantidad if stock_record else Decimal('0')
-                        delta = cantidad - stock_actual
-                        if delta == 0: continue
-                        final_tipo = 'ENTRADA' if delta > 0 else 'SALIDA'
-                        final_qty = abs(delta)
+                        ajuste_destino = tipos['AJUSTE']
+                        delta = ajuste_destino - stock_actual
+                        neto += delta
+                    if neto == 0:
+                        continue
+                    final_tipo = 'ENTRADA' if neto > 0 else 'SALIDA'
+                    final_qty = abs(neto)
+                    comentarios = f'Sincronizado offline (agrupado)'
+                    movimiento = MovimientoInventario(
+                        material=material, tipo=final_tipo, cantidad=final_qty,
+                        usuario=request.user, comentarios=comentarios
+                    )
+                    if final_tipo == 'ENTRADA':
+                        movimiento.ubicacion_destino = ubicacion
                     else:
-                        final_tipo = tipo
-                        final_qty = cantidad
-                    movimiento = MovimientoInventario(material=material, tipo=final_tipo, cantidad=final_qty, usuario=request.user, comentarios=comentarios)
-                    if final_tipo == 'ENTRADA': movimiento.ubicacion_destino = ubicacion
-                    elif final_tipo == 'SALIDA': movimiento.ubicacion_origen = ubicacion
+                        movimiento.ubicacion_origen = ubicacion
                     movimiento.save()
                     movimiento.liquidar(request.user)
                     procesados += 1
-                except Exception as e: errores.append({'item': mov_data, 'error': str(e)})
-        return JsonResponse({'status': 'success', 'message': f'{procesados} movimientos sincronizados', 'errores': errores})
-    except Exception as e: return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+                except Exception as e:
+                    errores.append({'item': f'material {material_id}', 'error': str(e)})
+        return JsonResponse({'status': 'success', 'message': f'{procesados} movimiento(s) creado(s) agrupado(s)', 'errores': errores})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 @login_required
