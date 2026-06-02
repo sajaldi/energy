@@ -858,31 +858,35 @@
             };
         }
 
-        async function updateOfflineQueueBanner() {
-            if (!offlineDb) return;
-            if (!offlineDb.objectStoreNames.contains('offline_sync_queue')) return;
+        async function contarPendientes() {
+            let total = 0;
             try {
-                const tx = offlineDb.transaction('offline_sync_queue', 'readonly');
-                const store = tx.objectStore('offline_sync_queue');
-                const countReq = store.count();
-                countReq.onsuccess = () => {
-                    const count = countReq.result;
-                    const banner = document.getElementById('offline-sync-banner');
-                    const badge = document.getElementById('offline-queue-count');
-                    const syncBadge = document.getElementById('sync-badge');
-                    const headerBadge = document.getElementById('sync-badge-header');
-                    if (count > 0) {
-                        banner.style.display = 'block';
-                        badge.innerText = count;
-                        if (syncBadge) { syncBadge.style.display = 'block'; syncBadge.innerText = count; }
-                        if (headerBadge) { headerBadge.style.display = 'flex'; headerBadge.innerText = count; }
-                    } else {
-                        banner.style.display = 'none';
-                        if (syncBadge) syncBadge.style.display = 'none';
-                        if (headerBadge) headerBadge.style.display = 'none';
-                    }
-                };
-            } catch (e) { console.warn('sync store not ready', e); }
+                if (offlineDb.objectStoreNames.contains('offline_sync_queue')) {
+                    total += await new Promise(r => { const tx = offlineDb.transaction('offline_sync_queue', 'readonly'); const req = tx.objectStore('offline_sync_queue').count(); req.onsuccess = () => r(req.result); req.onerror = () => r(0); });
+                }
+                if (offlineDb.objectStoreNames.contains('movimientos_sync')) {
+                    total += await new Promise(r => { const tx = offlineDb.transaction('movimientos_sync', 'readonly'); const req = tx.objectStore('movimientos_sync').count(); req.onsuccess = () => r(req.result); req.onerror = () => r(0); });
+                }
+            } catch (e) {}
+            return total;
+        }
+
+        async function updateOfflineQueueBanner() {
+            const count = await contarPendientes();
+            const banner = document.getElementById('offline-sync-banner');
+            const badge = document.getElementById('offline-queue-count');
+            const syncBadge = document.getElementById('sync-badge');
+            const headerBadge = document.getElementById('sync-badge-header');
+            if (count > 0) {
+                banner.style.display = 'block';
+                badge.innerText = count;
+                if (syncBadge) { syncBadge.style.display = 'block'; syncBadge.innerText = count; }
+                if (headerBadge) { headerBadge.style.display = 'flex'; headerBadge.innerText = count; }
+            } else {
+                banner.style.display = 'none';
+                if (syncBadge) syncBadge.style.display = 'none';
+                if (headerBadge) headerBadge.style.display = 'none';
+            }
         }
 
         function fmtFecha(iso) {
@@ -912,7 +916,7 @@
 
         async function showSyncList() {
             if (!offlineDb) await initOfflineDB();
-            let pending = [], history = [];
+            let pending = [], scanner = [], history = [];
             if (offlineDb.objectStoreNames.contains('offline_sync_queue')) {
                 const p = await new Promise(resolve => {
                     const tx = offlineDb.transaction('offline_sync_queue', 'readonly');
@@ -921,6 +925,15 @@
                     req.onerror = () => resolve([]);
                 });
                 pending = p || [];
+            }
+            if (offlineDb.objectStoreNames.contains('movimientos_sync')) {
+                const s = await new Promise(resolve => {
+                    const tx = offlineDb.transaction('movimientos_sync', 'readonly');
+                    const req = tx.objectStore('movimientos_sync').getAll();
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => resolve([]);
+                });
+                scanner = s || [];
             }
             if (offlineDb.objectStoreNames.contains('sync_history')) {
                 const h = await new Promise(resolve => {
@@ -933,16 +946,18 @@
             }
 
             let html = '';
-            const pendHtml = renderSyncTable(pending, '📌 Pendientes');
+            const pendHtml = renderSyncTable(pending, '📌 Pendientes (Ajustes)');
+            const scanHtml = scanner.length > 0 ? `<h4 style="margin:10px 0 5px;font-size:14px;">📷 Pendientes (Escáner) (${scanner.length})</h4><p style="font-size:12px;color:#64748b;margin:0 0 10px;">Se sincronizarán al tocar el botón</p>` : '';
             const histHtml = renderSyncTable(history, '✅ Sincronizados');
-            html = pendHtml + histHtml || '<p style="text-align:center;color:#94a3b8;">No hay movimientos registrados.</p>';
+            html = pendHtml + scanHtml + histHtml || '<p style="text-align:center;color:#94a3b8;">No hay movimientos registrados.</p>';
+            const totalPend = pending.length + scanner.length;
 
             Swal.fire({
                 title: '📋 Sincronización',
                 html,
                 width: '90%',
-                showCancelButton: pending.length > 0,
-                confirmButtonText: pending.length > 0 ? '⬆ Sincronizar todo' : 'Cerrar',
+                showCancelButton: totalPend > 0,
+                confirmButtonText: totalPend > 0 ? '⬆ Sincronizar todo (' + totalPend + ')' : 'Cerrar',
                 cancelButtonText: 'Cerrar',
                 confirmButtonColor: '#0070f2',
             }).then(result => {
@@ -950,13 +965,36 @@
             });
         }
 
+        async function syncMovimientosSync() {
+            if (!offlineDb || !offlineDb.objectStoreNames.contains('movimientos_sync')) return;
+            const tx = offlineDb.transaction('movimientos_sync', 'readonly');
+            const all = await new Promise(r => { const req = tx.objectStore('movimientos_sync').getAll(); req.onsuccess = () => r(req.result); req.onerror = () => r([]); });
+            for (const entry of all) {
+                try {
+                    const resp = await fetch('{% url "inventarios:api_registrar_movimiento_rapido" %}', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify(entry.data)
+                    });
+                    const data = await resp.json();
+                    if (data.status === 'success') {
+                        const delTx = offlineDb.transaction('movimientos_sync', 'readwrite');
+                        delTx.objectStore('movimientos_sync').delete(entry.id);
+                    }
+                } catch (e) {}
+            }
+        }
+
         async function syncOfflineQueue() {
             if (!offlineDb) await initOfflineDB();
+            await syncMovimientosSync();
             const tx = offlineDb.transaction('offline_sync_queue', 'readonly');
             const store = tx.objectStore('offline_sync_queue');
             store.getAll().onsuccess = async (event) => {
                 const items = event.target.result;
-                if (items.length === 0) return;
+                if (items.length === 0) {
+                    Swal.fire('¡Sincronizado!', 'Movimientos del escáner sincronizados.', 'success');
+                    return;
+                }
                 
                 Swal.fire({ title: 'Sincronizando...', didOpen: () => Swal.showLoading() });
                 try {
