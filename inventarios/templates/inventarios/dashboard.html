@@ -1305,7 +1305,7 @@
                 const data = await res.json();
                 results.empty().show();
                 data.results.forEach(ot => {
-                    results.append(`<div onclick="selectOt(${ot.id}, '${ot.text}')" style="padding:15px; cursor:pointer; border-bottom:1px solid #f1f5f9; color: #0f172a; font-weight: 600;">${ot.text}</div>`);
+                    results.append(`<div onclick="selectOt(${ot.id}, '${(ot.text||'').replace(/'/g, '\\u0027')}')" style="padding:15px; cursor:pointer; border-bottom:1px solid #f1f5f9; color: #0f172a; font-weight: 600;">${ot.text}</div>`);
                 });
             } catch (err) { }
         });
@@ -1328,7 +1328,7 @@
                 results.empty().show();
                 data.results.forEach(s => {
                     results.append(`
-                        <div onclick="importSolicitud('${s.id}', '${s.text}')" 
+                        <div onclick="importSolicitud('${s.id}', '${(s.text||'').replace(/'/g, '\\u0027')}')" 
                              style="padding:15px; cursor:pointer; border-bottom:1px solid #f1f5f9; color: #0f172a; font-weight: 600;">
                             <div style="color:var(--primary); font-family:monospace; font-size:1rem;">${s.text}</div>
                             <div style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">Asunto: ${s.asunto} | ${s.count} materiales</div>
