@@ -2096,10 +2096,20 @@ def api_sync_offline_queue(request):
                     if not material_id or not ubicacion_id or cantidad <= 0: raise ValueError('Datos inválidos')
                     material = Material.objects.get(id=material_id)
                     ubicacion = Ubicacion.objects.get(id=ubicacion_id)
-                    movimiento = MovimientoInventario(material=material, tipo=tipo, cantidad=cantidad, usuario=request.user, comentarios=comentarios)
-                    if tipo == 'ENTRADA': movimiento.ubicacion_destino = ubicacion
-                    elif tipo == 'SALIDA': movimiento.ubicacion_origen = ubicacion
-                    else: movimiento.ubicacion_destino = ubicacion
+                    from .models import StockRecord
+                    if tipo == 'AJUSTE':
+                        stock_record = StockRecord.objects.filter(material=material, ubicacion=ubicacion).first()
+                        stock_actual = stock_record.cantidad if stock_record else Decimal('0')
+                        delta = cantidad - stock_actual
+                        if delta == 0: continue
+                        final_tipo = 'ENTRADA' if delta > 0 else 'SALIDA'
+                        final_qty = abs(delta)
+                    else:
+                        final_tipo = tipo
+                        final_qty = cantidad
+                    movimiento = MovimientoInventario(material=material, tipo=final_tipo, cantidad=final_qty, usuario=request.user, comentarios=comentarios)
+                    if final_tipo == 'ENTRADA': movimiento.ubicacion_destino = ubicacion
+                    elif final_tipo == 'SALIDA': movimiento.ubicacion_origen = ubicacion
                     movimiento.save()
                     movimiento.liquidar(request.user)
                     procesados += 1
