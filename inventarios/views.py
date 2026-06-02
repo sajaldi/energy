@@ -2116,3 +2116,15 @@ def api_sync_offline_queue(request):
                 except Exception as e: errores.append({'item': mov_data, 'error': str(e)})
         return JsonResponse({'status': 'success', 'message': f'{procesados} movimientos sincronizados', 'errores': errores})
     except Exception as e: return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@login_required
+def api_recalcular_stock(request, material_id):
+    from .models import Material
+    try:
+        mat = get_object_or_404(Material, id=material_id)
+        mat.recalcular_stock()
+        total = mat.existencias.aggregate(s=Sum('cantidad'))['s'] or 0
+        return JsonResponse({'status': 'success', 'stock_total': float(total)})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
