@@ -1088,6 +1088,7 @@
         let activeMode = 'solicitud';
         let solicitudMaterials = new Map();
         let ingresoMaterials = new Map();
+        function esc(t){return (t||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'\\r');}
 
         // 1. Modal Logic
         $('#btn-nueva-solicitud').on('click', () => {
@@ -1171,7 +1172,7 @@
                             </div>
                             <div style="display: flex; gap: 8px; margin-top:5px;">
                                 <input type="number" id="qty-${m.id}" class="form-control" value="1" min="1" style="flex:1; padding:5px; font-size:14px; height:36px; text-align:center; border: 1px solid var(--sap-border);">
-                                <button onclick="addToCart(${m.id}, '${(m.nombre||'').replace(/'/g, '\\u0027')}', '${(m.sku||'').replace(/'/g, '\\u0027')}')" style="background: var(--sap-blue); color: white; border: none; width:36px; height:36px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size:20px;">
+                                <button onclick="addToCart(${m.id}, '${esc(m.nombre)}', '${esc(m.sku)}')" style="background: var(--sap-blue); color: white; border: none; width:36px; height:36px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size:20px;">
                                     <ion-icon name="add-outline"></ion-icon>
                                 </button>
                             </div>
@@ -1305,7 +1306,7 @@
                 const data = await res.json();
                 results.empty().show();
                 data.results.forEach(ot => {
-                    results.append(`<div onclick="selectOt(${ot.id}, '${(ot.text||'').replace(/'/g, '\\u0027')}')" style="padding:15px; cursor:pointer; border-bottom:1px solid #f1f5f9; color: #0f172a; font-weight: 600;">${ot.text}</div>`);
+                    results.append(`<div onclick="selectOt(${ot.id}, '${esc(ot.text)}')" style="padding:15px; cursor:pointer; border-bottom:1px solid #f1f5f9; color: #0f172a; font-weight: 600;">${ot.text}</div>`);
                 });
             } catch (err) { }
         });
@@ -1328,7 +1329,7 @@
                 results.empty().show();
                 data.results.forEach(s => {
                     results.append(`
-                        <div onclick="importSolicitud('${s.id}', '${(s.text||'').replace(/'/g, '\\u0027')}')" 
+                        <div onclick="importSolicitud('${s.id}', '${esc(s.text)}')" 
                              style="padding:15px; cursor:pointer; border-bottom:1px solid #f1f5f9; color: #0f172a; font-weight: 600;">
                             <div style="color:var(--primary); font-family:monospace; font-size:1rem;">${s.text}</div>
                             <div style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">Asunto: ${s.asunto} | ${s.count} materiales</div>
