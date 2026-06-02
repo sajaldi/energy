@@ -743,6 +743,10 @@ def api_despachar_solicitud(request, pk):
         # Notificar éxito vía Webhook a n8n para que avise al técnico
         from .utils_n8n import notify_n8n_despacho_material
         notify_n8n_despacho_material(solicitud)
+
+        # Notificar a Power Automate
+        from .utils_n8n import notify_powerautomate_despacho
+        notify_powerautomate_despacho(solicitud)
     
     if errores:
         return JsonResponse({

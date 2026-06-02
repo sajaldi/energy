@@ -154,6 +154,8 @@ def notify_n8n_solicitud_autorizacion(solicitud, jefe):
 
 POWERAUTOMATE_SOLICITUD_URL = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/db1b240ffc614eb3a94903f652c3050f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=QqwOO3oTcQi7uZvHzQ247cn5Ev4oOf1FuieAVhFLmu4"
 
+POWERAUTOMATE_DESPACHO_URL = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/00d78dda269f477daefd4464162a4af4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=F_ds80wMf2RdkzyCaDGF2N118z0-vH9azCzyVPkKKac"
+
 POWERAUTOMATE_SITE_URL = "https://softcom.ccg.hn"
 
 def notify_powerautomate_solicitud(solicitud):
@@ -202,4 +204,46 @@ def notify_powerautomate_solicitud(solicitud):
         return True
     except Exception as e:
         logger.error(f"Error en webhook Power Automate para solicitud #{solicitud.id}: {e}")
+        return False
+
+def notify_powerautomate_despacho(solicitud):
+    """
+    Envía un webhook a Power Automate cuando se despacha una solicitud de materiales.
+    """
+    try:
+        items = []
+        for mov in solicitud.items.filter(estado='APROBADO'):
+            items.append({
+                'material_id': mov.material.id,
+                'material_nombre': mov.material.nombre,
+                'sku': mov.material.sku,
+                'cantidad': int(mov.cantidad),
+                'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else "Unidad",
+            })
+
+        user = solicitud.usuario
+        perfil = getattr(user, 'perfil', None)
+
+        data = {
+            'event': 'solicitud_material_despachada',
+            'solicitud_id': solicitud.id,
+            'fecha_entrega': solicitud.fecha_entrega.isoformat() if solicitud.fecha_entrega else "",
+            'usuario': user.username,
+            'usuario_nombre': f"{user.first_name} {user.last_name}".strip(),
+            'usuario_email': user.email,
+            'usuario_telefono': perfil.telefono if perfil else "",
+            'almacenista': solicitud.entregado_por.get_full_name() if solicitud.entregado_por else "Sistema",
+            'ubicacion_almacen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "Almacén",
+            'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
+            'comentarios_almacen': solicitud.comentarios_almacen or "",
+            'items': items,
+            'url_detalle': f"{POWERAUTOMATE_SITE_URL}/inventarios/mobile/pedidos/{solicitud.id}/",
+        }
+
+        response = requests.post(POWERAUTOMATE_DESPACHO_URL, json=data, timeout=10)
+        response.raise_for_status()
+        logger.info(f"Webhook Power Automate despacho enviado para solicitud #{solicitud.id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error en webhook Power Automate despacho para solicitud #{solicitud.id}: {e}")
         return False
