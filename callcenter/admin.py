@@ -259,7 +259,7 @@ class EvidenciasInline(admin.TabularInline):
 
 @admin.register(SolicitudTicket)
 class SolicitudTicketAdmin(admin.ModelAdmin):
-    list_display = ('folio', 'falla_catalogo', 'ubicacion_jerarquica', 'servicio', 'deductiva', 'fecha_solicitud')
+    list_display = ('folio', 'falla_catalogo', 'ubicacion_jerarquica', 'servicio', 'deductiva', 'descripcion', 'fecha_solicitud')
     list_filter = ('servicio', 'falla_reportada', 'fecha_solicitud')
     search_fields = ('folio', 'falla_reportada__nombre', 'servicio')
     autocomplete_fields = ('activo', 'usuario_responsable')
@@ -274,6 +274,10 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     @admin.display(description='Ubicación Física (Jerárquica)', ordering='ubicacion')
     def ubicacion_jerarquica(self, obj):
         return obj.ubicacion.get_ruta_completa() if obj.ubicacion else "-"
+
+    @admin.display(description='Descripción', ordering='solicitud_descripcion')
+    def descripcion(self, obj):
+        return obj.solicitud_descripcion or obj.falla_descripcion or "-"
 
     @admin.action(description="Analizar tickets con IA (n8n)")
     def analizar_con_ia(self, request, queryset):
