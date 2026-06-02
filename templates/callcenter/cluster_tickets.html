@@ -12,39 +12,40 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'callcenter/css/fiori_cluster.css' %}">
     <link rel="stylesheet" href="{% static 'callcenter/css/ticket_dashboard.css' %}">
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --sap-radius: 2px;
-        }
+        :root { --sap-radius: 0px; }
         .dashboard-wrapper {
             max-width: 100% !important;
             padding: 1rem 2rem !important;
         }
-        .list-container {
-            background: white;
-            border-radius: var(--sap-radius);
-            box-shadow: var(--sap-shadow);
-            overflow-x: auto;
-            border: 1px solid var(--sap-border);
-            width: 100%;
+        .visual-table .group-header td {
+            box-shadow: inset 3px 0 0 var(--sap-primary, #0070f2);
         }
-        .group-header {
-            display: table-row !important;
-            background: #f1f3f4 !important;
+        .visual-table .group-header td:first-child {
+            font-weight: 600;
         }
-        .group-header td {
-            background: #f1f3f4 !important;
-            border-top: 1px solid #dee2e6 !important;
-            border-bottom: 1px solid #dee2e6 !important;
-            padding: 0.8rem 1.25rem !important;
-            box-shadow: inset 5px 0 0 var(--sap-primary);
+        .caret-icon {
+            display: inline-block;
+            transition: transform 0.2s ease;
+            margin-right: 8px;
+            font-size: 0.75rem;
         }
-        .visual-table {
-            width: 100%;
-            border-collapse: collapse;
+        .caret-icon.collapsed { transform: rotate(-90deg); }
+        .badge { display: inline-flex; align-items: center; gap: 4px; }
+        .modal-loader {
+            border: 3px solid #e2e8f0;
+            border-top-color: #0070f2;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
             text-align: left;
             table-layout: auto;
         }
