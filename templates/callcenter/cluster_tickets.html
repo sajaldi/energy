@@ -3273,6 +3273,18 @@
     .desc-tooltip.visible {
         opacity: 1;
     }
+    .desc-tooltip-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 99998;
+        background: rgba(0,0,0,0.3);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+    .desc-tooltip-backdrop.visible {
+        opacity: 1;
+    }
     .desc-tooltip .desc-label {
         font-size: 0.7rem;
         font-weight: 600;
@@ -3288,33 +3300,45 @@
     }
     </style>
 
+    <div id="descTooltipBackdrop" class="desc-tooltip-backdrop"></div>
     <div id="descTooltip" class="desc-tooltip"><div class="desc-label">Descripción</div><div id="descTooltipText"></div></div>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const tooltip = document.getElementById('descTooltip');
         const tooltipText = document.getElementById('descTooltipText');
+        const backdrop = document.getElementById('descTooltipBackdrop');
         let hideTimeout = null;
+
+        function showTooltip(text) {
+            clearTimeout(hideTimeout);
+            tooltipText.textContent = text;
+            tooltip.style.left = '50%';
+            tooltip.style.top = '50%';
+            tooltip.style.transform = 'translate(-50%, -50%)';
+            tooltip.classList.add('visible');
+            backdrop.classList.add('visible');
+        }
+
+        function hideTooltip() {
+            hideTimeout = setTimeout(() => {
+                tooltip.classList.remove('visible');
+                backdrop.classList.remove('visible');
+            }, 150);
+        }
 
         document.querySelectorAll('.desc-cell').forEach(el => {
             el.addEventListener('mouseenter', (e) => {
-                clearTimeout(hideTimeout);
                 const text = el.getAttribute('data-desc');
                 if (!text || text === '-') return;
-                tooltipText.textContent = text;
-                const rect = el.getBoundingClientRect();
-                tooltip.style.left = (rect.left + rect.width / 2 - 240) + 'px';
-                tooltip.style.top = (rect.bottom + 8) + 'px';
-                tooltip.classList.add('visible');
+                showTooltip(text);
             });
-
-            el.addEventListener('mouseleave', () => {
-                hideTimeout = setTimeout(() => tooltip.classList.remove('visible'), 150);
-            });
+            el.addEventListener('mouseleave', hideTooltip);
         });
 
         tooltip.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
-        tooltip.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+        tooltip.addEventListener('mouseleave', hideTooltip);
+        backdrop.addEventListener('click', hideTooltip);
     });
     </script>
 </body>
