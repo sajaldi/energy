@@ -150,3 +150,43 @@ def notify_n8n_solicitud_autorizacion(solicitud, jefe):
     except Exception as e:
         logger.error(f"Error al enviar notificación de autorización a n8n por solicitud #{solicitud.id}: {e}")
         return False
+
+
+POWERAUTOMATE_SOLICITUD_URL = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/db1b240ffc614eb3a94903f652c3050f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=QqwOO3oTcQi7uZvHzQ247cn5Ev4oOf1FuieAVhFLmu4"
+
+def notify_powerautomate_solicitud(solicitud):
+    """
+    Envía un webhook a Power Automate cuando se crea una solicitud de materiales.
+    """
+    try:
+        items = []
+        for mov in solicitud.items.all():
+            items.append({
+                'material_id': mov.material.id,
+                'material_nombre': mov.material.nombre,
+                'sku': mov.material.sku,
+                'cantidad': float(mov.cantidad_solicitada),
+                'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else "Unidad",
+            })
+
+        data = {
+            'event': 'solicitud_material_created',
+            'solicitud_id': solicitud.id,
+            'fecha': solicitud.fecha_solicitud.isoformat(),
+            'usuario': solicitud.usuario.username,
+            'usuario_nombre': f"{solicitud.usuario.first_name} {solicitud.usuario.last_name}".strip(),
+            'ubicacion_origen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "N/A",
+            'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
+            'ot_id': solicitud.orden_trabajo.id if solicitud.orden_trabajo else None,
+            'comentarios': solicitud.comentarios_solicitud or "",
+            'items': items,
+            'url_detalle': f"{getattr(settings, 'SITE_URL', '')}/inventarios/mobile/pedidos/{solicitud.id}/",
+        }
+
+        response = requests.post(POWERAUTOMATE_SOLICITUD_URL, json=data, timeout=10)
+        response.raise_for_status()
+        logger.info(f"Webhook Power Automate enviado para solicitud #{solicitud.id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error en webhook Power Automate para solicitud #{solicitud.id}: {e}")
+        return False

@@ -423,6 +423,9 @@ def cart_checkout(request):
                 notify_n8n_solicitud_autorizacion(solicitud, jefe)
             else:
                 notify_n8n_solicitud_material(solicitud)
+            # Webhook a Power Automate
+            from .utils_n8n import notify_powerautomate_solicitud
+            notify_powerautomate_solicitud(solicitud)
             # Limpiar carrito solo si venimos de la vista de carrito
             if not items_json:
                 Cart(request).clear()
