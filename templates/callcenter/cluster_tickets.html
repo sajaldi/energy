@@ -464,7 +464,7 @@
                                 {% endif %}
                                 </a>
                             </td>
-                            <td><span style="color: var(--sap-text-muted);" title="{{ t.solicitud_descripcion }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
+<td><span class="desc-cell" data-desc="{{ t.solicitud_descripcion|default:'-' }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
                             <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                             <td style="text-align: center; font-weight: 500;">{{ t.tiempo_resolucion_horas|default:"-" }}</td>
                             <td style="font-weight: 600; color: #b81d24;">
@@ -577,7 +577,7 @@
                                 {{ t.falla_reportada.nombre_completo|default:"Sin Clasificar" }}
                             </span>
                         </td>
-                        <td><span style="color: var(--sap-text-muted);" title="{{ t.solicitud_descripcion }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
+                        <td><span class="desc-cell" data-desc="{{ t.solicitud_descripcion|default:'-' }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
                         <td>
                             {% if t.fecha_cierre or t.cierre_enviado %}
                                 <span class="badge badge-success" id="state-badge-{{ t.id_unlocalized }}"><i class="ph ph-check-circle"></i> Cerrado</span>
@@ -3247,6 +3247,75 @@
                 });
             });
         });
+    </script>
+
+    <style>
+    .desc-tooltip {
+        position: fixed;
+        z-index: 99999;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 16px 20px;
+        max-width: 480px;
+        max-height: 300px;
+        overflow-y: auto;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: #1e293b;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .desc-tooltip.visible {
+        opacity: 1;
+    }
+    .desc-tooltip .desc-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #94a3b8;
+        margin-bottom: 6px;
+    }
+    .desc-cell {
+        cursor: pointer;
+        border-bottom: 1px dashed #cbd5e1;
+        color: var(--sap-text-muted, #64748b);
+    }
+    </style>
+
+    <div id="descTooltip" class="desc-tooltip"><div class="desc-label">Descripción</div><div id="descTooltipText"></div></div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tooltip = document.getElementById('descTooltip');
+        const tooltipText = document.getElementById('descTooltipText');
+        let hideTimeout = null;
+
+        document.querySelectorAll('.desc-cell').forEach(el => {
+            el.addEventListener('mouseenter', (e) => {
+                clearTimeout(hideTimeout);
+                const text = el.getAttribute('data-desc');
+                if (!text || text === '-') return;
+                tooltipText.textContent = text;
+                const rect = el.getBoundingClientRect();
+                tooltip.style.left = (rect.left + rect.width / 2 - 240) + 'px';
+                tooltip.style.top = (rect.bottom + 8) + 'px';
+                tooltip.classList.add('visible');
+            });
+
+            el.addEventListener('mouseleave', () => {
+                hideTimeout = setTimeout(() => tooltip.classList.remove('visible'), 150);
+            });
+        });
+
+        tooltip.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
+        tooltip.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+    });
     </script>
 </body>
 </html>
