@@ -37,7 +37,7 @@ def notify_n8n_solicitud_material(solicitud):
             'usuario_nombre': f"{solicitud.usuario.first_name} {solicitud.usuario.last_name}".strip(),
             'ubicacion_origen': solicitud.ubicacion_origen.nombre,
             'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
-            'ot_id': solicitud.orden_trabajo.id if solicitud.orden_trabajo else None,
+            'ot_id': solicitud.orden_trabajo.id if solicitud.orden_trabajo else 0,
             'comentarios': solicitud.comentarios_solicitud or "",
             'items': items,
             'url_admin': f"{settings.SITE_URL}/admin/inventarios/solicitudmaterial/{solicitud.id}/change/",
@@ -167,7 +167,7 @@ def notify_powerautomate_solicitud(solicitud):
                 'material_id': mov.material.id,
                 'material_nombre': mov.material.nombre,
                 'sku': mov.material.sku,
-                'cantidad': float(mov.cantidad_solicitada),
+                'cantidad': int(mov.cantidad_solicitada),
                 'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else "Unidad",
             })
 
@@ -188,7 +188,7 @@ def notify_powerautomate_solicitud(solicitud):
             'superior_email': superior.email if superior else '',
             'ubicacion_origen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "N/A",
             'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
-            'ot_id': solicitud.orden_trabajo.id if solicitud.orden_trabajo else None,
+            'ot_id': solicitud.orden_trabajo.id if solicitud.orden_trabajo else 0,
             'comentarios': solicitud.comentarios_solicitud or "",
             'estado': solicitud.estado,
             'items': items,
