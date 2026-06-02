@@ -259,13 +259,21 @@ class EvidenciasInline(admin.TabularInline):
 
 @admin.register(SolicitudTicket)
 class SolicitudTicketAdmin(admin.ModelAdmin):
-    list_display = ('folio', 'es_interno', 'solicitud_adicional', 'id_solicitud', 'solicitante', 'falla_reportada', 'diagnostico_reportado', 'usuario_responsable', 'robot_estatus', 'get_tiempos_acordados', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
-    list_filter = ('robot_estatus', 'es_interno', 'servicio', 'area', 'tipo_solicitud', 'falla_reportada', 'diagnostico_reportado', 'falla_clasificacion', 'categoria_falla', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
-    search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'falla_descripcion', 'falla_reportada__nombre', 'diagnostico_reportado__nombre', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
+    list_display = ('folio', 'falla_catalogo', 'ubicacion_jerarquica', 'servicio', 'deductiva', 'fecha_solicitud')
+    list_filter = ('servicio', 'falla_reportada', 'fecha_solicitud')
+    search_fields = ('folio', 'falla_reportada__nombre', 'servicio')
     autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
     readonly_fields = ('creado_en', 'actualizado_en', 'robot_estatus', 'robot_log')
     actions = ['analizar_con_ia', 'exportar_a_excel']
+
+    @admin.display(description='Falla del Catálogo', ordering='falla_reportada')
+    def falla_catalogo(self, obj):
+        return obj.falla_reportada.nombre if obj.falla_reportada else "-"
+
+    @admin.display(description='Ubicación Física (Jerárquica)', ordering='ubicacion')
+    def ubicacion_jerarquica(self, obj):
+        return obj.ubicacion.get_ruta_completa() if obj.ubicacion else "-"
 
     @admin.action(description="Analizar tickets con IA (n8n)")
     def analizar_con_ia(self, request, queryset):
