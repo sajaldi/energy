@@ -248,8 +248,14 @@
             <span>¡Bienvenido!</span>
             <strong>{{ request.user.username|capfirst }}</strong>
         </div>
-        <div class="profile-icon">
-            {{ request.user.username|slice:":1"|upper }}
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div style="position:relative;display:inline-flex;align-items:center;">
+                <ion-icon name="sync-outline" style="font-size:22px;cursor:pointer;color:white;" onclick="showSyncList()" title="Sincronizar"></ion-icon>
+                <span id="sync-badge-header" style="display:none;position:absolute;top:-6px;right:-8px;background:#dc3545;color:white;font-size:10px;font-weight:bold;border-radius:50%;min-width:16px;height:16px;display:none;align-items:center;justify-content:center;padding:0 4px;">0</span>
+            </div>
+            <div class="profile-icon">
+                {{ request.user.username|slice:":1"|upper }}
+            </div>
         </div>
     </header>
 
@@ -863,14 +869,16 @@
                     const banner = document.getElementById('offline-sync-banner');
                     const badge = document.getElementById('offline-queue-count');
                     const syncBadge = document.getElementById('sync-badge');
+                    const headerBadge = document.getElementById('sync-badge-header');
                     if (count > 0) {
                         banner.style.display = 'block';
                         badge.innerText = count;
-                        syncBadge.style.display = 'block';
-                        syncBadge.innerText = count;
+                        if (syncBadge) { syncBadge.style.display = 'block'; syncBadge.innerText = count; }
+                        if (headerBadge) { headerBadge.style.display = 'flex'; headerBadge.innerText = count; }
                     } else {
                         banner.style.display = 'none';
-                        syncBadge.style.display = 'none';
+                        if (syncBadge) syncBadge.style.display = 'none';
+                        if (headerBadge) headerBadge.style.display = 'none';
                     }
                 };
             } catch (e) { console.warn('sync store not ready', e); }
