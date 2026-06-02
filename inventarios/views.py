@@ -2149,3 +2149,30 @@ def api_recalcular_stock(request, material_id):
         return JsonResponse({'status': 'success', 'stock_total': float(total)})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@login_required
+def api_check_ot_solicitud(request, ot_id):
+    """
+    Verifica si una Orden de Trabajo ya tiene una solicitud de materiales
+    pendiente (no finalizada). Si existe, retorna sus datos para preguntar
+    al usuario si quiere continuar con esa solicitud anterior.
+    """
+    solicitud = SolicitudMaterial.objects.filter(
+        orden_trabajo_id=ot_id
+    ).exclude(
+        estado__in=['ENTREGADO', 'RECHAZADO']
+    ).order_by('-fecha_solicitud').first()
+
+    if solicitud:
+        items_count = solicitud.items.count()
+        return JsonResponse({
+            'has_pending': True,
+            'solicitud': {
+                'id': solicitud.id,
+                'estado': solicitud.estado,
+                'fecha': solicitud.fecha_solicitud.strftime('%d/%m/%Y %H:%M'),
+                'items_count': items_count,
+            }
+        })
+    return JsonResponse({'has_pending': False})

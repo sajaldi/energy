@@ -618,6 +618,27 @@
                         setTimeout(() => clearInterval(checkNiveles), 3000);
                     }
                 }
+
+                // Verificar si la OT ya tiene una solicitud pendiente
+                fetch(`/inventarios/api/check-ot-solicitud/${id}/`)
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d.has_pending) {
+                            Swal.fire({
+                                title: 'Solicitud existente',
+                                html: `Esta OT ya tiene una solicitud <strong>#${d.solicitud.id}</strong> en estado <strong>${d.solicitud.estado}</strong> con ${d.solicitud.items_count} materiales.<br><br>¿Quieres continuar con esa solicitud anterior?`,
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: 'Sí, ver solicitud',
+                                cancelButtonText: 'No, crear nueva'
+                            }).then(res => {
+                                if (res.isConfirmed) {
+                                    window.location.href = `/inventarios/mobile/pedidos/${d.solicitud.id}/`;
+                                }
+                            });
+                        }
+                    })
+                    .catch(() => {});
             });
 
             window.clearOT = function() {
