@@ -2179,9 +2179,9 @@ def api_check_ot_solicitud(request, ot_id):
 
 
 @login_required
-def api_solicitud_add_items(request, pk):
+def api_solicitud_update_items(request, pk):
     """
-    Agrega materiales a una solicitud existente (solo si está pendiente).
+    Actualiza items de una solicitud: agrega nuevos, modifica cantidades y elimina líneas.
     """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
@@ -2196,34 +2196,60 @@ def api_solicitud_add_items(request, pk):
         return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
 
     items = data.get('items', [])
-    if not items:
-        return JsonResponse({'status': 'error', 'message': 'No hay materiales'}, status=400)
+    resultados = {'creados': 0, 'actualizados': 0, 'eliminados': 0}
 
-    creados = 0
     for it in items:
+        mov_id = it.get('mov_id')
         material_id = it.get('material_id')
-        cantidad = it.get('cantidad', 1)
-        if not material_id or float(cantidad) <= 0:
-            continue
-        try:
-            material = Material.objects.get(id=material_id)
-            MovimientoInventario.objects.create(
-                solicitud=solicitud,
-                material=material,
-                tipo='SALIDA',
-                cantidad=Decimal(str(cantidad)),
-                cantidad_solicitada=Decimal(str(cantidad)),
-                ubicacion_origen=solicitud.ubicacion_origen,
-                orden_trabajo=solicitud.orden_trabajo,
-                usuario=request.user,
-                comentarios=solicitud.comentarios_solicitud or ''
-            )
-            creados += 1
-        except Material.DoesNotExist:
-            continue
+        cantidad = it.get('cantidad')
+        eliminar = it.get('_delete', False)
+
+        if eliminar and mov_id:
+            try:
+                mov = MovimientoInventario.objects.get(id=mov_id, solicitud=solicitud, estado='PENDIENTE')
+                mov.delete()
+                resultados['eliminados'] += 1
+            except MovimientoInventario.DoesNotExist:
+                continue
+
+        elif mov_id and cantidad is not None:
+            try:
+                mov = MovimientoInventario.objects.get(id=mov_id, solicitud=solicitud, estado='PENDIENTE')
+                dc = Decimal(str(cantidad))
+                if dc <= 0:
+                    mov.delete()
+                    resultados['eliminados'] += 1
+                else:
+                    mov.cantidad = dc
+                    mov.cantidad_solicitada = dc
+                    mov.save()
+                    resultados['actualizados'] += 1
+            except MovimientoInventario.DoesNotExist:
+                continue
+
+        elif material_id and cantidad is not None:
+            try:
+                material = Material.objects.get(id=material_id)
+                dc = Decimal(str(cantidad))
+                if dc <= 0:
+                    continue
+                MovimientoInventario.objects.create(
+                    solicitud=solicitud,
+                    material=material,
+                    tipo='SALIDA',
+                    cantidad=dc,
+                    cantidad_solicitada=dc,
+                    ubicacion_origen=solicitud.ubicacion_origen,
+                    orden_trabajo=solicitud.orden_trabajo,
+                    usuario=request.user,
+                    comentarios=solicitud.comentarios_solicitud or ''
+                )
+                resultados['creados'] += 1
+            except Material.DoesNotExist:
+                continue
 
     return JsonResponse({
         'status': 'success',
-        'message': f'{creados} material(es) agregado(s) a la solicitud #{solicitud.id}',
-        'creados': creados
+        'message': f"{resultados['creados']} creado(s), {resultados['actualizados']} actualizado(s), {resultados['eliminados']} eliminado(s)",
+        **resultados
     })

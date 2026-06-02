@@ -9,9 +9,9 @@
     {% include 'core/pwa_tags.html' %}
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
-            /* Fiori Quartz Palette */
             --sapShellColor: #354a5f;
             --sapBackgroundColor: #f7f7f7;
             --sapTextColor: #32363a;
@@ -23,296 +23,126 @@
             --sapButton_TextColor: #0064d1;
             --sapTile_TitleColor: #32363a;
         }
-
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            font-family: '72', 'Outfit', sans-serif;
-            background-color: var(--sapBackgroundColor);
-            color: var(--sapTextColor);
-            margin: 0;
-            padding-bottom: 40px;
-        }
-
-        /* Fiori Shellbar */
-        header {
-            background-color: var(--sapShellColor);
-            color: white;
-            padding: 10px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            height: 48px;
-            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.12);
-        }
-
-        .back-btn {
-            color: white;
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 400;
-        }
-
-        .container {
-            padding: 0;
-        }
-
-        /* Fiori Object Page Header */
-        .object-header {
-            background: white;
-            padding: 24px 16px;
-            border-bottom: 1px solid #d9d9d9;
-            margin-bottom: 1rem;
-        }
-
-        .object-header-title {
-            font-size: 1.3rem;
-            font-weight: 400;
-            margin: 0 0 8px 0;
-            color: var(--sapTextColor);
-        }
-
-        .status-tag {
-            font-size: 0.875rem;
-            font-weight: 700;
-            padding: 0.25rem 0.75rem;
-            border-radius: 2rem;
-            display: inline-block;
-        }
-
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: '72', 'Outfit', sans-serif; background-color: var(--sapBackgroundColor); color: var(--sapTextColor); margin: 0; padding-bottom: 100px; }
+        header { background-color: var(--sapShellColor); color: white; padding: 10px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 1000; height: 48px; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.12); }
+        .back-btn { color: white; font-size: 24px; display: flex; align-items: center; text-decoration: none; }
+        header h1 { margin: 0; font-size: 16px; font-weight: 400; flex: 1; }
+        .edit-header-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 4px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+        .container { padding: 0; }
+        .object-header { background: white; padding: 24px 16px; border-bottom: 1px solid #d9d9d9; margin-bottom: 1rem; }
+        .object-header-title { font-size: 1.3rem; font-weight: 400; margin: 0 0 8px 0; color: var(--sapTextColor); }
+        .status-tag { font-size: 0.875rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 2rem; display: inline-block; }
         .tag-ENTREGADO { background: #e7f4e9; color: var(--sapSuccessColor); }
         .tag-PENDIENTE { background: #fff4e5; color: var(--sapWarningColor); }
         .tag-RECHAZADO { background: #ffebeb; color: var(--sapErrorColor); }
+        .section-title { font-size: 1rem; font-weight: 700; color: var(--sapTextColor); padding: 1rem 1rem 0.5rem 1rem; background: transparent; }
+        .fiori-card { background: white; margin: 0 0.5rem 0.5rem 0.5rem; border-radius: 0.25rem; border: 1px solid #d9d9d9; box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08); overflow: hidden; }
+        .fiori-card-content { padding: 1rem; }
+        .material-name { font-size: 1rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .material-sku { font-size: 0.875rem; color: var(--sapContent_LabelColor); }
+        .qty-grid { display: grid; grid-template-columns: 1fr 1fr; margin-top: 1rem; border-top: 1px solid #eee; }
+        .qty-item { padding: 0.75rem; text-align: center; }
+        .qty-item:first-child { border-right: 1px solid #eee; }
+        .qty-label { font-size: 0.75rem; color: var(--sapContent_LabelColor); display: block; margin-bottom: 0.25rem; }
+        .qty-val { font-size: 1.25rem; font-weight: 700; color: var(--sapTextColor); }
+        .qty-val.delivered { color: var(--sapSuccessColor); }
+        .unit { font-size: 0.75rem; font-weight: normal; color: var(--sapContent_LabelColor); }
+        .info-list { background: white; border-top: 1px solid #d9d9d9; border-bottom: 1px solid #d9d9d9; }
+        .info-item { display: flex; justify-content: space-between; padding: 0.875rem 1rem; border-bottom: 1px solid #eee; }
+        .info-item:last-child { border-bottom: none; }
+        .info-label { color: var(--sapContent_LabelColor); font-size: 0.875rem; }
+        .info-value { font-weight: 700; font-size: 0.875rem; text-align: right; }
+        .comment-box { background: #fff; padding: 1rem; margin: 0.5rem; border-radius: 0.25rem; border-left: 4px solid var(--sapPrimaryColor); font-size: 0.875rem; box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08); }
+        .comment-header { font-weight: 700; margin-bottom: 0.5rem; color: var(--sapContent_LabelColor); font-size: 0.75rem; text-transform: uppercase; }
 
-        /* Fiori Sections */
-        .section-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--sapTextColor);
-            padding: 1rem 1rem 0.5rem 1rem;
-            background: transparent;
-        }
-
-        /* Fiori List Item / Card */
-        .fiori-card {
-            background: white;
-            margin: 0 0.5rem 0.5rem 0.5rem;
-            border-radius: 0.25rem;
-            border: 1px solid #d9d9d9;
-            box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08);
-            overflow: hidden;
-        }
-
-        .fiori-card-content {
-            padding: 1rem;
-        }
-
-        .material-name {
-            font-size: 1rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-        }
-
-        .material-sku {
-            font-size: 0.875rem;
-            color: var(--sapContent_LabelColor);
-        }
-
-        /* Qty Comparison Grid */
-        .qty-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            margin-top: 1rem;
-            border-top: 1px solid #eee;
-        }
-
-        .qty-item {
-            padding: 0.75rem;
-            text-align: center;
-        }
-
-        .qty-item:first-child {
-            border-right: 1px solid #eee;
-        }
-
-        .qty-label {
-            font-size: 0.75rem;
-            color: var(--sapContent_LabelColor);
-            display: block;
-            margin-bottom: 0.25rem;
-        }
-
-        .qty-val {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--sapTextColor);
-        }
-
-        .qty-val.delivered {
-            color: var(--sapSuccessColor);
-        }
-
-        .unit {
-            font-size: 0.75rem;
-            font-weight: normal;
-            color: var(--sapContent_LabelColor);
-        }
-
-        /* Metadata List */
-        .info-list {
-            background: white;
-            border-top: 1px solid #d9d9d9;
-            border-bottom: 1px solid #d9d9d9;
-        }
-
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.875rem 1rem;
-            border-bottom: 1px solid #eee;
-        }
-
-        .info-item:last-child {
-            border-bottom: none;
-        }
-
-        .info-label {
-            color: var(--sapContent_LabelColor);
-            font-size: 0.875rem;
-        }
-
-        .info-value {
-            font-weight: 700;
-            font-size: 0.875rem;
-            text-align: right;
-        }
-
-        .comment-box {
-            background: #fff;
-            padding: 1rem;
-            margin: 0.5rem;
-            border-radius: 0.25rem;
-            border-left: 4px solid var(--sapPrimaryColor);
-            font-size: 0.875rem;
-            box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08);
-        }
-
-        .comment-header {
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            color: var(--sapContent_LabelColor);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-        }
+        .edit-qty-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; }
+        .edit-qty-row input { width: 80px; padding: 8px; border: 2px solid var(--sapPrimaryColor); border-radius: 6px; text-align: center; font-weight: 700; font-size: 1.1rem; }
+        .edit-qty-row button { background: none; border: none; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; padding: 4px; }
+        .btn-delete-item { color: var(--sapErrorColor); }
+        .edit-mode .fiori-card { border-color: var(--sapPrimaryColor); }
+        .save-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; border-top: 1px solid #d9d9d9; display: none; gap: 10px; z-index: 1001; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); }
+        .save-bar.show { display: flex; }
+        .save-bar button { flex: 1; padding: 14px; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; border: none; }
+        .btn-save { background: var(--sapPrimaryColor); color: white; }
+        .btn-cancel-edit { background: #f1f5f9; color: #475569; }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     </style>
 </head>
 
 <body>
     <header>
-        <a href="{% url 'inventarios:mobile_lista_pedidos' %}" class="back-btn">
-            <ion-icon name="nav-back"></ion-icon>
-        </a>
+        <a href="{% url 'inventarios:mobile_lista_pedidos' %}" class="back-btn"><ion-icon name="nav-back"></ion-icon></a>
         <h1>Detalle de Pedido</h1>
+        {% if pedido.estado != 'ENTREGADO' and pedido.estado != 'RECHAZADO' %}
+        <button class="edit-header-btn" id="btn-toggle-edit" onclick="toggleEditMode()"><ion-icon name="create-outline"></ion-icon> Editar</button>
+        {% endif %}
     </header>
 
     <div class="container">
-        <!-- Object Header -->
         <div class="object-header">
             <p style="color: var(--sapContent_LabelColor); margin: 0; font-size: 0.875rem;">Pedido #{{ pedido.id }}</p>
             <h2 class="object-header-title">Solicitud de Materiales</h2>
-            <div class="status-tag tag-{{ pedido.estado }}">
-                {{ pedido.get_estado_display }}
-            </div>
+            <div class="status-tag tag-{{ pedido.estado }}">{{ pedido.get_estado_display }}</div>
             <p style="margin-top: 1rem;"><ion-icon name="calendar-outline"></ion-icon> {{ pedido.fecha_solicitud|date:"d M, Y" }}</p>
         </div>
 
-        <div class="section-title">Materiales</div>
-
+        <div class="section-title">Materiales <span id="items-count" style="font-weight:400; color:#64748b;">({{ items|length }})</span></div>
+        <div id="items-container">
         {% for item in items %}
-        <div class="fiori-card">
-            <div class="fiori-card-content">
-                <div class="material-name">{{ item.material.nombre }}</div>
-                <div class="material-sku">SKU: {{ item.material.sku }}</div>
-                
-                <div class="qty-grid">
-                    <div class="qty-item">
-                        <span class="qty-label">Solicitado</span>
-                        <span class="qty-val">{{ item.cantidad_solicitada|default:item.cantidad|floatformat:2 }} <span class="unit">{{ item.material.unidad_medida.abreviatura|default:"UND" }}</span></span>
+            <div class="fiori-card fade-in" data-mov-id="{{ item.id }}" data-material-id="{{ item.material.id }}" data-material-nombre="{{ item.material.nombre }}" data-sku="{{ item.material.sku }}" data-unidad="{{ item.material.unidad_medida.abreviatura|default:'UND' }}" data-cantidad="{{ item.cantidad|floatformat:2 }}">
+                <div class="fiori-card-content">
+                    <div class="material-name">{{ item.material.nombre }}</div>
+                    <div class="material-sku">SKU: {{ item.material.sku }}</div>
+                    <div class="qty-grid">
+                        <div class="qty-item">
+                            <span class="qty-label">Solicitado</span>
+                            <span class="qty-val">{{ item.cantidad_solicitada|default:item.cantidad|floatformat:2 }} <span class="unit">{{ item.material.unidad_medida.abreviatura|default:"UND" }}</span></span>
+                        </div>
+                        <div class="qty-item">
+                            <span class="qty-label">Entregado</span>
+                            <span class="qty-val delivered">{% if item.estado == 'APROBADO' %}{{ item.cantidad|floatformat:2 }}{% else %}0.00{% endif %} <span class="unit">{{ item.material.unidad_medida.abreviatura|default:"UND" }}</span></span>
+                        </div>
                     </div>
-                    <div class="qty-item">
-                        <span class="qty-label">Entregado</span>
-                        <span class="qty-val delivered">{% if item.estado == 'APROBADO' %}{{ item.cantidad|floatformat:2 }}{% else %}0.00{% endif %} <span class="unit">{{ item.material.unidad_medida.abreviatura|default:"UND" }}</span></span>
+                    <div class="edit-qty-row" style="display:none;">
+                        <button type="button" class="btn-delete-item" onclick="deleteItem(this)"><ion-icon name="trash-outline"></ion-icon></button>
+                        <span style="flex:1; font-size:0.85rem; color:#64748b;">Cantidad:</span>
+                        <button type="button" onclick="adjQty(this, -1)">−</button>
+                        <input type="number" step="0.01" class="edit-qty-input" value="{{ item.cantidad_solicitada|default:item.cantidad|floatformat:2 }}" min="0.01">
+                        <button type="button" onclick="adjQty(this, 1)">+</button>
                     </div>
                 </div>
             </div>
-        </div>
         {% endfor %}
+        </div>
+
+        <div style="text-align:center; margin:10px 0;">
+            <button onclick="openAddMaterials()" style="background:none; border:2px dashed #cbd5e1; border-radius:8px; padding:16px 24px; color:#64748b; font-weight:600; font-size:15px; cursor:pointer; width:calc(100% - 16px);"><ion-icon name="add-outline" style="vertical-align:middle;"></ion-icon> Agregar materiales</button>
+        </div>
 
         <div class="section-title">Información General</div>
         <div class="info-list">
-            <div class="info-item">
-                <span class="info-label">Ubicación Origen</span>
-                <span class="info-value">{{ pedido.ubicacion_origen.nombre }}</span>
-            </div>
-            {% if pedido.orden_trabajo %}
-            <div class="info-item">
-                <span class="info-label">Orden de Trabajo</span>
-                <span class="info-value">OT-{{ pedido.orden_trabajo.id }}</span>
-            </div>
-            {% endif %}
-            <div class="info-item">
-                <span class="info-label">Solicitante</span>
-                <span class="info-value">{{ pedido.solicitante_nombre }}</span>
-            </div>
-            {% if pedido.entregado_por %}
-            <div class="info-item">
-                <span class="info-label">Despachado por</span>
-                <span class="info-value">{{ pedido.entregado_por.get_full_name|default:pedido.entregado_por.username }}</span>
-            </div>
-            {% endif %}
+            <div class="info-item"><span class="info-label">Ubicación Origen</span><span class="info-value">{{ pedido.ubicacion_origen.nombre }}</span></div>
+            {% if pedido.orden_trabajo %}<div class="info-item"><span class="info-label">Orden de Trabajo</span><span class="info-value">OT-{{ pedido.orden_trabajo.id }}</span></div>{% endif %}
+            <div class="info-item"><span class="info-label">Solicitante</span><span class="info-value">{{ pedido.solicitante_nombre }}</span></div>
+            {% if pedido.entregado_por %}<div class="info-item"><span class="info-label">Despachado por</span><span class="info-value">{{ pedido.entregado_por.get_full_name|default:pedido.entregado_por.username }}</span></div>{% endif %}
         </div>
 
-        {% if pedido.comentarios_solicitud %}
-        <div class="section-title">Comentarios Solicitud</div>
-        <div class="comment-box">
-            <div class="comment-header">Técnico</div>
-            {{ pedido.comentarios_solicitud }}
-        </div>
-        {% endif %}
-
-        {% if pedido.comentarios_almacen %}
-        <div class="section-title">Notas del Almacén</div>
-        <div class="comment-box" style="border-left-color: var(--sapSuccessColor);">
-            <div class="comment-header">Almacén</div>
-            {{ pedido.comentarios_almacen }}
-        </div>
-        {% endif %}
-    </div>
+        {% if pedido.comentarios_solicitud %}<div class="section-title">Comentarios Solicitud</div><div class="comment-box"><div class="comment-header">Técnico</div>{{ pedido.comentarios_solicitud }}</div>{% endif %}
+        {% if pedido.comentarios_almacen %}<div class="section-title">Notas del Almacén</div><div class="comment-box" style="border-left-color: var(--sapSuccessColor);"><div class="comment-header">Almacén</div>{{ pedido.comentarios_almacen }}</div>{% endif %}
     </div>
 
-    {% if pedido.estado != 'ENTREGADO' and pedido.estado != 'RECHAZADO' %}
-    <button id="btn-add-materials" onclick="openAddMaterials()" style="position:fixed; bottom:20px; right:20px; width:56px; height:56px; border-radius:50%; background:#0064d1; color:white; border:none; box-shadow:0 4px 12px rgba(0,100,209,0.4); font-size:28px; z-index:999; display:flex; align-items:center; justify-content:center; cursor:pointer;">
-        <ion-icon name="add-outline"></ion-icon>
-    </button>
+    <div class="save-bar" id="save-bar">
+        <button class="btn-cancel-edit" onclick="exitEditMode()">Cancelar</button>
+        <button class="btn-save" onclick="saveChanges()">Guardar cambios</button>
+    </div>
 
+    <!-- Add Materials Modal -->
     <div id="add-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999;">
         <div style="position:absolute; bottom:0; left:0; right:0; background:white; border-radius:16px 16px 0 0; max-height:85vh; display:flex; flex-direction:column; animation:slideUp 0.3s ease-out;">
-            <style>
-                @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
-            </style>
+            <style>@keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }</style>
             <div style="padding:16px 20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0; font-weight:700;">Agregar Materiales</h3>
                 <button onclick="closeAddMaterials()" style="background:none; border:none; font-size:24px; cursor:pointer;">✕</button>
@@ -330,10 +160,86 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        let addMateriales = new Map();
         let solicitudPk = {{ pedido.id }};
+        let isEditing = false;
+        let addMateriales = new Map();
+
+        function toggleEditMode() {
+            isEditing = !isEditing;
+            document.querySelectorAll('.edit-qty-row').forEach(el => el.style.display = isEditing ? 'flex' : 'none');
+            document.querySelectorAll('.qty-grid').forEach(el => el.style.display = isEditing ? 'none' : 'grid');
+            document.getElementById('save-bar').classList.toggle('show', isEditing);
+            document.getElementById('btn-toggle-edit').textContent = isEditing ? '✕ Cerrar' : '✏ Editar';
+            document.querySelectorAll('.fiori-card').forEach(el => el.classList.toggle('edit-mode', isEditing));
+        }
+
+        function exitEditMode() {
+            if (isEditing) toggleEditMode();
+            location.reload();
+        }
+
+        function adjQty(btn, delta) {
+            const input = btn.parentElement.querySelector('.edit-qty-input');
+            let val = parseFloat(input.value) || 0;
+            val = Math.max(0.01, val + delta);
+            input.value = val.toFixed(2);
+        }
+
+        function deleteItem(btn) {
+            const card = btn.closest('.fiori-card');
+            Swal.fire({
+                title: '¿Eliminar material?',
+                text: card.dataset.materialNombre,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                confirmButtonColor: '#bb0000'
+            }).then(res => {
+                if (res.isConfirmed) {
+                    card.style.display = 'none';
+                    card.dataset.deleted = 'true';
+                    updateItemsCount();
+                }
+            });
+        }
+
+        function updateItemsCount() {
+            const visible = document.querySelectorAll('#items-container .fiori-card:not([style*="display: none"])').length;
+            document.getElementById('items-count').textContent = `(${visible})`;
+        }
+
+        async function saveChanges() {
+            const items = [];
+            document.querySelectorAll('#items-container .fiori-card').forEach(card => {
+                if (card.dataset.deleted === 'true') {
+                    items.push({ mov_id: parseInt(card.dataset.movId), _delete: true });
+                    return;
+                }
+                const qtyInput = card.querySelector('.edit-qty-input');
+                if (qtyInput) {
+                    items.push({ mov_id: parseInt(card.dataset.movId), cantidad: parseFloat(qtyInput.value) });
+                }
+            });
+
+            Swal.fire({ title: 'Guardando...', didOpen: () => Swal.showLoading() });
+            try {
+                const res = await fetch(`/inventarios/api/solicitudes/${solicitudPk}/update-items/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ items })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    await Swal.fire({ icon: 'success', title: 'Guardado', text: data.message });
+                    location.reload();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+                }
+            } catch(e) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red' });
+            }
+        }
 
         function openAddMaterials() {
             document.getElementById('add-modal').style.display = 'block';
@@ -355,16 +261,12 @@
                     const data = await res.json();
                     const container = document.getElementById('add-results');
                     if (!data.results || data.results.length === 0) {
-                        container.innerHTML = '<p style="color:#94a3b8; text-align:center; margin-top:40px;">Sin resultados</p>';
-                        return;
+                        container.innerHTML = '<p style="color:#94a3b8; text-align:center; margin-top:40px;">Sin resultados</p>'; return;
                     }
                     container.innerHTML = data.results.map(m => {
                         const sel = addMateriales.has(m.id);
                         return `<div onclick="toggleMat(${m.id})" style="display:flex; align-items:center; gap:12px; padding:12px; margin-bottom:8px; border-radius:8px; border:2px solid ${sel ? '#0064d1' : '#e2e8f0'}; background:${sel ? '#f0f7ff' : 'white'}; cursor:pointer;">
-                            <div style="flex:1;">
-                                <div style="font-weight:600; font-size:15px;">${m.nombre}</div>
-                                <div style="font-size:12px; color:#64748b;">SKU: ${m.sku} · Stock: ${m.stock || 0}</div>
-                            </div>
+                            <div style="flex:1;"><div style="font-weight:600; font-size:15px;">${m.nombre}</div><div style="font-size:12px; color:#64748b;">SKU: ${m.sku} · Stock: ${m.stock || 0}</div></div>
                             ${sel ? `<input type="number" value="${addMateriales.get(m.id)}" min="1" onclick="event.stopPropagation()" onchange="updateQty(${m.id}, this.value)" style="width:60px; padding:6px; border:2px solid #0064d1; border-radius:6px; text-align:center; font-weight:700;">` : '<span style="color:#0064d1; font-weight:600; font-size:13px;">+ Agregar</span>'}
                         </div>`;
                     }).join('');
@@ -374,20 +276,12 @@
         }
 
         function toggleMat(id) {
-            if (addMateriales.has(id)) {
-                addMateriales.delete(id);
-            } else {
-                addMateriales.set(id, 1);
-            }
+            if (addMateriales.has(id)) addMateriales.delete(id);
+            else addMateriales.set(id, 1);
             searchMaterials();
         }
 
-        function updateQty(id, val) {
-            const q = parseFloat(val) || 1;
-            addMateriales.set(id, q);
-            updateCounter();
-        }
-
+        function updateQty(id, val) { addMateriales.set(id, parseFloat(val) || 1); updateCounter(); }
         function updateCounter() {
             const total = Array.from(addMateriales.values()).reduce((a, b) => a + b, 0);
             document.getElementById('btn-confirm-add').textContent = `Agregar seleccionados (${total})`;
@@ -397,7 +291,7 @@
             if (addMateriales.size === 0) return;
             const items = Array.from(addMateriales.entries()).map(([id, qty]) => ({ material_id: id, cantidad: qty }));
             try {
-                const res = await fetch(`/inventarios/api/solicitudes/${solicitudPk}/add-items/`, {
+                const res = await fetch(`/inventarios/api/solicitudes/${solicitudPk}/update-items/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                     body: JSON.stringify({ items })
@@ -414,8 +308,5 @@
             }
         }
     </script>
-    {% endif %}
-
 </body>
-
 </html>
