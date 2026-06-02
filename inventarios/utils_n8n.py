@@ -188,8 +188,10 @@ def notify_powerautomate_solicitud(solicitud):
             'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
             'ot_id': solicitud.orden_trabajo.id if solicitud.orden_trabajo else None,
             'comentarios': solicitud.comentarios_solicitud or "",
+            'estado': solicitud.estado,
             'items': items,
             'url_detalle': f"{getattr(settings, 'SITE_URL', '')}/inventarios/mobile/pedidos/{solicitud.id}/",
+            'url_api_autorizar': f"{getattr(settings, 'SITE_URL', '')}/inventarios/api/solicitudes/{solicitud.id}/autorizar/",
         }
 
         response = requests.post(POWERAUTOMATE_SOLICITUD_URL, json=data, timeout=10)
