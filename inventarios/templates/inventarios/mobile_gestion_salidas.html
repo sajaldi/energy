@@ -1,454 +1,91 @@
-{% extends "admin/base_site.html" %}
-{% load i18n static %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestión de Salidas - SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --sapShellColor: #354a5f;
+            --sapBackgroundColor: #f7f7f7;
+            --sapTextColor: #32363a;
+            --sapContent_LabelColor: #6a6d70;
+            --sapPrimaryColor: #0064d1;
+            --sapSuccessColor: #107e3e;
+            --sapWarningColor: #e9730c;
+            --sapErrorColor: #bb0000;
+            --sapField_Background: #ffffff;
+            --sapField_BorderColor: #d9d9d9;
+            --radius-sm: 0.25rem;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: '72', 'Outfit', sans-serif; background-color: var(--sapBackgroundColor); color: var(--sapTextColor); margin: 0; padding-top: 48px; padding-bottom: 20px; }
+        .mobile-header { position: fixed; top: 0; left: 0; right: 0; height: 48px; background: var(--sapShellColor); color: white; display: flex; align-items: center; padding: 0 16px; z-index: 1000; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.12); }
+        .header-back { font-size: 24px; margin-right: 12px; cursor: pointer; display: flex; align-items: center; color: white; }
+        .header-title { flex: 1; font-size: 16px; font-weight: 400; }
+        .header-badge { background: #ef4444; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 800; }
+        .search-container { padding: 12px 16px; background: white; border-bottom: 1px solid var(--sapField_BorderColor); position: sticky; top: 48px; z-index: 900; }
+        .fiori-search-box { display: flex; align-items: center; background: var(--sapField_Background); border: 1px solid var(--sapField_BorderColor); border-radius: var(--radius-sm); padding: 8px 12px; }
+        .fiori-search-box ion-icon { color: var(--sapPrimaryColor); font-size: 1.25rem; margin-right: 8px; }
+        .fiori-search-box input { border: none; background: transparent; width: 100%; font-size: 0.875rem; outline: none; }
+        .requests-list { padding: 12px; }
+        .request-card { background: white; border-radius: 0.25rem; padding: 16px; margin-bottom: 12px; border: 1px solid var(--sapField_BorderColor); border-left: 5px solid var(--sapWarningColor); box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08); transition: background 0.2s; }
+        .request-card:active { background: #f2f2f2; }
+        .request-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .request-id { font-weight: 700; color: var(--sapPrimaryColor); font-size: 0.75rem; }
+        .request-date { font-size: 0.75rem; color: var(--sapContent_LabelColor); }
+        .request-body { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
+        .user-avatar { width: 32px; height: 32px; background: #eff6ff; color: var(--sapPrimaryColor); border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+        .request-info h4 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--sapTextColor); }
+        .request-info p { margin: 4px 0 0 0; font-size: 0.875rem; color: var(--sapContent_LabelColor); }
+        .request-footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+        .item-count { background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #475569; }
+        .btn-view { background: var(--sapPrimaryColor); color: white; border: none; padding: 6px 15px; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.85rem; cursor: pointer; }
 
-{% block extrahead %}
-{{ block.super }}
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<style>
-    :root {
-        /* Fiori Quartz Palette */
-        --sapShellColor: #354a5f;
-        --sapBackgroundColor: #f7f7f7;
-        --sapTextColor: #32363a;
-        --sapContent_LabelColor: #6a6d70;
-        --sapPrimaryColor: #0064d1;
-        --sapSuccessColor: #107e3e;
-        --sapWarningColor: #e9730c;
-        --sapErrorColor: #bb0000;
-        --sapField_Background: #ffffff;
-        --sapField_BorderColor: #d9d9d9;
-        --radius-sm: 0.25rem;
-    }
+        .detail-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 2000; display: none; flex-direction: column; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .detail-header { background: white; padding: 20px 15px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; }
+        .detail-body { flex: 1; overflow-y: auto; padding: 20px 15px; }
+        .detail-footer { padding: 20px 15px; background: white; border-top: 1px solid #e2e8f0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .material-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 15px; margin-bottom: 12px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        .material-item.expanded { border-color: var(--sapPrimaryColor); background: #f1f5fa; transform: scale(1.01); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .extra-details { max-height: 0; overflow: hidden; transition: all 0.3s ease; font-size: 0.85rem; color: #475569; margin-top: 0; border-top: 1px dashed transparent; padding-top: 0; }
+        .material-item.expanded .extra-details { max-height: 300px; margin-top: 15px; padding-top: 15px; border-top-color: #cbd5e1; }
+        .material-meta { display: flex; gap: 15px; margin-bottom: 10px; }
+        .material-img { width: 100px; height: 100px; border-radius: 4px; object-fit: cover; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .material-text h5 { margin: 0; font-size: 1rem; font-weight: 800; color: #1e293b; }
+        .material-text p { margin: 4px 0 0 0; font-size: 0.85rem; color: #64748b; }
+        .quantity-control { display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px 15px; border-radius: 4px; border: 1px solid #cbd5e1; margin-top: 10px; }
+        .qty-display { text-align: left; }
+        .qty-requested { font-size: 1.2rem; font-weight: 800; color: #334155; display: block; margin-bottom: 2px; }
+        .qty-label { font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .qty-input { width: 80px; border: 2px solid var(--sapPrimaryColor); border-radius: 4px; text-align: center; font-weight: 800; font-size: 1.3rem; padding: 8px; color: var(--sapPrimaryColor); outline: none; }
+        .btn-dispatch { background: var(--sapSuccessColor); color: white; border: none; padding: 15px; border-radius: var(--radius-sm); font-weight: 800; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; }
+        .btn-reject { background: white; color: var(--sapErrorColor); border: 2px solid var(--sapErrorColor); padding: 15px; border-radius: var(--radius-sm); font-weight: 800; font-size: 1rem; cursor: pointer; }
+        .comments-area { margin-top: 20px; padding: 15px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; }
+        .comments-area h6 { margin: 0 0 10px 0; font-size: 0.8rem; text-transform: uppercase; color: #92400e; font-weight: 800; letter-spacing: 0.5px; }
+        .tech-comment { font-size: 0.95rem; color: #78350f; margin: 0; line-height: 1.4; }
+        .warehouse-note-box { margin-top: 25px; }
+        .warehouse-note-box label { display: block; font-size: 0.8rem; font-weight: 800; color: #475569; margin-bottom: 8px; text-transform: uppercase; }
+        .warehouse-textarea { width: 100%; border: 2px solid #e2e8f0; border-radius: 4px; padding: 12px; font-size: 1rem; font-family: inherit; resize: none; outline: none; transition: border-color 0.2s; }
+        .warehouse-textarea:focus { border-color: var(--sapPrimaryColor); }
+        .stock-pill { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 800; margin-top: 8px; }
+        .stock-high { background: #dcfce7; color: #166534; }
+        .stock-low { background: #fee2e2; color: #991b1b; }
+        .swal2-container { z-index: 9999 !important; }
+        .empty-state { text-align: center; padding: 50px 20px; color: var(--sapContent_LabelColor); }
+        .empty-state ion-icon { font-size: 4rem; margin-bottom: 15px; color: var(--sapSuccessColor); }
+        .spinner-border { display: inline-block; width: 2rem; height: 2rem; border: 3px solid #e2e8f0; border-top-color: var(--sapPrimaryColor); border-radius: 50%; animation: spin 0.6s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
 
-    body {
-        font-family: '72', 'Outfit', sans-serif !important;
-        background-color: var(--sapBackgroundColor) !important;
-        margin: 0;
-        padding-top: 48px; /* Fiori Shellbar height */
-        padding-bottom: 20px;
-    }
-
-    /* Fiori Shellbar */
-    .mobile-header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 48px;
-        background: var(--sapShellColor);
-        color: white;
-        display: flex;
-        align-items: center;
-        padding: 0 16px;
-        z-index: 1000;
-        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.12);
-    }
-
-    .header-back {
-        font-size: 24px;
-        margin-right: 12px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        color: white;
-    }
-
-    .header-title {
-        flex: 1;
-        font-size: 16px;
-        font-weight: 400;
-    }
-
-    .header-badge {
-        background: #ef4444;
-        color: white;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 800;
-    }
-
-    /* Fiori Search Container */
-    .search-container {
-        padding: 12px 16px;
-        background: white;
-        border-bottom: 1px solid var(--sapField_BorderColor);
-        position: sticky;
-        top: 48px;
-        z-index: 900;
-    }
-
-    .fiori-search-box {
-        display: flex;
-        align-items: center;
-        background: var(--sapField_Background);
-        border: 1px solid var(--sapField_BorderColor);
-        border-radius: var(--radius-sm);
-        padding: 8px 12px;
-    }
-
-    .fiori-search-box ion-icon {
-        color: var(--sapPrimaryColor);
-        font-size: 1.25rem;
-        margin-right: 8px;
-    }
-
-    .fiori-search-box input {
-        border: none;
-        background: transparent;
-        width: 100%;
-        font-size: 0.875rem;
-        outline: none;
-    }
-
-    /* Fiori List Items */
-    .requests-list {
-        padding: 12px;
-    }
-
-    .request-card {
-        background: white;
-        border-radius: 0.25rem;
-        padding: 16px;
-        margin-bottom: 12px;
-        border: 1px solid var(--sapField_BorderColor);
-        border-left: 5px solid var(--sapWarningColor);
-        box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08);
-        transition: background 0.2s;
-    }
-
-    .request-card:active {
-        background: #f2f2f2;
-    }
-
-    .request-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-
-    .request-id {
-        font-weight: 700;
-        color: var(--sapPrimaryColor);
-        font-size: 0.75rem;
-    }
-
-    .request-date {
-        font-size: 0.75rem;
-        color: var(--sapContent_LabelColor);
-    }
-
-    .request-body {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 12px;
-        align-items: center;
-    }
-
-    .user-avatar {
-        width: 32px;
-        height: 32px;
-        background: #eff6ff;
-        color: var(--sapPrimaryColor);
-        border-radius: 0.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.1rem;
-    }
-
-    .request-info h4 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--sapTextColor);
-    }
-
-    .request-info p {
-        margin: 4px 0 0 0;
-        font-size: 0.875rem;
-        color: var(--sapContent_LabelColor);
-    }
-
-    .request-footer {
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px solid #f1f5f9;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .item-count {
-        background: #f1f5f9;
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #475569;
-    }
-
-    .btn-view {
-        background: var(--sap-blue);
-        color: white;
-        border: none;
-        padding: 6px 15px;
-        border-radius: var(--radius-sm);
-        font-weight: 600;
-        font-size: 0.85rem;
-    }
-
-    /* Detail Overlay */
-    .detail-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: white;
-        z-index: 2000;
-        display: none;
-        flex-direction: column;
-        animation: slideUp 0.3s ease-out;
-    }
-
-    @keyframes slideUp {
-        from { transform: translateY(100%); }
-        to { transform: translateY(0); }
-    }
-
-    .detail-header {
-        background: white;
-        padding: 20px 15px;
-        border-bottom: 1px solid #e2e8f0;
-        display: flex;
-        align-items: center;
-    }
-
-    .detail-body {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px 15px;
-    }
-
-    .detail-footer {
-        padding: 20px 15px;
-        background: white;
-        border-top: 1px solid #e2e8f0;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-    }
-
-    .material-item {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: var(--radius-sm);
-        padding: 15px;
-        margin-bottom: 12px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        cursor: pointer;
-    }
-
-    .material-item.expanded {
-        border-color: var(--sap-blue);
-        background: #f1f5fa;
-        transform: scale(1.01);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    }
-
-    .extra-details {
-        max-height: 0;
-        overflow: hidden;
-        transition: all 0.3s ease;
-        font-size: 0.85rem;
-        color: #475569;
-        margin-top: 0;
-        border-top: 1px dashed transparent;
-        padding-top: 0;
-    }
-
-    .material-item.expanded .extra-details {
-        max-height: 300px;
-        margin-top: 15px;
-        padding-top: 15px;
-        border-top-color: #cbd5e1;
-    }
-
-    .material-meta {
-        display: flex;
-        gap: 15px;
-        margin-bottom: 10px;
-    }
-
-    .material-img {
-        width: 100px;
-        height: 100px;
-        border-radius: 4px;
-        object-fit: cover;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .material-text h5 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 800;
-        color: #1e293b;
-    }
-
-    .material-text p {
-        margin: 4px 0 0 0;
-        font-size: 0.85rem;
-        color: #64748b;
-    }
-
-    .quantity-control {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: white;
-        padding: 12px 15px;
-        border-radius: 4px;
-        border: 1px solid #cbd5e1;
-        margin-top: 10px;
-    }
-
-    .qty-display {
-        text-align: left;
-    }
-
-    .qty-requested {
-        font-size: 1.2rem;
-        font-weight: 800;
-        color: #334155;
-        display: block;
-        margin-bottom: 2px;
-    }
-
-    .qty-label {
-        font-size: 0.8rem;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .qty-input {
-        width: 80px;
-        border: 2px solid var(--sap-blue);
-        border-radius: 4px;
-        text-align: center;
-        font-weight: 800;
-        font-size: 1.3rem;
-        padding: 8px;
-        color: var(--sap-blue);
-        outline: none;
-    }
-
-    .btn-dispatch {
-        background: var(--sap-success);
-        color: white;
-        border: none;
-        padding: 15px;
-        border-radius: var(--radius-sm);
-        font-weight: 800;
-        font-size: 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-    }
-
-    .btn-reject {
-        background: white;
-        color: var(--sap-error);
-        border: 2px solid var(--sap-error);
-        padding: 15px;
-        border-radius: var(--radius-sm);
-        font-weight: 800;
-        font-size: 1rem;
-    }
-
-    /* Comments Section */
-    .comments-area {
-        margin-top: 20px;
-        padding: 15px;
-        background: #fffbeb;
-        border: 1px solid #fde68a;
-        border-radius: 4px;
-    }
-
-    .comments-area h6 {
-        margin: 0 0 10px 0;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        color: #92400e;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-    }
-
-    .tech-comment {
-        font-size: 0.95rem;
-        color: #78350f;
-        margin: 0;
-        line-height: 1.4;
-    }
-
-    .warehouse-note-box {
-        margin-top: 25px;
-    }
-
-    .warehouse-note-box label {
-        display: block;
-        font-size: 0.8rem;
-        font-weight: 800;
-        color: #475569;
-        margin-bottom: 8px;
-        text-transform: uppercase;
-    }
-
-    .warehouse-textarea {
-        width: 100%;
-        border: 2px solid #e2e8f0;
-        border-radius: 4px;
-        padding: 12px;
-        font-size: 1rem;
-        font-family: inherit;
-        resize: none;
-        outline: none;
-        transition: border-color 0.2s;
-    }
-
-    .warehouse-textarea:focus {
-        border-color: var(--sap-blue);
-    }
-
-    .stock-pill {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 800;
-        margin-top: 8px;
-    }
-
-    .stock-high { background: #dcfce7; color: #166534; }
-    .stock-low { background: #fee2e2; color: #991b1b; }
-
-    /* Zoom Popup overrides to ensure it's on top of detail overlay */
-    .swal2-container {
-        z-index: 9999 !important;
-    }
-</style>
-<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-{% endblock %}
-
-{% block content %}
-<!-- Fixed Header -->
 <div class="mobile-header">
     <div class="header-back" onclick="window.location.href='{% url 'inventarios:mobile_dashboard' %}'">
         <ion-icon name="chevron-back-outline"></ion-icon>
@@ -457,7 +94,6 @@
     <div class="header-badge" id="pending-count">{{ pedidos_pendientes }}</div>
 </div>
 
-<!-- Search Bar -->
 <div class="search-container">
     <div class="fiori-search-box">
         <ion-icon name="search-outline"></ion-icon>
@@ -465,15 +101,13 @@
     </div>
 </div>
 
-<!-- List of Requests -->
 <div class="requests-list" id="requests-container">
     <div class="empty-state" id="loading-state">
-        <div class="spinner-border text-primary" role="status"></div>
+        <div class="spinner-border" role="status"></div>
         <p>Cargando solicitudes...</p>
     </div>
 </div>
 
-<!-- Detail Overlay -->
 <div class="detail-overlay" id="detail-overlay">
     <div class="detail-header">
         <div class="header-back" onclick="closeDetail()">
@@ -481,9 +115,7 @@
         </div>
         <div class="header-title" id="detail-title">Detalle del Pedido</div>
     </div>
-    <div class="detail-body" id="detail-items">
-        <!-- Items loaded via AJAX -->
-    </div>
+    <div class="detail-body" id="detail-items"></div>
     <div class="detail-footer">
         <button class="btn-reject" onclick="processAction('rechazar')">Rechazar</button>
         <button class="btn-dispatch" onclick="processAction('despachar')">
@@ -496,9 +128,7 @@
     let currentRequests = [];
     let currentDetailId = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        loadRequests();
-    });
+    document.addEventListener('DOMContentLoaded', () => { loadRequests(); });
 
     async function loadRequests() {
         try {
@@ -507,7 +137,8 @@
             if (data.status === 'success') {
                 currentRequests = data.pedidos;
                 renderRequests(currentRequests);
-                document.getElementById('pending-count').textContent = data.count;
+                const badge = document.getElementById('pending-count');
+                if (badge) badge.textContent = data.count;
             }
         } catch (error) {
             Swal.fire('Error', 'No se pudieron cargar las solicitudes', 'error');
@@ -517,15 +148,12 @@
     function renderRequests(requests) {
         const container = document.getElementById('requests-container');
         if (requests.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <ion-icon name="checkmark-circle-outline" style="color: var(--sap-success)"></ion-icon>
-                    <p>No hay solicitudes pendientes.</p>
-                </div>`;
+            container.innerHTML = '<div class="empty-state"><ion-icon name="checkmark-circle-outline"></ion-icon><p>No hay solicitudes pendientes.</p></div>';
             return;
         }
-        container.innerHTML = requests.map(req => `
-            <div class="request-card" onclick="openDetail(${req.id})" data-search="${req.solicitante.toLowerCase()} ${req.ot.toLowerCase()} ${req.id}">
+        container.innerHTML = requests.map(req => {
+            const searchText = (req.solicitante + ' ' + req.ot + ' ' + req.id).toLowerCase().replace(/"/g, '');
+            return `<div class="request-card" onclick="openDetail(${req.id})" data-search="${searchText}">
                 <div class="request-header">
                     <span class="request-id">FOLIO #${req.id}</span>
                     <span class="request-date">${req.fecha}</span>
@@ -541,7 +169,8 @@
                     <span class="item-count">${req.items_count} artículos</span>
                     <button class="btn-view">Gestionar</button>
                 </div>
-            </div>`).join('');
+            </div>`;
+        }).join('');
     }
 
     function filterRequests() {
@@ -557,7 +186,6 @@
         const itemsContainer = document.getElementById('detail-items');
         overlay.style.display = 'flex';
         itemsContainer.innerHTML = '<div class="empty-state"><p>Cargando detalles...</p></div>';
-        
         try {
             const response = await fetch(`/inventarios/api/pedidos/${id}/detalle/`);
             const data = await response.json();
@@ -568,21 +196,16 @@
                         <h6>Notas del Técnico:</h6>
                         <p class="tech-comment">"${data.solicitud.comentarios || 'Sin comentarios del técnico.'}"</p>
                     </div>
-
                     <div id="materials-list-inner">
-                        ${data.items.map(item => `
-                            <div class="material-item" onclick="toggleMaterialExpand(this)">
+                        ${data.items.map(item => {
+                            const img = item.image_url ? `<img src="${item.image_url}" class="material-img" onclick="zoomImage(event, '${item.image_url || ''}', '${item.nombre}')" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23cbd5e1%22 stroke-width=%221.5%22%3E%3Crect x=%223%22 y=%223%22 width=%2218%22 height=%2218%22 rx=%222%22/%3E%3C/svg%3E'">` : '';
+                            return `<div class="material-item" onclick="toggleMaterialExpand(this)">
                                 <div class="material-meta">
-                                    <img src="${item.image_url || ''}" 
-                                         class="material-img" 
-                                         onclick="zoomImage(event, '${item.image_url || ''}', '${item.nombre}')"
-                                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23cbd5e1%22 stroke-width=%221.5%22%3E%3Crect x=%223%22 y=%223%22 width=%2218%22 height=%2218%22 rx=%222%22/%3E%3C/svg%3E'">
+                                    ${img}
                                     <div class="material-text">
                                         <h5>${item.nombre}</h5>
                                         <p>SKU: ${item.sku}</p>
-                                        <span class="stock-pill ${item.stock_disponible > 0 ? 'stock-high' : 'stock-low'}">
-                                            Existencia: ${item.stock_disponible} ${item.unidad}
-                                        </span>
+                                        <span class="stock-pill ${item.stock_disponible > 0 ? 'stock-high' : 'stock-low'}">Existencia: ${item.stock_disponible} ${item.unidad}</span>
                                     </div>
                                 </div>
                                 <div class="quantity-control" onclick="event.stopPropagation()">
@@ -590,23 +213,20 @@
                                         <span class="qty-requested">Solicitados: ${item.cantidad_solicitada}</span>
                                         <span class="qty-label">Entregar ${item.unidad}:</span>
                                     </div>
-                                    <input type="number" step="0.01" class="qty-input" 
-                                           data-mov="${item.mov_id}"
-                                           value="${item.cantidad_solicitada}">
+                                    <input type="number" step="0.01" class="qty-input" data-mov="${item.mov_id}" value="${item.cantidad_solicitada}">
                                 </div>
                                 <div class="extra-details">
                                     <hr style="border:0; border-top:1px dashed #cbd5e1; margin:10px 0;">
                                     <p><strong>Instrucciones:</strong> Validar SKU y estado físico antes de entregar.</p>
                                     <p><strong>Unidad de medida:</strong> ${item.unidad}</p>
                                 </div>
-                            </div>`).join('')}
+                            </div>`;
+                        }).join('')}
                     </div>
-
                     <div class="warehouse-note-box">
                         <label>Comentarios del Almacén (Opcional):</label>
                         <textarea id="warehouse-comments" class="warehouse-textarea" rows="3" placeholder="Escribe notas sobre este despacho..."></textarea>
-                    </div>
-                `;
+                    </div>`;
             }
         } catch (e) {
             overlay.style.display = 'none';
@@ -614,86 +234,45 @@
         }
     }
 
-    function closeDetail() {
-        document.getElementById('detail-overlay').style.display = 'none';
-        currentDetailId = null;
-    }
-
-    function toggleMaterialExpand(el) {
-        el.classList.toggle('expanded');
-    }
+    function closeDetail() { document.getElementById('detail-overlay').style.display = 'none'; currentDetailId = null; }
+    function toggleMaterialExpand(el) { el.classList.toggle('expanded'); }
 
     function zoomImage(e, url, name) {
         if (e) e.stopPropagation();
         if (!url) return;
-        Swal.fire({
-            title: name,
-            imageUrl: url,
-            imageWidth: '95%',
-            imageAlt: name,
-            showConfirmButton: false,
-            showCloseButton: true,
-            background: 'rgba(255,255,255,0.98)',
-            backdrop: 'rgba(0,0,0,0.85)'
-        });
+        Swal.fire({ title: name, imageUrl: url, imageWidth: '95%', imageAlt: name, showConfirmButton: false, showCloseButton: true, background: 'rgba(255,255,255,0.98)', backdrop: 'rgba(0,0,0,0.85)' });
     }
 
     async function processAction(action) {
         const text = action === 'despachar' ? '¿Confirmar despacho?' : '¿Rechazar solicitud?';
         const color = action === 'despachar' ? '#107e3e' : '#bb0000';
-        
-        const res = await Swal.fire({
-            title: 'Confirmación',
-            text: text,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: color,
-            confirmButtonText: 'Sí, continuar'
-        });
+        const res = await Swal.fire({ title: 'Confirmación', text, icon: 'question', showCancelButton: true, confirmButtonColor: color, confirmButtonText: 'Sí, continuar' });
+        if (!res.isConfirmed) return;
 
-        if (res.isConfirmed) {
-            const cantidades = Array.from(document.querySelectorAll('.qty-input')).map(inp => ({
-                mov_id: inp.dataset.mov,
-                cantidad: inp.value
-            }));
+        const cantidades = Array.from(document.querySelectorAll('.qty-input')).map(inp => ({ mov_id: inp.dataset.mov, cantidad: inp.value }));
+        let comments = document.getElementById('warehouse-comments').value.trim();
 
-            // Usar comentario del textarea si existe, sino pedirlo (comportamiento híbrido)
-            let comments = document.getElementById('warehouse-comments').value.trim();
-            
-            if (!comments && action === 'rechazar') {
-                const { value: swalComments } = await Swal.fire({
-                    title: 'Razón del rechazo',
-                    text: 'Es obligatorio indicar por qué se rechaza la solicitud.',
-                    input: 'textarea',
-                    inputPlaceholder: 'Motivo del rechazo...',
-                    showCancelButton: true,
-                    inputValidator: (value) => {
-                        if (!value) return '¡Debes escribir una razón!';
-                    }
-                });
-                if (swalComments === undefined) return;
-                comments = swalComments;
-            }
-
-            try {
-                Swal.fire({ title: 'Procesando...', didOpen: () => Swal.showLoading() });
-                const resp = await fetch(`/inventarios/api/pedidos/${currentDetailId}/despachar/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ accion: action, cantidades: cantidades, comentarios: comments })
-                });
-                const data = await resp.json();
-                if (data.status === 'success') {
-                    await Swal.fire('Éxito', data.message, 'success');
-                    closeDetail();
-                    loadRequests();
-                } else {
-                    Swal.fire('Error', data.message || 'Error en proceso', 'error');
-                }
-            } catch (e) {
-                Swal.fire('Error', 'Fallo de red', 'error');
-            }
+        if (!comments && action === 'rechazar') {
+            const { value: swalComments } = await Swal.fire({ title: 'Razón del rechazo', text: 'Es obligatorio indicar por qué se rechaza la solicitud.', input: 'textarea', inputPlaceholder: 'Motivo del rechazo...', showCancelButton: true, inputValidator: (value) => { if (!value) return '¡Debes escribir una razón!'; } });
+            if (swalComments === undefined) return;
+            comments = swalComments;
         }
+
+        try {
+            Swal.fire({ title: 'Procesando...', didOpen: () => Swal.showLoading() });
+            const resp = await fetch(`/inventarios/api/pedidos/${currentDetailId}/despachar/`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: action, cantidades, comentarios: comments })
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                await Swal.fire('Éxito', data.message, 'success');
+                closeDetail();
+                loadRequests();
+            } else {
+                Swal.fire('Error', data.message || 'Error en proceso', 'error');
+            }
+        } catch (e) { Swal.fire('Error', 'Fallo de red', 'error'); }
     }
 </script>
-{% endblock %}
+</body>
+</html>
