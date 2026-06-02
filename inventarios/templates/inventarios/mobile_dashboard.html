@@ -834,12 +834,13 @@
             const tx = offlineDb.transaction('offline_sync_queue', 'readwrite');
             const store = tx.objectStore('offline_sync_queue');
             
+            const now = new Date();
             store.add({
                 material_id: parseInt(matId),
                 tipo: tipo,
                 cantidad: cantidad,
                 ubicacion_id: parseInt(ubiId),
-                timestamp: new Date().toISOString()
+                fecha: now.toISOString()
             });
             
             tx.oncomplete = () => {
@@ -884,19 +885,25 @@
             } catch (e) { console.warn('sync store not ready', e); }
         }
 
+        function fmtFecha(iso) {
+            if (!iso) return '—';
+            try {
+                const d = new Date(iso);
+                return d.toLocaleString('es-MX', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+            } catch (e) { return iso; }
+        }
+
         function renderSyncTable(items, label) {
             if (items.length === 0) return '';
             let html = `<h4 style="margin:10px 0 5px;font-size:14px;">${label} (${items.length})</h4>`;
             html += '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px;">';
             html += '<thead><tr style="background:#f1f5f9;"><th style="padding:6px;text-align:left;">Material</th><th style="padding:6px;text-align:center;">Tipo</th><th style="padding:6px;text-align:center;">Cant.</th><th style="padding:6px;text-align:center;">Fecha</th></tr></thead><tbody>';
             items.forEach((item, i) => {
-                const mat = item.material || {};
-                const fecha = item.sincronizado ? new Date(item.sincronizado).toLocaleString() : (item.fecha ? new Date(item.fecha).toLocaleDateString() : '—');
                 html += `<tr style="border-bottom:1px solid #e2e8f0;">
-                    <td style="padding:6px;">${mat.nombre || mat.sku || '#'+i}</td>
+                    <td style="padding:6px;">Material #${item.material_id || '?'}</td>
                     <td style="padding:6px;text-align:center;">${item.tipo || '—'}</td>
                     <td style="padding:6px;text-align:center;font-weight:700;">${item.cantidad || 0}</td>
-                    <td style="padding:6px;text-align:center;">${fecha}</td>
+                    <td style="padding:6px;text-align:center;">${fmtFecha(item.fecha)}</td>
                 </tr>`;
             });
             html += '</tbody></table>';
@@ -964,11 +971,11 @@
                         const hTx = offlineDb.transaction('sync_history', 'readwrite');
                         items.forEach(item => {
                             hTx.objectStore('sync_history').add({
-                                material: item.material,
+                                material_id: item.material_id,
                                 tipo: item.tipo,
                                 cantidad: item.cantidad,
-                                ubicacion: item.ubicacion,
-                                sincronizado: new Date().toISOString()
+                                ubicacion_id: item.ubicacion_id,
+                                fecha: new Date().toISOString()
                             });
                         });
                         // Limpiar cola local
