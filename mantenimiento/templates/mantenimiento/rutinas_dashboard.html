@@ -806,11 +806,24 @@
         </div>
     </div>
 
-    <!-- Context Menu para Mover Rutina -->
+    <!-- Context Menu para Rutina -->
     <div id="routineContextMenu" style="display: none; position: absolute; background: white; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 4px; z-index: 100000; padding: 4px 0; min-width: 150px;">
-        <div onclick="openMoveRoutineModal()" style="padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s;" onmouseover="this.style.background='#f0f7ff'; this.style.color='var(--sap-primary)'" onmouseout="this.style.background='white'; this.style.color='var(--text-main)'">
+        <div data-action="move" style="padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s;" onmouseover="this.style.background='#f0f7ff'; this.style.color='var(--sap-primary)'" onmouseout="this.style.background='white'; this.style.color='var(--text-main)'">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l4-4 4 4M9 5v14"></path><path d="M19 15l-4 4-4-4M15 19V5"></path></svg>
             Mover Rutina
+        </div>
+        <div style="border-top: 1px solid var(--border); margin: 4px 0;"></div>
+        <div data-action="delete" style="padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s; color: #dc2626;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Eliminar Rutina
+        </div>
+    </div>
+
+    <!-- Context Menu para Categoría (Mover aquí) -->
+    <div id="categoryContextMenu" style="display: none; position: absolute; background: white; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 4px; z-index: 100000; padding: 4px 0; min-width: 180px;">
+        <div onclick="submitMoveHere()" style="padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s; color: var(--sap-primary);" onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background='white'" id="categoryContextMenuMove">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l4-4 4 4M9 5v14"></path><path d="M19 15l-4 4-4-4M15 19V5"></path></svg>
+            Mover aquí
         </div>
     </div>
 
@@ -843,6 +856,47 @@
                 <button type="button" class="btn btn-outline" onclick="closeMoveRoutineModal()">Cancelar</button>
                 <button type="button" class="btn btn-primary" onclick="submitMoveRoutine()">Mover</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmación con Contraseña para Eliminar Rutina -->
+    <div id="deletePasswordModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+        <div class="modal-glass" style="max-width: 420px; max-height: auto;">
+            <div class="modal-header">
+                <h2 style="margin: 0; font-size: 1.15rem; color: #dc2626;">Confirmar Eliminación</h2>
+                <button type="button" class="btn-icon modal-close-btn" style="position:relative; top:auto; right:auto;" onclick="closeDeletePasswordModal()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="deletePasswordForm" onsubmit="event.preventDefault(); submitDeleteWithPassword();">
+                <div class="modal-body">
+                    <div id="delete-pw-loader" style="display:none; text-align:center; padding: 1rem;">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 0.5rem; color: var(--text-muted);">Verificando...</p>
+                    </div>
+                    <div id="delete-pw-content">
+                        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                            Para eliminar la rutina <strong id="delete-routine-name" style="color: var(--text-main);"></strong>, ingresa tu contraseña actual:
+                        </p>
+                        <div class="form-group">
+                            <label class="form-label" for="delete-password-input">Contraseña</label>
+                            <input type="password" id="delete-password-input" class="form-control" required autocomplete="off" placeholder="Ingresa tu contraseña actual" style="font-size: 1.1rem; letter-spacing: 0.2em;">
+                        </div>
+                        <div id="delete-pw-error" style="display:none; color: #dc2626; font-size: 0.85rem; margin-top: 0.5rem;"></div>
+                        <label style="display: flex; align-items: center; gap: 8px; margin-top: 1rem; cursor: pointer; font-size: 0.85rem; color: var(--text-muted);">
+                            <input type="checkbox" id="delete-remember-check" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--sap-primary);">
+                            Recordar por 24 horas (no pedir contraseña de nuevo)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" class="btn btn-outline" onclick="closeDeletePasswordModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" style="background:#dc2626; color:white; border-color:#dc2626;" id="delete-pw-submit-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        Eliminar
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -1043,6 +1097,15 @@
                     }
                 });
             }
+
+            // Event delegation para menú contextual de rutinas
+            document.getElementById('routineContextMenu').addEventListener('click', function(e) {
+                const item = e.target.closest('[data-action]');
+                if (!item) return;
+                this.style.display = 'none';
+                if (item.dataset.action === 'move') openMoveRoutineModal();
+                if (item.dataset.action === 'delete') requestDeleteRoutine();
+            });
         });
 
         function toggleInvasiveBorder(isInvasive) {
@@ -1219,6 +1282,56 @@
                 const moveSelect = document.getElementById('move-routine-tipo');
                 if (moveSelect) moveSelect.value = '';
             }
+        }
+
+        function showCategoryContextMenu(event, catId, catName) {
+            event.preventDefault();
+            if (!contextRoutineId) return;
+            const menu = document.getElementById('categoryContextMenu');
+            if (!menu) return;
+            menu.style.display = 'block';
+            menu.style.left = event.pageX + 'px';
+            menu.style.top = event.pageY + 'px';
+            menu.dataset.catId = catId;
+            menu.dataset.catName = catName;
+            document.addEventListener('click', () => { menu.style.display = 'none'; }, { once: true });
+        }
+
+        function submitMoveHere() {
+            const menu = document.getElementById('categoryContextMenu');
+            if (!menu || !contextRoutineId) return;
+            const targetTipoId = menu.dataset.catId;
+            menu.style.display = 'none';
+            const nameSpan = document.getElementById('move-routine-name');
+            if (nameSpan) nameSpan.textContent = menu.dataset.catName || '';
+            const moveBtn = document.querySelector('#categoryContextMenuMove');
+            const originalHtml = moveBtn.innerHTML;
+            moveBtn.innerHTML = 'Moviendo...';
+            moveBtn.disabled = true;
+            fetch(`/mantenimiento/rutinas/dashboard/move/${contextRoutineId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ tipo_id: targetTipoId === 'null' ? null : parseInt(targetTipoId) })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + res.message);
+                    moveBtn.innerHTML = originalHtml;
+                    moveBtn.disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error de conexión al mover la rutina');
+                moveBtn.innerHTML = originalHtml;
+                moveBtn.disabled = false;
+            });
         }
 
         function closeMoveRoutineModal() {
@@ -1998,6 +2111,143 @@
                     }
                 });
             }
+        }
+
+        // ─── ELIMINACIÓN SEGURA CON CONTRASEÑA ───────────────────────────────
+        const DELETE_VERIFIED_KEY = 'opencode_delete_verified';
+
+        function isDeleteVerified() {
+            try {
+                const raw = localStorage.getItem(DELETE_VERIFIED_KEY);
+                if (!raw) return false;
+                const data = JSON.parse(raw);
+                return data.username === '{{ request.user.username|escapejs }}' &&
+                       (Date.now() - data.timestamp) < 86400000;
+            } catch (e) { return false; }
+        }
+
+        function requestDeleteRoutine() {
+            if (!contextRoutineId) { showToast('Primero selecciona una rutina (clic derecho)', 'error'); return; }
+            const menu = document.getElementById('routineContextMenu');
+            const routineName = menu ? menu.dataset.routineName : '';
+            const nameSpan = document.getElementById('delete-routine-name');
+            if (nameSpan) nameSpan.textContent = routineName;
+            if (menu) menu.style.display = 'none';
+
+            if (isDeleteVerified()) {
+                const stored = JSON.parse(localStorage.getItem(DELETE_VERIFIED_KEY));
+                executeDelete(stored.token);
+            } else {
+                showDeletePasswordModal();
+            }
+        }
+
+        function showDeletePasswordModal() {
+            const modal = document.getElementById('deletePasswordModal');
+            if (!modal) { showToast('Error: no se encontró el modal de confirmación', 'error'); return; }
+            document.getElementById('delete-pw-input').value = '';
+            const errEl = document.getElementById('delete-pw-error');
+            if (errEl) errEl.style.display = 'none';
+            const contentEl = document.getElementById('delete-pw-content');
+            if (contentEl) contentEl.style.display = 'block';
+            const loaderEl = document.getElementById('delete-pw-loader');
+            if (loaderEl) loaderEl.style.display = 'none';
+            const btn = document.getElementById('delete-pw-submit-btn');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Eliminar'; }
+            modal.style.display = 'flex';
+            setTimeout(() => { const inp = document.getElementById('delete-password-input'); if (inp) inp.focus(); }, 200);
+        }
+
+        function closeDeletePasswordModal() {
+            const modal = document.getElementById('deletePasswordModal');
+            if (modal) modal.setAttribute('style', 'display:none;');
+        }
+
+        function submitDeleteWithPassword() {
+            const password = document.getElementById('delete-password-input').value;
+            const errorEl = document.getElementById('delete-pw-error');
+            const contentEl = document.getElementById('delete-pw-content');
+            const loaderEl = document.getElementById('delete-pw-loader');
+            const submitBtn = document.getElementById('delete-pw-submit-btn');
+            const remember = document.getElementById('delete-remember-check').checked;
+
+            if (!password) {
+                errorEl.textContent = 'Ingresa tu contraseña';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (!contextRoutineId) return;
+
+            contentEl.style.display = 'none';
+            loaderEl.style.display = 'block';
+            submitBtn.disabled = true;
+
+            fetch(`/mantenimiento/rutinas/dashboard/delete-secure/${contextRoutineId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ password, remember })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    if (remember && res.verification_token) {
+                        localStorage.setItem(DELETE_VERIFIED_KEY, JSON.stringify({
+                            username: '{{ request.user.username|escapejs }}',
+                            token: res.verification_token,
+                            timestamp: Date.now()
+                        }));
+                    }
+                    closeDeletePasswordModal();
+                    window.location.reload();
+                } else {
+                    contentEl.style.display = 'block';
+                    loaderEl.style.display = 'none';
+                    submitBtn.disabled = false;
+                    errorEl.textContent = res.message || 'Contraseña incorrecta';
+                    errorEl.style.display = 'block';
+                    document.getElementById('delete-password-input').focus();
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                contentEl.style.display = 'block';
+                loaderEl.style.display = 'none';
+                submitBtn.disabled = false;
+                errorEl.textContent = 'Error de conexión';
+                errorEl.style.display = 'block';
+            });
+        }
+
+        function executeDelete(token) {
+            if (!contextRoutineId) return;
+            if (rLoader) rLoader.style.display = 'flex';
+            fetch(`/mantenimiento/rutinas/dashboard/delete-secure/${contextRoutineId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ verification_token: token })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    window.location.reload();
+                } else {
+                    localStorage.removeItem(DELETE_VERIFIED_KEY);
+                    if (rLoader) rLoader.style.display = 'none';
+                    showDeletePasswordModal();
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                if (rLoader) rLoader.style.display = 'none';
+                alert('Error de conexión al eliminar');
+            });
         }
 
         function showToast(message, type = 'info') {

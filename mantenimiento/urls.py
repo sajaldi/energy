@@ -3,7 +3,7 @@ from . import views
 from .views import import_rutinas, import_pasos
 from .views.rutinas_dashboard import (
     rutinas_dashboard, rutina_detail_api, rutina_save_api, 
-    rutina_delete_api, rutina_pasos_save_api, rutina_qr_pdf,
+    rutina_delete_api, rutina_delete_secure_api, rutina_pasos_save_api, rutina_qr_pdf,
     api_rutina_kpis, api_rutina_kpis_save,
     paso_media_upload_api, paso_media_delete_api,
     rutina_print_pdf, rutina_move_api, tipo_move_api,
@@ -65,6 +65,7 @@ urlpatterns = [
     path('rutinas/dashboard/print/<int:pk>/', rutina_print_pdf, name='rutina_print_pdf'),
     path('rutinas/dashboard/save/', rutina_save_api, name='rutina_save_api'),
     path('rutinas/dashboard/delete/<int:pk>/', rutina_delete_api, name='rutina_delete_api'),
+    path('rutinas/dashboard/delete-secure/<int:pk>/', rutina_delete_secure_api, name='rutina_delete_secure_api'),
     path('rutinas/dashboard/move/<int:pk>/', rutina_move_api, name='rutina_move_api'),
     path('rutinas/dashboard/rutina/pasos/save/', rutina_pasos_save_api, name='rutina_pasos_save_api'),
     path('rutinas/dashboard/rutina/<int:pk>/kpis/', api_rutina_kpis, name='api_rutina_kpis'),

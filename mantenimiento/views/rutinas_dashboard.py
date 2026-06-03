@@ -8,6 +8,7 @@ from django.db.models import Count, Q, Max
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.conf import settings
+from types import SimpleNamespace
 import os
 import base64
 from playwright.sync_api import sync_playwright
@@ -125,6 +126,20 @@ def rutinas_dashboard(request):
     
     # Construir el árbol jerárquico en memoria
     tree = build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search)
+    
+    # Agregar rutinas sin categoría al final del árbol
+    uncategorized = [r for r in all_rutinas if r.tipo_id is None]
+    if uncategorized:
+        sin_cat = SimpleNamespace(
+            id=None, nombre="Sin Categoría", codigo=None,
+            padre_id=None, level=0
+        )
+        tree.append({
+            'categoria': sin_cat,
+            'rutinas': uncategorized,
+            'subcategorias': [],
+            'level': 0
+        })
     
     # Estadísticas y Datos para Formularios
     frecuencias = Frecuencia.objects.all().order_by('nombre')
@@ -496,6 +511,59 @@ def rutina_delete_api(request, pk):
         return JsonResponse({'status': 'success', 'message': 'Rutina eliminada correctamente'})
     except Rutina.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'La rutina no existe'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def rutina_delete_secure_api(request, pk):
+    """Elimina una rutina con verificación de contraseña del usuario actual"""
+    from django.http import JsonResponse
+    from django.contrib.auth import authenticate
+    from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+    import json
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        password = data.get('password')
+        token = data.get('verification_token')
+        remember = data.get('remember', False)
+        
+        verified = False
+        
+        if token:
+            try:
+                signer = TimestampSigner(salt='rutina-delete')
+                username = signer.unsign(token, max_age=86400)
+                if username == request.user.username:
+                    verified = True
+            except (BadSignature, SignatureExpired):
+                pass
+        
+        if password:
+            user = authenticate(username=request.user.username, password=password)
+            if user is not None:
+                verified = True
+        
+        if not verified:
+            return JsonResponse({'status': 'error', 'message': 'Contraseña incorrecta'}, status=403)
+        
+        rutina = Rutina.objects.get(pk=pk)
+        rutina.delete()
+        
+        response_data = {'status': 'success', 'message': 'Rutina eliminada correctamente'}
+        
+        if remember:
+            signer = TimestampSigner(salt='rutina-delete')
+            response_data['verification_token'] = signer.sign(request.user.username)
+        
+        return JsonResponse(response_data)
+    
+    except Rutina.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Rutina no encontrada'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 

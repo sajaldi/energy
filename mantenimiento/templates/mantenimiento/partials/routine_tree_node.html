@@ -1,13 +1,18 @@
 {% load static l10n %}
-<div class="tree-node" data-cat-id="{{ node.categoria.id }}" data-level="{{ node.level }}" data-cat-name="{{ node.categoria.nombre|lower }}" data-cat-code="{{ node.categoria.codigo|default:''|lower }}">
+<div class="tree-node" data-cat-id="{{ node.categoria.id|default:'' }}" data-level="{{ node.level }}" data-cat-name="{{ node.categoria.nombre|lower }}" data-cat-code="{{ node.categoria.codigo|default:''|lower }}">
     <div class="tree-row cat-row {% if node.subcategorias or node.rutinas %}has-children{% endif %}"
-        onclick="toggleNode(this)">
+        onclick="toggleNode(this)"
+        oncontextmenu="showCategoryContextMenu(event, {{ node.categoria.id|default:'null' }}, '{{ node.categoria.nombre|escapejs }}')">
+                {% if node.categoria.id %}
         <span class="tree-icon drag-handle-cat" style="cursor: grab; margin-right: 4px; color: #cbd5e1;" title="Arrastrar para mover categoría" onclick="event.stopPropagation();">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/>
                 <circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>
             </svg>
         </span>
+        {% else %}
+        <span style="display: inline-block; width: 28px; margin-right: 4px;"></span>
+        {% endif %}
         <span class="tree-icon">
             {% if node.subcategorias or node.rutinas %}
             <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #6a6d70;">
@@ -27,6 +32,7 @@
             {% if total_r > 0 %}({{ total_r }}){% endif %}
             {% endwith %}
         </span>
+        {% if node.categoria.id %}
         <div class="action-btns" style="margin-left: auto; transition: opacity 0.2s;">
             <button class="btn-action" onclick="event.stopPropagation(); openTipoModal({{ node.categoria.id }}, {% if node.categoria.padre_id %}{{ node.categoria.padre_id }}{% else %}null{% endif %})" title="Editar Categoría" style="color: var(--sap-primary);">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -42,11 +48,12 @@
                 </svg>
             </button>
         </div>
+        {% endif %}
     </div>
 
     <div class="tree-content" style="display: none;">
         <!-- Subcategorías -->
-        <div class="categories-container" data-parent-cat-id="{{ node.categoria.id }}" style="min-height: 10px; padding-bottom: 5px;">
+        <div class="categories-container" data-parent-cat-id="{{ node.categoria.id|default:'' }}" style="min-height: 10px; padding-bottom: 5px;">
             {% for subnode in node.subcategorias %}
             {% include "mantenimiento/partials/routine_tree_node.html" with node=subnode %}
             {% endfor %}
