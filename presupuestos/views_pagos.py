@@ -154,54 +154,58 @@ def detalle_solicitud_pago(request, pk):
                 'total_pagado': 0
             }
         items_por_proveedor[p_name]['lista_items'].append(item)
-        items_por_proveedor[p_name]['total'] += (item.monto_solicitado or 0)
+        
+        # Solo sumar si tiene estatus PAGADO o SOLICITADO
+        if item.estatus in ['PAGADO', 'SOLICITADO']:
+            items_por_proveedor[p_name]['total'] += (item.monto_solicitado or 0)
         
         if item.estatus == 'PAGADO':
             items_por_proveedor[p_name]['total_pagado'] += (item.monto_solicitado or 0)
 
         # --- Agregación para Gráficos ---
-        prov_totals[p_name] = prov_totals.get(p_name, 0) + float(item.monto_solicitado or 0)
-        
-        r_name = item.requisicion.tipo_rutina.nombre if item.requisicion.tipo_rutina else "No Asignada"
-        rutina_totals[r_name] = rutina_totals.get(r_name, 0) + float(item.monto_solicitado or 0)
+        if item.estatus in ['PAGADO', 'SOLICITADO']:
+            prov_totals[p_name] = prov_totals.get(p_name, 0) + float(item.monto_solicitado or 0)
+            
+            r_name = item.requisicion.tipo_rutina.nombre if item.requisicion.tipo_rutina else "No Asignada"
+            rutina_totals[r_name] = rutina_totals.get(r_name, 0) + float(item.monto_solicitado or 0)
 
-        partida_obj = item.requisicion.partida
-        pa_name = "Sin Partida"
-        if partida_obj and partida_obj.disciplina:
-            pa_name = partida_obj.disciplina.nombre
-        elif partida_obj:
-            pa_name = partida_obj.descripcion or "Partida General"
-        partida_totals[pa_name] = partida_totals.get(pa_name, 0) + float(item.monto_solicitado or 0)
+            partida_obj = item.requisicion.partida
+            pa_name = "Sin Partida"
+            if partida_obj and partida_obj.disciplina:
+                pa_name = partida_obj.disciplina.nombre
+            elif partida_obj:
+                pa_name = partida_obj.descripcion or "Partida General"
+            partida_totals[pa_name] = partida_totals.get(pa_name, 0) + float(item.monto_solicitado or 0)
 
-        ib_obj = item.requisicion.item_presupuesto
-        ib_name = ib_obj.concepto if ib_obj else "Sin Ítem Budget"
-        item_budget_totals[ib_name] = item_budget_totals.get(ib_name, 0) + float(item.monto_solicitado or 0)
+            ib_obj = item.requisicion.item_presupuesto
+            ib_name = ib_obj.concepto if ib_obj else "Sin Ítem Budget"
+            item_budget_totals[ib_name] = item_budget_totals.get(ib_name, 0) + float(item.monto_solicitado or 0)
 
-        # Totales para el desglose del modal
-        total_rq = float(item.requisicion.cr8ca_totalenarticulos or 0)
-        pagado_rq = float(item.requisicion.monto_pagado or 0)
-        item_dict = {
-            'req': item.requisicion.cr8ca_requisicion,
-            'pk': str(item.requisicion.pk),
-            'asunto': item.requisicion.cr8ca_asunto,
-            'monto': float(item.monto_solicitado or 0),
-            'total_rq': total_rq,
-            'pagado_rq': pagado_rq,
-            'pendiente_rq': total_rq - pagado_rq
-        }
+            # Totales para el desglose del modal
+            total_rq = float(item.requisicion.cr8ca_totalenarticulos or 0)
+            pagado_rq = float(item.requisicion.monto_pagado or 0)
+            item_dict = {
+                'req': item.requisicion.cr8ca_requisicion,
+                'pk': str(item.requisicion.pk),
+                'asunto': item.requisicion.cr8ca_asunto,
+                'monto': float(item.monto_solicitado or 0),
+                'total_rq': total_rq,
+                'pagado_rq': pagado_rq,
+                'pendiente_rq': total_rq - pagado_rq
+            }
 
-        # Llenar detalles por categoría para el modal interactivo
-        if p_name not in detalle_prov: detalle_prov[p_name] = []
-        detalle_prov[p_name].append(item_dict)
+            # Llenar detalles por categoría para el modal interactivo
+            if p_name not in detalle_prov: detalle_prov[p_name] = []
+            detalle_prov[p_name].append(item_dict)
 
-        if r_name not in detalle_rutina: detalle_rutina[r_name] = []
-        detalle_rutina[r_name].append(item_dict)
+            if r_name not in detalle_rutina: detalle_rutina[r_name] = []
+            detalle_rutina[r_name].append(item_dict)
 
-        if pa_name not in detalle_partida: detalle_partida[pa_name] = []
-        detalle_partida[pa_name].append(item_dict)
+            if pa_name not in detalle_partida: detalle_partida[pa_name] = []
+            detalle_partida[pa_name].append(item_dict)
 
-        if ib_name not in detalle_item_budget: detalle_item_budget[ib_name] = []
-        detalle_item_budget[ib_name].append(item_dict)
+            if ib_name not in detalle_item_budget: detalle_item_budget[ib_name] = []
+            detalle_item_budget[ib_name].append(item_dict)
 
     # Preparar data final
     graph_data = {

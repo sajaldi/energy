@@ -2485,11 +2485,14 @@
 
                 const data = await response.json();
                 if (data.status === 'success') {
-                    // Feedback visual sutil si quieres
-                    const row = document.querySelector(`tr[data-item-id="${id}"]`);
-                    if (row) {
-                        row.style.backgroundColor = '#ecfdf5';
-                        setTimeout(() => row.style.backgroundColor = '', 500);
+                    if (campo === 'estatus' || campo === 'monto_solicitado') {
+                        location.reload();
+                    } else {
+                        const row = document.querySelector(`tr[data-item-id="${id}"]`);
+                        if (row) {
+                            row.style.backgroundColor = '#ecfdf5';
+                            setTimeout(() => row.style.backgroundColor = '', 500);
+                        }
                     }
                 } else {
                     Swal.fire('Error', data.message || 'Error al actualizar', 'error');

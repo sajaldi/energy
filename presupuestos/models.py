@@ -786,18 +786,18 @@ class SolicitudPago(models.Model):
 
     @property
     def total_solicitado(self):
-        """Suma de montos de TODOS los items (Global)"""
-        return sum(item.monto_solicitado for item in self.items.all())
+        """Suma de montos de items con estatus PAGADO o SOLICITADO"""
+        return sum(item.monto_solicitado for item in self.items.all() if item.estatus in ['PAGADO', 'SOLICITADO'])
 
     @property
     def total_aprobado(self):
         """Suma de montos con estatus APROBADO"""
-        return sum(item.monto_solicitado for item in self.items.filter(estatus='APROBADO'))
+        return sum(item.monto_solicitado for item in self.items.all() if item.estatus == 'APROBADO')
 
     @property
     def total_pagado(self):
         """Suma de montos con estatus PAGADO"""
-        return sum(item.monto_solicitado for item in self.items.filter(estatus='PAGADO'))
+        return sum(item.monto_solicitado for item in self.items.all() if item.estatus == 'PAGADO')
 
     class Meta:
         verbose_name = "Solicitud de Pago"
