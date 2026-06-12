@@ -264,8 +264,8 @@ admin.site.register(RangoMedicion)
 
 @admin.register(Departamento)
 class DepartamentoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'responsable', 'descripcion')
-    search_fields = ('nombre', 'responsable__username', 'responsable__first_name', 'responsable__last_name')
+    list_display = ('nombre', 'codigo', 'responsable', 'descripcion')
+    search_fields = ('nombre', 'codigo', 'responsable__username', 'responsable__first_name', 'responsable__last_name')
     autocomplete_fields = ('responsable',)
 class ServicioResource(resources.ModelResource):
     class Meta:

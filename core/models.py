@@ -218,6 +218,7 @@ from django.dispatch import receiver
 class Departamento(models.Model):
     """Representa un departamento de la empresa."""
     nombre = models.CharField(max_length=100, unique=True, verbose_name="Nombre del Departamento")
+    codigo = models.CharField(max_length=4, blank=True, null=True, verbose_name="Código")
     descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='departamentos_a_cargo', verbose_name="Responsable / Jefe de departamento")
     
