@@ -349,10 +349,30 @@ def requisicion_pdf(request, pk):
     if not pdf_content:
         return HttpResponse('Error generando el PDF. Verifique con administración.', status=500)
 
-    response = HttpResponse(pdf_content, content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="Requisicion_{requisicion.cr8ca_requisicion}.pdf"'
+    return response
+
+
+@login_required
+def requisicion_docx(request, pk):
+    """Genera un documento Word (.docx) de la requisición"""
+    from .models import Requisicion
+    from .utils_docx import generate_requisicion_docx
+    from django.http import HttpResponse
+
+    requisicion = get_object_or_404(Requisicion, pk=pk)
+    
+    try:
+        docx_content = generate_requisicion_docx(requisicion)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HttpResponse(f'Error generando el documento Word: {str(e)}', status=500)
+        
+    response = HttpResponse(docx_content, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    response['Content-Disposition'] = f'attachment; filename="Requisicion_{requisicion.cr8ca_requisicion}.docx"'
     
     return response
+
 
 
 @staff_member_required
