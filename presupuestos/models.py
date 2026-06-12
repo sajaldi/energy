@@ -549,28 +549,40 @@ class Requisicion(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.cr8ca_requisicion:
+            from datetime import datetime
             anio_actual = datetime.now().year
-            prefix = f"REQ-"
+            
+            # Obtener el código de departamento del usuario solicitante
+            dept_code = "GEN"
+            if self.usuario_solicitante:
+                try:
+                    if hasattr(self.usuario_solicitante, 'perfil') and self.usuario_solicitante.perfil.departamento:
+                        code = self.usuario_solicitante.perfil.departamento.codigo
+                        if code:
+                            dept_code = code.strip().upper()
+                except Exception:
+                    pass
+            
+            prefix = f"REQ-{dept_code}-"
             suffix = f"-{anio_actual}"
             
-            # Buscar el correlativo más alto para el año actual
-            last_req = Requisicion.objects.filter(
+            # Encontrar el correlativo más alto para el departamento y año actual
+            reqs = Requisicion.objects.filter(
                 cr8ca_requisicion__startswith=prefix,
                 cr8ca_requisicion__endswith=suffix
-            ).order_by('cr8ca_requisicion').last()
-            
-            if last_req:
+            )
+            max_num = 0
+            for r in reqs:
                 try:
-                    # Extraer el número REQ-XXXXX-2026 -> XXXXX
-                    current_num_str = last_req.cr8ca_requisicion.replace(prefix, '').replace(suffix, '')
-                    current_num = int(current_num_str)
-                    new_num = current_num + 1
+                    num_str = r.cr8ca_requisicion[len(prefix):-len(suffix)]
+                    val = int(num_str)
+                    if val > max_num:
+                        max_num = val
                 except (ValueError, IndexError):
-                    new_num = 1
-            else:
-                new_num = 1
+                    pass
             
-            self.cr8ca_requisicion = f"{prefix}{str(new_num).zfill(5)}{suffix}"
+            new_num = max_num + 1
+            self.cr8ca_requisicion = f"{prefix}{str(new_num).zfill(3)}{suffix}"
             
         if not self.fecha:
             self.fecha = timezone.now()
