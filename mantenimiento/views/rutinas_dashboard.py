@@ -14,14 +14,13 @@ import base64
 from playwright.sync_api import sync_playwright
 
 
-def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search):
+def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search, tipo_kpis_map=None):
     """
     Construye el árbol jerárquico totalmente en memoria sin consultas adicionales.
     """
     # 1. Agrupar rutinas por categoría
     rutinas_por_tipo = {}
     for r in all_rutinas:
-        # Nota: all_rutinas ya viene filtrada desde la vista
         if r.tipo_id not in rutinas_por_tipo:
             rutinas_por_tipo[r.tipo_id] = []
         rutinas_por_tipo[r.tipo_id].append(r)
@@ -45,14 +44,26 @@ def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int
             if node:
                 sub_tree.append(node)
 
+        # Recopilar KPIs heredados (de esta categoría + ancestros)
+        cat_kpis = []
+        kpi_names = set()
+        tip_curr = cat
+        while tip_curr:
+            if tipo_kpis_map and tip_curr.id in tipo_kpis_map:
+                for k_id, k_name in tipo_kpis_map[tip_curr.id]:
+                    if k_name not in kpi_names:
+                        kpi_names.add(k_name)
+                        cat_kpis.append({'id': k_id, 'nombre': k_name})
+            tip_curr = tip_curr.padre if hasattr(tip_curr, 'padre') else None
+
         has_filters = frecuencia_int or puesto_int or search
-        # Se incluye la categoría si tiene rutinas, o subcategorías con contenido, o si no hay filtros
         if rutinas_list or sub_tree or not has_filters:
             return {
                 'categoria': cat,
                 'rutinas': rutinas_list,
                 'subcategorias': sub_tree,
-                'level': cat.level
+                'level': cat.level,
+                'categoria_kpis': cat_kpis,
             }
         return None
 
@@ -112,20 +123,35 @@ def rutinas_dashboard(request):
     
     # Filtrado manual para búsqueda jerárquica (incluyendo ruta de categoría)
     all_rutinas = []
-    s = search.lower() if search else None
+    search_terms = [t.strip().lower() for t in search.split('+')] if search else []
+    search_simple = search.lower() if search and '+' not in search else None
     for r in all_rutinas_qs:
-        if s:
-            path_matches = s in cat_paths.get(r.tipo_id, "")
-            name_matches = s in r.nombre.lower()
-            code_matches = r.codigo_rutina and s in r.codigo_rutina.lower()
-            desc_matches = r.descripcion and s in r.descripcion.lower()
-            
+        if search_terms and len(search_terms) > 1:
+            # Modo multi-término: todos deben estar en el nombre (excluyente)
+            name_lower = r.nombre.lower()
+            if not all(term in name_lower for term in search_terms):
+                continue
+        elif search_simple:
+            # Modo término único: busca en nombre, código, descripción y ruta
+            path_matches = search_simple in cat_paths.get(r.tipo_id, "")
+            name_matches = search_simple in r.nombre.lower()
+            code_matches = r.codigo_rutina and search_simple in r.codigo_rutina.lower()
+            desc_matches = r.descripcion and search_simple in r.descripcion.lower()
             if not (path_matches or name_matches or code_matches or desc_matches):
                 continue
         all_rutinas.append(r)
     
-    # Construir el árbol jerárquico en memoria
-    tree = build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search)
+    # Precalcular KPIs heredados por categoría (evitar N+1)
+    from servicios.models import KPI
+    tipo_kpis_map = {}
+    tipo_ids_con_kpis = set(Tipo.objects.exclude(kpis=None).values_list('id', flat=True))
+    for kpi in KPI.objects.filter(categorias_mantenimiento__in=tipo_ids_con_kpis).values('id', 'nombre', 'categorias_mantenimiento'):
+        tid = kpi['categorias_mantenimiento']
+        if tid not in tipo_kpis_map:
+            tipo_kpis_map[tid] = []
+        tipo_kpis_map[tid].append((kpi['id'], kpi['nombre']))
+
+    tree = build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search, tipo_kpis_map)
     
     # Agregar rutinas sin categoría al final del árbol
     uncategorized = [r for r in all_rutinas if r.tipo_id is None]
@@ -340,8 +366,9 @@ def rutina_save_api(request):
 def tipo_detail_api(request, pk):
     """API que devuelve detalles de un Tipo (Categoría) para el modal de edición"""
     from django.http import JsonResponse
+    from servicios.models import KPI
     try:
-        tipo = Tipo.objects.get(pk=pk)
+        tipo = Tipo.objects.prefetch_related('kpis').get(pk=pk)
         data = {
             'status': 'success',
             'tipo': {
@@ -349,7 +376,8 @@ def tipo_detail_api(request, pk):
                 'nombre': tipo.nombre,
                 'codigo': tipo.codigo or "",
                 'descripcion': tipo.descripcion or "",
-                'padre_id': tipo.padre_id or ""
+                'padre_id': tipo.padre_id or "",
+                'kpi_ids': list(tipo.kpis.values_list('id', flat=True)),
             }
         }
         return JsonResponse(data)
@@ -686,6 +714,70 @@ def api_rutina_kpis_save(request, pk):
 
 
 @staff_member_required
+def api_tipo_kpis(request, pk):
+    """API que devuelve los KPIs vinculados a una categoría (Tipo) y los disponibles"""
+    from django.http import JsonResponse
+    from servicios.models import KPI
+
+    try:
+        tipo = Tipo.objects.get(pk=pk)
+        kpis_vinculados = tipo.kpis.select_related('servicio').all()
+        vinculados_data = [{
+            'id': kpi.id,
+            'nombre': kpi.nombre or "KPI sin nombre",
+            'servicio': kpi.servicio.nombre if kpi.servicio else "General",
+            'categoria': kpi.categoria,
+            'estado': kpi.estado,
+        } for kpi in kpis_vinculados]
+
+        servicio_heredado = tipo.get_servicio()
+        disponibles_qs = KPI.objects.exclude(
+            id__in=[k.id for k in kpis_vinculados]
+        ).select_related('servicio')
+        if servicio_heredado:
+            disponibles_qs = disponibles_qs.filter(servicio=servicio_heredado)
+        disponibles_data = [{
+            'id': kpi.id,
+            'nombre': kpi.nombre or "KPI sin nombre",
+            'servicio': kpi.servicio.nombre if kpi.servicio else "General",
+            'categoria': kpi.categoria,
+        } for kpi in disponibles_qs]
+
+        return JsonResponse({
+            'status': 'success',
+            'servicio_filtro': servicio_heredado.nombre if servicio_heredado else None,
+            'vinculados': vinculados_data,
+            'disponibles': disponibles_data,
+        })
+    except Tipo.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Categoría no encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def api_tipo_kpis_save(request, pk):
+    """API para guardar los KPIs vinculados a una categoría (Tipo)"""
+    from django.http import JsonResponse
+    from servicios.models import KPI
+    import json
+
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    try:
+        tipo = Tipo.objects.get(pk=pk)
+        data = json.loads(request.body)
+        kpi_ids = data.get('kpi_ids', [])
+        kpis_to_set = KPI.objects.filter(id__in=kpi_ids)
+        tipo.kpis.set(kpis_to_set)
+        return JsonResponse({'status': 'success', 'message': 'KPIs de categoría actualizados correctamente'})
+    except Tipo.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Categoría no encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
 def paso_media_upload_api(request, paso_id):
     """API para subir archivos multimedia a un paso de rutina"""
     from django.http import JsonResponse
@@ -923,12 +1015,14 @@ def export_rutinas_excel(request):
             pass
 
     if search:
-        qs = qs.filter(
-            Q(nombre__icontains=search) |
-            Q(codigo_rutina__icontains=search) |
-            Q(descripcion__icontains=search) |
-            Q(tipo__nombre__icontains=search)
-        )
+        terms = [t.strip() for t in search.split('+')]
+        for term in terms:
+            qs = qs.filter(
+                Q(nombre__icontains=term) |
+                Q(codigo_rutina__icontains=term) |
+                Q(descripcion__icontains=term) |
+                Q(tipo__nombre__icontains=term)
+            )
 
     dataset = resource.export(queryset=qs)
 

@@ -319,11 +319,16 @@
             $('.prev-step').on('click', function () {
                 const prevStep = $(this).data('prev');
                 console.log('Regresando al paso:', prevStep);
-                const pk = "{{ instance.pk|default:'' }}";
-                if (pk) {
-                    const urlTemplate = "{% url 'presupuestos:requisicion_editar' pk='00000000-0000-0000-0000-000000000000' %}";
-                    window.location.href = urlTemplate.replace('00000000-0000-0000-0000-000000000000', pk) + "?step=" + prevStep;
+                if (isReadOnly) {
+                    const pk = "{{ instance.pk|default:'' }}";
+                    if (pk) {
+                        const urlTemplate = "{% url 'presupuestos:requisicion_editar' pk='00000000-0000-0000-0000-000000000000' %}";
+                        window.location.href = urlTemplate.replace('00000000-0000-0000-0000-000000000000', pk) + "?step=" + prevStep;
+                    }
+                    return;
                 }
+                $('#target_step').val(prevStep);
+                $('#wizard-form').submit();
             });
 
             $('#btn-finish').on('click', function () {

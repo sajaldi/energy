@@ -641,6 +641,14 @@ JAZZMIN_SETTINGS = {
                 "permissions": ["inventarios.view_material"],
             },
         ],
+        "proyectos": [
+            {
+                "name": "📊 Dashboard de Proyectos",
+                "url": "/proyectos/dashboard/",
+                "icon": "fas fa-project-diagram",
+                "permissions": ["proyectos.view_proyecto"],
+            },
+        ],
         "documentos": [
             {
                 "name": "📁 Carga Masiva",

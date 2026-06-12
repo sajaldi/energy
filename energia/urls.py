@@ -7,7 +7,7 @@ from django.views.static import serve
 from core.views_proxy import media_proxy
 from core.views import global_search
 
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, RedirectView
 from mantenimiento.views.asistencia import AsistenciaKioskView
 
 urlpatterns = [
@@ -46,6 +46,7 @@ urlpatterns = [
     # PWA Support - Servidos como plantillas para asegurar carga desde la raíz
     path('manifest.json', TemplateView.as_view(template_name='core/manifest.json', content_type='application/json')),
     path('sw.js', TemplateView.as_view(template_name='core/sw.js', content_type='application/javascript')),
+    path('favicon.ico', RedirectView.as_view(url='/static/favicon.ico', permanent=True)),
 ]
 
 if settings.DEBUG:

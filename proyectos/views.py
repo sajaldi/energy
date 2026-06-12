@@ -72,9 +72,11 @@ def actualizar_actividad_api(request, actividad_id):
             actividad = get_object_or_404(Actividad, pk=actividad_id)
             
             if 'fecha_inicio' in data:
-                actividad.fecha_inicio = data.get('fecha_inicio')
+                val = data.get('fecha_inicio')
+                actividad.fecha_inicio = val if val else None
             if 'fecha_fin' in data:
-                actividad.fecha_fin = data.get('fecha_fin')
+                val = data.get('fecha_fin')
+                actividad.fecha_fin = val if val else None
             if 'nombre' in data:
                 actividad.nombre = data.get('nombre')
             if 'estado' in data:
@@ -82,7 +84,18 @@ def actualizar_actividad_api(request, actividad_id):
             if 'predecesora_id' in data:
                 pid = data.get('predecesora_id')
                 actividad.predecesora = Actividad.objects.filter(pk=pid).first() if pid else None
-                
+            if 'descripcion' in data:
+                actividad.descripcion = data.get('descripcion')
+            if 'prioridad' in data:
+                actividad.prioridad = data.get('prioridad')
+            if 'porcentaje_avance' in data:
+                actividad.porcentaje_avance = int(data.get('porcentaje_avance'))
+            if 'ordenes_trabajo_ids' in data:
+                from mantenimiento.models import OrdenTrabajo
+                ids = data.get('ordenes_trabajo_ids', [])
+                ots = OrdenTrabajo.objects.filter(id__in=ids)
+                actividad.ordenes_trabajo.set(ots)
+
             actividad.save()
             return JsonResponse({'status': 'success', 'message': 'Actividad actualizada'})
         except Exception as e:
@@ -282,6 +295,7 @@ def proyecto_detalle_fiori(request, pk):
         'proyecto': proyecto,
         'actividades': actividades,
         'documentos': documentos,
+        'visores': proyecto.visores.all(),
         'ubicaciones': Ubicacion.objects.all(),
         'usuarios': User.objects.filter(is_active=True),
         'estados_proyecto': Proyecto.ESTADOS,
@@ -389,6 +403,36 @@ def delete_actividad_api(request, pk, act_id):
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
 
+@staff_member_required
+def activity_detail_api(request, actividad_id):
+    """Retorna detalle de una actividad para editar en modal."""
+    try:
+        act = get_object_or_404(
+            Actividad.objects.select_related('asignado_a', 'predecesora'),
+            pk=actividad_id
+        )
+        ots = act.ordenes_trabajo.all().values('id', 'codigo_de_orden')
+        data = {
+            'id': act.id,
+            'nombre': act.nombre,
+            'descripcion': act.descripcion,
+            'estado': act.estado,
+            'prioridad': act.prioridad,
+            'fecha_inicio': act.fecha_inicio.isoformat() if act.fecha_inicio else None,
+            'fecha_fin': act.fecha_fin.isoformat() if act.fecha_fin else None,
+            'porcentaje_avance': act.porcentaje_avance,
+            'asignado_a_id': act.asignado_a_id,
+            'asignado_a_nombre': act.asignado_a.get_full_name() or act.asignado_a.username if act.asignado_a else None,
+            'predecesora_id': act.predecesora_id,
+            'predecesora_nombre': act.predecesora.nombre if act.predecesora else None,
+            'orden': act.orden,
+            'ordenes_trabajo': list(ots),
+        }
+        return JsonResponse({'status': 'success', 'actividad': data})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
 @csrf_exempt
 @staff_member_required
 def upload_documento_proyecto_api(request, pk):
@@ -456,3 +500,119 @@ def upload_documento_proyecto_api(request, pk):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
+@staff_member_required
+def link_ot_api(request, proyecto_pk):
+    """Vincula una Orden de Trabajo existente al proyecto."""
+    from mantenimiento.models import OrdenTrabajo
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    try:
+        data = json.loads(request.body)
+        ot_id = data.get('ot_id')
+        if not ot_id:
+            return JsonResponse({'status': 'error', 'message': 'ot_id requerido'}, status=400)
+        proyecto = get_object_or_404(Proyecto, pk=proyecto_pk)
+        ot = get_object_or_404(OrdenTrabajo, pk=ot_id)
+        ot.proyecto = proyecto
+        ot.save(update_fields=['proyecto'])
+        return JsonResponse({'status': 'success', 'codigo': ot.codigo_de_orden or f'OT #{ot.id}'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def link_requisicion_api(request, proyecto_pk):
+    """Vincula una Requisicion existente al proyecto."""
+    from presupuestos.models import Requisicion
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    try:
+        data = json.loads(request.body)
+        req_id = data.get('requisicion_id')
+        if not req_id:
+            return JsonResponse({'status': 'error', 'message': 'requisicion_id requerido'}, status=400)
+        proyecto = get_object_or_404(Proyecto, pk=proyecto_pk)
+        req = get_object_or_404(Requisicion, pk=req_id)
+        req.proyecto = proyecto
+        req.save(update_fields=['proyecto'])
+        return JsonResponse({'status': 'success', 'codigo': req.cr8ca_requisicion})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def reporte_proyecto(request, pk):
+    """Reporte imprimible del proyecto."""
+    from django.db import models
+    proyecto = get_object_or_404(
+        Proyecto.objects.select_related('responsable', 'ubicacion'),
+        pk=pk
+    )
+    actividades = proyecto.actividades.all().order_by('orden', 'fecha_inicio')
+    ordenes = proyecto.ordenes_trabajo.all().select_related('tecnico').prefetch_related('archivos')
+    requisiciones = proyecto.requisiciones.all()
+
+    total_requisiciones = requisiciones.aggregate(
+        total=models.Sum('cr8ca_totalenarticulos')
+    )['total'] or 0
+
+    estados_act = {}
+    for act in actividades:
+        estados_act[act.estado] = estados_act.get(act.estado, 0) + 1
+
+    min_date = None
+    max_date = None
+    for act in actividades:
+        if act.fecha_inicio and (min_date is None or act.fecha_inicio < min_date):
+            min_date = act.fecha_inicio
+        if act.fecha_fin and (max_date is None or act.fecha_fin > max_date):
+            max_date = act.fecha_fin
+
+    # Gantt computation — TIEMPO ACORDADO style
+    gantt_total_days = 1
+    gantt_markers = []
+    if min_date and max_date:
+        delta = max_date - min_date
+        gantt_total_days = max(delta.days, 1)
+
+        if gantt_total_days <= 14: step = 1
+        elif gantt_total_days <= 60: step = 7
+        elif gantt_total_days <= 180: step = 14
+        elif gantt_total_days <= 365: step = 30
+        else: step = 60
+
+        curr = 0
+        while curr <= gantt_total_days:
+            gantt_markers.append(curr)
+            curr += step
+        if gantt_markers and gantt_markers[-1] < gantt_total_days:
+            gantt_markers.append(gantt_markers[-1] + step)
+
+    for act in actividades:
+        if act.fecha_inicio and act.fecha_fin and min_date and max_date:
+            total_sec = (max_date - min_date).total_seconds()
+            if total_sec <= 0:
+                total_sec = 86400
+            act_left = max((act.fecha_inicio - min_date).total_seconds(), 0)
+            act_width = (act.fecha_fin - act.fecha_inicio).total_seconds()
+            act.gantt_left_pct = act_left / total_sec * 100
+            act.gantt_width_pct = max(act_width / total_sec * 100, 0.3)
+        else:
+            act.gantt_left_pct = 0
+            act.gantt_width_pct = 0
+
+    context = {
+        'proyecto': proyecto,
+        'actividades': actividades,
+        'ordenes': ordenes,
+        'requisiciones': requisiciones,
+        'total_requisiciones': total_requisiciones,
+        'estados_act': estados_act,
+        'min_date': min_date,
+        'max_date': max_date,
+        'gantt_total_days': gantt_total_days,
+        'gantt_markers': gantt_markers,
+    }
+    return render(request, 'proyectos/reporte_proyecto.html', context)

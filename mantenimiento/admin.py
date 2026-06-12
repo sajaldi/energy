@@ -1809,7 +1809,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
     readonly_fields = ('registrar_salida_link', 'ver_pdf_link', 'visualizar_fiori_link', 'creado_en')
     list_select_related = ('rutina', 'aviso', 'tecnico', 'supervisor', 'equipo', 'ubicacion', 'programacion')
     search_fields = ('id', 'codigo_de_orden', 'descripcion_corta', 'descripcion_detallada', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'activos__codigo_interno', 'activos__serie', 'notas')
-    autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion', 'activos')
+    autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion', 'activos', 'proyecto')
     ordering = ('-creado_en',)
     date_hierarchy = 'creado_en'
     actions = ['generar_permiso_action', 'exportar_seleccionadas_action', 'generar_pdf_masivo_action', 'generar_checklist_action']

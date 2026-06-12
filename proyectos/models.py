@@ -190,9 +190,16 @@ class Actividad(models.Model):
     orden = models.PositiveIntegerField(default=0, help_text="Orden de ejecución")
     
     color = ColorField(default='#3B82F6', help_text="Color para identificar en planos")
-    
+
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+
+    ordenes_trabajo = models.ManyToManyField(
+        'mantenimiento.OrdenTrabajo',
+        blank=True,
+        related_name='actividades_proyecto',
+        verbose_name="Órdenes de Trabajo"
+    )
 
     def __str__(self):
         return f"{self.proyecto.codigo} - {self.nombre}"

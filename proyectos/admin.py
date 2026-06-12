@@ -64,6 +64,18 @@ class AnalisisCostoInline(admin.TabularInline):
     costo_total.short_description = "Costo Total"
 
 
+class OrdenTrabajoInline(admin.TabularInline):
+    from mantenimiento.models import OrdenTrabajo
+    model = OrdenTrabajo
+    extra = 1
+    fields = ('codigo_de_orden', 'tipo', 'estado', 'prioridad', 'tecnico', 'inicio_programado', 'fin_programado', 'descripcion_corta')
+    readonly_fields = ('codigo_de_orden',)
+    autocomplete_fields = ('tecnico',)
+    show_change_link = True
+    verbose_name = "Orden de Trabajo"
+    verbose_name_plural = "Órdenes de Trabajo"
+
+
 @admin.register(Proyecto)
 class ProyectoAdmin(admin.ModelAdmin):
     list_display = ('codigo', 'nombre', 'estado_badge', 'responsable', 'avance_bar', 'ver_cronograma', 'ver_repositorio_docs', 'total_docs', 'abrir_visores')
@@ -71,7 +83,7 @@ class ProyectoAdmin(admin.ModelAdmin):
     search_fields = ('codigo', 'nombre', 'descripcion', 'visores__nombre')
     autocomplete_fields = ('responsable', 'ubicacion')
     readonly_fields = ('creado_en', 'actualizado_en', 'resumen_actividades', 'ver_cronograma_btn', 'ver_repositorio_docs_btn', 'visor_planos_dinamico', 'cronograma_interactivo')
-    inlines = [ActividadInline, DocumentoProyectoInline, AvisoInline, AnalisisCostoInline]
+    inlines = [ActividadInline, DocumentoProyectoInline, AvisoInline, AnalisisCostoInline, OrdenTrabajoInline]
     
     filter_horizontal = ('visores',)
     

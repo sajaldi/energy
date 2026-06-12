@@ -17,4 +17,8 @@ urlpatterns = [
     path('proyecto/<int:pk>/actividades/<int:act_id>/delete/', views.delete_actividad_api, name='delete_actividad'),
     path('proyecto/<int:pk>/documentos/upload/', views.upload_documento_proyecto_api, name='upload_documento'),
     path('proyecto/<int:pk>/documentos/upload/', views.upload_documento_proyecto_api, name='upload_documento'),
+    path('proyecto/<int:proyecto_pk>/link-ot/', views.link_ot_api, name='link_ot'),
+    path('proyecto/<int:proyecto_pk>/link-requisicion/', views.link_requisicion_api, name='link_requisicion'),
+    path('api/actividad/<int:actividad_id>/detalle/', views.activity_detail_api, name='activity_detail_api'),
+    path('proyecto/<int:pk>/reporte/', views.reporte_proyecto, name='reporte'),
 ]

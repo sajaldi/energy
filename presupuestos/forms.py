@@ -12,7 +12,7 @@ class RequisicionForm(forms.ModelForm):
         ]
         widgets = {
             'cr8ca_requisicion': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
-            'fecha': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'fecha': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'fecha_aprobacion': forms.DateTimeInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
             'partida': forms.Select(attrs={'class': 'form-control select2-material'}),
             'item_presupuesto': forms.Select(attrs={'class': 'form-control select2-material'}),

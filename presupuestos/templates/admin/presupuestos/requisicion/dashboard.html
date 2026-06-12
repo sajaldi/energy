@@ -266,6 +266,7 @@
     <div class="action-bar">
         <h1 style="margin: 0; font-weight: 700; color: var(--text-main); font-size: 1.5rem;">
             📦 Panel de Requisiciones
+            {% if dept %}<span style="font-size: 0.9rem; font-weight: 500; color: var(--text-muted); display: block; margin-top: 4px;">{{ dept.nombre }}</span>{% endif %}
         </h1>
         <div style="display: flex; gap: 12px; align-items: center; flex: 1; max-width: 600px; margin: 0 auto;">
             <form method="get" style="display: flex; gap: 8px; flex: 1;">
@@ -331,23 +332,23 @@
 
     <!-- Tab Content: General -->
     <div id="tab-general" class="tab-content-area">
-        <!-- Estadísticas por Departamento -->
+        <!-- Estadísticas del Departamento -->
         <div class="main-surface" style="margin-bottom: 24px;">
             <div class="surface-header">
                 <h3 style="margin: 0; font-size: 1rem; font-weight: 600;">
-                    🏢 Inversión por Departamento (Solicitante)
+                    🏢 Inversión del Departamento
                 </h3>
             </div>
             <div class="dept-stats-grid">
-                {% for dept in stats_departamento %}
+                {% for d in stats_departamento %}
                 <div class="dept-card">
-                    <span class="dept-name">{{ dept.usuario_solicitante__perfil__departamento__nombre|default:"Sin Clasificar" }}</span>
-                    <span class="dept-value">L.{{ dept.total|floatformat:2 }}</span>
-                    <span class="dept-meta">{{ dept.count }} requisiciones</span>
+                    <span class="dept-name">{{ d.usuario_solicitante__perfil__departamento__nombre|default:"Sin Clasificar" }}</span>
+                    <span class="dept-value">L.{{ d.total|floatformat:2 }}</span>
+                    <span class="dept-meta">{{ d.count }} requisiciones</span>
                 </div>
                 {% empty %}
                 <p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 20px;">
-                    No hay datos por departamento disponibles.
+                    No hay datos para tu departamento.
                 </p>
                 {% endfor %}
             </div>

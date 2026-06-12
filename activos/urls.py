@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/categoria-detalle/<int:pk>/', views_categorias.categoria_detail_api, name='categoria_detail_api'),
     path('api/categoria-save/', views_categorias.categoria_save_api, name='categoria_save_api'),
     path('api/categoria-delete/<int:pk>/', views_categorias.categoria_delete_api, name='categoria_delete_api'),
+    path('api/categoria-move/<int:pk>/', views_categorias.categoria_move_api, name='categoria_move_api'),
     path('api/categoria-modelos/<int:pk>/', views_categorias.get_categoria_modelos_api, name='get_categoria_modelos_api'),
     path('api/modelo-detalle-completo/<int:pk>/', views_categorias.get_modelo_details_api, name='get_modelo_details_api'),
 

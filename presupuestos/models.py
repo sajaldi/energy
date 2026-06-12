@@ -538,6 +538,15 @@ class Requisicion(models.Model):
         help_text="Especifique qué artículos corresponden a cada proveedor sugerido."
     )
 
+    proyecto = models.ForeignKey(
+        'proyectos.Proyecto',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisiciones',
+        verbose_name="Proyecto"
+    )
+
     def save(self, *args, **kwargs):
         if not self.cr8ca_requisicion:
             anio_actual = datetime.now().year
@@ -842,6 +851,34 @@ class ItemSolicitudPago(models.Model):
         verbose_name = "Ítem de Solicitud de Pago"
         verbose_name_plural = "Ítems de Solicitud de Pago"
         unique_together = ('solicitud', 'requisicion')
+
+
+class NotaRequisicion(models.Model):
+    """
+    Notas internas con timestamp y usuario para el timeline de una requisición.
+    """
+    requisicion = models.ForeignKey(
+        Requisicion,
+        on_delete=models.CASCADE,
+        related_name='notas',
+        verbose_name="Requisición"
+    )
+    texto = models.TextField(verbose_name="Nota")
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name="Usuario"
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.creado_en.strftime('%d/%m/%Y %H:%M')} - {self.usuario}: {self.texto[:50]}"
+
+    class Meta:
+        verbose_name = "Nota de Requisición"
+        verbose_name_plural = "Notas de Requisición"
+        ordering = ['-creado_en']
 
 class REPEX(models.Model):
     """

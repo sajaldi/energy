@@ -154,6 +154,18 @@
 
         .btn-action:hover { transform: scale(1.1); background: #f1f5f9; }
 
+        .drag-handle-cat { cursor: grab; color: #cbd5e1; display: flex; align-items: center; justify-content: center; padding-right: 15px; border-right: 1px solid #f1f5f9; margin-right: 15px; width: 40px; }
+        .model-row:hover { background: #f0f7ff !important; }
+        .brand-row:hover { background: #f8fafc; }
+        .drag-handle-cat:active { cursor: grabbing; }
+        .sortable-ghost { opacity: 0.4; background: #eff6ff; border: 2px dashed #0070f2; }
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 999999; display: flex; flex-direction: column; gap: 8px; }
+        .toast { padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideIn 0.3s ease; }
+        .toast.success { background: #107e3e; }
+        .toast.error { background: #bb0000; }
+        .toast.info { background: #0a6ed1; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
         /* Modal Styles */
         .modal-backdrop {
             position: fixed;
@@ -283,8 +295,9 @@
         <div class="breadcrumb" style="font-size: 0.9rem; color: var(--text-muted);">
             <span>Activos</span> / <span style="font-weight: 600; color: var(--text-main);">Categorías</span>
         </div>
-        <div style="font-size: 0.9rem; font-weight: 500;">
-            Total Categorías: <span style="color: var(--sap-primary);">{{ total_categorias }}</span>
+        <div style="font-size: 0.9rem; font-weight: 500; display: flex; gap: 1.5rem;">
+            <span>Categorías: <span style="color: var(--sap-primary);">{{ total_categorias }}</span></span>
+            <span>Activos: <span style="color: var(--sap-success);">{{ total_activos }}</span></span>
         </div>
     </div>
 
@@ -292,7 +305,7 @@
         <div class="explorer-card">
             <div class="search-bar">
                 <div style="position: relative; flex: 1;">
-                    <input type="text" id="tree-search" class="form-control" placeholder="Buscar categoría..." value="{{ search }}" onkeyup="handleSearch(event)">
+                    <input type="text" id="tree-search" class="form-control" placeholder="Buscar categoría, marca o modelo..." value="{{ search }}" onkeyup="handleSearch(event)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
                         <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
@@ -300,11 +313,13 @@
                 <button class="btn btn-outline" onclick="applySearch()">Buscar</button>
             </div>
 
-            <div class="tree-container">
+            <div class="tree-container" id="tree-container">
                 {% if tree %}
-                    {% for node in tree %}
-                        {% include "activos/partials/categoria_tree_node.html" with node=node %}
-                    {% endfor %}
+                    <div class="categories-container" data-parent-cat-id="" style="min-height: 20px;">
+                        {% for node in tree %}
+                            {% include "activos/partials/categoria_tree_node.html" with node=node %}
+                        {% endfor %}
+                    </div>
                 {% else %}
                     <div style="text-align: center; padding: 4rem; color: var(--text-muted);">
                         <p>No se encontraron categorías.</p>
@@ -416,6 +431,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script>
         const icons = ['location', 'flash', 'water', 'construct', 'bulb', 'cog', 'hammer', 'thermometer', 'shield', 'wifi', 'battery-charging', 'desktop', 'business', 'home', 'cube'];
 
@@ -450,6 +466,20 @@
         function toggleNode(element) {
             const node = element.closest('.tree-node');
             node.classList.toggle('expanded');
+        }
+
+        function toggleBrand(element) {
+            const brandNode = element.closest('.brand-node');
+            const modelsContainer = brandNode.querySelector('.brand-models');
+            const chevron = element.querySelector('.chevron');
+            if (modelsContainer) {
+                const isVisible = modelsContainer.style.display !== 'none';
+                modelsContainer.style.display = isVisible ? 'none' : 'block';
+                if (chevron) {
+                    chevron.style.transform = isVisible ? '' : 'rotate(90deg)';
+                    chevron.style.transition = 'transform 0.2s';
+                }
+            }
         }
 
         function handleSearch(e) {
@@ -678,10 +708,79 @@
         function closeModelDetailModal() {
             document.getElementById('modeloDetailModal').style.display = 'none';
         }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container') || createToastContainer();
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function createToastContainer() {
+            const div = document.createElement('div');
+            div.id = 'toast-container';
+            div.className = 'toast-container';
+            document.body.appendChild(div);
+            return div;
+        }
+
+        function moveCategoria(catId, newParentId, itemEl, fromList, toList) {
+            fetch(`{% url 'activos:categoria_move_api' 0 %}`.replace('0', catId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ padre_id: newParentId ? parseInt(newParentId) : null })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    showToast('Categoría movida correctamente', 'success');
+                } else {
+                    showToast('Error: ' + res.message, 'error');
+                    fromList.appendChild(itemEl);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Error de conexión al mover categoría', 'error');
+                fromList.appendChild(itemEl);
+            });
+        }
+
+        function initSortable() {
+            const categoryContainers = document.querySelectorAll('.categories-container');
+            categoryContainers.forEach(container => {
+                new Sortable(container, {
+                    group: 'categorias',
+                    animation: 150,
+                    handle: '.drag-handle-cat',
+                    ghostClass: 'sortable-ghost',
+                    onEnd: function (evt) {
+                        const itemEl = evt.item;
+                        const toList = evt.to;
+                        const fromList = evt.from;
+
+                        if (toList === fromList && evt.newIndex === evt.oldIndex) return;
+
+                        const catId = itemEl.getAttribute('data-cat-id');
+                        const newParentId = toList.getAttribute('data-parent-cat-id');
+
+                        moveCategoria(catId, newParentId, itemEl, fromList, toList);
+                    }
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initSortable);
     </script>
     <style>
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
+    <div id="toast-container" class="toast-container"></div>
 </body>
 </html>

@@ -669,6 +669,47 @@
             border: 1px solid #ffcccc;
         }
 
+        .status-dropdown {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+        .status-dropdown-options {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            z-index: 1000;
+            min-width: 140px;
+            padding: 0.25rem;
+            margin-top: 4px;
+        }
+        .status-dropdown.active .status-dropdown-options {
+            display: block;
+        }
+        .status-dropdown-options .status-option {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .status-dropdown-options .status-option:hover {
+            background: #f1f5f9;
+        }
+        .status-dropdown-options .status-option.active {
+            background: #e2e8f0;
+        }
+
         @keyframes spin {
             from {
                 transform: rotate(0deg);
@@ -1194,7 +1235,7 @@
                     </tr>
                     {% for item in data.lista_items %}
                     <tr data-item-id="{{ item.pk }}" 
-                        oncontextmenu="showRequisitionContextMenu(event, '{{ item.requisicion.pk }}')"
+                        oncontextmenu="showRequisitionContextMenu(event, '{{ item.requisicion.pk }}', '{{ item.pk }}', '{{ item.requisicion.cr8ca_totalenarticulos|default_if_none:0 }}', '{{ item.monto_solicitado|default_if_none:0 }}')"
                         class="item-row-group-{{ forloop.parentloop.counter }} {% if item.estatus == 'POSPUESTO' or item.estatus == 'RECHAZADO' %}row-item-warning{% endif %}">
                         <td>
                             <a href="javascript:void(0)" onclick="openRequisitionModal('{{ item.requisicion.pk }}')"
@@ -1577,6 +1618,7 @@
 
         const formatCurrency = (val) => currencyFormatter.format(val);
         let timelineChart = null;
+        let pieChartInstance = null;
 
         async function openRequisitionModal(reqId) {
             console.log("Abriendo modal para:", reqId);
@@ -1600,6 +1642,10 @@
                 timelineChart.destroy();
                 timelineChart = null;
             }
+            if (pieChartInstance) {
+                pieChartInstance.destroy();
+                pieChartInstance = null;
+            }
 
             try {
                 const response = await fetch(`/presupuestos/api/requisicion/${reqId}/detalle/`);
@@ -1621,22 +1667,24 @@
 
                 // Comentarios
                 const commentsArea = document.getElementById('modal-comentarios');
-                commentsArea.value = data.comentarios;
                 commentsArea.dataset.reqId = reqId;
+
+                // Cargar notas del timeline
+                loadNotas(reqId);
 
                 // Renderizar Línea de Tiempo (Bar Chart)
                 const ctxTime = document.getElementById('requisitionTimelineChart').getContext('2d');
-                // Revertir pagos para que salgan cronológicos (de más viejo a más nuevo en el chart)
-                const timelineData = [...data.pagos].reverse();
+                // Revertir pagos y filtrar solo los PAGADOS o SOLICITADOS
+                const timelineData = [...data.pagos].filter(p => ['PAGADO', 'SOLICITADO'].includes(p.estatus)).reverse();
                 
                 timelineChart = new Chart(ctxTime, {
                     type: 'bar',
                     data: {
                         labels: timelineData.map(p => p.fecha),
                         datasets: [{
-                            label: 'Monto Pagado',
+                            label: 'Monto',
                             data: timelineData.map(p => p.monto),
-                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            backgroundColor: timelineData.map(p => p.estatus === 'PAGADO' ? 'rgba(16, 185, 129, 0.8)' : 'rgba(59, 130, 246, 0.8)'), // Verde para pagado, Azul para solicitado
                             borderRadius: 4,
                             barThickness: 20
                         }]
@@ -1648,7 +1696,7 @@
                             legend: { display: false },
                             tooltip: {
                                 callbacks: {
-                                    label: (ctx) => ` Pago: ${formatCurrency(ctx.raw)}`
+                                    label: (ctx) => ` ${timelineData[ctx.dataIndex].estatus}: ${formatCurrency(ctx.raw)}`
                                 }
                             }
                         },
@@ -1660,6 +1708,37 @@
                             x: { 
                                 grid: { display: false },
                                 ticks: { font: { size: 9 } }
+                            }
+                        }
+                    }
+                });
+
+                // Renderizar Pie Chart (Pagado vs Total)
+                const ctxPie = document.getElementById('requisitionPieChart').getContext('2d');
+                const totalEstimadoPie = parseFloat(data.total_estimado) || 0;
+                const totalPagadoPie = parseFloat(data.total_pagado) || 0;
+                let restantePie = totalEstimadoPie - totalPagadoPie;
+                if (restantePie < 0) restantePie = 0; 
+
+                pieChartInstance = new Chart(ctxPie, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Pagado', 'Restante/Solicitado'],
+                        datasets: [{
+                            data: [totalPagadoPie, restantePie],
+                            backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(226, 232, 240, 1)'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { font: { size: 10 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => ` ${ctx.label}: ${formatCurrency(ctx.raw)}`
+                                }
                             }
                         }
                     }
@@ -1680,15 +1759,26 @@
                 document.getElementById('modal-articulos-body').innerHTML = artHtml || '<tr><td colspan="4" style="text-align:center;">No hay artículos</td></tr>';
 
                 // Llenar historial pagos
+                const STATUSES = ['SOLICITADO', 'APROBADO', 'PAGADO', 'POSPUESTO', 'RECHAZADO'];
                 let pagosHtml = '';
                 data.pagos.forEach(p => {
+                    const optionsHtml = STATUSES.map(s =>
+                        `<div class="status-option ${s === p.estatus ? 'active' : ''}" data-status="${s}" onclick="event.stopPropagation();changeHistorialStatus('${p.item_id}', '${s}', this)">${s}</div>`
+                    ).join('');
                     pagosHtml += `
                         <tr>
                             <td>${p.fecha}</td>
-                            <td style="color: var(--primary); font-weight: 600;">#${p.solicitud_id}</td>
+                            <td style="font-weight: 600;">
+                                <a href="/presupuestos/pagos/solicitud/${p.solicitud_id}/" style="color: var(--primary); text-decoration: none;">#${p.solicitud_id}</a>
+                            </td>
                             <td>${p.descripcion || '-'}</td>
                             <td style="text-align: right; font-weight: bold;">${formatCurrency(p.monto)}</td>
-                            <td style="text-align: center;"><span class="badge badge-${p.estatus}">${p.estatus}</span></td>
+                            <td style="text-align: center;">
+                                <div class="status-dropdown" onclick="event.stopPropagation();toggleStatusDropdown(this)">
+                                    <span class="badge badge-${p.estatus}">${p.estatus}</span>
+                                    <div class="status-dropdown-options">${optionsHtml}</div>
+                                </div>
+                            </td>
                         </tr>
                     `;
                 });
@@ -1823,12 +1913,45 @@
             }
         }
 
-        async function saveRequisitionComments(event) {
-            const btn = event.currentTarget;
-            const textarea = document.getElementById('modal-comentarios');
-            const reqId = textarea.dataset.reqId;
-            const comentarios = textarea.value;
+        async function loadNotas(reqId) {
+            const container = document.getElementById('notas-timeline');
+            if (!container) return;
+            container.innerHTML = `<div style="text-align: center; color: #a16207; font-size: 0.85rem; padding: 1rem 0;"><i class="ph ph-circle-notch" style="animation: spin 1s linear infinite;"></i> Cargando...</div>`;
+            try {
+                const res = await fetch(`/presupuestos/api/requisicion/${reqId}/notas/`);
+                const data = await res.json();
+                if (data.notas.length === 0) {
+                    container.innerHTML = `<div style="text-align: center; color: #a16207; font-size: 0.85rem; padding: 2rem 0; opacity: 0.7;"><i class="ph ph-chat-text" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>Aún no hay notas.</div>`;
+                    return;
+                }
+                container.innerHTML = data.notas.map(n => `
+                    <div style="background: rgba(255,255,255,0.7); border: 1px solid #fde68a; border-radius: 0.75rem; padding: 0.75rem 1rem; position: relative;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                            <div style="width: 28px; height: 28px; background: #d97706; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 0.7rem; flex-shrink: 0;">${(n.nombre || n.usuario).charAt(0).toUpperCase()}</div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.75rem; color: #92400e;">${n.nombre || n.usuario}</div>
+                                <div style="font-size: 0.68rem; color: #a16207; opacity: 0.8;">${n.creado_en}</div>
+                            </div>
+                        </div>
+                        <p style="margin: 0; font-size: 0.85rem; color: #78350f; line-height: 1.5; white-space: pre-wrap;">${n.texto}</p>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = `<div style="color: #dc2626; font-size: 0.85rem;">Error al cargar notas.</div>`;
+            }
+        }
 
+        async function saveNewNota(event) {
+            const btn = event.currentTarget;
+            const textarea = document.getElementById('modal-nueva-nota');
+            const texto = (textarea.value || '').trim();
+            if (!texto) {
+                textarea.focus();
+                return;
+            }
+            // Get reqId from the comments area dataset (still set when loading)
+            const commentsArea = document.getElementById('modal-comentarios');
+            const reqId = commentsArea ? commentsArea.dataset.reqId : null;
             if (!reqId) return;
 
             const originalHtml = btn.innerHTML;
@@ -1837,17 +1960,14 @@
             btn.innerHTML = '<i class="ph ph-circle-notch" style="animation: spin 1s linear infinite;"></i>';
 
             try {
-                const response = await fetch(`/presupuestos/api/requisicion/${reqId}/update-comentarios/`, {
+                const res = await fetch(`/presupuestos/api/requisicion/${reqId}/add-nota/`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrftoken
-                    },
-                    body: JSON.stringify({ comentarios })
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                    body: JSON.stringify({ texto })
                 });
-
-                const data = await response.json();
+                const data = await res.json();
                 if (data.status === 'success') {
+                    textarea.value = '';
                     btn.style.background = '#059669';
                     btn.innerHTML = '<i class="ph ph-check"></i>';
                     setTimeout(() => {
@@ -1855,13 +1975,13 @@
                         btn.innerHTML = originalHtml;
                         btn.disabled = false;
                         btn.style.opacity = '1';
-                    }, 1500);
+                    }, 1200);
+                    loadNotas(reqId);
                 } else {
-                    throw new Error(data.message || 'Error al guardar');
+                    throw new Error(data.message || 'Error');
                 }
-            } catch (error) {
-                console.error(error);
-                Swal.fire('Error', error.message, 'error');
+            } catch(e) {
+                Swal.fire('Error', e.message, 'error');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
                 btn.style.opacity = '1';
@@ -1870,6 +1990,9 @@
         // Context Menu Logic
         let currentCtxProviderId = null;
         let currentCtxRequisitionId = null;
+        let currentCtxItemId = null;
+        let currentCtxReqTotal = 0;
+        let currentCtxReqAmount = 0;
 
         function showContextMenu(e, providerId, name) {
             if (!providerId || providerId === 'None') return;
@@ -1894,9 +2017,12 @@
             e.stopPropagation();
         }
 
-        function showRequisitionContextMenu(e, reqId) {
+        function showRequisitionContextMenu(e, reqId, itemId, reqTotal, currentAmount) {
             e.preventDefault();
             currentCtxRequisitionId = reqId;
+            currentCtxItemId = itemId;
+            currentCtxReqTotal = parseFloat((reqTotal || '0').replace(/,/g, '')) || 0;
+            currentCtxReqAmount = parseFloat((currentAmount || '0').replace(/,/g, '')) || 0;
             const menu = document.getElementById('requisition-context-menu');
             
             let x = e.clientX;
@@ -1919,6 +2045,87 @@
                 openRequisitionModal(currentCtxRequisitionId);
             }
             hideContextMenus();
+        }
+
+        async function openModifyAmountModal() {
+            if (!currentCtxItemId) return;
+            hideContextMenus();
+
+            const total = currentCtxReqTotal;
+            if (total <= 0) {
+                Swal.fire('Atención', 'El total estimado de la requisición es 0 o no válido. No se puede calcular porcentaje.', 'warning');
+                return;
+            }
+
+            let initialPct = 100;
+            if (currentCtxReqAmount > 0) {
+                initialPct = Math.round((currentCtxReqAmount / total) * 100);
+            }
+            if (initialPct > 100) initialPct = 100;
+
+            const { value: formValues } = await Swal.fire({
+                title: 'Modificar Monto',
+                html: `
+                    <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <span style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Total de la Requisición</span>
+                        <div style="font-size: 1.5rem; font-weight: 800; color: #1e293b;">L. ${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                        <div id="pie-chart" style="width: 160px; height: 160px; border-radius: 50%; background: conic-gradient(#0a6ed1 ${initialPct}%, #e2e8f0 0); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 10px rgba(0,0,0,0.02); transition: background 0.1s;">
+                            <div style="width: 110px; height: 110px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.75rem; color: #0a6ed1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);" id="pie-pct">${initialPct}%</div>
+                        </div>
+                        <input type="range" id="swal-slider" min="0" max="100" value="${initialPct}" step="5" style="width: 80%; accent-color: #0a6ed1; cursor: pointer; height: 6px;">
+                        <div style="display: flex; flex-direction: column; width: 80%; align-items: center; gap: 0.5rem; background: #f8fafc; padding: 1rem; border-radius: 1rem; border: 1px solid #e2e8f0;">
+                            <label style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Nuevo Monto</label>
+                            <input id="swal-monto" class="form-control" type="text" style="width: 100%; text-align: center; font-weight: 800; color: #0a6ed1; font-size: 1.25rem; border: none; background: transparent; padding: 0;" value="${currentCtxReqAmount.toFixed(2)}">
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonColor: '#0a6ed1',
+                confirmButtonText: 'Aplicar',
+                cancelButtonText: 'Cancelar',
+                didOpen: () => {
+                    const slider = document.getElementById('swal-slider');
+                    const pieChart = document.getElementById('pie-chart');
+                    const piePct = document.getElementById('pie-pct');
+                    const montoInput = document.getElementById('swal-monto');
+
+                    const updatePie = (pct) => {
+                        pieChart.style.background = `conic-gradient(#0a6ed1 ${pct}%, #e2e8f0 0)`;
+                        piePct.textContent = `${pct}%`;
+                    };
+
+                    slider.addEventListener('input', (e) => {
+                        const pct = e.target.value;
+                        updatePie(pct);
+                        const calc = (total * pct) / 100;
+                        montoInput.value = calc.toFixed(2);
+                    });
+
+                    montoInput.addEventListener('input', (e) => {
+                        let val = parseFloat(e.target.value.replace(/,/g, '')) || 0;
+                        if (val > total) val = total;
+                        let pct = Math.round((val / total) * 100);
+                        slider.value = pct;
+                        updatePie(pct);
+                    });
+                },
+                preConfirm: () => {
+                    return document.getElementById('swal-monto').value.replace(/,/g, '');
+                }
+            });
+
+            if (formValues) {
+                handleAmountChange(currentCtxItemId, formValues);
+                const row = document.querySelector(`tr[data-item-id="${currentCtxItemId}"]`);
+                if (row) {
+                    const input = row.querySelector('.amount-input');
+                    if (input) {
+                        input.value = parseFloat(formValues).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    }
+                }
+            }
         }
 
         async function openBudgetEditModal() {
@@ -2237,6 +2444,33 @@
             const cleanValue = value.replace(/,/g, '');
             updateItem(id, 'monto_solicitado', cleanValue);
         }
+
+        function toggleStatusDropdown(el) {
+            const wasOpen = el.classList.contains('active');
+            document.querySelectorAll('.status-dropdown.active').forEach(d => d.classList.remove('active'));
+            if (!wasOpen) el.classList.add('active');
+        }
+
+        function changeHistorialStatus(itemId, newStatus, optionEl) {
+            const dropdown = optionEl.closest('.status-dropdown');
+            const badge = dropdown.querySelector('.badge');
+            const oldStatus = badge.textContent.trim();
+
+            // Actualizar visual inmediato
+            badge.textContent = newStatus;
+            badge.className = `badge badge-${newStatus}`;
+            dropdown.querySelectorAll('.status-option').forEach(o => o.classList.remove('active'));
+            optionEl.classList.add('active');
+            dropdown.classList.remove('active');
+
+            // Enviar al backend
+            updateItem(itemId, 'estatus', newStatus);
+        }
+
+        // Cerrar dropdowns al hacer clic fuera
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.status-dropdown.active').forEach(d => d.classList.remove('active'));
+        });
 
         async function updateItem(id, campo, valor) {
             try {
@@ -2624,6 +2858,9 @@
         <div class="context-menu-item" onclick="openBudgetEditModal()">
             <i class="ph ph-pencil-line"></i> Editar Presupuesto
         </div>
+        <div class="context-menu-item" onclick="openModifyAmountModal()">
+            <i class="ph ph-coins"></i> Modificar Monto
+        </div>
     </div>
 
     <div id="req-modal" class="modal-overlay" onclick="closeModal(event)">
@@ -2643,6 +2880,9 @@
                 </button>
             </div>
             <div class="modal-body" style="padding: 2rem; overflow-y: auto;">
+                <!-- Hidden input to track current requisicion id for notes -->
+                <input type="hidden" id="modal-comentarios" data-req-id="">
+
                 <!-- Header Edit Row -->
                 <div style="display: grid; grid-template-columns: 1.2fr 2fr 0.8fr 0.8fr auto; gap: 1.5rem; align-items: flex-end; background: white; padding: 1.75rem; border-radius: 1rem; border: 1px solid #e2e8f0; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                     <div class="form-group" style="min-width: unset;">
@@ -2692,12 +2932,22 @@
                         <!-- Left Side: Chart and Tables -->
                         <div style="display: flex; flex-direction: column; gap: 2.5rem;">
                             <!-- Chart Section -->
-                            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem;">
-                                <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                                    <i class="ph ph-chart-line-up" style="color: #6366f1; font-size: 1.25rem;"></i> LÍNEA DE TIEMPO DE PAGOS
-                                </h3>
-                                <div style="height: 250px;">
-                                    <canvas id="requisitionTimelineChart"></canvas>
+                            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+                                <div>
+                                    <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                                        <i class="ph ph-chart-line-up" style="color: #6366f1; font-size: 1.25rem;"></i> LÍNEA DE TIEMPO
+                                    </h3>
+                                    <div style="height: 250px;">
+                                        <canvas id="requisitionTimelineChart"></canvas>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; justify-content: center;">
+                                        <i class="ph ph-pie-chart" style="color: #059669; font-size: 1.25rem;"></i> PAGADO VS TOTAL
+                                    </h3>
+                                    <div style="height: 250px; display: flex; align-items: center; justify-content: center;">
+                                        <canvas id="requisitionPieChart"></canvas>
+                                    </div>
                                 </div>
                             </div>
 
@@ -2706,14 +2956,14 @@
                                 <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
                                     <i class="ph ph-package" style="color: #f59e0b; font-size: 1.25rem;"></i> DETALLE DE ARTÍCULOS
                                 </h3>
-                                <div style="border: 1px solid #e2e8f0; border-radius: 1rem; overflow: hidden; background: white;">
-                                    <table class="modal-table" style="margin-bottom: 0;">
+                                <div style="border: 1px solid #e2e8f0; border-radius: 1rem; background: white;">
+                                    <table class="modal-table" style="margin-top: 0; margin-bottom: 0; border-collapse: separate; border-spacing: 0;">
                                         <thead>
                                             <tr style="background: #f8fafc;">
-                                                <th style="padding: 1rem;">DESCRIPCIÓN</th>
+                                                <th style="padding: 1rem; border-top-left-radius: 1rem;">DESCRIPCIÓN</th>
                                                 <th style="text-align: center; padding: 1rem;">CANT.</th>
                                                 <th style="text-align: right; padding: 1rem;">COSTO UNIT.</th>
-                                                <th style="text-align: right; padding: 1rem;">SUBTOTAL</th>
+                                                <th style="text-align: right; padding: 1rem; border-top-right-radius: 1rem;">SUBTOTAL</th>
                                             </tr>
                                         </thead>
                                         <tbody id="modal-articulos-body"></tbody>
@@ -2726,15 +2976,15 @@
                                 <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
                                     <i class="ph ph-bank" style="color: #10b981; font-size: 1.25rem;"></i> HISTORIAL DE SOLICITUDES
                                 </h3>
-                                <div style="border: 1px solid #e2e8f0; border-radius: 1rem; overflow: hidden; background: white;">
-                                    <table class="modal-table" style="margin-bottom: 0;">
+                                <div style="border: 1px solid #e2e8f0; border-radius: 1rem; background: white;">
+                                    <table class="modal-table" style="margin-top: 0; margin-bottom: 0; border-collapse: separate; border-spacing: 0;">
                                         <thead>
                                             <tr style="background: #f8fafc;">
-                                                <th style="padding: 1rem;">FECHA</th>
+                                                <th style="padding: 1rem; border-top-left-radius: 1rem;">FECHA</th>
                                                 <th style="padding: 1rem;">SOLICITUD #</th>
                                                 <th style="padding: 1rem;">DESCRIPCIÓN</th>
                                                 <th style="text-align: right; padding: 1rem;">MONTO</th>
-                                                <th style="text-align: center; padding: 1rem;">ESTATUS</th>
+                                                <th style="text-align: center; padding: 1rem; border-top-right-radius: 1rem;">ESTATUS</th>
                                             </tr>
                                         </thead>
                                         <tbody id="modal-pagos-body"></tbody>
@@ -2743,22 +2993,33 @@
                             </div>
                         </div>
 
-                        <!-- Right Side: Comments and Sidebars -->
+                        <!-- Right Side: Notes Timeline and Sidebars -->
                         <div style="display: flex; flex-direction: column; gap: 2rem;">
-                            <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 1.25rem; padding: 1.75rem; position: sticky; top: 0; box-shadow: 0 10px 15px -3px rgba(251, 191, 36, 0.1);">
-                                <label style="display: block; font-size: 0.8rem; color: #92400e; font-weight: 800; margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
-                                    <i class="ph ph-note-pencil" style="font-size: 1.25rem;"></i> NOTAS INTERNAS
+                            <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 1.25rem; padding: 1.75rem; position: sticky; top: 0; box-shadow: 0 10px 15px -3px rgba(251, 191, 36, 0.1); display: flex; flex-direction: column; gap: 1.25rem;">
+                                <label style="font-size: 0.8rem; color: #92400e; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                                    <i class="ph ph-clock-countdown" style="font-size: 1.25rem;"></i> TIMELINE DE NOTAS
                                 </label>
-                                <textarea id="modal-comentarios" style="width: 100%; min-height: 280px; padding: 1rem; background: rgba(255, 255, 255, 0.5); border: 1px solid #fde68a; border-radius: 0.75rem; font-size: 0.95rem; line-height: 1.6; color: #92400e; resize: none; margin-bottom: 1.5rem;" placeholder="Escribe notas relevantes para el equipo de pagos..."></textarea>
-                                <button onclick="saveRequisitionComments(event)" id="modal-save-comments" style="width: 100%; background: #d97706; color: white; border: none; border-radius: 0.75rem; padding: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.75rem; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.3);">
-                                    <i class="ph ph-floppy-disk"></i> GUARDAR NOTAS
-                                </button>
+
+                                <!-- Timeline de notas existentes -->
+                                <div id="notas-timeline" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; padding-right: 0.25rem;">
+                                    <div style="text-align: center; color: #a16207; font-size: 0.85rem; padding: 1rem 0;">
+                                        <i class="ph ph-circle-notch" style="animation: spin 1s linear infinite;"></i> Cargando notas...
+                                    </div>
+                                </div>
+
+                                <!-- Nueva nota -->
+                                <div style="border-top: 1px solid #fde68a; padding-top: 1rem;">
+                                    <textarea id="modal-nueva-nota" style="width: 100%; min-height: 80px; padding: 0.75rem; background: rgba(255, 255, 255, 0.6); border: 1px solid #fde68a; border-radius: 0.75rem; font-size: 0.9rem; line-height: 1.5; color: #92400e; resize: vertical; font-family: inherit; box-sizing: border-box;" placeholder="Escribe una nueva nota..."></textarea>
+                                    <button onclick="saveNewNota(event)" id="modal-save-nota" style="width: 100%; margin-top: 0.75rem; background: #d97706; color: white; border: none; border-radius: 0.75rem; padding: 0.875rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.75rem; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.3); font-family: inherit; font-size: 0.875rem;">
+                                        <i class="ph ph-plus-circle"></i> AGREGAR NOTA
+                                    </button>
+                                </div>
                             </div>
                             
                             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1.25rem; padding: 1.5rem;">
                                 <h4 style="font-size: 0.75rem; font-weight: 800; color: #475569; margin-bottom: 1rem; text-transform: uppercase;">ACCIONES RÁPIDAS</h4>
                                 <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                    <button class="btn-add" style="background: white; color: #0369a1; border: 1px solid #e2e8f0; width: 100%; justify-content: center; font-weight: 600;">
+                                    <button class="btn-add" onclick="window.print()" style="background: white; color: #0369a1; border: 1px solid #e2e8f0; width: 100%; justify-content: center; font-weight: 600;">
                                         <i class="ph ph-printer"></i> Imprimir Detalle
                                     </button>
                                     <button class="btn-add" style="background: white; color: #dc2626; border: 1px solid #fee2e2; width: 100%; justify-content: center; font-weight: 600;">

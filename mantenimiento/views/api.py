@@ -295,9 +295,16 @@ def api_get_ot_detail(request, pk):
     """
     Retorna detalles de una OT para mostrar en modal (Dashboard/Cronograma).
     """
-    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'programacion', 'aviso').prefetch_related('activos'), pk=pk)
-    
+    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'programacion', 'aviso').prefetch_related('activos', 'archivos'), pk=pk)
+
     activos = [{"id": a.id, "nombre": a.nombre, "codigo": a.codigo_interno} for a in ot.activos.all()]
+    archivos = [{
+        "id": a.id,
+        "nombre": a.nombre,
+        "tipo": a.tipo,
+        "url": a.archivo.url,
+        "momento": a.momento,
+    } for a in ot.archivos.all()]
     
     data = {
         'id': ot.id,
@@ -314,7 +321,8 @@ def api_get_ot_detail(request, pk):
         'activos': activos,
         'status_color': get_status_color(ot.estado),
         'raw_status': ot.estado,
-        'status_list': [{'id': k, 'label': v} for k, v in OrdenTrabajo.ESTADO_CHOICES]
+        'status_list': [{'id': k, 'label': v} for k, v in OrdenTrabajo.ESTADO_CHOICES],
+        'archivos': archivos,
     }
     return JsonResponse({'status': 'success', 'ot': data})
 

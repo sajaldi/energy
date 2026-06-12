@@ -1,4 +1,4 @@
-{% load static %}
+{% load static l10n %}
 <!DOCTYPE html>
 <html lang="es">
 
@@ -782,7 +782,7 @@
                             <select id="tipo-padre" class="form-control" placeholder="Seleccione una categoría padre...">
                                 <option value="">-- Nodo Raíz (Sin Padre) --</option>
                                 {% for cat in todas_categorias %}
-                                <option value="{{ cat.id }}">{{ cat.temp_ruta_completa }}</option>
+                                <option value="{{ cat.id|unlocalize }}">{{ cat.temp_ruta_completa }}</option>
                                 {% endfor %}
                             </select>
                             <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Dejar vacío para crear una categoría principal.</div>
@@ -846,7 +846,7 @@
                     <select id="move-routine-tipo" class="form-control" placeholder="Seleccione una categoría...">
                         <option value="">-- Nodo Raíz (Sin Categoría) --</option>
                         {% for cat in todas_categorias %}
-                        <option value="{{ cat.id }}">{{ cat.temp_ruta_completa }}</option>
+                        <option value="{{ cat.id|unlocalize }}">{{ cat.temp_ruta_completa }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -1510,6 +1510,7 @@
         }
 
         function showRoutineDetail(id, isEdit = false) {
+            if (id) id = parseInt(id);
             currentRoutineId = id;
             if (typeof updateQrButton === 'function') updateQrButton();
             
@@ -1547,8 +1548,15 @@
 
             if (rLoader) rLoader.style.display = 'flex';
 
-            fetch('/mantenimiento/rutinas/dashboard/detail/' + id + '/')
-                .then(res => res.json())
+            const url = '/mantenimiento/rutinas/dashboard/detail/' + id + '/';
+            console.log('showRoutineDetail: fetching', url);
+            fetch(url)
+                .then(res => {
+                    if (!res.ok) {
+                        console.error('showRoutineDetail: HTTP error', res.status, res.statusText);
+                    }
+                    return res.json();
+                })
                 .then(data => {
                     if (rLoader) rLoader.style.display = 'none';
                     if (data.status === 'success') {
@@ -1575,12 +1583,19 @@
                             if (historyEmpty) historyEmpty.style.display = 'block';
                         }
                     } else {
-                        alert(data.message || "Error al cargar rutina");
+                        console.error('showRoutineDetail: API error', data);
+                        if (data.message && data.message === 'Rutina no encontrada') {
+                            showToast('Rutina no encontrada (ID ' + id + '). ¿Fue eliminada? Recargando...', 'error');
+                            setTimeout(() => location.reload(), 1500);
+                        } else {
+                            showToast(data.message || "Error al cargar rutina", 'error');
+                        }
                     }
                 })
                 .catch(err => {
-                    console.error("Error fetching routine:", err);
+                    console.error("showRoutineDetail: fetch error:", err);
                     if (rLoader) rLoader.style.display = 'none';
+                    showToast('Error de conexión al cargar la rutina', 'error');
                 });
         }
 
@@ -2145,7 +2160,7 @@
         function showDeletePasswordModal() {
             const modal = document.getElementById('deletePasswordModal');
             if (!modal) { showToast('Error: no se encontró el modal de confirmación', 'error'); return; }
-            document.getElementById('delete-pw-input').value = '';
+            document.getElementById('delete-password-input').value = '';
             const errEl = document.getElementById('delete-pw-error');
             if (errEl) errEl.style.display = 'none';
             const contentEl = document.getElementById('delete-pw-content');

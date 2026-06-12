@@ -30,7 +30,22 @@ class Tipo(models.Model):
         help_text="Servicio al que pertenece esta categoría (se hereda a rutinas e hijos)"
     )
     descripcion = models.TextField(blank=True, null=True)
+    kpis = models.ManyToManyField(
+        'servicios.KPI',
+        blank=True,
+        related_name='categorias_mantenimiento',
+        help_text="KPIs vinculados a esta categoría (se heredan a todas las rutinas hijas)"
+    )
     
+    def get_kpis_heredados(self):
+        """Retorna todos los KPIs de esta categoría + ancestros."""
+        qs = self.kpis.all()
+        curr = self.padre
+        while curr:
+            qs = qs | curr.kpis.all()
+            curr = curr.padre
+        return qs.distinct()
+
     def get_ruta_completa(self, separador=' → '):
         """
         Devuelve la ruta completa del tipo en la jerarquía.
@@ -1090,6 +1105,7 @@ class OrdenTrabajo(models.Model):
     programacion = models.ForeignKey(Programacion, on_delete=models.CASCADE, null=True, blank=True, related_name='ordenes')
     falla = models.ForeignKey(Falla, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_trabajo')
     planificacion = models.ForeignKey(PlanificacionMensual, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes', verbose_name="Plan Mensual")
+    proyecto = models.ForeignKey('proyectos.Proyecto', on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_trabajo', verbose_name="Proyecto")
     
     inicio_programado = models.DateTimeField(help_text="Fecha y hora de inicio prevista", db_index=True)
     fin_programado = models.DateTimeField(help_text="Fecha y hora de fin prevista")

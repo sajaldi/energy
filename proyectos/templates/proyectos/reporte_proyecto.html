@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Reporte: {{ proyecto.nombre }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; padding: 20px; }
+    .page { max-width: 210mm; margin: 0 auto; }
+    @media print { body { padding: 0; } .no-print { display: none !important; } }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    h2 { font-size: 14px; margin: 20px 0 10px; border-bottom: 2px solid #0070f2; padding-bottom: 4px; }
+    h3 { font-size: 12px; margin: 12px 0 6px; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+    th, td { text-align: left; padding: 5px 8px; border: 1px solid #d0d0d0; font-size: 10px; }
+    th { background: #f0f4f8; font-weight: 600; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+    .header-info p { font-size: 11px; color: #555; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 10px 0; }
+    .card { border: 1px solid #d0d0d0; border-radius: 6px; padding: 10px; }
+    .card .val { font-size: 18px; font-weight: 700; }
+    .card .lbl { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .ot-card { border: 1px solid #d0d0d0; border-radius: 6px; padding: 10px; margin: 8px 0; page-break-inside: avoid; }
+    .ot-card h3 { margin-top: 0; }
+    .ot-fotos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .ot-fotos img { width: calc(33.333% - 4px); height: auto; aspect-ratio: 4/3; object-fit: cover; border-radius: 4px; border: 1px solid #d0d0d0; }
+    .req-table td:nth-child(3) { text-align: right; }
+    .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #d0d0d0; font-size: 9px; color: #888; text-align: center; }
+    .btn-print { display: inline-block; padding: 8px 20px; background: #0070f2; color: #fff; text-decoration: none; border-radius: 4px; font-size: 12px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="page">
+    <div class="no-print">
+        <a href="javascript:window.print()" class="btn-print"><i class="fas fa-print"></i> Imprimir / PDF</a>
+        <a href="{% url 'proyectos:detalle_fiori' proyecto.id %}" style="margin-left:8px;padding:8px 20px;background:#6c757d;color:#fff;text-decoration:none;border-radius:4px;font-size:12px;">← Volver</a>
+    </div>
+
+    <div class="header">
+        <div>
+            <h1>{{ proyecto.nombre }}</h1>
+            <div class="header-info">
+                <p>Código: {{ proyecto.codigo|default:"-" }} | Estado: {{ proyecto.get_estado_display }}</p>
+                <p>Responsable: {% if proyecto.responsable %}{{ proyecto.responsable.get_full_name|default:proyecto.responsable.username }}{% else %}-{% endif %}</p>
+                <p>Ubicación: {{ proyecto.ubicacion.nombre|default:"-" }}</p>
+                <p>Fechas: {{ proyecto.fecha_inicio|date:"d/m/Y"|default:"-" }} → {{ proyecto.fecha_fin_estimada|date:"d/m/Y"|default:"-" }}</p>
+                <p>Generado: {% now "d/m/Y H:i" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <h2>Resumen</h2>
+    <div class="grid">
+        <div class="card">
+            <div class="lbl">Actividades</div>
+            <div class="val">{{ actividades|length }}</div>
+        </div>
+        <div class="card">
+            <div class="lbl">Órdenes de Trabajo</div>
+            <div class="val">{{ ordenes|length }}</div>
+        </div>
+        <div class="card">
+            <div class="lbl">Presupuesto</div>
+            <div class="val">L {{ total_requisiciones|floatformat:2 }}</div>
+        </div>
+    </div>
+
+    <div class="grid">
+        {% for estado, count in estados_act.items %}
+        <div class="card">
+            <div class="lbl">{{ estado }}</div>
+            <div class="val">{{ count }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h2>Descripción</h2>
+    <p style="white-space:pre-wrap;">{{ proyecto.descripcion|default:"Sin descripción." }}</p>
+
+    <h2>Cronograma de Actividades</h2>
+    {% if actividades %}
+    <table>
+        <thead>
+            <tr>
+                <th>Orden</th>
+                <th>Nombre</th>
+                <th>Estado</th>
+                <th>Prioridad</th>
+                <th>Inicio</th>
+                <th>Fin</th>
+                <th>Avance</th>
+                <th>Responsable</th>
+                <th>Predecesora</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for act in actividades %}
+            <tr>
+                <td>{{ act.orden }}</td>
+                <td>{{ act.nombre }}</td>
+                <td><span class="badge" style="background:
+                    {% if act.estado == 'PENDIENTE' %}#f1f5f9;color:#475569;
+                    {% elif act.estado == 'EN_PROGRESO' %}#fef3c7;color:#92400e;
+                    {% elif act.estado == 'COMPLETADA' %}#dcfce7;color:#166534;
+                    {% else %}#fee2e2;color:#991b1b;
+                    {% endif %}">{{ act.get_estado_display }}</span></td>
+                <td>{{ act.get_prioridad_display }}</td>
+                <td>{{ act.fecha_inicio|date:"d/m/Y"|default:"-" }}</td>
+                <td>{{ act.fecha_fin|date:"d/m/Y"|default:"-" }}</td>
+                <td>{{ act.porcentaje_avance }}%</td>
+                <td>{% if act.asignado_a %}{{ act.asignado_a.get_full_name|default:act.asignado_a.username }}{% else %}-{% endif %}</td>
+                <td>{{ act.predecesora.nombre|default:"-" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if actividades %}
+    <h3>Diagrama de Gantt</h3>
+    <div style="overflow-x:auto;margin:8px 0;">
+        <div style="display:flex;margin-left:160px;font-size:9px;color:#555;border-bottom:2px solid #333;padding:4px 0;">
+            {% for day_offset in gantt_markers %}
+            <div style="flex:1;text-align:center;font-weight:600;color:#34495e;">Día {{ day_offset }}</div>
+            {% endfor %}
+        </div>
+        {% for act in actividades %}
+        <div style="display:flex;align-items:center;height:22px;border-bottom:1px solid #e0e0d0;">
+            <div style="width:160px;text-align:right;padding-right:8px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#000;">{{ act.nombre }}</div>
+            <div style="flex:1;position:relative;height:16px;background:#f4f6f9;border-radius:3px;">
+                {% if act.gantt_width_pct > 0 %}
+                <div style="position:absolute;top:0;left:{{ act.gantt_left_pct }}%;width:{{ act.gantt_width_pct }}%;height:100%;border-radius:3px;background:
+                    {% if act.estado == 'COMPLETADA' %}#10b981
+                    {% elif act.estado == 'EN_PROGRESO' %}#f59e0b
+                    {% elif act.estado == 'BLOQUEADA' %}#ef4444
+                    {% else %}#94a3b8{% endif %};box-shadow:0 1px 2px rgba(0,0,0,0.15);"></div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% else %}
+    <p>No hay actividades registradas.</p>
+    {% endif %}
+
+    <h2>Órdenes de Trabajo</h2>
+    {% for ot in ordenes %}
+    <div class="ot-card">
+        <h3>{{ ot.codigo_de_orden }}</h3>
+        <table style="margin:0;">
+            <tr>
+                <td><strong>Tipo:</strong> {{ ot.get_tipo_display }}</td>
+                <td><strong>Estado:</strong> {{ ot.get_estado_display }}</td>
+                <td><strong>Prioridad:</strong> {{ ot.get_prioridad_display }}</td>
+            </tr>
+            <tr>
+                <td><strong>Técnico:</strong> {% if ot.tecnico %}{{ ot.tecnico.get_full_name|default:ot.tecnico.username }}{% else %}-{% endif %}</td>
+                <td><strong>Inicio:</strong> {{ ot.inicio_programado|date:"d/m/Y H:i"|default:"-" }}</td>
+                <td><strong>Fin:</strong> {{ ot.fin_programado|date:"d/m/Y H:i"|default:"-" }}</td>
+            </tr>
+        </table>
+        <p style="margin-top:4px;"><strong>Notas:</strong> {{ ot.notas|default:ot.descripcion_corta|default:"Sin notas" }}</p>
+        {% with archivos_imagen=ot.archivos.all %}
+        {% if archivos_imagen %}
+        <div class="ot-fotos">
+            {% for a in archivos_imagen %}
+            {% if a.tipo == 'IMAGEN' %}
+            <img src="{{ a.archivo.url }}" alt="{{ a.nombre }}" title="{{ a.nombre }}">
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+    </div>
+    {% empty %}
+    <p>No hay órdenes de trabajo vinculadas.</p>
+    {% endfor %}
+
+    <h2>Requisiciones (Costos)</h2>
+    {% if requisiciones %}
+    <table class="req-table">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Asunto</th>
+                <th>Monto</th>
+                <th>Estado</th>
+                <th>Prioridad</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for req in requisiciones %}
+            <tr>
+                <td>{{ req.cr8ca_requisicion }}</td>
+                <td>{{ req.cr8ca_asunto }}</td>
+                <td>L {{ req.cr8ca_totalenarticulos|floatformat:2 }}</td>
+                <td>{{ req.get_estado_requisicion_display }}</td>
+                <td>{{ req.get_cr8ca_prioridad_display }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="font-weight:700;">
+                <td colspan="2">Total</td>
+                <td>L {{ total_requisiciones|floatformat:2 }}</td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
+    </table>
+    {% else %}
+    <p>No hay requisiciones vinculadas.</p>
+    {% endif %}
+
+    <div class="footer">
+        Reporte generado el {% now "d/m/Y H:i" %} — {{ proyecto.nombre }}
+    </div>
+</div>
+</body>
+</html>

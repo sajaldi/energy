@@ -369,6 +369,7 @@ def api_requisicion_detalle(request, pk):
     pagos = []
     for item in requisicion.items_pago.all().order_by('-creado_en'):
         pagos.append({
+            'item_id': item.pk,
             'solicitud_id': item.solicitud.pk,
             'descripcion': item.descripcion,
             'monto': float(item.monto_solicitado),
@@ -406,21 +407,56 @@ def api_requisicion_detalle(request, pk):
 
 @login_required
 @csrf_exempt
-def api_update_requisicion_comentarios(request, pk):
+def api_add_nota_requisicion(request, pk):
     """
-    Actualiza los comentarios de una requisición vía AJAX.
+    Agrega una nueva nota al timeline de la requisición.
     """
     if request.method == 'POST':
         try:
-            from .models import Requisicion
+            from .models import Requisicion, NotaRequisicion
             data = json.loads(request.body)
+            texto = data.get('texto', '').strip()
+            if not texto:
+                return JsonResponse({'status': 'error', 'message': 'La nota no puede estar vacía.'}, status=400)
             requisicion = get_object_or_404(Requisicion, pk=pk)
-            requisicion.cr8ca_comentarios = data.get('comentarios', '')
-            requisicion.save()
-            return JsonResponse({'status': 'success'})
+            nota = NotaRequisicion.objects.create(
+                requisicion=requisicion,
+                texto=texto,
+                usuario=request.user
+            )
+            return JsonResponse({
+                'status': 'success',
+                'nota': {
+                    'id': nota.pk,
+                    'texto': nota.texto,
+                    'usuario': nota.usuario.username if nota.usuario else 'Sistema',
+                    'nombre': nota.usuario.get_full_name() or nota.usuario.username if nota.usuario else 'Sistema',
+                    'creado_en': nota.creado_en.strftime('%d/%m/%Y %H:%M'),
+                }
+            })
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'error', 'message': 'Solo POST'}, status=405)
+
+
+@login_required
+def api_get_notas_requisicion(request, pk):
+    """
+    Retorna todas las notas del timeline de una requisición.
+    """
+    from .models import Requisicion, NotaRequisicion
+    requisicion = get_object_or_404(Requisicion, pk=pk)
+    notas = NotaRequisicion.objects.filter(requisicion=requisicion).order_by('-creado_en')
+    data = []
+    for nota in notas:
+        data.append({
+            'id': nota.pk,
+            'texto': nota.texto,
+            'usuario': nota.usuario.username if nota.usuario else 'Sistema',
+            'nombre': nota.usuario.get_full_name() or nota.usuario.username if nota.usuario else 'Sistema',
+            'creado_en': nota.creado_en.strftime('%d/%m/%Y %H:%M'),
+        })
+    return JsonResponse({'notas': data})
 
 @login_required
 def exportar_solicitud_pago_excel(request, pk):

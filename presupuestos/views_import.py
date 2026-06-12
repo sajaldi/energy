@@ -359,52 +359,55 @@ def requisicion_pdf(request, pk):
 @login_required
 @mobile_permission_required('finanzas')
 def requisicion_dashboard(request):
-    """Vista de dashboard  para Requisiciones"""
+    """Vista de dashboard para Requisiciones — filtrada por departamento del usuario"""
     from .models import Requisicion
     from django.db.models import Sum, Count, Q
     from django.utils import timezone
     from datetime import timedelta
 
-    # Obtener parámetro de búsqueda
     search_query = request.GET.get('q', '').strip()
 
-    # Métricas básicas
-    total_reqs = Requisicion.objects.count()
-    total_monto = Requisicion.objects.aggregate(total=Sum('cr8ca_totalenarticulos'))['total'] or 0
-    
-    # Requisiciones recientes (últimos 30 días)
+    # Departamento del usuario logueado
+    dept = None
+    if hasattr(request.user, 'perfil'):
+        dept = request.user.perfil.departamento
+    if dept:
+        dept_user_ids = dept.usuarios.values_list('usuario_id', flat=True)
+        dept_q = Q(usuario_solicitante_id__in=dept_user_ids)
+    else:
+        dept_q = Q(usuario_solicitante=request.user)
+
+    # Base queryset filtrada por departamento
+    base_qs = Requisicion.objects.filter(dept_q)
+
+    # Métricas
+    total_reqs = base_qs.count()
+    total_monto = base_qs.aggregate(total=Sum('cr8ca_totalenarticulos'))['total'] or 0
+
     hace_30_dias = timezone.now().date() - timedelta(days=30)
-    reqs_recientes = Requisicion.objects.filter(Q(fecha__gte=hace_30_dias) | Q(createdon__gte=hace_30_dias)).count()
-    
-    # Desglose por prioridad
-    prioridad_data = Requisicion.objects.values('cr8ca_prioridad').annotate(count=Count('cr8ca_prioridad')).order_by('cr8ca_prioridad')
-    
-    # Últimas requisiciones con búsqueda y ordenamiento por fecha (más nuevas primero)
-    requisiciones_query = Requisicion.objects.all()
-    
-    # Aplicar búsqueda si existe
+    reqs_recientes = base_qs.filter(Q(fecha__gte=hace_30_dias) | Q(createdon__gte=hace_30_dias)).count()
+
+    prioridad_data = base_qs.values('cr8ca_prioridad').annotate(count=Count('cr8ca_prioridad')).order_by('cr8ca_prioridad')
+
+    # Últimas requisiciones con búsqueda
+    query = base_qs
     if search_query:
-        requisiciones_query = requisiciones_query.filter(
+        query = query.filter(
             Q(cr8ca_requisicion__icontains=search_query) |
             Q(cr8ca_asunto__icontains=search_query) |
             Q(cr8ca_motivo__icontains=search_query)
         )
-    
-    # Ordenar por fecha de solicitud (más nuevas primero)
-    # Usar fecha si existe, sino createdon
-    ultimas_requisiciones = requisiciones_query.order_by('-fecha', '-createdon')[:20]
+    ultimas_requisiciones = query.order_by('-fecha', '-createdon')[:20]
 
-    # Estadísticas por Departamento (Solicitante)
-    stats_departamento = Requisicion.objects.values('usuario_solicitante__perfil__departamento__nombre') \
+    # Estadísticas del departamento (solo el del usuario)
+    stats_departamento = base_qs.values('usuario_solicitante__perfil__departamento__nombre') \
         .annotate(total=Sum('cr8ca_totalenarticulos'), count=Count('cr8ca_requisicion')) \
         .order_by('-total')
 
     # Mis requisiciones (usuario actual)
-    mis_requisiciones = Requisicion.objects.none()
-    if request.user.is_authenticated:
-        mis_requisiciones = Requisicion.objects.filter(
-            Q(usuario_solicitante=request.user) | Q(usuario_en_nombre_de=request.user)
-        ).order_by('-fecha', '-createdon')[:15]
+    mis_requisiciones = base_qs.filter(
+        Q(usuario_solicitante=request.user) | Q(usuario_en_nombre_de=request.user)
+    ).order_by('-fecha', '-createdon')[:15]
 
     context = {
         'total_reqs': total_reqs,
@@ -415,7 +418,8 @@ def requisicion_dashboard(request):
         'stats_departamento': stats_departamento,
         'mis_requisiciones': mis_requisiciones,
         'search_query': search_query,
-        'title': 'Dashboard de Requisiciones'
+        'title': 'Dashboard de Requisiciones',
+        'dept': dept,
     }
     return render(request, 'admin/presupuestos/requisicion/dashboard.html', context)
 

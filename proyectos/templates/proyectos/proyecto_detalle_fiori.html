@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+{% load l10n %}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +13,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
     <!-- SweetAlert2 for Toasts -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <style>
         :root {
             --fiori-primary: #0070f2;
@@ -245,6 +249,7 @@
         
         .clickable-row { cursor: pointer; transition: background 0.2s; }
         .clickable-row:hover { background: #f0f7ff !important; }
+        .swal-image-full { max-width: 100%; height: auto; max-height: 80vh; object-fit: contain; }
     </style>
 </head>
 <body id="pageBody">
@@ -259,6 +264,9 @@
                 <span class="sap-header-subtitle">{{ proyecto.codigo }} | {% if proyecto.ubicacion %}{{ proyecto.ubicacion.nombre }}{% else %}Sin Ubicación{% endif %}</span>
             </div>
             <div class="sap-header-actions">
+                <a href="{% url 'proyectos:reporte' proyecto.id %}" class="sap-btn" style="text-decoration:none;background:white;color:var(--fiori-primary);border:1px solid var(--fiori-primary);margin-right:8px;">
+                    <i class="fas fa-file-pdf"></i> Reporte
+                </a>
                 <button class="sap-btn sap-btn-secondary" id="editBtn" onclick="toggleEdit()">
                     <i class="fas fa-edit"></i> Editar
                 </button>
@@ -286,6 +294,8 @@
         <div class="sap-tab" data-target="actividades">Cronograma / Actividades</div>
         <div class="sap-tab" data-target="gantt-section">Diagrama de Gantt</div>
         <div class="sap-tab" data-target="documentos">Documentos vinculados</div>
+        <div class="sap-tab" data-target="visor">Órdenes de Trabajo</div>
+        <div class="sap-tab" data-target="financiero">Requisiciones</div>
     </nav>
 
     <!-- SECTION: GENERAL -->
@@ -309,11 +319,11 @@
                 </div>
                 <div class="sap-field">
                     <label>Responsable</label>
-                    <span class="view-mode">{{ proyecto.responsable.get_full_name|default:proyecto.responsable.username }}</span>
+                    <span class="view-mode">{% if proyecto.responsable %}{{ proyecto.responsable.get_full_name|default:proyecto.responsable.username }}{% else %}Sin asignar{% endif %}</span>
                     <select class="edit-mode" name="responsable_id">
                         <option value="">Sin Asignar</option>
                         {% for user in usuarios %}
-                        <option value="{{ user.id }}" {% if proyecto.responsable.id == user.id %}selected{% endif %}>{{ user.get_full_name|default:user.username }}</option>
+                        <option value="{{ user.id }}" {% if proyecto.responsable_id == user.id %}selected{% endif %}>{{ user.get_full_name|default:user.username }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -363,11 +373,12 @@
                         <th>Prioridad</th>
                         <th>Responsable</th>
                         <th>Fecha Fin</th>
+                        <th>Órdenes</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for act in actividades %}
-                    <tr class="actividad-row" data-id="{{ act.id }}">
+                    <tr class="actividad-row view-mode" data-id="{{ act.id|unlocalize }}" onclick="openActividadModal({{ act.id|unlocalize }})" style="cursor:pointer;">
                         <td>
                             <span class="view-mode"><strong>{{ act.nombre }}</strong></span>
                             <div class="edit-mode" style="display: flex; gap: 0.5rem; align-items: center;">
@@ -412,11 +423,11 @@
                             </select>
                         </td>
                         <td>
-                            <span class="view-mode">{{ act.asignado_a.username|default:"-" }}</span>
+                            <span class="view-mode">{{ act.asignado_a|default:"-" }}</span>
                             <select class="edit-mode" name="act_asignado">
                                 <option value="">Sin Asignar</option>
                                 {% for user in usuarios %}
-                                <option value="{{ user.id }}" {% if act.asignado_a.id == user.id %}selected{% endif %}>{{ user.username }}</option>
+                                <option value="{{ user.id }}" {% if act.asignado_a_id == user.id %}selected{% endif %}>{{ user.username }}</option>
                                 {% endfor %}
                             </select>
                         </td>
@@ -424,9 +435,18 @@
                             <span class="view-mode">{{ act.fecha_fin|default:"-" }}</span>
                             <input type="date" class="edit-mode" name="act_fecha_fin" value="{{ act.fecha_fin|date:'Y-m-d' }}">
                         </td>
+                        <td>
+                            <span class="view-mode">
+                                {% with ots=act.ordenes_trabajo.all %}
+                                {% if ots %}
+                                {% for ot in ots %}<span class="priority-badge" style="background:#eff6ff;color:#1d4ed8;font-size:0.75rem;margin-right:4px;">{{ ot.codigo_de_orden }}</span>{% endfor %}
+                                {% else %}-{% endif %}
+                                {% endwith %}
+                            </span>
+                        </td>
                     </tr>
                     {% empty %}
-                    <tr id="empty-row"><td colspan="5" style="text-align: center; color: var(--fiori-text-secondary);">No hay actividades registradas.</td></tr>
+                    <tr id="empty-row"><td colspan="8" style="text-align: center; color: var(--fiori-text-secondary);">No hay actividades registradas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -564,6 +584,129 @@
                 </div>
             </div>
             <div id="gantt_chart" style="width: 100%; overflow: auto;"></div>
+        </div>
+    </section>
+
+    <!-- SECTION: ÓRDENES DE TRABAJO -->
+    <section id="visor" class="sap-section">
+        <div class="sap-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--fiori-border);">
+                <div class="sap-card-title" style="margin: 0;">Órdenes de Trabajo</div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="sap-btn sap-btn-secondary" onclick="linkExistingOT({{ proyecto.id|unlocalize }})">
+                        <i class="fas fa-link"></i> Vincular existente
+                    </button>
+                    <a href="/admin/mantenimiento/ordentrabajo/add/" target="_blank" class="sap-btn sap-btn-primary" style="text-decoration: none;">
+                        <i class="fas fa-plus"></i> Nueva OT
+                    </a>
+                </div>
+            </div>
+            {% with ordenes=proyecto.ordenes_trabajo.all %}
+            {% if ordenes %}
+            <div style="overflow-x: auto;">
+                <table class="sap-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            <th>Prioridad</th>
+                            <th>Técnico</th>
+                            <th>Inicio</th>
+                            <th>Fin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ot in ordenes %}
+                        <tr class="view-mode" onclick="viewOTDetail({{ ot.id|unlocalize }})" style="cursor:pointer;">
+                            <td style="font-weight: 600;">{{ ot.codigo_de_orden }}</td>
+                            <td>{{ ot.get_tipo_display }}</td>
+                            <td>
+                                <span class="priority-badge" style="
+                                    {% if ot.estado == 'ESPERA' %}background:#f1f5f9; color:#475569;{% endif %}
+                                    {% if ot.estado == 'PROGRAMADA' %}background:#eff6ff; color:#1d4ed8;{% endif %}
+                                    {% if ot.estado == 'EJECUCION' %}background:#fef3c7; color:#92400e;{% endif %}
+                                    {% if ot.estado == 'REALIZADA' %}background:#dcfce7; color:#166534;{% endif %}
+                                    {% if ot.estado == 'CANCELADA' %}background:#fee2e2; color:#991b1b;{% endif %}
+                                ">{{ ot.get_estado_display }}</span>
+                            </td>
+                            <td>
+                                <span class="priority-badge" style="
+                                    {% if ot.prioridad == 'BAJA' %}background:#f1f5f9; color:#475569;{% endif %}
+                                    {% if ot.prioridad == 'MEDIA' %}background:#eff6ff; color:#1d4ed8;{% endif %}
+                                    {% if ot.prioridad == 'ALTA' %}background:#fef3c7; color:#92400e;{% endif %}
+                                    {% if ot.prioridad == 'CRITICA' %}background:#fee2e2; color:#991b1b;{% endif %}
+                                ">{{ ot.get_prioridad_display }}</span>
+                            </td>
+                            <td>{% if ot.tecnico %}{{ ot.tecnico.get_full_name|default:ot.tecnico.username }}{% else %}-{% endif %}</td>
+                            <td>{{ ot.inicio_programado|date:"d/m/Y H:i"|default:"-" }}</td>
+                            <td>{{ ot.fin_programado|date:"d/m/Y H:i"|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="padding: 40px; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 8px; text-align: center; color: #94a3b8;">
+                <span style="font-size: 2rem; display: block; margin-bottom: 10px;">🔧</span>
+                No hay órdenes de trabajo vinculadas a este proyecto.
+            </div>
+            {% endif %}
+            {% endwith %}
+        </div>
+    </section>
+
+    <!-- SECTION: FINANCIERO -->
+    <section id="financiero" class="sap-section">
+        <div class="sap-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--fiori-border);">
+                <div class="sap-card-title" style="margin: 0;">Requisiciones</div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="sap-btn sap-btn-secondary" onclick="linkExistingRequisicion({{ proyecto.id|unlocalize }})">
+                        <i class="fas fa-link"></i> Vincular existente
+                    </button>
+                </div>
+            </div>
+            {% with requisiciones=proyecto.requisiciones.all %}
+            {% if requisiciones %}
+            <div style="overflow-x: auto;">
+                <table class="sap-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Asunto</th>
+                            <th>Monto</th>
+                            <th>Estado</th>
+                            <th>Prioridad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requisiciones %}
+                        <tr>
+                            <td style="font-weight: 600;">{{ req.cr8ca_requisicion }}</td>
+                            <td>{{ req.cr8ca_asunto }}</td>
+                            <td>L {{ req.cr8ca_totalenarticulos|floatformat:2 }}</td>
+                            <td>
+                                <span class="priority-badge" style="
+                                    {% if req.estado_requisicion == 'BORRADOR' %}background:#f1f5f9; color:#475569;{% endif %}
+                                    {% if req.estado_requisicion == 'PENDIENTE' %}background:#fef3c7; color:#92400e;{% endif %}
+                                    {% if req.estado_requisicion == 'AUTORIZADO' %}background:#dcfce7; color:#166534;{% endif %}
+                                    {% if req.estado_requisicion == 'RECHAZADO' or req.estado_requisicion == 'CANCELADO' %}background:#fee2e2; color:#991b1b;{% endif %}
+                                ">{{ req.get_estado_requisicion_display }}</span>
+                            </td>
+                            <td>{{ req.get_cr8ca_prioridad_display }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="padding: 40px; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 8px; text-align: center; color: #94a3b8;">
+                <span style="font-size: 2rem; display: block; margin-bottom: 10px;">💰</span>
+                No hay requisiciones vinculadas a este proyecto.
+            </div>
+            {% endif %}
+            {% endwith %}
         </div>
     </section>
 
@@ -1255,6 +1398,376 @@
                 }
             } catch (err) {
                 Swal.fire('Error', 'No se pudo eliminar', 'error');
+            }
+        }
+
+        let actividadOTIds = [];
+
+        function escHT(v) { return (v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;').replace(/\$/g,'&#36;'); }
+
+        async function openActividadModal(actId) {
+            try {
+                const resp = await fetch('{% url "proyectos:activity_detail_api" 0 %}'.replace('0', actId));
+                const data = await resp.json();
+                if (data.status !== 'success') {
+                    Swal.fire('Error', 'No se pudo cargar la actividad', 'error');
+                    return;
+                }
+                const a = data.actividad;
+                actividadOTIds = a.ordenes_trabajo.map(ot => ot.id);
+                window._actOTs = a.ordenes_trabajo.map(ot => ({ id: ot.id, codigo_de_orden: ot.codigo_de_orden }));
+
+                // Remove old modal if exists
+                const old = document.getElementById('actividadModal');
+                if (old) old.remove();
+
+                const estadoOptions = ['PENDIENTE', 'EN_PROGRESO', 'COMPLETADA', 'BLOQUEADA'];
+                const estadoLabels = { PENDIENTE: 'Pendiente', EN_PROGRESO: 'En Progreso', COMPLETADA: 'Completada', BLOQUEADA: 'Bloqueada' };
+                const prioridadOptions = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
+                const prioridadLabels = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica' };
+                const selE = (v) => v ? 'selected' : '';
+                const es = escHT;
+
+                const modalHtml = `
+                <div class="modal fade" id="actividadModal" tabindex="-1" data-bs-backdrop="static">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content" style="border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+                            <div class="modal-header" style="background:#0070f2;color:white;border-radius:8px 8px 0 0;padding:1rem 1.5rem;">
+                                <h5 class="modal-title" style="font-weight:600;"><i class="fas fa-tasks"></i> Editar Actividad</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body" style="padding:1.5rem;">
+                                <div class="sap-field">
+                                    <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Nombre</label>
+                                    <input id="act-name" class="form-control" value="${es(a.nombre)}" style="border:1px solid #d9d9d9;border-radius:4px;">
+                                </div>
+                                <div class="sap-field" style="margin-top:12px;">
+                                    <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Descripción</label>
+                                    <textarea id="act-desc" class="form-control" rows="3" style="border:1px solid #d9d9d9;border-radius:4px;">${es(a.descripcion)}</textarea>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;">
+                                    <div class="sap-field">
+                                        <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Estado</label>
+                                        <select id="act-estado" class="form-select" style="border:1px solid #d9d9d9;border-radius:4px;">
+                                            ${estadoOptions.map(opt => `<option value="${opt}" ${selE(a.estado === opt)}>${estadoLabels[opt]}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div class="sap-field">
+                                        <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Prioridad</label>
+                                        <select id="act-prioridad" class="form-select" style="border:1px solid #d9d9d9;border-radius:4px;">
+                                            ${prioridadOptions.map(opt => `<option value="${opt}" ${selE(a.prioridad === opt)}>${prioridadLabels[opt]}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <div class="sap-field">
+                                        <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Avance %</label>
+                                        <input id="act-avance" class="form-control" type="number" min="0" max="100" value="${a.porcentaje_avance}" style="border:1px solid #d9d9d9;border-radius:4px;">
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+                                    <div class="sap-field">
+                                        <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Fecha Inicio</label>
+                                        <input id="act-fecha-inicio" class="form-control" type="date" value="${a.fecha_inicio || ''}" style="border:1px solid #d9d9d9;border-radius:4px;">
+                                    </div>
+                                    <div class="sap-field">
+                                        <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Fecha Fin</label>
+                                        <input id="act-fecha-fin" class="form-control" type="date" value="${a.fecha_fin || ''}" style="border:1px solid #d9d9d9;border-radius:4px;">
+                                    </div>
+                                </div>
+                                <div style="margin-top:16px;padding-top:12px;border-top:1px solid #e0e0e0;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                        <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Órdenes de Trabajo</label>
+                                        <button class="sap-btn" style="padding:4px 12px;font-size:0.8rem;background:#0070f2;color:white;border:none;border-radius:4px;cursor:pointer;" onclick="addOTToActividad()">
+                                            <i class="fas fa-plus"></i> Vincular OT
+                                        </button>
+                                    </div>
+                                    <div id="act-ot-list" style="max-height:200px;overflow-y:auto;">
+                                        ${renderActOTList()}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer" style="border-top:1px solid #e0e0e0;padding:1rem 1.5rem;">
+                                <button type="button" class="sap-btn" style="padding:8px 20px;background:white;color:#32363a;border:1px solid #d9d9d9;border-radius:4px;cursor:pointer;" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="sap-btn" style="padding:8px 20px;background:#0070f2;color:white;border:none;border-radius:4px;cursor:pointer;" onclick="saveActividadModal(${actId})">
+                                    <i class="fas fa-save"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                const modal = new bootstrap.Modal(document.getElementById('actividadModal'));
+                modal.show();
+            } catch (err) {
+                console.error('openActividadModal error:', err);
+                Swal.fire('Error', 'No se pudo cargar la actividad (' + err.message + ')', 'error');
+            }
+        }
+
+        function renderActOTList() {
+            if (!actividadOTIds.length) return '<em style="color:#94a3b8;">Sin órdenes vinculadas</em>';
+            return actividadOTIds.map((id, idx) => {
+                const ot = window._actOTs ? window._actOTs.find(o => o.id === id) : null;
+                const label = ot ? ot.codigo_de_orden : 'OT #' + id;
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-bottom:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;">
+                    <span style="font-size:0.85rem;font-weight:500;color:#1d4ed8;">${label}</span>
+                    <button style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;" onclick="removeActOT(${id})" title="Desvincular">&times;</button>
+                </div>`;
+            }).join('');
+        }
+
+        function refreshActOTList() {
+            const container = document.getElementById('act-ot-list');
+            if (container) container.innerHTML = renderActOTList();
+        }
+
+        async function addOTToActividad() {
+            const { value: searchTerm } = await Swal.fire({
+                title: 'Buscar OT',
+                input: 'text',
+                inputLabel: 'Código, descripción o ubicación',
+                inputPlaceholder: 'Escriba al menos 2 caracteres...',
+                showCancelButton: true,
+                confirmButtonText: 'Buscar',
+                cancelButtonText: 'Cancelar',
+                inputValidator: v => v && v.length >= 2 ? null : 'Escriba al menos 2 caracteres'
+            });
+            if (!searchTerm) return;
+            try {
+                const resp = await fetch('{% url "mantenimiento:api_search_ordenes" %}?q=' + encodeURIComponent(searchTerm));
+                const data = await resp.json();
+                if (!data.results || data.results.length === 0) {
+                    Swal.fire('Sin resultados', 'No se encontraron OT con ese criterio.', 'info');
+                    return;
+                }
+                const choices = {};
+                data.results.forEach(r => { choices[r.id] = r.text; });
+                const { value: otId } = await Swal.fire({
+                    title: 'Seleccionar OT',
+                    input: 'select',
+                    inputOptions: choices,
+                    inputPlaceholder: 'Seleccione una OT...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Vincular',
+                    cancelButtonText: 'Cancelar'
+                });
+                if (!otId || actividadOTIds.includes(parseInt(otId))) {
+                    if (otId) Swal.fire('Aviso', 'Esa OT ya está vinculada', 'info');
+                    return;
+                }
+                actividadOTIds.push(parseInt(otId));
+                if (!window._actOTs) window._actOTs = [];
+                const sel = data.results.find(r => r.id == otId);
+                if (sel && !window._actOTs.find(o => o.id == otId)) {
+                    window._actOTs.push({ id: parseInt(otId), codigo_de_orden: sel.text.split(' - ')[0] });
+                }
+                refreshActOTList();
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo buscar la OT', 'error');
+            }
+        }
+
+        function removeActOT(otId) {
+            actividadOTIds = actividadOTIds.filter(id => id !== otId);
+            refreshActOTList();
+        }
+
+        async function saveActividadModal(actId) {
+            const formValues = {
+                nombre: document.getElementById('act-name').value,
+                descripcion: document.getElementById('act-desc').value,
+                estado: document.getElementById('act-estado').value,
+                prioridad: document.getElementById('act-prioridad').value,
+                fecha_inicio: document.getElementById('act-fecha-inicio').value || null,
+                fecha_fin: document.getElementById('act-fecha-fin').value || null,
+                porcentaje_avance: parseInt(document.getElementById('act-avance').value) || 0,
+                ordenes_trabajo_ids: actividadOTIds,
+            };
+            try {
+                const saveResp = await fetch('{% url "proyectos:actualizar_actividad_api" 0 %}'.replace('0', actId), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify(formValues)
+                });
+                const saveResult = await saveResp.json();
+                if (saveResult.status === 'success') {
+                    bootstrap.Modal.getInstance(document.getElementById('actividadModal')).hide();
+                    Swal.fire({ icon: 'success', title: 'Guardado', timer: 1500, showConfirmButton: false });
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    Swal.fire('Error', saveResult.message, 'error');
+                }
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo guardar', 'error');
+            }
+        }
+
+        async function viewOTDetail(otId) {
+            try {
+                const resp = await fetch('/mantenimiento/api/ot/' + otId + '/detalle/');
+                if (!resp.ok) {
+                    if (resp.status === 404) {
+                        Swal.fire('No encontrada', 'La OT #' + otId + ' ya no existe en la base de datos.', 'warning');
+                    } else {
+                        Swal.fire('Error', 'Error del servidor (' + resp.status + ')', 'error');
+                    }
+                    return;
+                }
+                const data = await resp.json();
+                if (data.status !== 'success') {
+                    Swal.fire('Error', 'No se pudo cargar la OT', 'error');
+                    return;
+                }
+                const ot = data.ot;
+                const activosHtml = ot.activos.length
+                    ? '<ul style="margin:0;padding-left:1.2rem;">' + ot.activos.map(a => '<li>' + a.nombre + ' (' + a.codigo + ')</li>').join('') + '</ul>'
+                    : '<em>Sin activos</em>';
+                const fotosHtml = ot.archivos && ot.archivos.length
+                    ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">' + ot.archivos.filter(f => f.tipo === 'IMAGEN').map(f =>
+                        '<a href="javascript:void(0)" onclick="openImageModal(\'' + f.url + '\',\'' + f.nombre.replace(/'/g,"\\'") + '\')" style="display:block;width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid #e2e8f0;">' +
+                        '<img src="' + f.url + '" alt="' + f.nombre + '" style="width:100%;height:100%;object-fit:cover;"></a>'
+                      ).join('') + '</div>'
+                    : '';
+                const docsHtml = ot.archivos && ot.archivos.filter(f => f.tipo !== 'IMAGEN').length
+                    ? '<div style="margin-top:8px;">' + ot.archivos.filter(f => f.tipo !== 'IMAGEN').map(f =>
+                        '<a href="' + f.url + '" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;margin:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;text-decoration:none;color:#1d4ed8;font-size:0.85rem;">' +
+                        '<i class="fas fa-file"></i> ' + f.nombre + '</a>'
+                      ).join('') + '</div>'
+                    : '';
+                Swal.fire({
+                    title: 'OT ' + ot.codigo,
+                    width: 650,
+                    html: `
+                        <div style="text-align:left;">
+                            <p><strong>Tipo:</strong> ${ot.tipo}</p>
+                            <p><strong>Estado:</strong> <span class="priority-badge" style="background:${ot.status_color};color:white;padding:2px 8px;border-radius:4px;">${ot.estado}</span></p>
+                            <p><strong>Prioridad:</strong> ${ot.prioridad}</p>
+                            <p><strong>Rutina/Aviso:</strong> ${ot.rutina}</p>
+                            <p><strong>Ubicación:</strong> ${ot.ubicacion}</p>
+                            <p><strong>Técnico:</strong> ${ot.tecnico}</p>
+                            <p><strong>Inicio:</strong> ${ot.inicio}</p>
+                            <p><strong>Fin:</strong> ${ot.fin}</p>
+                            <p><strong>Activos:</strong></p>
+                            ${activosHtml}
+                            <p><strong>Notas:</strong><br>${ot.notas}</p>
+                            ${fotosHtml || docsHtml ? '<hr style="margin:12px 0;"><p><strong>Archivos adjuntos:</strong></p>' : ''}
+                            ${fotosHtml}
+                            ${docsHtml}
+                        </div>
+                    `,
+                    showCloseButton: true,
+                    confirmButtonText: 'Cerrar'
+                });
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo cargar el detalle', 'error');
+            }
+        }
+
+        function openImageModal(url, nombre) {
+            Swal.fire({
+                imageUrl: url,
+                imageAlt: nombre,
+                title: nombre,
+                width: '90%',
+                showCloseButton: true,
+                showConfirmButton: false,
+                customClass: { image: 'swal-image-full' }
+            });
+        }
+
+        async function linkExistingOT(proyectoId) {
+            const { value: searchTerm } = await Swal.fire({
+                title: 'Buscar OT',
+                input: 'text',
+                inputLabel: 'Código, descripción o ubicación',
+                inputPlaceholder: 'Escriba al menos 2 caracteres...',
+                showCancelButton: true,
+                confirmButtonText: 'Buscar',
+                cancelButtonText: 'Cancelar',
+                inputValidator: v => v && v.length >= 2 ? null : 'Escriba al menos 2 caracteres'
+            });
+            if (!searchTerm) return;
+            try {
+                const resp = await fetch('{% url "mantenimiento:api_search_ordenes" %}?q=' + encodeURIComponent(searchTerm));
+                const data = await resp.json();
+                if (!data.results || data.results.length === 0) {
+                    Swal.fire('Sin resultados', 'No se encontraron OT con ese criterio.', 'info');
+                    return;
+                }
+                const choices = {};
+                data.results.forEach(r => { choices[r.id] = r.text; });
+                const { value: otId } = await Swal.fire({
+                    title: 'Seleccionar OT',
+                    input: 'select',
+                    inputOptions: choices,
+                    inputPlaceholder: 'Seleccione una OT...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Vincular',
+                    cancelButtonText: 'Cancelar'
+                });
+                if (!otId) return;
+                const linkResp = await fetch('/proyectos/proyecto/' + proyectoId + '/link-ot/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ ot_id: parseInt(otId) })
+                });
+                const result = await linkResp.json();
+                if (result.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Vinculada', text: 'OT ' + result.codigo + ' vinculada al proyecto.', timer: 2000, showConfirmButton: false });
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    Swal.fire('Error', result.message, 'error');
+                }
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo vincular la OT', 'error');
+            }
+        }
+
+        async function linkExistingRequisicion(proyectoId) {
+            const { value: searchTerm } = await Swal.fire({
+                title: 'Buscar Requisición',
+                input: 'text',
+                inputLabel: 'Código, asunto o proveedor',
+                inputPlaceholder: 'Escriba al menos 2 caracteres...',
+                showCancelButton: true,
+                confirmButtonText: 'Buscar',
+                cancelButtonText: 'Cancelar',
+                inputValidator: v => v && v.length >= 2 ? null : 'Escriba al menos 2 caracteres'
+            });
+            if (!searchTerm) return;
+            try {
+                const resp = await fetch('{% url "presupuestos:api_search_requisiciones" %}?q=' + encodeURIComponent(searchTerm));
+                const data = await resp.json();
+                if (!data.results || data.results.length === 0) {
+                    Swal.fire('Sin resultados', 'No se encontraron requisiciones con ese criterio.', 'info');
+                    return;
+                }
+                const choices = {};
+                data.results.forEach(r => { choices[r.id] = r.text; });
+                const { value: reqId } = await Swal.fire({
+                    title: 'Seleccionar Requisición',
+                    input: 'select',
+                    inputOptions: choices,
+                    inputPlaceholder: 'Seleccione una requisición...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Vincular',
+                    cancelButtonText: 'Cancelar'
+                });
+                if (!reqId) return;
+                const linkResp = await fetch('/proyectos/proyecto/' + proyectoId + '/link-requisicion/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ requisicion_id: reqId })
+                });
+                const result = await linkResp.json();
+                if (result.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Vinculada', text: 'Requisición ' + result.codigo + ' vinculada al proyecto.', timer: 2000, showConfirmButton: false });
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    Swal.fire('Error', result.message, 'error');
+                }
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo vincular la requisición', 'error');
             }
         }
     </script>
