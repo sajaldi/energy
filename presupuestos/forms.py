@@ -107,6 +107,12 @@ class ArticuloRequisicionForm(forms.ModelForm):
             self.fields['id'].required = False
             self.fields['id'].widget = forms.HiddenInput()
 
+        # Material: readonly display (hidden field for PK, text for SKU)
+        if 'material' in self.fields:
+            self.fields['material'].widget = forms.HiddenInput()
+            if self.instance.pk and self.instance.material_id:
+                self.initial['material'] = self.instance.material_id
+
 ArticuloFormSet = forms.inlineformset_factory(
     Requisicion, ArticuloRequisicion,
     form=ArticuloRequisicionForm,
