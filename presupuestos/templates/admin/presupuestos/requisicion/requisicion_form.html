@@ -493,7 +493,7 @@
                         <tbody>
                             {% for art in item.articulos %}
                             <tr style="border-bottom: 1px solid var(--border);">
-                                <td style="padding: 12px 10px; font-weight: 500;">{{ art.material.nombre|default:"-" }}
+                                <td style="padding: 12px 10px; font-weight: 500;">{{ art.material.sku|default:"-" }}
                                 </td>
                                 <td style="padding: 12px 10px; color: var(--text-muted);">{{ art.cr8ca_articulo }}</td>
                                 <td style="padding: 12px 10px; text-align: center;">{{ art.cr8ca_cantidad }}</td>
@@ -515,12 +515,22 @@
                 {% endfor %}
 
                 <div
-                    style="margin-top: 30px; padding: 20px; background: var(--bg-body); border-radius: 8px; border: 2px solid var(--primary); display: flex; justify-content: flex-end; align-items: center; gap: 40px;">
-                    <div style="text-align: right;">
-                        <span
-                            style="display: block; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total
-                            Estimado Requisición</span>
-                        <span style="font-size: 2rem; font-weight: 800; color: var(--primary-dark);">L. {{ instance.total_estimado|default:0|floatformat:2 }}</span>
+                    style="margin-top: 30px; padding: 20px; background: var(--bg-body); border-radius: 8px; border: 2px solid var(--primary);">
+                    <div style="display: flex; justify-content: flex-end; align-items: center; gap: 60px;">
+                        <div style="text-align: right;">
+                            <span style="display: block; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Subtotal</span>
+                            <span style="font-size: 1.3rem; font-weight: 700; color: var(--text-main);">L. {{ instance.total_estimado|default:0|floatformat:2 }}</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="display: block; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">ISV</span>
+                            <span style="font-size: 1.3rem; font-weight: 700; color: var(--text-main);">L. {{ instance.isv|default:0|floatformat:2 }}</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span
+                                style="display: block; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total
+                                Estimado Requisición</span>
+                            <span style="font-size: 2rem; font-weight: 800; color: var(--primary-dark);">L. {{ instance.total_estimado|default:0|add:instance.isv|default:0|floatformat:2 }}</span>
+                        </div>
                     </div>
                 </div>
                 {% else %}
