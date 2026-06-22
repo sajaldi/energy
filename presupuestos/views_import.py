@@ -145,6 +145,7 @@ def requisicion_unlock_edit(request, pk):
 @login_required
 def requisicion_upsert(request, pk=None):
     """Vista para crear o editar requisiciones usando un Wizard"""
+    from decimal import Decimal
     from .models import Requisicion
     from .forms import RequisicionForm, ArticuloFormSet, DocumentoFormSet
     from .webhooks import notify_requisicion_finalizada
@@ -215,6 +216,14 @@ def requisicion_upsert(request, pk=None):
         elif current_step == 2:
             if (articulo_formset.is_valid() or going_back):
                 articulo_formset.save()
+                # Save ISV directly from POST to avoid full form validation
+                isv_value = request.POST.get('isv')
+                if isv_value is not None:
+                    try:
+                        instance.isv = Decimal(isv_value.replace(',', ''))
+                        instance.save(update_fields=['isv'])
+                    except (ValueError, TypeError):
+                        pass
                 success = True
             else:
                 pass
