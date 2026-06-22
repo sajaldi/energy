@@ -481,7 +481,7 @@
                                     <span class="badge badge-warning"><i class="ph ph-clock"></i> Abierto</span>
                                 {% endif %}
                             </td>
-                            <td style="text-align: center;">
+                            <td style="text-align: center;" id="correo-cierre-cell-{{ t.id_unlocalized }}">
                                 {% if t.correo_cierre %}
                                     <i class="ph ph-check-circle" style="color: #1e7e34; font-size: 1.2rem;" title="Correo de cierre enviado"></i>
                                 {% else %}
@@ -765,6 +765,7 @@
                             </div>
                             <div class="tm-field" style="align-self: center;"><span class="tm-label">Proveedor Deductiva</span><span id="tm-proveedor" class="tm-value">—</span></div>
                             <div class="tm-field" style="align-self: center;"><span class="tm-label">Estado Notificación</span><span id="tm-estado-notif" class="tm-value">—</span></div>
+                            <div class="tm-field" style="align-self: center;"><span class="tm-label">Correo de Cierre</span><span id="tm-correo-cierre-detail" class="tm-value">—</span></div>
                         </div>
                         <!-- Evidencias Preview -->
                         <div style="border-top: 1px solid #f1f5f9; padding-top: 18px;">
@@ -840,6 +841,16 @@
                             <label class="tm-edit-label"><i class="ph ph-tag"></i> Clasificación Falla Final</label>
                             <input type="text" id="te-clas-final" class="tm-edit-input" placeholder="Clasificación...">
                         </div>
+                        <!-- Correo Cierre Enviado -->
+                        <div class="tm-edit-group" style="display: flex; align-items: flex-start; justify-content: flex-end; flex-direction: column;">
+                            <label class="tm-edit-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: auto; margin-bottom: 6px;">
+                                <input type="checkbox" id="te-correo-cierre" style="width: 18px; height: 18px; cursor: pointer; accent-color: #0078d4;">
+                                <span style="font-size: 0.72rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Correo Cierre Enviado</span>
+                            </label>
+                            <button id="btn-verify-correo-cierre" onclick="verifyCorreoCierre()" style="padding: 5px 14px; border-radius: 6px; border: 1px solid #0284c7; background: #f0f9ff; color: #0369a1; font-weight: 600; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f9ff'">
+                                <i class="ph ph-magnifying-glass" style="font-size:0.85rem;"></i> Verificar
+                            </button>
+                        </div>
                     </div>
                     <!-- Campos de texto largo -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px;">
@@ -865,6 +876,33 @@
         </div>
     </div>
 
+    <!-- ===== MODAL DE PREVIEW CORREO DE CIERRE ===== -->
+    <div id="email-preview-modal" style="display: none; position: fixed; inset: 0; background: rgba(10,15,30,0.65); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 1rem;">
+        <div style="background: #fff; width: 100%; max-width: 900px; max-height: 92vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.25); transform: scale(1); transition: transform 0.22s cubic-bezier(0.16,1,0.3,1);">
+            <!-- Header -->
+            <div style="display: flex; align-items: center; gap: 12px; padding: 16px 24px; background: linear-gradient(135deg, #055f28, #0a8438); color: white; flex-shrink: 0;">
+                <i class="ph ph-check-circle" style="font-size: 1.6rem;"></i>
+                <div style="flex: 1;">
+                    <div style="font-weight: 800; font-size: 1.05rem; letter-spacing: 0.02em;">SI SE ENCONTRÓ UN CORREO DE CIERRE</div>
+                    <div style="font-size: 0.8rem; opacity: 0.85; margin-top: 2px;">Correo de cierre localizado — Vista previa del contenido</div>
+                </div>
+                <button onclick="closeEmailPreview()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 34px; height: 34px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.35)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <!-- Email content iframe -->
+            <div style="flex: 1; overflow: hidden; background: #f1f5f9; position: relative;">
+                <iframe id="email-preview-iframe" style="width: 100%; height: 100%; border: none; background: #fff;" sandbox="allow-same-origin"></iframe>
+            </div>
+            <!-- Footer -->
+            <div style="display: flex; justify-content: flex-end; padding: 12px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; flex-shrink: 0;">
+                <button onclick="closeEmailPreview()" style="padding: 9px 22px; border-radius: 6px; border: none; background: #055f28; color: white; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="ph ph-check"></i> Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <style>
         .tm-field { display: flex; flex-direction: column; gap: 3px; }
         .tm-label { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
@@ -879,6 +917,7 @@
         .tm-edit-input:focus { border-color: #0078d4; box-shadow: 0 0 0 3px rgba(0,120,212,0.1); }
         .tm-edit-textarea { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #1e293b; background: #fff; box-sizing: border-box; resize: vertical; transition: border-color 0.15s, box-shadow 0.15s; outline: none; font-family: inherit; line-height: 1.6; }
         .tm-edit-textarea:focus { border-color: #0078d4; box-shadow: 0 0 0 3px rgba(0,120,212,0.1); }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 
     {{ chart_data_json|json_script:"chart-data-script" }}
@@ -1136,6 +1175,12 @@
                 notifEl.textContent = d.cierre_enviado ? 'Notificado (PA)' : 'Pendiente de envío';
                 notifEl.style.color = d.cierre_enviado ? '#16a34a' : '#92400e';
 
+                const correoEl = document.getElementById('tm-correo-cierre-detail');
+                if (correoEl) {
+                    correoEl.textContent = d.correo_cierre ? 'Enviado' : 'Pendiente';
+                    correoEl.style.color = d.correo_cierre ? '#1e7e34' : '#64748b';
+                }
+
                 // Evidencias
                 document.getElementById('tm-ev-count').textContent = d.num_evidencias;
                 const evGrid = document.getElementById('tm-ev-grid');
@@ -1223,6 +1268,7 @@
             document.getElementById('te-comentarios').value = d.comentarios_internos || '';
             document.getElementById('te-deductiva').value = d.deductiva || '0';
             document.getElementById('te-clas-final').value = d.clasificacion_falla_final !== '—' ? d.clasificacion_falla_final : '';
+            document.getElementById('te-correo-cierre').checked = d.correo_cierre || false;
 
             // Populate proveedor select
             const selProv = document.getElementById('te-proveedor');
@@ -1302,6 +1348,48 @@
             }
         }
 
+        async function verifyCorreoCierre() {
+            if (!_tmCurrentTicketId) return;
+            const btn = document.getElementById('btn-verify-correo-cierre');
+            btn.disabled = true;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation: spin 1s linear infinite;"></i> Verificando...';
+
+            try {
+                const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+                const resp = await fetch(`/callcenter/ticket/${_tmCurrentTicketId}/verify-correo-cierre/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                });
+                const result = await resp.json();
+
+                document.getElementById('te-correo-cierre').checked = result.correo_cierre;
+
+                if (result.success && result.email_html) {
+                    // Show email preview modal with the rendered HTML
+                    const iframe = document.getElementById('email-preview-iframe');
+                    iframe.srcdoc = result.email_html;
+                    document.getElementById('email-preview-modal').style.display = 'flex';
+                } else if (result.success && result.correo_cierre) {
+                    Swal.fire({ icon: 'success', title: 'Verificado', text: result.message, timer: 2000, showConfirmButton: false });
+                } else if (!result.success && result.correo_cierre) {
+                    Swal.fire({ icon: 'info', title: 'Correo encontrado', text: result.message, timer: 2000, showConfirmButton: false });
+                } else {
+                    Swal.fire({ icon: 'warning', title: 'No se encontró', text: result.message, timer: 3000, showConfirmButton: false });
+                }
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        function closeEmailPreview() {
+            document.getElementById('email-preview-modal').style.display = 'none';
+            document.getElementById('email-preview-iframe').srcdoc = '';
+        }
+
         async function saveTmEdit() {
             if (!_tmCurrentTicketId) return;
             const btn = document.getElementById('tm-save-btn');
@@ -1319,6 +1407,7 @@
                 usuario_responsable: document.getElementById('te-usuario').value,
                 clasificacion_falla_final: document.getElementById('te-clas-final').value,
                 diagnostico_reportado: document.getElementById('te-diagnostico-catalogo').value,
+                correo_cierre: document.getElementById('te-correo-cierre').checked,
             };
 
             try {
@@ -1337,6 +1426,16 @@
                     // Refresh view panel
                     refreshTmViewFromData(_tmCurrentData);
                     exitEditMode();
+
+                    // Update ticket list table cell dynamically
+                    const cell = document.getElementById(`correo-cierre-cell-${_tmCurrentTicketId}`);
+                    if (cell) {
+                        if (_tmCurrentData.correo_cierre) {
+                            cell.innerHTML = '<i class="ph ph-check-circle" style="color: #1e7e34; font-size: 1.2rem;" title="Correo de cierre enviado"></i>';
+                        } else {
+                            cell.innerHTML = '<i class="ph ph-x-circle" style="color: #ccc; font-size: 1.2rem;" title="Pendiente"></i>';
+                        }
+                    }
 
                     // Toast
                     Swal.fire({ icon: 'success', title: 'Guardado', text: 'Ticket actualizado correctamente.', timer: 2000, showConfirmButton: false });
@@ -1382,6 +1481,18 @@
             // Financiero
             document.getElementById('tm-deductiva').textContent = `$${parseFloat(d.deductiva).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
             document.getElementById('tm-proveedor').textContent = d.proveedor_deductiva;
+            
+            const notifEl = document.getElementById('tm-estado-notif');
+            if (notifEl) {
+                notifEl.textContent = d.cierre_enviado ? 'Notificado (PA)' : 'Pendiente de envío';
+                notifEl.style.color = d.cierre_enviado ? '#16a34a' : '#92400e';
+            }
+            
+            const correoEl = document.getElementById('tm-correo-cierre-detail');
+            if (correoEl) {
+                correoEl.textContent = d.correo_cierre ? 'Enviado' : 'Pendiente';
+                correoEl.style.color = d.correo_cierre ? '#1e7e34' : '#64748b';
+            }
         }
 
 
@@ -1405,6 +1516,10 @@
         // Close modal on backdrop click
         document.getElementById('ticket-modal').addEventListener('click', function(e) {
             if (e.target === this) closeTicketModal();
+        });
+
+        document.getElementById('email-preview-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeEmailPreview();
         });
 
         // --- Lógica del Menú Contextual para Restricción de Acceso ---

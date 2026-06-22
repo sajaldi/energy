@@ -15,6 +15,8 @@ urlpatterns = [
     # Gestión de materiales
     path('materiales/crear/', views.crear_material, name='crear_material'),
     path('materiales/asignar/', views.asignar_materiales, name='asignar_materiales'),
+    path('materiales/pendientes/', views.materiales_pendientes, name='materiales_pendientes'),
+    path('materiales/crear-desde-solicitud-ajax/', views.crear_material_desde_solicitud_ajax, name='crear_material_desde_solicitud_ajax'),
 
     # Almacenes e Inventario
     path('almacenes/', views.lista_almacenes, name='lista_almacenes'),

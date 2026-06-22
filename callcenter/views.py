@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .tasks import sync_tickets_task
+from .tasks import sync_tickets_task, sync_tickets_automatico_task
 from django.contrib.admin.views.decorators import staff_member_required
 from core.decorators import mobile_permission_required
 import logging
@@ -139,6 +139,17 @@ def trigger_bulk_analysis_n8n(request):
         messages.error(request, f"Error al iniciar el análisis masivo: {e}")
     return redirect('admin:callcenter_solicitudticket_changelist')
     
+@staff_member_required
+def trigger_sync_tickets_automatico(request):
+    try:
+        sync_tickets_automatico_task.delay()
+        messages.success(request, "Robot de sincronización automática iniciado en segundo plano (sin filtro de fechas).")
+    except Exception as e:
+        logger.error(f"Error al iniciar sincronización automática: {e}")
+        messages.error(request, f"Error al iniciar sincronización automática: {e}")
+    return redirect('admin:callcenter_solicitudticket_changelist')
+
+
 @staff_member_required
 def trigger_sync_by_folios(request):
     """
@@ -2004,6 +2015,81 @@ def webhook_correo_cierre_callback(request):
         logger.error(f"Error en webhook_correo_cierre_callback: {e}", exc_info=True)
         return JsonResponse({'error': str(e)}, status=500)
 
+@csrf_exempt
+def verify_correo_cierre_ajax(request, ticket_id):
+    """
+    AJAX: Verifica si el correo de cierre fue enviado mediante Power Automate.
+    Envía POST a Power Automate con el texto del ticket y actualiza el campo correo_cierre.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+
+    ticket_id = int(str(ticket_id).replace(',', ''))
+    ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
+
+    payload = {
+        "folio": str(ticket.folio or ticket.id_solicitud),
+        "descripcion": (ticket.solicitud_descripcion or "").replace('\n', ' '),
+        "falla": str(ticket.falla_descripcion or ""),
+        "diagnostico": (ticket.diagnostico or "").replace('\n', ' '),
+        "actividades": (ticket.actividades or "").replace('\n', ' '),
+        "observaciones": (ticket.observaciones or "").replace('\n', ' '),
+        "solicitante": str(ticket.solicitante or ""),
+        "servicio": str(ticket.servicio or ""),
+        "ubicacion": str(ticket.area or ""),
+    }
+
+    url_power_automate = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/205583600db14b76903401412d892f84/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=id_YHFshTRVSbjxUeImzeLg5broSX2g2yvPjOer8gUs"
+
+    logger.info(f"Verificando correo de cierre para ticket {ticket.folio} via Power Automate...")
+
+    try:
+        response = requests.post(url_power_automate, json=payload, timeout=30)
+        if response.status_code in [200, 202]:
+            email_html = None
+            try:
+                body_data = response.json()
+                if isinstance(body_data, dict):
+                    email_html = body_data.get('email_html') or body_data.get('html') or body_data.get('content')
+                    if not email_html and 'found' in body_data:
+                        email_html = body_data.get('email_html')
+                else:
+                    email_html = str(body_data)
+            except (json.JSONDecodeError, ValueError):
+                email_html = response.text if response.text.strip() else None
+
+            if email_html:
+                ticket.correo_cierre = True
+                ticket.save(update_fields=['correo_cierre'])
+                logger.info(f"Correo de cierre ENCONTRADO para ticket {ticket.folio}")
+                return JsonResponse({
+                    'success': True,
+                    'correo_cierre': True,
+                    'email_html': email_html,
+                    'message': 'SI SE ENCONTRO un correo de cierre'
+                })
+            else:
+                logger.warning(f"Power Automate no devolvió HTML para ticket {ticket.folio}")
+                return JsonResponse({
+                    'success': False,
+                    'correo_cierre': False,
+                    'message': 'Power Automate respondió OK pero sin contenido HTML'
+                })
+        else:
+            logger.warning(f"Power Automate respondió con código {response.status_code} para ticket {ticket.folio}")
+            return JsonResponse({
+                'success': False,
+                'correo_cierre': False,
+                'message': f'Power Automate respondió con código {response.status_code}'
+            })
+    except Exception as e:
+        logger.error(f"Error verificando correo de cierre para ticket {ticket.folio}: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'correo_cierre': False,
+            'message': str(e)
+        })
+
 @staff_member_required
 def get_enlace_details_ajax(request, enlace_id):
     """Retorna los datos de Institución y Ubicación de un enlace."""
@@ -2476,6 +2562,7 @@ def ticket_detail_ajax(request, ticket_id):
         # Estado
         'abierto': not bool(ticket.fecha_cierre),
         'cierre_enviado': bool(ticket.cierre_enviado),
+        'correo_cierre': bool(ticket.correo_cierre),
 
         # Personas
         'solicitante': ticket.solicitante or '—',
@@ -2660,6 +2747,10 @@ def ticket_quick_edit_ajax(request, ticket_id):
     if falla_id:
         from .models import FallaTicket
         ticket.falla_reportada = FallaTicket.objects.filter(id=falla_id).first()
+
+    # Correo de cierre
+    if 'correo_cierre' in body:
+        ticket.correo_cierre = bool(body.get('correo_cierre'))
 
     ticket.save()
     return JsonResponse({'success': True, 'message': 'Ticket actualizado correctamente.'})

@@ -1,0 +1,182 @@
+{% extends 'almacen/base.html' %}
+{% load static %}
+{% block title %}Materiales Pendientes | Almacén{% endblock %}
+{% block header %}
+<div class="flex-row">
+    <a href="{% url 'almacen:dashboard' %}" class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></a>
+    <h1 style="font-size:20px;">Materiales x Crear</h1>
+    <span class="badge badge-pending" style="font-size:12px; padding:4px 12px;">{{ total_pendientes }}</span>
+</div>
+{% endblock %}
+{% block content %}
+<div class="fade-in">
+
+    {% regroup agrupados.items by 1.requisicion.estado_requisicion as grouped_by_status %}
+
+    {% for key, grupo in agrupados.items %}
+    {% with g=grupo %}
+    <div class="card" style="padding:0; margin-bottom:20px; overflow:hidden;">
+        <!-- Header Requisición -->
+        <div style="background:linear-gradient(135deg,#1e293b,#334155); color:white; padding:16px 18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-weight:800; font-size:16px;">{{ g.requisicion.cr8ca_requisicion }}</div>
+                    <div style="font-size:12px; opacity:0.75; margin-top:3px;">
+                        {{ g.requisicion.createdon|date:"d M Y" }} &middot;
+                        {{ g.requisicion.usuario_solicitante.get_full_name|default:g.requisicion.usuario_solicitante.username }}
+                    </div>
+                </div>
+                <div class="badge" style="background:rgba(255,255,255,0.2); color:white; font-size:11px; padding:4px 10px;">
+                    {{ g.requisicion.get_estado_requisicion_display|default:g.requisicion.estado_requisicion }}
+                </div>
+            </div>
+        </div>
+        <!-- Artículos -->
+        <div style="padding:10px 0;">
+            {% for item in g.articulos %}
+            {% with art=item.articulo %}
+            <div class="articulo-pendiente" data-articulo-id="{{ art.cr8ca_itemderequisicionid }}"
+                style="padding:14px 18px; {% if not forloop.last %}border-bottom:1px solid #f1f5f9;{% endif %}">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; color:#1e293b; font-size:14px;">{{ item.nombre_sugerido }}</div>
+                        <div style="font-size:12px; color:#64748b; margin-top:3px;">
+                            Cant: <strong>{{ art.cr8ca_cantidad }}</strong>
+                            {% if art.cr8ca_costoaproximado %}
+                            &middot; ${{ art.cr8ca_costoaproximado }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="mostrarFormulario('{{ art.cr8ca_itemderequisicionid }}')"
+                        style="padding:8px 14px; font-size:12px; white-space:nowrap;">
+                        <ion-icon name="add-circle-outline" style="font-size:16px;"></ion-icon> Crear
+                    </button>
+                </div>
+                <!-- Formulario oculto -->
+                <div id="form-{{ art.cr8ca_itemderequisicionid }}" style="display:none; margin-top:12px; padding:16px; background:#f8fafc; border-radius:12px;">
+                    <input type="hidden" name="articulo_id" value="{{ art.cr8ca_itemderequisicionid }}">
+                    <div class="form-group">
+                        <label style="font-size:12px; font-weight:600; color:#475569;">Nombre</label>
+                        <input type="text" class="form-control" name="nombre" value="{{ item.nombre_sugerido }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:12px; font-weight:600; color:#475569;">SKU</label>
+                        <input type="text" class="form-control" name="sku" placeholder="Ej: CB-010" required>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="form-group">
+                            <label style="font-size:12px; font-weight:600; color:#475569;">Categoría</label>
+                            <select class="form-control" name="categoria_id">
+                                <option value="">Sin categoría</option>
+                                {% for cat in categorias %}
+                                <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:12px; font-weight:600; color:#475569;">Unidad</label>
+                            <select class="form-control" name="unidad_medida_id">
+                                <option value="">Seleccionar...</option>
+                                {% for um in unidades_medida %}
+                                <option value="{{ um.id }}">{{ um.nombre }} ({{ um.abreviatura }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:12px; font-weight:600; color:#475569;">Descripción (opcional)</label>
+                        <textarea class="form-control" name="descripcion" rows="2" placeholder="Detalles adicionales..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:12px; font-weight:600; color:#475569;">Stock mínimo</label>
+                        <input type="number" class="form-control" name="stock_minimo" value="0" step="0.01">
+                    </div>
+                    <button type="button" class="btn btn-success" onclick="crearMaterial(this)" style="width:100%; padding:14px; font-weight:700; font-size:14px;">
+                        <ion-icon name="checkmark-circle-outline"></ion-icon> Crear Material
+                    </button>
+                </div>
+            </div>
+            {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endwith %}
+    {% empty %}
+    <div class="card text-center" style="padding:60px 20px;">
+        <ion-icon name="cube-outline" style="font-size:56px; color:#e2e8f0; margin-bottom:15px;"></ion-icon>
+        <p style="font-size:16px; font-weight:600; color:#64748b; margin:0;">No hay materiales pendientes por crear</p>
+        <p style="font-size:13px; color:#94a3b8; margin-top:5px;">Todos los materiales solicitados ya han sido procesados.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function mostrarFormulario(articuloId) {
+    const form = document.getElementById('form-' + articuloId);
+    const isVisible = form.style.display !== 'none';
+    // Ocultar todos los formularios
+    document.querySelectorAll('[id^="form-"]').forEach(f => f.style.display = 'none');
+    form.style.display = isVisible ? 'none' : 'block';
+}
+
+function crearMaterial(btn) {
+    const form = btn.closest('[id^="form-"]');
+    const data = {
+        articulo_id: form.querySelector('[name="articulo_id"]').value,
+        nombre: form.querySelector('[name="nombre"]').value.trim(),
+        sku: form.querySelector('[name="sku"]').value.trim(),
+        categoria_id: form.querySelector('[name="categoria_id"]').value || null,
+        unidad_medida_id: form.querySelector('[name="unidad_medida_id"]').value,
+        descripcion: form.querySelector('[name="descripcion"]').value.trim(),
+        stock_minimo: form.querySelector('[name="stock_minimo"]').value || '0',
+    };
+
+    if (!data.nombre) { Swal.fire({ icon: 'warning', text: 'El nombre es obligatorio' }); return; }
+    if (!data.sku) { Swal.fire({ icon: 'warning', text: 'El SKU es obligatorio' }); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<ion-icon name="spinner" class="spin"></ion-icon> Creando...';
+
+    fetch('{% url "almacen:crear_material_desde_solicitud_ajax" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify(data),
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            const articuloDiv = form.closest('.articulo-pendiente');
+            articuloDiv.style.opacity = '0.3';
+            articuloDiv.style.pointerEvents = 'none';
+            Swal.fire({
+                icon: 'success',
+                title: 'Material creado',
+                text: `${result.material_nombre} (${result.material_sku})`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: result.error });
+            btn.disabled = false;
+            btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Crear Material';
+        }
+    })
+    .catch(err => {
+        Swal.fire({ icon: 'error', title: 'Error de red', text: err.message });
+        btn.disabled = false;
+        btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Crear Material';
+    });
+}
+</script>
+<style>
+.btn-sm { padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.form-group { margin-bottom: 10px; }
+.form-group label { display: block; margin-bottom: 4px; }
+.form-control { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit; box-sizing: border-box; }
+.form-control:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+</style>
+{% endblock %}

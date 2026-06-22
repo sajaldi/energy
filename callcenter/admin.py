@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import SolicitudTicket, GrupoTicket, Institucion, Enlace, TiempoAcordado, TiempoAcordadoTarea, FallaTicket
 
 from django.urls import path
-from .views import trigger_sync_tickets
+from .views import trigger_sync_tickets, trigger_sync_tickets_automatico
 from . import views
 
 from django.shortcuts import render, redirect
@@ -412,6 +412,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
         from .views import sync_single_ticket
         custom_urls = [
             path('sync-tickets/', self.admin_site.admin_view(trigger_sync_tickets), name='sync-tickets'),
+            path('sync-tickets-automatico/', self.admin_site.admin_view(trigger_sync_tickets_automatico), name='sync-tickets-automatico'),
             path('sync-by-folios/', self.admin_site.admin_view(views.trigger_sync_by_folios), name='sync-by-folios'),
             path('<int:ticket_id>/sync-singular/', self.admin_site.admin_view(sync_single_ticket), name='sync-singular'),
             path('<int:ticket_id>/enviar-power-automate/', self.admin_site.admin_view(views.send_ticket_to_power_automate_view), name='enviar_power_automate'),

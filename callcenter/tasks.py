@@ -669,3 +669,56 @@ def import_diagnosticos_task(self, file_path, user_id, verification_mode=True):
 
     cache.set(cache_key, final_res, 3600)
     return final_res
+
+
+@shared_task(name='callcenter.tasks.sync_tickets_automatico_task')
+def sync_tickets_automatico_task():
+    """
+    Robot automático: sincroniza tickets desde SIG GIA sin filtro de fechas.
+    Ejecutado por Celery Beat cada 2 horas.
+    """
+    username = os.environ.get('CALLCENTER_USER')
+    password = os.environ.get('CALLCENTER_PASS')
+    if not username or not password:
+        logger.error("CALLCENTER_USER o CALLCENTER_PASS no están configurados.")
+        return {"status": "error", "message": "Credenciales no configuradas (ver CALLCENTER_USER / CALLCENTER_PASS)"}
+    company = "Centro Cívico Gubernamental de Honduras"
+
+    logger.info("Iniciando sincronización automática de tickets (sin filtro de fechas)...")
+
+    try:
+        from .scraper_auto import download_tickets_auto_excel
+
+        download_dir = os.path.join(settings.BASE_DIR, 'downloads')
+        if not os.path.exists(download_dir):
+            os.makedirs(download_dir)
+
+        file_path = download_tickets_auto_excel(
+            username=username,
+            password=password,
+            company_name=company,
+            download_dir=download_dir
+        )
+
+        if not file_path or not os.path.exists(file_path):
+            error_msg = "No se pudo descargar el archivo de tickets."
+            logger.error(error_msg)
+            return {"status": "error", "message": error_msg}
+
+        from django.db import connection, close_old_connections
+        close_old_connections()
+        if connection.connection:
+            connection.close()
+
+        df = pd.read_excel(file_path)
+        from .utils import import_tickets_from_df
+        creados, actualizados = import_tickets_from_df(df)
+
+        result_msg = f"Sincronización automática finalizada. Nuevos: {creados}, Actualizados: {actualizados}"
+        logger.info(result_msg)
+
+        return {"status": "success", "creados": creados, "actualizados": actualizados}
+
+    except Exception as e:
+        logger.error(f"Error en sync_tickets_automatico_task: {e}")
+        return {"status": "error", "message": str(e)}

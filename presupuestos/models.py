@@ -666,7 +666,7 @@ class ArticuloRequisicion(models.Model):
         verbose_name="Material vinculado"
     )
     
-    cr8ca_articulo = models.CharField(max_length=500, verbose_name="Descripción del Artículo")
+    cr8ca_articulo = models.CharField(max_length=1000, verbose_name="Descripción del Artículo")
     cr8ca_cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Cantidad")
     cr8ca_costoaproximado = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Costo Aprox.")
     cr8ca_costoaproximado_base = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)

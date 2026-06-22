@@ -40,6 +40,7 @@ urlpatterns = [
     path('ticket/<str:ticket_id>/quick-edit/', views.ticket_quick_edit_ajax, name='ticket_quick_edit_ajax'),
     path('restriccion-acceso/<int:pk>/pdf/', views.export_restriccion_acceso_pdf, name='export_restriccion_acceso_pdf'),
     path('api/webhook/correo-cierre-callback/', views.webhook_correo_cierre_callback, name='webhook_correo_cierre_callback'),
+    path('ticket/<str:ticket_id>/verify-correo-cierre/', views.verify_correo_cierre_ajax, name='verify_correo_cierre'),
     path('app/ticket/<int:pk>/', views.mobile_ticket_detalle_view, name='mobile_ticket_detalle'),
     path('ticket/<str:ticket_id>/exportar-pdf/', views.exportar_solicitudticket_pdf, name='exportar_solicitudticket_pdf'),
     

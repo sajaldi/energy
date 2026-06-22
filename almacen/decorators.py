@@ -7,21 +7,17 @@ from django.contrib import messages
 
 def almacenes_required(view_func):
     """
-    Decorador que verifica que el usuario pertenezca al grupo 'Almacenes'.
+    Decorador que verifica que el usuario pertenezca al grupo 'Almacenes' o 'ALMACEN'.
     """
     @wraps(view_func)
     @login_required
     def _wrapped_view(request, *args, **kwargs):
-        # Superusuarios siempre tienen acceso
-        if request.user.is_superuser:
-            return view_func(request, *args, **kwargs)
-        
-        # Verificar si el usuario pertenece al grupo 'Almacenes'
-        if request.user.groups.filter(name='Almacenes').exists():
+        # Verificar si el usuario pertenece al grupo 'Almacenes' o 'ALMACEN'
+        if request.user.groups.filter(name__in=['Almacenes', 'ALMACEN']).exists():
             return view_func(request, *args, **kwargs)
         
         # Si no tiene permisos, mostrar error
         messages.error(request, 'No tienes permisos para acceder al módulo de Almacén.')
-        raise PermissionDenied("Acceso denegado. Se requiere pertenecer al grupo 'Almacenes'.")
+        raise PermissionDenied("Acceso denegado. Se requiere pertenecer al grupo 'Almacenes' o 'ALMACEN'.")
     
     return _wrapped_view

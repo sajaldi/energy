@@ -6,7 +6,7 @@ class RequisicionForm(forms.ModelForm):
     class Meta:
         model = Requisicion
         fields = [
-            'cr8ca_requisicion', 'fecha', 'fecha_aprobacion', 'partida', 'item_presupuesto', 'tipo_rutina', 'usuario_solicitante', 'usuario_en_nombre_de', 'cr8ca_asunto', 'cr8ca_prioridad', 
+            'cr8ca_requisicion', 'fecha', 'fecha_aprobacion', 'partida', 'item_presupuesto', 'usuario_solicitante', 'usuario_en_nombre_de', 'cr8ca_asunto', 'cr8ca_prioridad', 
             'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion', 'cr8ca_totalenarticulos',
             'proveedor', 'proveedores_sugeridos', 'proveedores_sugeridos_notas'
         ]
@@ -16,7 +16,6 @@ class RequisicionForm(forms.ModelForm):
             'fecha_aprobacion': forms.DateTimeInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
             'partida': forms.Select(attrs={'class': 'form-control select2-material'}),
             'item_presupuesto': forms.Select(attrs={'class': 'form-control select2-material'}),
-            'tipo_rutina': forms.Select(attrs={'class': 'form-control select2-material'}),
             'cr8ca_asunto': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Asunto de la requisición'}),
             'cr8ca_prioridad': forms.Select(attrs={'class': 'form-control'}),
             'cr8ca_motivo': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Explica por qué se requiere la compra', 'title': 'Explica el por qué se requiere la compra'}),
@@ -69,14 +68,23 @@ class RequisicionForm(forms.ModelForm):
                     )
             # Si el usuario no tiene departamento, ve todas (comportamiento por defecto)
 
+class MaterialConSkuField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return f"[{obj.sku}] {obj.nombre}"
+
 class ArticuloRequisicionForm(forms.ModelForm):
+    material = MaterialConSkuField(
+        queryset=Material.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-control select2-material'}),
+        required=False,
+    )
+
     class Meta:
         model = ArticuloRequisicion
         fields = ['cr8ca_itemderequisicionid', 'proveedor', 'material', 'cr8ca_articulo', 'cr8ca_cantidad', 'cr8ca_costoaproximado']
         widgets = {
             'cr8ca_itemderequisicionid': forms.HiddenInput(),
             'proveedor': forms.Select(attrs={'class': 'form-control select2-material'}),
-            'material': forms.Select(attrs={'class': 'form-control select2-material'}),
             'cr8ca_articulo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Descripción del artículo'}),
             'cr8ca_cantidad': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'cr8ca_costoaproximado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),

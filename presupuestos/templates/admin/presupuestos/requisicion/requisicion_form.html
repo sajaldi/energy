@@ -120,6 +120,16 @@
                                 </label>
                                 {{ form.usuario_solicitante }}
                             </div>
+                            <div class="form-group" style="margin-top: 8px;">
+                                <label class="form-label">Departamento</label>
+                                <div style="padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; color: #1e293b; font-weight: 500;">
+                                    {% if instance.usuario_solicitante.perfil.departamento %}
+                                        {{ instance.usuario_solicitante.perfil.departamento.nombre }}
+                                    {% else %}
+                                        <span style="color: #94a3b8;">Sin asignar</span>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
 
                         <div id="on-behalf-container"
@@ -151,12 +161,6 @@
                             <label class="form-label">Ítem de Presupuesto (Granular)</label>
                             {{ form.item_presupuesto }}
                             <small class="form-hint">Seleccione el ítem específico del cronograma</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Tipo de Rutina</label>
-                            {{ form.tipo_rutina }}
-                            <small class="form-hint">Especifique el tipo de mantenimiento (Mecánica, Eléctrica, etc.)</small>
                         </div>
 
                         <div class="form-group">
@@ -227,7 +231,7 @@
                 {{ articulo_formset.management_form }}
                 <div class="inline-labels inline-row"
                     style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 8px;">
-                    <span>Proveedor</span><span>Material</span><span>Descripción /
+                    <span>Material</span><span>Descripción /
                         Detalle</span><span>Cantidad</span><span>Costo Unit.</span><span></span>
                 </div>
                 <div id="articles-container">
@@ -235,8 +239,11 @@
                     <div class="article-row inline-row formset-row" id="article-{{ forloop.counter0 }}"
                         data-provider="{{ a_form.proveedor.value|default:'' }}">
                         {{ a_form.cr8ca_itemderequisicionid }}
-                        <div>{{ a_form.proveedor }}</div>
-                        <div>{{ a_form.material }}</div>
+                        <div style="display:none">{{ a_form.proveedor }}</div>
+                        <div>
+                            <input type="hidden" name="{{ a_form.material.html_name }}" value="{{ a_form.material.value|default:'' }}" id="{{ a_form.material.auto_id }}">
+                            <input type="text" class="form-control" value="{% if a_form.instance.material %}{{ a_form.instance.material.sku }}{% endif %}" readonly>
+                        </div>
                         <div>{{ a_form.cr8ca_articulo }}</div>
                         <div>{{ a_form.cr8ca_cantidad }}</div>
                         <div>{{ a_form.cr8ca_costoaproximado }}</div>
@@ -310,7 +317,7 @@
                 <button type="button" class="btn-custom btn-outline-custom prev-step" data-prev="2">⬅ Atrás</button>
                 <div style="display: flex; gap: 12px;">
                     <button type="button" class="btn-custom btn-outline-custom save-draft">Guardar Borrador</button>
-                    <button type="button" class="btn-custom btn-primary-custom next-step" data-next="3">Siguiente
+                    <button type="button" class="btn-custom btn-primary-custom next-step" data-next="4">Siguiente
                         ➔</button>
                 </div>
             </div>

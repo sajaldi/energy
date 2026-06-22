@@ -856,6 +856,10 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 3600.0,  # Sincroniza tickets desde SIG GIA cada hora
         'kwargs': {'days': 1},  # Tickets del día actual
     },
+    'sync-tickets-automatico-cada-2-horas': {
+        'task': 'callcenter.tasks.sync_tickets_automatico_task',
+        'schedule': 7200.0,  # Sincroniza tickets automáticamente cada 2 horas (sin filtro de fechas)
+    },
 }
 
 # Configuración de Web Push Notifications

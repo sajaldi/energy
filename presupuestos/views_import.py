@@ -200,51 +200,54 @@ def requisicion_upsert(request, pk=None):
         target_step = int(request.POST.get('target_step', current_step))
         is_final_save = request.POST.get('final_save') == 'true'
 
+        # Si va hacia atrás, guarda lo que se pueda sin validar y redirige
+        going_back = target_step < current_step
+
         # Lógica de validación y guardado por paso
         success = False
         
         if current_step == 1:
-            if form.is_valid():
+            if (form.is_valid() or going_back):
                 instance = form.save()
                 success = True
             else:
                 pass
         elif current_step == 2:
-            if articulo_formset.is_valid():
+            if (articulo_formset.is_valid() or going_back):
                 articulo_formset.save()
                 success = True
             else:
                 pass
         elif current_step == 3:
-            # Validar que haya al menos un documento cargado (ya sea nuevo o existente)
-            documento_formset_is_valid = documento_formset.is_valid()
+            is_valid_and_continue = going_back
 
-            has_files = False
-            if documento_formset_is_valid:
-                # Formset válido - verificar si hay documentos
-                for form in documento_formset:
-                    archivo = form.cleaned_data.get('archivo')
-                    es_eliminado = form.cleaned_data.get('DELETE', False)
-                    tiene_pk = form.instance.pk
-
-                    # Contar si: tiene archivo nuevo O tiene documento existente (pk) Y no está marcado para eliminar
-                    if (archivo) or (tiene_pk and not es_eliminado):
-                        has_files = True
-                        break
-
-            if not has_files:
-                messages.error(request, "Debe cargar al menos un documento para continuar.")
-                success = False
-            else:
-                # Tiene documentos - guardar y continuar
+            if not going_back:
+                documento_formset_is_valid = documento_formset.is_valid()
+                has_files = False
                 if documento_formset_is_valid:
-                    documento_formset.save()
+                    for form in documento_formset:
+                        archivo = form.cleaned_data.get('archivo')
+                        es_eliminado = form.cleaned_data.get('DELETE', False)
+                        tiene_pk = form.instance.pk
+                        if (archivo) or (tiene_pk and not es_eliminado):
+                            has_files = True
+                            break
+
+                if has_files:
+                    if documento_formset_is_valid:
+                        documento_formset.save()
+                    is_valid_and_continue = True
+                else:
+                    messages.error(request, "Debe cargar al menos un documento para continuar.")
+
+            if is_valid_and_continue:
                 success = True
+
         elif current_step == 4:
             success = True
 
-        if success:
-            if is_final_save:
+        if success or going_back:
+            if is_final_save and success:
                 # Cambiar a estado PENDIENTE si estaba en BORRADOR (lógica de flujo)
                 if instance.estado_requisicion == 'BORRADOR':
                     instance.estado_requisicion = 'PENDIENTE'
@@ -400,7 +403,7 @@ def requisicion_dashboard(request):
     # Base queryset filtrada por departamento
     base_qs = Requisicion.objects.filter(dept_q)
 
-    # Métricas
+    # Métricas (siempre filtradas por departamento)
     total_reqs = base_qs.count()
     total_monto = base_qs.aggregate(total=Sum('cr8ca_totalenarticulos'))['total'] or 0
 
@@ -410,13 +413,15 @@ def requisicion_dashboard(request):
     prioridad_data = base_qs.values('cr8ca_prioridad').annotate(count=Count('cr8ca_prioridad')).order_by('cr8ca_prioridad')
 
     # Últimas requisiciones con búsqueda
-    query = base_qs
     if search_query:
-        query = query.filter(
+        # Sin filtro de departamento para que pueda buscar en cualquier área
+        query = Requisicion.objects.filter(
             Q(cr8ca_requisicion__icontains=search_query) |
             Q(cr8ca_asunto__icontains=search_query) |
             Q(cr8ca_motivo__icontains=search_query)
         )
+    else:
+        query = base_qs
     ultimas_requisiciones = query.order_by('-fecha', '-createdon')[:20]
 
     # Estadísticas del departamento (solo el del usuario)

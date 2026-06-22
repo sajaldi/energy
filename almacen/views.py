@@ -7,7 +7,8 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from .decorators import almacenes_required
-from inventarios.models import Material, MovimientoInventario, StockRecord, CategoriaMaterial, SolicitudMaterial
+from inventarios.models import Material, MovimientoInventario, StockRecord, CategoriaMaterial, SolicitudMaterial, UnidadMedida
+from presupuestos.models import ArticuloRequisicion, Requisicion
 from activos.models.ubicacion import Ubicacion
 from activos.models.activo import Marca
 from django.db import transaction
@@ -455,3 +456,102 @@ def asignar_materiales(request):
         'materiales': materiales,
     }
     return render(request, 'almacen/asignar_materiales.html', context)
+
+
+@almacenes_required
+def materiales_pendientes(request):
+    """
+    Muestra los artículos de requisiciones que tienen material NULL
+    con descripción [NUEVO] - para que el almacenista cree los materiales reales.
+    """
+    articulos_pendientes = ArticuloRequisicion.objects.filter(
+        material__isnull=True,
+        cr8ca_articulo__startswith='[NUEVO]'
+    ).select_related(
+        'requisicion',
+        'requisicion__usuario_solicitante',
+    ).order_by('-requisicion__createdon')
+
+    agrupados = {}
+    for art in articulos_pendientes:
+        req = art.requisicion
+        key = req.cr8ca_requisicionid
+        if key not in agrupados:
+            agrupados[key] = {
+                'requisicion': req,
+                'articulos': [],
+            }
+        # Parsear nombre del [NUEVO] - limpiar prefijo
+        nombre_limpio = art.cr8ca_articulo
+        if nombre_limpio.startswith('[NUEVO]'):
+            nombre_limpio = nombre_limpio.replace('[NUEVO]', '', 1).strip()
+        agrupados[key]['articulos'].append({
+            'articulo': art,
+            'nombre_sugerido': nombre_limpio,
+        })
+
+    categorias = CategoriaMaterial.objects.all()
+    unidades_medida = UnidadMedida.objects.all()
+
+    context = {
+        'agrupados': agrupados,
+        'categorias': categorias,
+        'unidades_medida': unidades_medida,
+        'total_pendientes': articulos_pendientes.count(),
+    }
+    return render(request, 'almacen/materiales_pendientes.html', context)
+
+
+@almacenes_required
+@require_POST
+def crear_material_desde_solicitud_ajax(request):
+    """
+    AJAX: Crea un material real a partir de un ArticuloRequisicion pendiente [NUEVO].
+    Actualiza el artículo para vincularlo al nuevo material.
+    """
+    try:
+        data = json.loads(request.body)
+        articulo_id = data.get('articulo_id')
+        nombre = data.get('nombre', '').strip()
+        sku = data.get('sku', '').strip()
+        categoria_id = data.get('categoria_id')
+        unidad_medida_id = data.get('unidad_medida_id')
+        descripcion = data.get('descripcion', '').strip()
+        stock_minimo = data.get('stock_minimo', '0')
+
+        if not nombre:
+            return JsonResponse({'success': False, 'error': 'El nombre del material es obligatorio.'})
+        if not sku:
+            return JsonResponse({'success': False, 'error': 'El SKU es obligatorio.'})
+
+        if Material.objects.filter(sku=sku).exists():
+            return JsonResponse({'success': False, 'error': f'Ya existe un material con el SKU "{sku}".'})
+
+        articulo = get_object_or_404(ArticuloRequisicion, pk=articulo_id)
+
+        with transaction.atomic():
+            material = Material.objects.create(
+                nombre=nombre,
+                sku=sku,
+                descripcion=descripcion or articulo.cr8ca_articulo,
+                categoria_id=categoria_id if categoria_id else None,
+                unidad_medida_id=unidad_medida_id if unidad_medida_id else None,
+                stock_minimo=float(stock_minimo),
+            )
+
+            articulo.material = material
+            articulo.cr8ca_articulo = nombre
+            articulo.save(update_fields=['material', 'cr8ca_articulo'])
+
+        return JsonResponse({
+            'success': True,
+            'material_id': str(material.id),
+            'material_nombre': material.nombre,
+            'material_sku': material.sku,
+            'articulo_id': str(articulo.cr8ca_itemderequisicionid),
+        })
+
+    except ArticuloRequisicion.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Artículo no encontrado.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
