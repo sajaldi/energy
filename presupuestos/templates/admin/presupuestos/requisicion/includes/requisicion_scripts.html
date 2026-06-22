@@ -956,6 +956,42 @@
             })();
             {% endif %}
 
+            // ========== CALCULATE ROW TOTALS, SUBTOTAL, GRAND TOTAL ==========
+            function recalcTotals() {
+                let subtotal = 0;
+                $('#articles-container .article-row').each(function () {
+                    const $row = $(this);
+                    if ($row.is(':hidden')) return;
+                    const qty = parseFloat($row.find('[name$="-cr8ca_cantidad"]').val()) || 0;
+                    const cost = parseFloat($row.find('[name$="-cr8ca_costoaproximado"]').val()) || 0;
+                    const total = qty * cost;
+                    $row.find('.row-total').text(total.toFixed(2));
+                    subtotal += total;
+                });
+                $('#subtotal').text('L. ' + subtotal.toFixed(2));
+
+                const isv = parseFloat($('#id_isv').val()) || 0;
+                $('#isv-display').text('L. ' + isv.toFixed(2));
+
+                const grandTotal = subtotal + isv;
+                $('#grand-total').text('L. ' + grandTotal.toFixed(2));
+            }
+
+            $(document).on('input', '[name$="-cr8ca_cantidad"], [name$="-cr8ca_costoaproximado"]', recalcTotals);
+            $(document).on('input', '#id_isv', recalcTotals);
+            $(document).on('click', '.delete-row, .remove-new-row', function () {
+                setTimeout(recalcTotals, 50);
+            });
+
+            // Observer for dynamically added rows
+            const articlesContainer = document.getElementById('articles-container');
+            if (articlesContainer) {
+                const observer = new MutationObserver(() => setTimeout(recalcTotals, 50));
+                observer.observe(articlesContainer, { childList: true, subtree: false });
+            }
+
+            recalcTotals();
+
             console.log('Eventos del Wizard registrados correctamente');
         }
     })();

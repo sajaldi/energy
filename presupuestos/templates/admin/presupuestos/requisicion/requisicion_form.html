@@ -232,7 +232,7 @@
                 <div class="inline-labels inline-row"
                     style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 8px;">
                     <span>Material</span><span>Descripción /
-                        Detalle</span><span>Cantidad</span><span>Costo Unit.</span><span></span>
+                        Detalle</span><span>Cantidad</span><span>Costo Unit.</span><span>Total</span><span></span>
                 </div>
                 <div id="articles-container">
                     {% for a_form in articulo_formset %}
@@ -247,6 +247,7 @@
                         <div>{{ a_form.cr8ca_articulo }}</div>
                         <div>{{ a_form.cr8ca_cantidad }}</div>
                         <div>{{ a_form.cr8ca_costoaproximado }}</div>
+                        <div style="text-align: right;"><span class="row-total">0.00</span></div>
                         <div style="text-align: right;">
                             {% if a_form.instance.pk %}
                             <div style="display:none">{{ a_form.DELETE }}</div>
@@ -259,6 +260,21 @@
                         </div>
                     </div>
                     {% endfor %}
+                </div>
+
+                <div style="margin-top: 16px; padding-top: 12px; border-top: 2px solid var(--border);">
+                    <div class="inline-row" style="font-weight: 600; font-size: 0.9rem;">
+                        <span></span><span></span><span></span><span style="text-align: right;">Subtotal:</span>
+                        <span id="subtotal" style="text-align: right;">L. 0.00</span><span></span>
+                    </div>
+                    <div class="inline-row" style="font-size: 0.9rem;">
+                        <span></span><span></span><span></span><span style="text-align: right;">ISV:</span>
+                        <span style="text-align: right;">{{ form.isv }}</span><span></span>
+                    </div>
+                    <div class="inline-row" style="font-weight: 700; font-size: 1rem; color: var(--primary-dark);">
+                        <span></span><span></span><span></span><span style="text-align: right;">Total General:</span>
+                        <span id="grand-total" style="text-align: right;">L. 0.00</span><span></span>
+                    </div>
                 </div>
             </div>
 

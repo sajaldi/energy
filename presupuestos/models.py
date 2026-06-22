@@ -449,6 +449,7 @@ class Requisicion(models.Model):
         (5, 'Emerencia'),
     )
     cr8ca_totalenarticulos = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Total en Artículos")
+    isv = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, default=0, verbose_name="ISV (Impuesto Sobre Ventas)")
     cr8ca_prioridad = models.IntegerField(choices=PRIORIDAD_CHOICES, default=2, null=True, blank=True, verbose_name="Prioridad")
     cr8ca_id_oc = models.CharField(max_length=100, null=True, blank=True, verbose_name="ID OC (Orden de Compra)")
     

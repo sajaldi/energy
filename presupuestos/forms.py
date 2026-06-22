@@ -7,7 +7,7 @@ class RequisicionForm(forms.ModelForm):
         model = Requisicion
         fields = [
             'cr8ca_requisicion', 'fecha', 'fecha_aprobacion', 'partida', 'item_presupuesto', 'usuario_solicitante', 'usuario_en_nombre_de', 'cr8ca_asunto', 'cr8ca_prioridad', 
-            'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion', 'cr8ca_totalenarticulos',
+            'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion', 'cr8ca_totalenarticulos', 'isv',
             'proveedor', 'proveedores_sugeridos', 'proveedores_sugeridos_notas'
         ]
         widgets = {
@@ -25,6 +25,7 @@ class RequisicionForm(forms.ModelForm):
             'cr8ca_id_oc': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ID de Orden de Compra'}),
             'estado_requisicion': forms.Select(attrs={'class': 'form-control', 'disabled': 'disabled'}),
             'cr8ca_totalenarticulos': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
+            'isv': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
             'proveedor': forms.Select(attrs={'class': 'form-control select2-material'}),
             'proveedores_sugeridos': forms.SelectMultiple(attrs={
                 'class': 'form-control select2-material',
