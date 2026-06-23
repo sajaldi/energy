@@ -745,9 +745,12 @@ class DocumentoRequisicion(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
 
     def get_proxy_url(self):
-        """Retorna la URL directa del archivo"""
+        """Retorna la URL para previsualizar el archivo vía proxy"""
         if not self.archivo: return ""
-        return self.archivo.url
+        from django.conf import settings
+        from django.urls import reverse
+        path = reverse('presupuestos:requisicion_documento_proxy', args=[self.id])
+        return f"{settings.SITE_URL.rstrip('/')}{path}"
 
     def __str__(self):
         return self.nombre or f"Documento de {self.requisicion}"
