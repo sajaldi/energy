@@ -54,22 +54,30 @@ class RequisicionForm(forms.ModelForm):
                 if solicitante and hasattr(solicitante, 'perfil') and solicitante.perfil.departamento and solicitante.perfil.departamento.aprobador:
                     self.initial['aprobador'] = solicitante.perfil.departamento.aprobador_id
 
-        # Filtrar partidas e ítems por departamento del usuario
-        if self.user and 'partida' in self.fields:
+        # Filtrar partidas e ítems por departamento del solicitante o usuario
+        if 'partida' in self.fields:
             from presupuestos.models import PartidaPresupuestaria, ItemPresupuesto
             from django.db.models import Q
-            user_depto_id = None
-            if hasattr(self.user, 'perfil') and self.user.perfil.departamento_id:
-                user_depto_id = self.user.perfil.departamento_id
+            depto_id = None
 
-            if user_depto_id:
+            # 1. Intentar obtener el departamento del solicitante de la requisición
+            if self.instance and getattr(self.instance, 'usuario_solicitante_id', None):
+                solicitante = self.instance.usuario_solicitante
+                if hasattr(solicitante, 'perfil') and solicitante.perfil.departamento_id:
+                    depto_id = solicitante.perfil.departamento_id
+
+            # 2. Si no hay solicitante, usar el del usuario autenticado
+            if not depto_id and self.user and hasattr(self.user, 'perfil') and self.user.perfil.departamento_id:
+                depto_id = self.user.perfil.departamento_id
+
+            if depto_id:
                 # Una partida es visible si:
-                # 1. El PresupuestoAnual padre no tiene departamento (global) O coincide con el depto del usuario
-                # 2. Y la propia partida no tiene departamentos asignados (global) O incluye el depto del usuario
+                # 1. El PresupuestoAnual padre no tiene departamento (global) O coincide con el depto
+                # 2. Y la propia partida no tiene departamentos asignados (global) O incluye el depto
                 partidas_permitidas = PartidaPresupuestaria.objects.filter(
-                    Q(presupuesto_anual__departamento__isnull=True) | Q(presupuesto_anual__departamento_id=user_depto_id)
+                    Q(presupuesto_anual__departamento__isnull=True) | Q(presupuesto_anual__departamento_id=depto_id)
                 ).filter(
-                    Q(departamentos__isnull=True) | Q(departamentos__id=user_depto_id)
+                    Q(departamentos__isnull=True) | Q(departamentos__id=depto_id)
                 ).distinct()
                 self.fields['partida'].queryset = partidas_permitidas
 
@@ -78,7 +86,7 @@ class RequisicionForm(forms.ModelForm):
                     self.fields['item_presupuesto'].queryset = ItemPresupuesto.objects.filter(
                         partida__in=partidas_permitidas
                     )
-            # Si el usuario no tiene departamento, ve todas (comportamiento por defecto)
+            # Si no hay departamento asociado, ve todas (comportamiento por defecto)
 
 class MaterialConSkuField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
