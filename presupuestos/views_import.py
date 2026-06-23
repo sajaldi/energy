@@ -361,6 +361,8 @@ def requisicion_pdf(request, pk):
     if not pdf_content:
         return HttpResponse('Error generando el PDF. Verifique con administración.', status=500)
 
+    response = HttpResponse(pdf_content, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Requisicion_{requisicion.cr8ca_requisicion}.pdf"'
     return response
 
 
