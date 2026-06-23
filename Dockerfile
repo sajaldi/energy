@@ -41,6 +41,9 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/pyth
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /root/.cache/ms-playwright/ /root/.cache/ms-playwright/
 
+# Instalar solo las dependencias del sistema que Chromium necesita (sin descargar el navegador otra vez)
+RUN playwright install-deps chromium
+
 # Copiar solo el código de la app (capa que cambia frecuentemente)
 COPY . /app/
 
