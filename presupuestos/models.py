@@ -32,6 +32,13 @@ class PresupuestoAnual(models.Model):
     )
     moneda = models.CharField(max_length=10, choices=MONEDAS, default='DOP')
     estado = models.CharField(max_length=20, choices=ESTADOS, default='PLANIFICACION')
+    departamento = models.ForeignKey(
+        'core.Departamento',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='presupuestos',
+        verbose_name="Departamento"
+    )
     
     descripcion = models.TextField(blank=True, verbose_name="Descripción / Notas")
     

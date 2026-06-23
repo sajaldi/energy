@@ -57,15 +57,19 @@ class RequisicionForm(forms.ModelForm):
         # Filtrar partidas e ítems por departamento del usuario
         if self.user and 'partida' in self.fields:
             from presupuestos.models import PartidaPresupuestaria, ItemPresupuesto
+            from django.db.models import Q
             user_depto_id = None
             if hasattr(self.user, 'perfil') and self.user.perfil.departamento_id:
                 user_depto_id = self.user.perfil.departamento_id
 
             if user_depto_id:
-                # Partidas que pertenecen al departamento del usuario O que no tienen departamentos (globales)
-                from django.db.models import Q
+                # Una partida es visible si:
+                # 1. El PresupuestoAnual padre no tiene departamento (global) O coincide con el depto del usuario
+                # 2. Y la propia partida no tiene departamentos asignados (global) O incluye el depto del usuario
                 partidas_permitidas = PartidaPresupuestaria.objects.filter(
-                    Q(departamentos__id=user_depto_id) | Q(departamentos__isnull=True)
+                    Q(presupuesto_anual__departamento__isnull=True) | Q(presupuesto_anual__departamento_id=user_depto_id)
+                ).filter(
+                    Q(departamentos__isnull=True) | Q(departamentos__id=user_depto_id)
                 ).distinct()
                 self.fields['partida'].queryset = partidas_permitidas
 

@@ -148,11 +148,11 @@ class PartidaInline(admin.TabularInline):
 
 @admin.register(PresupuestoAnual)
 class PresupuestoAnualAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'anio', 'moneda', 'get_total_proyectado', 'get_total_ejecutado', 'get_progreso', 'ver_cronograma_btn', 'estado', 'elaborado_por')
-    list_filter = ('anio', 'estado', 'moneda')
-    search_fields = ('nombre',)
+    list_display = ('nombre', 'anio', 'departamento', 'moneda', 'get_total_proyectado', 'get_total_ejecutado', 'get_progreso', 'ver_cronograma_btn', 'estado', 'elaborado_por')
+    list_filter = ('anio', 'estado', 'moneda', 'departamento')
+    search_fields = ('nombre', 'departamento__nombre')
     inlines = [PartidaInline]
-    autocomplete_fields = ['elaborado_por']
+    autocomplete_fields = ['elaborado_por', 'departamento']
     
     def ver_cronograma_btn(self, obj):
         from django.urls import reverse
