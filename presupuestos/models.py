@@ -628,6 +628,12 @@ class Requisicion(models.Model):
         return f"{self.cr8ca_requisicion} - {self.cr8ca_asunto[:50]}"
 
     @property
+    def moneda(self):
+        if self.partida and self.partida.presupuesto_anual:
+            return self.partida.presupuesto_anual.moneda
+        return None
+
+    @property
     def total_estimado(self):
         return sum((item.cr8ca_cantidad or 0) * (item.cr8ca_costoaproximado or 0) for item in self.articulos.all())
 
