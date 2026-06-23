@@ -93,3 +93,49 @@ def extract_metadata_from_file(file_content, filename):
         extracted_data['text_preview'] = "" # Mantener vacío para que el template use el default
 
     return extracted_data
+
+
+def extract_full_text(file_content, filename):
+    """Extrae el texto COMPLETO de un PDF/DOCX sin límite de páginas ni caracteres."""
+    file_ext = os.path.splitext(filename)[1].lower()
+
+    if file_ext == '.pdf':
+        try:
+            import fitz
+            doc = fitz.open(stream=file_content, filetype="pdf")
+            pages = []
+            for page_num in range(len(doc)):
+                page = doc.load_page(page_num)
+                text = page.get_text("text").strip()
+                if not text:
+                    blocks = page.get_text("blocks")
+                    text = "\n".join([b[4] for b in blocks if isinstance(b, (list, tuple)) and len(b) > 4])
+                pages.append(text or "")
+            doc.close()
+            full = "\n".join(pages).strip()
+            if full:
+                return full
+        except Exception as e:
+            logger.error(f"Error PyMuPDF full text en {filename}: {e}")
+
+        try:
+            import pdfplumber
+            import io
+            with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+                pages = [p.extract_text() or "" for p in pdf.pages]
+            full = "\n".join(pages).strip()
+            if full:
+                return full
+        except Exception as e:
+            logger.error(f"Error pdfplumber full text en {filename}: {e}")
+
+    elif file_ext in ['.docx', '.doc']:
+        try:
+            import docx
+            import io
+            d = docx.Document(io.BytesIO(file_content))
+            return "\n".join([p.text for p in d.paragraphs]).strip()
+        except Exception as e:
+            logger.error(f"Error DOCX full text en {filename}: {e}")
+
+    return ""

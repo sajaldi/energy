@@ -28,9 +28,13 @@ def try_decode(content, encodings=None):
 @shared_task(name='documentos.tasks.extract_document_metadata')
 def extract_document_metadata(revision_id):
     """
-    Tarea para extraer texto y metadatos de un documento (PDF, etc.)
+    Tarea para extraer texto COMPLETO de un documento (PDF, etc.) SIN depender de n8n.
+    Usa PyMuPDF/pdfplumber local y dispara embedding vía Gemini/Ollama.
     """
-    from .models import Revision
+    from .models import Revision, Documento, DocumentoFragmento
+    from django.conf import settings
+    import requests
+
     try:
         revision = Revision.objects.get(pk=revision_id)
         revision.estado_extraccion = 'PROCESANDO'
@@ -42,59 +46,42 @@ def extract_document_metadata(revision_id):
             revision.save()
             return
 
-        from .utils_extraer import extract_metadata_from_file
-        import requests
-        from django.conf import settings
-        
-        # 1. Extracción Local (PyMuPDF)
+        from .utils_extraer import extract_metadata_from_file, extract_full_text
+
         with revision.archivo.open('rb') as f:
             content = f.read()
-            local_data = extract_metadata_from_file(content, revision.archivo.name)
+            local_meta = extract_metadata_from_file(content, revision.archivo.name)
+            full_text = extract_full_text(content, revision.archivo.name)
 
-        # 2. Consultar n8n para Conversión a PDF y Metadatos IA
+        revision.datos_extraidos = local_meta
+        revision.estado_extraccion = 'COMPLETADO'
+        revision.save()
+
+        # Guardar texto completo en el Documento y disparar embedding
+        if full_text and revision.documento_id:
+            Documento.objects.filter(id=revision.documento_id).update(contenido_texto=full_text)
+            generate_document_embedding.delay(revision.documento_id)
+            logger.info(f"Texto extraído localmente para Revisión {revision_id} ({len(full_text)} chars). Embedding disparado.")
+
+        # Consultar n8n SOLO si está configurado (para metadatos IA enriquecidos)
         n8n_url = getattr(settings, 'N8N_PROCESS_DOCUMENT_WEBHOOK_URL', None)
-        if n8n_url:
+        if n8n_url and full_text:
             try:
-                # Usar la URL firmada de S3/MinIO para que n8n no necesite credenciales adicionales
-                internal_file_url = revision.archivo.url
-                # Forzamos a que el callback use el Túnel Reverso (localhost:8080) que n8n sí puede ver
                 base_callback_url = getattr(settings, 'INTERNAL_SITE_URL', 'http://localhost:8080')
-                internal_callback_url = f"{base_callback_url}/documentos/api/callback-procesamiento/{revision.id}/"
-
                 payload = {
                     'revision_id': revision.id,
                     'documento_id': revision.documento.id,
                     'filename': os.path.basename(revision.archivo.name),
-                    'file_url': internal_file_url,
-                    'file_key': revision.archivo.name,
-                    'file_path': revision.archivo.name,
+                    'texto_extraido': full_text[:5000],
+                    'callback_url': f"{base_callback_url}/documentos/api/callback-procesamiento/{revision.id}/",
                     'tipo_documento': revision.documento.tipo_documento.nombre,
-                    'todos_los_tipos': list(revision.documento.tipo_documento.__class__.objects.values_list('nombre', flat=True)),
-                    'callback_url': internal_callback_url,
                     'metadatos_requeridos': list(revision.documento.tipo_documento.metadatos_config.values_list('nombre', flat=True))
                 }
-                print(f"-------- DEBUG N8N CALL --------")
-                print(f"URL: {n8n_url}")
-                print(f"Payload: {json.dumps(payload, indent=2)}")
-                
-                # Llamada asíncrona hacia n8n - n8n responderá al callback para finalizar
                 resp = requests.post(n8n_url, json=payload, timeout=10)
-                print(f"Response Status: {resp.status_code}")
-                logger.info(f"Revision {revision_id}: Enviada a n8n. Status: {resp.status_code}")
+                logger.info(f"Revision {revision_id}: n8n notificado. Status: {resp.status_code}")
             except Exception as e_n8n:
-                print(f"Error llamando a n8n: {str(e_n8n)}")
-                logger.error(f"Error llamando a n8n: {e_n8n}")
-        
-        # Guardar resultados locales
-        revision.datos_extraidos = local_data
-        
-        # Si no hubo n8n, marcamos como completado. Si hubo, esperamos el callback (PROCESANDO)
-        if not n8n_url:
-            revision.estado_extraccion = 'COMPLETADO'
-            
-        revision.save()
-        
-        logger.info(f"Extracción local completada para Revisión {revision_id}. Esperando n8n: {bool(n8n_url)}")
+                logger.warning(f"n8n no disponible para revisión {revision_id}: {e_n8n}")
+
         return True
 
     except Exception as e:
