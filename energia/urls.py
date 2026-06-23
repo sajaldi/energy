@@ -6,6 +6,7 @@ from django.urls import re_path
 from django.views.static import serve
 from core.views_proxy import media_proxy
 from core.views import global_search
+from presupuestos.views_webhook import requisicion_webhook_update
 
 from django.views.generic import TemplateView, RedirectView
 from mantenimiento.views.asistencia import AsistenciaKioskView
@@ -35,6 +36,8 @@ urlpatterns = [
     path('seguridad/', include('seguridad.urls', namespace='seguridad')),
     path('callcenter/', include('callcenter.urls', namespace='callcenter')),
     path('servicios/', include('servicios.urls', namespace='servicios')),
+    path('webhook/desde-power-automate/', requisicion_webhook_update, name='webhook_desde_power_automate'),
+    path('webhook/desde-power-automate', requisicion_webhook_update),
     path('ayuda/', include('ayuda.urls', namespace='ayuda')),
     path('plantillas/', include('plantillas.urls', namespace='plantillas')),
     path('iot/', include('iot.urls', namespace='iot')),
