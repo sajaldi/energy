@@ -824,6 +824,16 @@ else:
     }
     print(f"[DEBUG] Cache: Redis Producción configurado en {CELERY_BROKER_URL}")
 
+# Si Redis no está disponible localmente, ejecutar tareas Celery en modo síncrono
+if IS_LOCAL:
+    try:
+        import redis
+        r = redis.from_url(CELERY_BROKER_URL, socket_connect_timeout=2)
+        r.ping()
+    except Exception:
+        CELERY_TASK_ALWAYS_EAGER = True
+        print("[DEBUG] Celery: Redis no disponible. Usando modo EAGER (tareas síncronas).")
+
 sys.stdout.flush()
 
 # Configuración adicional para producción

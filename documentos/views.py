@@ -1561,6 +1561,8 @@ def api_documento_migrar_embeddings(request):
         return JsonResponse({'error': 'No autorizado'}, status=403)
         
     from .tasks import generate_document_embedding
+    import logging
+    _log = logging.getLogger(__name__)
     
     # Procesamos TODOS los documentos con texto para aplicar la nueva arquitectura de fragmentos
     docs_con_texto = Documento.objects.exclude(
@@ -1568,13 +1570,25 @@ def api_documento_migrar_embeddings(request):
     ).exclude(contenido_texto='')
     
     count = docs_con_texto.count()
+    errors = 0
     for d in docs_con_texto:
-        generate_document_embedding.delay(d.id)
-        
+        try:
+            generate_document_embedding.delay(d.id)
+        except Exception as e:
+            errors += 1
+            _log.warning(f"Error al encolar embedding para doc {d.id}: {e}")
+    
+    if count == 0:
+        return JsonResponse({
+            'status': 'success',
+            'message': 'No hay documentos con texto para vectorizar. Primero suba documentos con archivos PDF.'
+        })
+    
     return JsonResponse({
         'status': 'success', 
         'enqueued': count, 
-        'message': f'Se ha iniciado la re-indexación completa de {count} documentos usando la nueva lógica de fragmentos.'
+        'errors': errors,
+        'message': f'Vectorización iniciada para {count} documentos.' + (f' {errors} errores.' if errors else '')
     })
 
 @login_required
