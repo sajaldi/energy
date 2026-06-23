@@ -162,6 +162,12 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 if not GEMINI_API_KEY:
     print("[WARNING] GEMINI_API_KEY no encontrada. La búsqueda semántica usará Ollama si está disponible.")
 
+# --- Groq API Configuration ---
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
+GROQ_MODEL = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
+if not GROQ_API_KEY:
+    print("[WARNING] GROQ_API_KEY no encontrada. El chat RAG no funcionará.")
+
 # --- Ollama Configuration (Local AI) ---
 OLLAMA_URL = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
 OLLAMA_MODEL_CHAT = os.environ.get('OLLAMA_MODEL_CHAT', 'llama3')

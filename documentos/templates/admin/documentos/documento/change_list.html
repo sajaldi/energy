@@ -8,6 +8,11 @@
         </a>
     </li>
     <li>
+        <a href="javascript:void(0);" onclick="abrirChatRAG();" class="addlink" style="background: #8b5cf6; margin-right: 5px; border:none;">
+            🤖 Chat IA (RAG)
+        </a>
+    </li>
+    <li>
         <a href="{% url 'documentos:busqueda_vectorial' %}" class="addlink" style="background: #6366f1; border:none;">
             🔍 Búsqueda Semántica
         </a>
@@ -18,6 +23,105 @@
 {% block extrahead %}
 {{ block.super }}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    :root {
+        --rag-primary: #8b5cf6;
+        --rag-bg: #1e1b2e;
+        --rag-surface: #2d2a3e;
+        --rag-border: #3d3a4e;
+    }
+    #rag-chat-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+        justify-content: flex-end;
+        align-items: stretch;
+    }
+    #rag-chat-overlay.open { display: flex; }
+    #rag-chat-panel {
+        width: 480px;
+        max-width: 100vw;
+        background: var(--rag-bg);
+        color: #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+        animation: slideIn 0.25s ease-out;
+    }
+    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    #rag-chat-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 16px 20px; border-bottom: 1px solid var(--rag-border);
+        background: var(--rag-surface);
+    }
+    #rag-chat-header h2 { margin: 0; font-size: 1.1rem; font-weight: 700; color: #c4b5fd; }
+    #rag-chat-close {
+        background: none; border: none; color: #94a3b8; font-size: 1.5rem;
+        cursor: pointer; padding: 4px 8px; border-radius: 4px; line-height: 1;
+    }
+    #rag-chat-close:hover { background: rgba(255,255,255,0.1); color: white; }
+    #rag-chat-messages {
+        flex: 1; overflow-y: auto; padding: 16px 20px;
+        display: flex; flex-direction: column; gap: 12px;
+    }
+    .rag-msg { display: flex; gap: 10px; max-width: 90%; }
+    .rag-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .rag-msg.assistant { align-self: flex-start; }
+    .rag-avatar {
+        width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
+    }
+    .rag-msg.user .rag-avatar { background: var(--rag-primary); }
+    .rag-msg.assistant .rag-avatar { background: #10b981; }
+    .rag-bubble {
+        padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.5;
+        white-space: pre-wrap; word-break: break-word;
+    }
+    .rag-msg.user .rag-bubble {
+        background: var(--rag-primary); color: white;
+        border-bottom-right-radius: 4px;
+    }
+    .rag-msg.assistant .rag-bubble {
+        background: var(--rag-surface); color: #e2e8f0;
+        border-bottom-left-radius: 4px;
+    }
+    .rag-sources {
+        margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rag-border);
+        font-size: 0.8rem; color: #94a3b8;
+    }
+    .rag-sources span { display: inline-block; margin-right: 6px; margin-bottom: 4px;
+        padding: 2px 8px; background: rgba(139,92,246,0.2); border-radius: 4px;
+        font-size: 0.75rem; color: #c4b5fd; cursor: default; }
+    .rag-thinking { display: flex; gap: 6px; padding: 8px 0; }
+    .rag-thinking span {
+        width: 8px; height: 8px; background: #94a3b8; border-radius: 50%;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+    .rag-thinking span:nth-child(1) { animation-delay: -0.32s; }
+    .rag-thinking span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce { 0%,80%,100% { transform: scale(0); } 40% { transform: scale(1); } }
+    #rag-chat-input-area {
+        padding: 12px 16px; border-top: 1px solid var(--rag-border);
+        display: flex; gap: 8px; background: var(--rag-surface);
+    }
+    #rag-chat-input {
+        flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--rag-border);
+        background: #1a1a2e; color: #e2e8f0; font-size: 0.9rem; outline: none;
+    }
+    #rag-chat-input:focus { border-color: var(--rag-primary); }
+    #rag-chat-send {
+        padding: 10px 18px; border-radius: 8px; border: none;
+        background: var(--rag-primary); color: white; font-weight: 600; cursor: pointer;
+    }
+    #rag-chat-send:hover { filter: brightness(1.15); }
+    #rag-chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+    .rag-footer-info {
+        padding: 6px 16px; font-size: 0.7rem; color: #64748b; text-align: center;
+        border-top: 1px solid var(--rag-border);
+    }
+</style>
 <script>
     function vectorizarTodo() {
         Swal.fire({
@@ -35,43 +139,148 @@
                     title: 'Procesando...',
                     text: 'Enviando comando al servidor...',
                     allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
+                    didOpen: () => { Swal.showLoading(); }
                 });
-
                 fetch("{% url 'documentos:api_documento_migrar_embeddings' %}")
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            Swal.fire(
-                                '¡En marcha!',
-                                data.message,
-                                'success'
-                            );
+                            Swal.fire('¡En marcha!', data.message, 'success');
                         } else {
-                            Swal.fire(
-                                'Error',
-                                data.error || 'Ocurrió un error inesperado',
-                                'error'
-                            );
+                            Swal.fire('Error', data.error || 'Ocurrió un error inesperado', 'error');
                         }
                     })
                     .catch(error => {
-                        Swal.fire(
-                            'Error de Conexión',
-                            'No se pudo contactar con el servidor.',
-                            'error'
-                        );
+                        Swal.fire('Error de Conexión', 'No se pudo contactar con el servidor.', 'error');
                     });
             }
         });
     }
-</script>
-<style>
-    .object-tools a.addlink {
-        color: white !important;
-        font-weight: bold;
+
+    // ========== RAG CHAT ==========
+    let ragSessionId = 'rag-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    let ragSending = false;
+
+    function abrirChatRAG() {
+        const overlay = document.getElementById('rag-chat-overlay');
+        overlay.classList.add('open');
+        document.getElementById('rag-chat-input').focus();
     }
-</style>
+
+    function cerrarChatRAG() {
+        document.getElementById('rag-chat-overlay').classList.remove('open');
+    }
+
+    function agregarMensaje(role, text, sources) {
+        const container = document.getElementById('rag-chat-messages');
+        const div = document.createElement('div');
+        div.className = 'rag-msg ' + role;
+        const avatar = role === 'user' ? '👤' : '🤖';
+        let html = `<div class="rag-avatar">${avatar}</div><div class="rag-bubble">${text.replace(/\n/g, '<br>')}`;
+        if (sources && sources.length > 0) {
+            html += '<div class="rag-sources">Fuentes: ';
+            sources.forEach(s => {
+                html += `<span title="${s.titulo} (${ (s.similitud * 100).toFixed(0) }%)">${s.codigo}</span>`;
+            });
+            html += '</div>';
+        }
+        html += '</div>';
+        div.innerHTML = html;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function mostrarPensando() {
+        const container = document.getElementById('rag-chat-messages');
+        const div = document.createElement('div');
+        div.className = 'rag-msg assistant';
+        div.id = 'rag-thinking';
+        div.innerHTML = '<div class="rag-avatar">🤖</div><div class="rag-bubble"><div class="rag-thinking"><span></span><span></span><span></span></div></div>';
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function ocultarPensando() {
+        const el = document.getElementById('rag-thinking');
+        if (el) el.remove();
+    }
+
+    function enviarPregunta() {
+        const input = document.getElementById('rag-chat-input');
+        const question = input.value.trim();
+        if (!question || ragSending) return;
+        input.value = '';
+        ragSending = true;
+        document.getElementById('rag-chat-send').disabled = true;
+
+        agregarMensaje('user', question);
+        mostrarPensando();
+
+        function getCSRFToken() {
+            const m = document.cookie.match(/csrftoken=([^;]+)/);
+            return m ? m[1] : '';
+        }
+        fetch("{% url 'documentos:api_documento_rag_chat' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+            body: JSON.stringify({ question: question, session_id: ragSessionId })
+        })
+        .then(r => r.json())
+        .then(data => {
+            ocultarPensando();
+            if (data.status === 'success') {
+                agregarMensaje('assistant', data.answer, data.sources);
+            } else {
+                agregarMensaje('assistant', '❌ Error: ' + (data.error || 'Error desconocido'));
+            }
+        })
+        .catch(err => {
+            ocultarPensando();
+            agregarMensaje('assistant', '❌ Error de conexión: ' + err.message);
+        })
+        .finally(() => {
+            ragSending = false;
+            document.getElementById('rag-chat-send').disabled = false;
+            document.getElementById('rag-chat-input').focus();
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('rag-chat-input');
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarPregunta(); }
+        });
+        document.getElementById('rag-chat-overlay').addEventListener('click', function(e) {
+            if (e.target === this) cerrarChatRAG();
+        });
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div id="rag-chat-overlay">
+    <div id="rag-chat-panel">
+        <div id="rag-chat-header">
+            <h2>🤖 Chat con Documentos (RAG)</h2>
+            <button id="rag-chat-close" onclick="cerrarChatRAG()">✕</button>
+        </div>
+        <div id="rag-chat-messages">
+            <div class="rag-msg assistant">
+                <div class="rag-avatar">🤖</div>
+                <div class="rag-bubble">
+                    ¡Hola! Soy el asistente de documentos. Pregúntame sobre cualquier contenido de los documentos vectorizados.
+                    <div class="rag-sources" style="margin-top:8px;font-size:0.8rem;color:#64748b;">
+                        💡 Ej: "¿Qué dice el plano CCG-PLN-001?" o "¿Cuáles son los requisitos de seguridad?"
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="rag-chat-input-area">
+            <input id="rag-chat-input" type="text" placeholder="Escribe tu pregunta sobre los documentos..." autocomplete="off">
+            <button id="rag-chat-send" onclick="enviarPregunta()">Enviar</button>
+        </div>
+        <div class="rag-footer-info">Contexto: todos los documentos vectorizados · Groq AI</div>
+    </div>
+</div>
+{{ block.super }}
 {% endblock %}

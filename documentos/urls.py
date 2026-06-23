@@ -56,4 +56,6 @@ urlpatterns = [
     path('api/explorer/buscar-global/', views.api_explorer_buscar_global, name='api_explorer_buscar_global'),
     path('api/explorer/vincular-biblioteca/', views.api_explorer_vincular_biblioteca, name='api_explorer_vincular_biblioteca'),
     path('api/webhook/vector-update/', views.api_webhook_vector_update, name='api_webhook_vector_update'),
+    # RAG Chat con Groq
+    path('api/rag-chat/', views.api_documento_rag_chat, name='api_documento_rag_chat'),
 ]

@@ -2051,3 +2051,123 @@ def api_webhook_vector_update(request):
         import logging
         logging.getLogger(__name__).error(f"Error en api_webhook_vector_update: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def api_documento_rag_chat(request):
+    """
+    RAG Chat: consulta todos los documentos vectorizados usando Groq.
+    - Embedding de la pregunta via get_embedding()
+    - CosineDistance sobre DocumentoFragmento para recuperar top 20 chunks
+    - Groq API para responder con contexto
+    """
+    from core.ai_utils import get_embedding
+    from pgvector.django import CosineDistance
+    from django.conf import settings
+    from .models import DocumentoFragmento, N8nChatHistory
+    import groq
+
+    try:
+        data = json.loads(request.body)
+        question = data.get('question', '').strip()
+        session_id = data.get('session_id', '')
+
+        if not question:
+            return JsonResponse({'error': 'La pregunta es obligatoria'}, status=400)
+
+        api_key = settings.GROQ_API_KEY
+        if not api_key:
+            return JsonResponse({'error': 'GROQ_API_KEY no configurada'}, status=503)
+
+        # 1. Embedding de la pregunta
+        query_vector = get_embedding(question, task_type="retrieval_query", dimensions=768)
+        if not query_vector:
+            return JsonResponse({'error': 'No se pudo generar el embedding de la pregunta'}, status=500)
+
+        # 2. Búsqueda vectorial en fragmentos
+        fragmentos = DocumentoFragmento.objects.select_related('documento').filter(
+            embedding__isnull=False
+        ).annotate(
+            distance=CosineDistance('embedding', query_vector)
+        ).filter(distance__lt=0.40).order_by('distance')[:20]
+
+        if not fragmentos:
+            # Fallback: buscar sin filtro de distancia
+            fragmentos = DocumentoFragmento.objects.select_related('documento').filter(
+                embedding__isnull=False
+            ).annotate(
+                distance=CosineDistance('embedding', query_vector)
+            ).order_by('distance')[:10]
+
+        # 3. Construir contexto
+        seen_docs = set()
+        context_parts = []
+        sources = []
+
+        for f in fragmentos:
+            if f.documento_id not in seen_docs:
+                seen_docs.add(f.documento_id)
+                sources.append({
+                    'id': f.documento.id,
+                    'codigo': f.documento.codigo,
+                    'titulo': f.documento.titulo,
+                    'distancia': round(float(f.distance), 4),
+                    'similitud': round(1 - float(f.distance), 4),
+                })
+            preview = f.contenido[:300] if f.contenido else ''
+            context_parts.append(
+                f"[Documento: {f.documento.codigo} - {f.documento.titulo}]\n{preview}"
+            )
+
+        context = "\n\n---\n\n".join(context_parts)
+        # Limitar contexto a ~12000 caracteres (~3000 tokens aprox)
+        if len(context) > 12000:
+            context = context[:12000] + "\n\n[... contexto truncado ...]"
+
+        system_prompt = (
+            "Eres un asistente experto en documentos técnicos y de gestión de una empresa. "
+            "Tu tarea es responder preguntas basándote ÚNICAMENTE en el contexto de documentos proporcionado. "
+            "Si el contexto no contiene suficiente información para responder, dilo claramente. "
+            "Siempre cita los códigos de los documentos que usaste como fuente entre paréntesis, ej. (CCG-PLN-001). "
+            "Responde en español de forma clara y profesional."
+        )
+
+        # 4. Llamar a Groq
+        client = groq.Client(api_key=api_key)
+        completion = client.chat.completions.create(
+            model=settings.GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Contexto:\n{context}\n\nPregunta: {question}"}
+            ],
+            temperature=0.3,
+            max_tokens=2048,
+        )
+
+        answer = completion.choices[0].message.content
+        usage = completion.usage
+        tokens_used = usage.total_tokens if usage else 0
+
+        # 5. Guardar en historial
+        N8nChatHistory.objects.create(
+            session_id=session_id or f"rag-{request.user.id}-{datetime.datetime.now().timestamp()}",
+            usuario=request.user,
+            mensaje_usuario=question,
+            respuesta_ia=answer,
+            tokens_usados=tokens_used,
+            modelo=settings.GROQ_MODEL,
+        )
+
+        return JsonResponse({
+            'status': 'success',
+            'answer': answer,
+            'sources': sources,
+            'tokens_used': tokens_used,
+            'model': settings.GROQ_MODEL,
+        })
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error en api_documento_rag_chat: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
