@@ -221,6 +221,7 @@ class Departamento(models.Model):
     codigo = models.CharField(max_length=4, blank=True, null=True, verbose_name="Código")
     descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='departamentos_a_cargo', verbose_name="Responsable / Jefe de departamento")
+    aprobador = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='departamentos_a_aprobar', verbose_name="Aprobador de Requisiciones")
     
     def __str__(self):
         return self.nombre

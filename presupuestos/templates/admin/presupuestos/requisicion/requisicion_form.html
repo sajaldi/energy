@@ -130,6 +130,11 @@
                                     {% endif %}
                                 </div>
                             </div>
+                            <div class="form-group" style="margin-top: 8px;">
+                                <label class="form-label">Aprobador</label>
+                                {{ form.aprobador }}
+                                <small class="form-hint">Se toma automáticamente del departamento del solicitante.</small>
+                            </div>
                         </div>
 
                         <div id="on-behalf-container"
@@ -354,6 +359,16 @@
                     <div class="review-item">
                         <span class="review-label">Solicitante</span>
                         <span class="review-value">{% if instance.usuario_solicitante %}{{ instance.usuario_solicitante.get_full_name|default:instance.usuario_solicitante.username }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}</span>
+                    </div>
+                    <div class="review-item">
+                        <span class="review-label">Aprobador</span>
+                        <span class="review-value" style="font-weight: 600; color: #0064d2;">
+                            {% if instance.aprobador %}
+                                👤 {{ instance.aprobador.get_full_name|default:instance.aprobador.username }}
+                            {% else %}
+                                <span style="color: #94a3b8; font-style: italic;">Sin aprobador asignado</span>
+                            {% endif %}
+                        </span>
                     </div>
                     {% if instance.usuario_en_nombre_de %}
                     <div class="review-item">

@@ -6,7 +6,7 @@ class RequisicionForm(forms.ModelForm):
     class Meta:
         model = Requisicion
         fields = [
-            'cr8ca_requisicion', 'fecha', 'fecha_aprobacion', 'partida', 'item_presupuesto', 'usuario_solicitante', 'usuario_en_nombre_de', 'cr8ca_asunto', 'cr8ca_prioridad', 
+            'cr8ca_requisicion', 'fecha', 'fecha_aprobacion', 'partida', 'item_presupuesto', 'usuario_solicitante', 'usuario_en_nombre_de', 'aprobador', 'cr8ca_asunto', 'cr8ca_prioridad', 
             'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion', 'cr8ca_totalenarticulos', 'isv',
             'proveedor', 'proveedores_sugeridos', 'proveedores_sugeridos_notas'
         ]
@@ -22,6 +22,7 @@ class RequisicionForm(forms.ModelForm):
             'cr8ca_comentarios': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'usuario_solicitante': forms.Select(attrs={'class': 'form-control', 'disabled': 'disabled'}),
             'usuario_en_nombre_de': forms.Select(attrs={'class': 'form-control select2-material'}),
+            'aprobador': forms.Select(attrs={'class': 'form-control select2-material'}),
             'cr8ca_id_oc': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ID de Orden de Compra'}),
             'estado_requisicion': forms.Select(attrs={'class': 'form-control', 'disabled': 'disabled'}),
             'cr8ca_totalenarticulos': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
@@ -46,6 +47,12 @@ class RequisicionForm(forms.ModelForm):
             self.fields['estado_requisicion'].required = False
         if 'usuario_solicitante' in self.fields:
             self.fields['usuario_solicitante'].required = False
+        if 'aprobador' in self.fields:
+            self.fields['aprobador'].required = False
+            if self.instance and not getattr(self.instance, 'aprobador_id', None):
+                solicitante = getattr(self.instance, 'usuario_solicitante', None)
+                if solicitante and hasattr(solicitante, 'perfil') and solicitante.perfil.departamento and solicitante.perfil.departamento.aprobador:
+                    self.initial['aprobador'] = solicitante.perfil.departamento.aprobador_id
 
         # Filtrar partidas e ítems por departamento del usuario
         if self.user and 'partida' in self.fields:

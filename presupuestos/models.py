@@ -490,6 +490,13 @@ class Requisicion(models.Model):
     wizard_step = models.IntegerField(default=1, verbose_name="Paso del Wizard")
     usuario_solicitante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Solicitante", related_name='requisiciones_solicitadas')
     usuario_en_nombre_de = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="En nombre de", related_name='requisiciones_en_nombre_de')
+    aprobador = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='requisiciones_a_aprobar',
+        verbose_name="Aprobador"
+    )
 
     partida = models.ForeignKey(
         'PartidaPresupuestaria',
@@ -587,6 +594,15 @@ class Requisicion(models.Model):
             
         if not self.fecha:
             self.fecha = timezone.now()
+
+        # Auto-poblar aprobador desde el departamento del solicitante si no tiene uno asignado
+        if not self.aprobador and self.usuario_solicitante:
+            try:
+                dept = self.usuario_solicitante.perfil.departamento
+                if dept and dept.aprobador:
+                    self.aprobador = dept.aprobador
+            except Exception:
+                pass
             
         super().save(*args, **kwargs)
 

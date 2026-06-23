@@ -313,7 +313,7 @@ class RequisicionAdmin(ImportExportModelAdmin):
     list_display = ('cr8ca_requisicion', 'fecha', 'partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'usuario_solicitante', 'createdon')
     list_filter = ('fecha', 'cr8ca_prioridad', 'estado_requisicion')
     search_fields = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo')
-    autocomplete_fields = ['partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'usuario_solicitante', 'usuario_en_nombre_de']
+    autocomplete_fields = ['partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'usuario_solicitante', 'usuario_en_nombre_de', 'aprobador']
     ordering = ('-fecha',)
     inlines = [ArticuloRequisicionInline, DocumentoRequisicionInline]
     readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon', 'total_estimado', 'monto_pagado', 'import_background_btn')

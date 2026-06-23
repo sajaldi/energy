@@ -177,13 +177,13 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50 MB
 
 INSTALLED_APPS = [
     'storages',
+    'jazzmin',  # Debe ir ANTES de django.contrib.admin
     'core',  # Mover al inicio para que sus templates (overrides) tengan prioridad
     'callcenter',
     'documentos', # Nueva gestión documental
     'plantillas', # Sistema de plantillas Word
     'comunicaciones', # Nuevo sistema de mail/transmittals
     'proyectos', # Gestión de proyectos y actividades
-    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

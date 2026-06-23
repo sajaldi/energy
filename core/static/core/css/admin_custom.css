@@ -1,291 +1,565 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
 
 :root {
-    --sap-blue: #0854a0;
-    --sap-bg: #f5f6f7;
+    --sap-blue: #0064d2;
+    --sap-blue-hover: #004fb0;
+    --sap-blue-light: #e1f0ff;
+    --sap-bg: #f3f5f8;
     --sap-shell: #ffffff;
-    --sap-text: #32363a;
-    --sap-border: #d9d9d9;
-    --sap-radius: 0.5rem;
+    --sap-text: #1d2d3d;
+    --sap-text-muted: #556b82;
+    --sap-border: #e2e8f0;
+    --sap-radius: 0px;
+    --sap-radius-sm: 0px;
+    --sap-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.12);
+    --sap-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.16);
+    --sap-sidebar-bg: #ffffff;
+    --sap-sidebar-text: #556b82;
+    --sap-sidebar-hover: #f1f5f9;
+    --sap-sidebar-active: #0064d2;
 }
 
+/* --- Global Reset & Background --- */
 html, body, .wrapper {
     height: 100%;
     margin: 0;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     background-image: url('/static/core/img/admin_bg.png') !important;
     background-size: auto !important; /* No extender la imagen para evitar que se vea borrosa */
     background-position: top left !important;
     background-attachment: fixed !important;
     background-repeat: repeat !important; /* Repetir si es necesario para cubrir el fondo */
+    color: var(--sap-text) !important;
 }
 
 body {
     background-color: transparent !important;
-    color: var(--sap-text) !important;
 }
 
 /* --- ShellBar (Header) --- */
 .main-header {
     background-color: var(--sap-shell) !important;
-    border-bottom: 2px solid var(--sap-blue) !important;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+    border-bottom: 1px solid var(--sap-border) !important;
+    box-shadow: var(--sap-shadow-sm) !important;
+    padding: 0.5rem 1rem !important;
 }
 
 .main-header .nav-link {
     color: var(--sap-text) !important;
     font-weight: 500;
+    transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .main-header .nav-link:hover {
     color: var(--sap-blue) !important;
+    transform: translateY(-1px);
+}
+
+.main-header .navbar-nav .nav-item {
+    margin-right: 0.25rem;
 }
 
 /* --- Sidebar (Launcher) --- */
 .main-sidebar {
-    background-color: #202d3d !important; /* SAP Fiori Horizon Deep Blue */
-    box-shadow: 4px 0 10px rgba(0,0,0,0.1) !important;
+    background-color: var(--sap-sidebar-bg) !important;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.05) !important;
+    border-right: 1px solid var(--sap-border) !important;
 }
 
 .brand-link {
-    background-color: #202d3d !important;
-    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-    color: #ffffff !important;
-    padding: 0.8125rem 0.5rem !important;
+    background-color: var(--sap-sidebar-bg) !important;
+    border-bottom: 1px solid var(--sap-border) !important;
+    color: var(--sap-text) !important;
+    padding: 1rem 0.75rem !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px;
+}
+
+.brand-link img {
+    opacity: 0.95;
+    transition: transform 0.3s ease;
+}
+
+.brand-link:hover img {
+    transform: rotate(5deg) scale(1.05);
+}
+
+/* User panel customization for light Fiori */
+.user-panel {
+    border-bottom: 1px solid var(--sap-border) !important;
+    margin-bottom: 0.5rem !important;
+    padding: 0.5rem 0.25rem !important;
+}
+
+.user-panel .info a {
+    color: var(--sap-text) !important;
+    font-weight: 600 !important;
+}
+
+.sidebar {
+    padding: 0.75rem !important;
 }
 
 .nav-sidebar .nav-link {
-    border-radius: 0 !important;
-    margin-bottom: 2px !important;
-    color: #cad1d9 !important; /* Inactive grey */
-    transition: all 0.2s ease;
+    border-radius: var(--sap-radius-sm) !important;
+    margin-bottom: 4px !important;
+    color: var(--sap-sidebar-text) !important;
+    padding: 0.6rem 0.8rem !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.9rem !important;
 }
 
 .nav-sidebar .nav-link:hover {
-    background-color: rgba(255,255,255,0.05) !important;
-    color: #ffffff !important;
+    background-color: var(--sap-sidebar-hover) !important;
+    color: var(--sap-blue) !important;
+    padding-left: 0.95rem !important;
 }
 
 .nav-sidebar .nav-link.active {
-    background-color: rgba(255,255,255,0.1) !important;
-    border-left: 4px solid #0a6ed1 !important; /* Bright SAP Blue */
-    color: #ffffff !important;
+    background-color: var(--sap-blue-light) !important;
+    color: var(--sap-blue) !important;
     font-weight: 600;
+    box-shadow: none !important;
+    border-left: 4px solid var(--sap-blue) !important;
 }
 
-/* --- Content & Cards --- */
+.nav-treeview {
+    background-color: #fafbfc !important;
+    border-radius: var(--sap-radius-sm);
+    margin: 4px 0 !important;
+    padding: 4px 0 !important;
+    border-left: 1px solid var(--sap-border);
+}
+
+.nav-treeview .nav-item {
+    padding-left: 0.25rem !important;
+}
+
+.nav-treeview .nav-link {
+    font-size: 0.825rem !important;
+    color: var(--sap-text-muted) !important;
+}
+
+.nav-treeview .nav-link i.fa-circle {
+    font-size: 0.4rem !important;
+    margin-right: 10px !important;
+    opacity: 0.6;
+}
+
+/* Sidebar Icon Colors (Horizon Theme Style) */
+.nav-sidebar i.fas, .nav-sidebar i.far, .nav-sidebar i.fa {
+    width: 1.25rem;
+    margin-right: 0.6rem;
+    transition: transform 0.2s ease;
+}
+
+.nav-sidebar .nav-link:hover i {
+    transform: scale(1.1);
+}
+
+/* Modern Colors for Sections */
+.nav-sidebar .nav-item>.nav-link i.fa-bolt { color: #f59e0b !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-building { color: #3b82f6 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-file-alt { color: #ef4444 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-project-diagram { color: #8b5cf6 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-tools { color: #f97316 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-boxes { color: #ea580c !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-headset { color: #06b6d4 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-ticket-alt { color: #06b6d4 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-hard-hat { color: #eab308 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-concierge-bell { color: #ec4899 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-file-word { color: #2563eb !important; }
+
+/* Scrollbar customization */
+.sidebar::-webkit-scrollbar {
+    width: 5px;
+}
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+/* --- Content Wrapper & Cards --- */
 .content-wrapper, 
 .content, 
-.container-fluid,
-.wrapper {
+.container-fluid {
     background-color: transparent !important;
     background: transparent !important;
 }
 
 .content-wrapper {
     background: rgba(245, 246, 247, 0.25) !important; /* Capa más ligera y sin blur */
-    backdrop-filter: none !important; /* Eliminamos el blur que hacía que se viera borroso */
+    backdrop-filter: none !important;
     padding: 1.5rem !important;
-    min-height: 100vh;
+    transition: all 0.3s ease;
+}
+
+.content-header h1 {
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 700 !important;
+    color: var(--sap-text) !important;
+    font-size: 1.6rem !important;
+    margin-bottom: 0.5rem;
 }
 
 .card {
-    border: none !important;
+    background-color: #ffffff !important;
+    border: 1px solid var(--sap-border) !important;
     border-radius: var(--sap-radius) !important;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+    box-shadow: var(--sap-shadow-sm) !important;
     margin-bottom: 1.5rem !important;
     overflow: hidden;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: var(--sap-shadow-md) !important;
 }
 
 .card-header {
     background-color: #ffffff !important;
     border-bottom: 1px solid var(--sap-border) !important;
-    padding: 0.75rem 1.25rem !important;
+    padding: 1rem 1.25rem !important;
 }
 
 .card-title {
+    font-family: 'Outfit', sans-serif !important;
     font-weight: 600 !important;
     color: var(--sap-blue) !important;
+    font-size: 1.05rem !important;
 }
 
-/* --- Buttons --- */
-.btn-primary {
+/* --- Buttons (SAP Fiori Blue & Grey) --- */
+.btn, .btn-primary, .btn-info, .btn-success, .btn-warning, .btn-danger, .addlink, .changelink {
+    border-radius: var(--sap-radius-sm) !important;
+    font-weight: 600 !important;
+    padding: 0.45rem 1.2rem !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-size: 0.85rem !important;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 34px !important;
+    border: 1px solid transparent !important;
+}
+
+/* Primary Action Buttons (Añadir / Guardar) -> SAP Blue */
+.btn-primary, .btn-success, .addlink {
     background-color: var(--sap-blue) !important;
     border-color: var(--sap-blue) !important;
-    border-radius: 4px !important;
-    font-weight: 500 !important;
-    padding: 0.5rem 1rem !important;
-    transition: all 0.2s;
+    color: #ffffff !important;
 }
 
-.btn-primary:hover {
-    filter: brightness(1.1);
-    box-shadow: 0 2px 4px rgba(8, 84, 160, 0.3) !important;
+.btn-primary:hover, .btn-primary:focus, .btn-success:hover, .addlink:hover {
+    background-color: var(--sap-blue-hover) !important;
+    border-color: var(--sap-blue-hover) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 100, 210, 0.15) !important;
 }
+
+/* Secondary / Neutral Buttons (Modificar / Cancelar / Info) -> Dark Grey */
+.btn-info, .btn-secondary, .changelink, .btn-outline-primary {
+    background-color: var(--sap-text-muted) !important;
+    border-color: var(--sap-text-muted) !important;
+    color: #ffffff !important;
+}
+
+.btn-info:hover, .btn-secondary:hover, .changelink:hover, .btn-outline-primary:hover {
+    background-color: #3e5166 !important;
+    border-color: #3e5166 !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+}
+
+
 
 /* --- Tables --- */
+.table-responsive {
+    border-radius: var(--sap-radius-sm);
+    overflow: hidden;
+}
+
 .table {
     background-color: #ffffff !important;
+    border-collapse: collapse !important;
 }
 
 .table thead th {
-    background-color: #f2f5f9 !important;
-    color: #5e6977 !important;
+    background-color: #f8fafc !important;
+    color: var(--sap-text-muted) !important;
     font-weight: 600 !important;
-    text-transform: uppercase;
-    font-size: 0.75rem;
+    font-size: 0.775rem !important;
     letter-spacing: 0.05em;
     border-bottom: 2px solid var(--sap-border) !important;
+    padding: 1rem 0.75rem !important;
+    text-transform: uppercase;
+}
+
+.table tbody td {
+    padding: 0.85rem 0.75rem !important;
+    vertical-align: middle !important;
+    border-bottom: 1px solid var(--sap-border) !important;
+    color: var(--sap-text) !important;
+    font-size: 0.875rem !important;
 }
 
 .table tbody tr:hover {
-    background-color: #ebf5fe !important;
+    background-color: #f1f7fe !important;
 }
 
-/* --- Forms --- */
-.form-control {
-    border-radius: 4px !important;
+/* --- Forms & Inputs --- */
+.form-control, select, textarea {
+    border-radius: var(--sap-radius-sm) !important;
     border: 1px solid var(--sap-border) !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    background-color: #ffffff !important;
+    color: var(--sap-text) !important;
+    transition: all 0.2s ease-in-out !important;
 }
 
-.form-control:focus {
+.form-control:focus, select:focus, textarea:focus {
     border-color: var(--sap-blue) !important;
-    box-shadow: 0 0 0 0.2rem rgba(8, 84, 160, 0.15) !important;
+    box-shadow: 0 0 0 3px rgba(0, 100, 210, 0.15) !important;
+    background-color: #ffffff !important;
 }
 
-/* Custom styles for import/export and object tools */
-.object-tools, .model-activos .object-tools, .model-bienafecto .object-tools {
+/* --- Object Tools / Action Bars --- */
+.object-tools {
     display: flex !important;
-    flex-direction: row !important;
     flex-wrap: wrap !important;
     justify-content: flex-end !important;
-    align-items: center !important;
     gap: 8px !important;
-    margin-bottom: 1rem !important;
+    margin-bottom: 1.25rem !important;
     padding-left: 0 !important;
 }
 
 .object-tools li {
     list-style: none !important;
-    display: inline-block !important;
+    margin: 0 !important;
 }
 
-/* Global button reset for SAP Fiori look */
-.object-tools a, 
-.object-tools button, 
-.btn-primary, 
-.btn-info, 
-.btn-success,
-.import_link,
-.export_link {
-    height: 32px !important; /* Slightly smaller for Fiori standard */
+.object-tools a, .object-tools button {
+    height: 36px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 0 12px !important;
-    font-size: 0.8125rem !important;
-    font-weight: 500 !important;
-    border-radius: 4px !important;
-    text-transform: none !important;
+    padding: 0 14px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    border-radius: var(--sap-radius-sm) !important;
     transition: all 0.2s ease !important;
-    border: 1px solid transparent !important;
+    border: 1px solid var(--sap-border) !important;
     white-space: nowrap !important;
-}
-
-/* Add Link / Primary Action */
-.object-tools a.addlink, .btn-primary:not(.btn-outline-primary) {
-    background-color: #0854a0 !important;
-    color: #ffffff !important;
-    border: 1px solid #0854a0 !important;
-}
-
-/* Custom tools (Import/Export/etc) */
-.object-tools a:not(.addlink), 
-.object-tools button,
-.btn-outline-primary,
-.import_link,
-.export_link {
+    text-transform: none !important;
     background-color: #ffffff !important;
-    color: #0854a0 !important;
-    border: 1px solid #d9d9d9 !important; /* Lighter border for secondary */
+    color: var(--sap-blue) !important;
 }
 
-/* Async Import specific status dots */
-.object-tools a span[style*="background-color"] {
-    width: 8px !important;
-    height: 8px !important;
-    border-radius: 50% !important;
-    margin-right: 6px !important;
-}
-
-.object-tools a:hover {
-    background-color: #f5f6f7 !important;
-    border-color: #0854a0 !important;
+.object-tools a:hover, .object-tools button:hover {
+    background-color: #f8fafc !important;
+    border-color: var(--sap-blue) !important;
     text-decoration: none !important;
+    transform: translateY(-1px);
+}
+
+.object-tools a.addlink {
+    background-color: var(--sap-blue) !important;
+    color: #ffffff !important;
+    border-color: var(--sap-blue) !important;
 }
 
 .object-tools a.addlink:hover {
-    background-color: #074a8c !important;
-    border-color: #074a8c !important;
+    background-color: var(--sap-blue-hover) !important;
+    border-color: var(--sap-blue-hover) !important;
+    box-shadow: 0 4px 12px rgba(0, 100, 210, 0.2) !important;
 }
 
-/* --- Sidebar Icons Colors (Fiori Palette) --- */
-.nav-sidebar i.fas, .nav-sidebar i.far, .nav-sidebar i.fa {
-    width: 1.5rem;
-    text-align: center;
-    margin-right: 0.5rem;
+/* --- Status & Badges (Fiori Horizon Style) --- */
+.badge {
+    padding: 0.35em 0.85em !important;
+    font-weight: 700 !important;
+    font-size: 75% !important;
+    border-radius: 4px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-/* Identación de hijos (Treeview) */
-.nav-treeview {
-    background-color: #1a2430 !important; /* Darker subgroup */
+.badge-success, .badge-active, .badge-operativo {
+    background-color: #e7f4e9 !important;
+    color: #107e3e !important;
+    border: 1px solid #107e3e !important;
 }
 
-.nav-treeview .nav-item {
-    padding-left: 0.5rem !important;
+.badge-warning, .badge-mantenimiento {
+    background-color: #fff8e6 !important;
+    color: #e9730c !important;
+    border: 1px solid #e9730c !important;
 }
 
-.nav-treeview .nav-link {
+.badge-danger, .badge-reparacion, .badge-fuera_servicio {
+    background-color: #fcebeb !important;
+    color: #bb0000 !important;
+    border: 1px solid #bb0000 !important;
+}
+
+.badge-info, .badge-obsoleto {
+    background-color: #f1f5f9 !important;
+    color: #475569 !important;
+    border: 1px solid #475569 !important;
+}
+
+/* Breadcrumbs customization */
+.breadcrumb {
+    background-color: transparent !important;
+    padding: 0.5rem 0 !important;
+    margin-bottom: 1rem !important;
     font-size: 0.85rem !important;
-    padding-top: 0.4rem !important;
-    padding-bottom: 0.4rem !important;
-    color: #bcc3ca !important;
 }
 
-.nav-treeview .nav-link i.fa-circle {
-    font-size: 0.5rem !important; /* Círculos más pequeños y discretos */
-    margin-right: 12px !important;
-    opacity: 0.5;
+.breadcrumb-item a {
+    color: var(--sap-blue) !important;
+    font-weight: 500;
 }
 
-.nav-sidebar .nav-item>.nav-link i.fa-bolt { color: #f1c40f !important; }
-.nav-sidebar .nav-item>.nav-link i.fa-building { color: #0070f2 !important; }
-.nav-sidebar .nav-item>.nav-link i.fa-file-alt { color: #ff5722 !important; }
-.nav-sidebar .nav-item>.nav-link i.fa-project-diagram { color: #9b59b6 !important; }
-.nav-sidebar .nav-item>.nav-link i.fa-tools { color: #e67e22 !important; }
-.nav-sidebar .nav-item>.nav-link i.fa-boxes { color: #d35400 !important; }
-.nav-sidebar .nav-item>.nav-link i.fa-headset { color: #17a2b8 !important; }
-.nav-sidebar .nav-item>.nav-link i.fa-ticket-alt { color: #17a2b8 !important; } /* Fix icon */
-.nav-sidebar .nav-item>.nav-link i.fa-hard-hat { color: #f39c12 !important; }
-.nav-sidebar .nav-item>.nav-link i.fa-concierge-bell { color: #e91e63 !important; }
-.nav-sidebar .nav-item>.nav-link i.fa-file-word { color: #2b5797 !important; }
-
-/* Filter brightness on active */
-.nav-sidebar .nav-link.active i {
-    filter: brightness(1.5) !important;
+.breadcrumb-item.active {
+    color: var(--sap-text-muted) !important;
 }
 
-/* Ajuste de scrollbar para el sidebar */
-.sidebar::-webkit-scrollbar {
-    width: 6px;
+/* --- Jazmin / Bootstrap Tabs overrides (matching Fiori Tabbed layout) --- */
+.nav-tabs {
+    background-color: #ffffff !important;
+    border-bottom: 1px solid var(--sap-border) !important;
+    padding: 0 1rem !important;
+    margin: -1.5rem -1.5rem 1.5rem -1.5rem !important;
+    display: flex !important;
+    gap: 0px !important;
 }
-.sidebar::-webkit-scrollbar-track {
-    background: transparent;
+
+.nav-tabs .nav-item .nav-link {
+    border: none !important;
+    background: transparent !important;
+    color: var(--sap-text-muted) !important;
+    font-weight: 600 !important;
+    padding: 1rem 1.25rem !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 0 !important;
+    transition: all 0.2s ease !important;
+    font-size: 0.9rem !important;
 }
-.sidebar::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.1);
-    border-radius: 10px;
+
+.nav-tabs .nav-item .nav-link:hover {
+    color: var(--sap-blue) !important;
 }
-.sidebar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255,255,255,0.2);
+
+.nav-tabs .nav-item .nav-link.active {
+    color: var(--sap-blue) !important;
+    border-bottom: 3px solid var(--sap-blue) !important;
+    background-color: transparent !important;
+}
+
+/* Tab panes as transparent wrappers (we style fieldsets as cards) */
+.tab-content > .tab-pane {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Style fieldsets inside change form as Fiori cards */
+fieldset.module {
+    background-color: #ffffff !important;
+    border: 1px solid var(--sap-border) !important;
+    border-radius: var(--sap-radius) !important;
+    box-shadow: var(--sap-shadow-sm) !important;
+    margin-bottom: 1.5rem !important;
+    padding: 1.5rem !important;
+    transition: box-shadow 0.3s ease;
+}
+
+fieldset.module:hover {
+    box-shadow: var(--sap-shadow-md) !important;
+}
+
+fieldset.module h2 {
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 600 !important;
+    color: var(--sap-blue) !important;
+    font-size: 1.05rem !important;
+    border-bottom: 1px solid var(--sap-border) !important;
+    padding-bottom: 0.75rem !important;
+    margin-bottom: 1.25rem !important;
+    margin-top: 0 !important;
+    background: transparent !important;
+}
+
+/* Form row key-value clean layout */
+.form-group.row {
+    padding: 0.75rem 0 !important;
+    border-bottom: 1px solid #f8fafc !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+.form-group.row:last-child {
+    border-bottom: none !important;
+}
+
+.form-group.row label {
+    color: var(--sap-text-muted) !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    padding-left: 0 !important;
+}
+
+.form-group.row .readonly {
+    font-weight: 600 !important;
+    color: var(--sap-text) !important;
+    font-size: 0.9rem !important;
+}
+
+/* KPI Card layout mapping for row-fields */
+.form-row.field-mt_mtbf {
+    display: flex !important;
+    gap: 1rem !important;
+    margin-bottom: 1.5rem !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+.form-row.field-mt_mtbf > div {
+    flex: 1 !important;
+    background-color: #ffffff !important;
+    border: 1px solid var(--sap-border) !important;
+    border-radius: var(--sap-radius-sm) !important;
+    padding: 1.25rem !important;
+    text-align: center !important;
+    box-shadow: var(--sap-shadow-sm) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+}
+
+.form-row.field-mt_mtbf label {
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    color: var(--sap-text-muted) !important;
+    margin-bottom: 8px !important;
+    width: auto !important;
+    font-weight: 600 !important;
+}
+
+.form-row.field-mt_mtbf .readonly {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: var(--sap-text) !important;
 }
