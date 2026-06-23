@@ -7,6 +7,19 @@ from django.utils import timezone
 import uuid
 from django.db.models import Max
 
+class Moneda(models.Model):
+    nombre = models.CharField(max_length=100, verbose_name="Nombre")
+    codigo = models.CharField(max_length=10, unique=True, verbose_name="Código (Siglas)")
+    simbolo = models.CharField(max_length=10, default='$', verbose_name="Símbolo")
+
+    def __str__(self):
+        return self.codigo
+
+    class Meta:
+        verbose_name = "Moneda"
+        verbose_name_plural = "Monedas"
+        ordering = ['codigo']
+
 class PresupuestoAnual(models.Model):
     """
     Plan financiero anual global.
@@ -17,20 +30,18 @@ class PresupuestoAnual(models.Model):
         ('CERRADO', 'Cerrado'),
     )
     
-    MONEDAS = (
-        ('DOP', 'Pesos Dominicanos (DOP)'),
-        ('USD', 'Dólares (USD)'),
-        ('HNL', 'Lempiras (HNL)'),
-        ('EUR', 'Euro'),
-    )
-    
     nombre = models.CharField(max_length=200, verbose_name="Nombre del Plan")
     anio = models.PositiveIntegerField(
         verbose_name="Año",
         validators=[MinValueValidator(2020), MaxValueValidator(2100)],
         default=datetime.now().year
     )
-    moneda = models.CharField(max_length=10, choices=MONEDAS, default='DOP')
+    moneda = models.ForeignKey(
+        'Moneda',
+        on_delete=models.PROTECT,
+        related_name='presupuestos',
+        verbose_name="Moneda"
+    )
     estado = models.CharField(max_length=20, choices=ESTADOS, default='PLANIFICACION')
     departamento = models.ForeignKey(
         'core.Departamento',

@@ -7,7 +7,7 @@ from .models import (
     ItemPresupuesto, Compromiso, DetalleCompromiso, CambioPresupuesto, DetallePeriodico,
     PresupuestoAgrupado, Requisicion, ArticuloRequisicion, DocumentoRequisicion,
     SolicitudPago, ItemSolicitudPago,
-    REPEX, REPEXItem
+    REPEX, REPEXItem, Moneda
 )
 from .resources import RequisicionResource
 
@@ -146,13 +146,18 @@ class PartidaInline(admin.TabularInline):
         return "-"
     editar_detalles.short_description = "Detalles"
 
+@admin.register(Moneda)
+class MonedaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'codigo', 'simbolo')
+    search_fields = ('nombre', 'codigo')
+
 @admin.register(PresupuestoAnual)
 class PresupuestoAnualAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'anio', 'departamento', 'moneda', 'get_total_proyectado', 'get_total_ejecutado', 'get_progreso', 'ver_cronograma_btn', 'estado', 'elaborado_por')
     list_filter = ('anio', 'estado', 'moneda', 'departamento')
     search_fields = ('nombre', 'departamento__nombre')
     inlines = [PartidaInline]
-    autocomplete_fields = ['elaborado_por', 'departamento']
+    autocomplete_fields = ['elaborado_por', 'departamento', 'moneda']
     
     def ver_cronograma_btn(self, obj):
         from django.urls import reverse
