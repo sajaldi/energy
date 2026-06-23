@@ -2064,9 +2064,9 @@ def api_documento_rag_chat(request):
     """
     from core.ai_utils import get_embedding
     from pgvector.django import CosineDistance
-    from django.conf import settings
-    from .models import DocumentoFragmento, N8nChatHistory
+    from .models import DocumentoFragmento, N8nChatHistory, GroqApiKey
     import groq
+    import random
 
     try:
         data = json.loads(request.body)
@@ -2076,9 +2076,14 @@ def api_documento_rag_chat(request):
         if not question:
             return JsonResponse({'error': 'La pregunta es obligatoria'}, status=400)
 
-        api_key = settings.GROQ_API_KEY
-        if not api_key:
-            return JsonResponse({'error': 'GROQ_API_KEY no configurada'}, status=503)
+        # Obtener clave activa de la DB (rotación round-robin)
+        claves = list(GroqApiKey.objects.filter(is_active=True).order_by('orden', 'created_at'))
+        if not claves:
+            return JsonResponse({'error': 'No hay API Keys de Groq configuradas. Agréguelas en /admin/documentos/groqapikey/'}, status=503)
+
+        clave = claves[0] if len(claves) == 1 else random.choice(claves)
+        api_key = clave.api_key
+        modelo = clave.modelo
 
         # 1. Embedding de la pregunta
         query_vector = get_embedding(question, task_type="retrieval_query", dimensions=768)
@@ -2093,7 +2098,6 @@ def api_documento_rag_chat(request):
         ).filter(distance__lt=0.40).order_by('distance')[:20]
 
         if not fragmentos:
-            # Fallback: buscar sin filtro de distancia
             fragmentos = DocumentoFragmento.objects.select_related('documento').filter(
                 embedding__isnull=False
             ).annotate(
@@ -2121,7 +2125,6 @@ def api_documento_rag_chat(request):
             )
 
         context = "\n\n---\n\n".join(context_parts)
-        # Limitar contexto a ~12000 caracteres (~3000 tokens aprox)
         if len(context) > 12000:
             context = context[:12000] + "\n\n[... contexto truncado ...]"
 
@@ -2136,7 +2139,7 @@ def api_documento_rag_chat(request):
         # 4. Llamar a Groq
         client = groq.Client(api_key=api_key)
         completion = client.chat.completions.create(
-            model=settings.GROQ_MODEL,
+            model=modelo,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Contexto:\n{context}\n\nPregunta: {question}"}
@@ -2156,7 +2159,7 @@ def api_documento_rag_chat(request):
             mensaje_usuario=question,
             respuesta_ia=answer,
             tokens_usados=tokens_used,
-            modelo=settings.GROQ_MODEL,
+            modelo=modelo,
         )
 
         return JsonResponse({
@@ -2164,7 +2167,8 @@ def api_documento_rag_chat(request):
             'answer': answer,
             'sources': sources,
             'tokens_used': tokens_used,
-            'model': settings.GROQ_MODEL,
+            'model': modelo,
+            'clave_usada': clave.alias,
         })
 
     except Exception as e:

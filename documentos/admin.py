@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from .models import Documento, Carpeta, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory, Biblioteca, ComentarioBiblioteca
+from .models import Documento, Carpeta, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory, Biblioteca, ComentarioBiblioteca, GroqApiKey
 import json
 
 from django.forms import TextInput, Textarea
@@ -1008,6 +1008,19 @@ class CarpetaAdmin(admin.ModelAdmin):
     list_filter = ('creado_en', 'departamentos')
     search_fields = ('nombre',)
     filter_horizontal = ('departamentos',)
+
+
+@admin.register(GroqApiKey)
+class GroqApiKeyAdmin(admin.ModelAdmin):
+    list_display = ('alias', 'modelo', 'is_active', 'orden', 'api_key_masked', 'created_at')
+    list_editable = ('is_active', 'orden')
+    list_filter = ('is_active', 'modelo')
+    search_fields = ('alias',)
+
+    def api_key_masked(self, obj):
+        k = obj.api_key
+        return f"{k[:8]}...{k[-4:]}" if len(k) > 12 else "***"
+    api_key_masked.short_description = "API Key"
 
 
 # Importar y registrar admins del sistema de firmas

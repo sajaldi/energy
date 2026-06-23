@@ -577,6 +577,23 @@ class ComentarioBiblioteca(models.Model):
         return f"{self.titulo} ({self.fecha.strftime('%d/%m/%Y')})"
 
 
+class GroqApiKey(models.Model):
+    alias = models.CharField("Nombre", max_length=100, help_text="Ej: Producción, Desarrollo, Cliente A")
+    api_key = models.CharField("API Key", max_length=200)
+    modelo = models.CharField("Modelo", max_length=100, default="llama-3.3-70b-versatile")
+    is_active = models.BooleanField("Activa", default=True)
+    orden = models.PositiveIntegerField("Orden", default=0, help_text="Las claves activas se rotan en orden")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "API Key de Groq"
+        verbose_name_plural = "API Keys de Groq"
+        ordering = ['orden', 'created_at']
+
+    def __str__(self):
+        return f"{self.alias} ({self.modelo})"
+
+
 # Importar modelos del sistema de firmas electrónicas
 from .models_firmas import (
     PerfilFirma,
