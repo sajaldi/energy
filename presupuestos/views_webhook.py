@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404
+from django.conf import settings
 from .models import Requisicion
 from .utils_documentos import generate_requisicion_pdf
 import json
@@ -124,7 +125,7 @@ def requisicion_webhook_update(request):
                 # Intentamos generar la URL absoluta para que n8n la reciba lista
                 pdf_url = doc_obj.archivo.url
                 if pdf_url.startswith('/'):
-                    pdf_url = request.build_absolute_uri(pdf_url)
+                    pdf_url = f"{settings.SITE_URL.rstrip('/')}{pdf_url}"
 
         logger.info(f"Requisición {numero_requisicion} actualizada de {estado_anterior} a {nuevo_estado} vía webhook")
         
