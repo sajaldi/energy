@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from django.urls import reverse
 from .models import Documento, Carpeta, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory, Biblioteca, ComentarioBiblioteca, GroqApiKey
 import json
@@ -170,7 +170,7 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
             return "-"
         
         if obj.embedding is None:
-            return format_html('<span style="color:#94a3b8; font-size:0.8rem;">(Sin vectorizar)</span>')
+            return mark_safe('<span style="color:#94a3b8; font-size:0.8rem;">(Sin vectorizar)</span>')
             
         url = reverse('documentos:documento_espacio_vectorial', args=[obj.id])
         return format_html(
@@ -485,7 +485,7 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
             )
             
         if obj.embedding is not None:
-            return format_html('<span title="Vectorizado (IA Lista)" style="font-size: 1.2rem;">🧠 ✅</span>')
+            return mark_safe('<span title="Vectorizado (IA Lista)" style="font-size: 1.2rem;">🧠 ✅</span>')
         
         # Botón para vectorizar si está pendiente
         return format_html(
@@ -723,7 +723,7 @@ class BibliotecaAdmin(admin.ModelAdmin):
     def visualizar_biblioteca_link(self, obj):
         if not obj.pk: return "-"
         url = f"/documentos/biblioteca/visualizar/{obj.pk}/"
-        return format_html(
+        return mark_safe(
             f'<a href="{url}" class="button" style="background:#64748b; color:white; padding:6px 15px; border-radius:6px; font-weight:700; text-decoration:none;">👁️ Ver Galería</a>'
         )
     visualizar_biblioteca_link.short_description = "Vista Pública"
