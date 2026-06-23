@@ -2,7 +2,10 @@ version: '3.8'
 
 services:
   web:
-    build: .
+    build:
+      context: .
+      cache_from:
+        - energia-base:latest
     command: gunicorn energia.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 600
     volumes:
       - ./media:/app/media
@@ -35,7 +38,10 @@ services:
       retries: 3
 
   celery_worker:
-    build: .
+    build:
+      context: .
+      cache_from:
+        - energia-base:latest
     command: celery -A energia worker --loglevel=info --concurrency=2 --max-tasks-per-child=50
     volumes:
       - ./media:/app/media
@@ -56,7 +62,10 @@ services:
       retries: 3
 
   celery_beat:
-    build: .
+    build:
+      context: .
+      cache_from:
+        - energia-base:latest
     command: celery -A energia beat --loglevel=info
     volumes:
       - ./media:/app/media

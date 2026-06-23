@@ -1,14 +1,14 @@
-# Dockerfile optimizado para Django + Celery en Coolify
+# ===== STAGE 1: Dependencias (sistema + Python + Playwright) =====
+# Esta capa solo se reconstruye cuando cambian requirements.txt o playwright
+FROM python:3.11-slim AS builder
 
-FROM python:3.11-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# 1. Instalar dependencias del sistema base
+# Dependencias del sistema (capa estable)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
@@ -16,30 +16,37 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libcairo2-dev \
     python3-dev \
-    libreoffice-writer \
     fonts-liberation \
-    default-jre \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Instalación de dependencias de Python (Capa con caché persistente)
-COPY requirements.txt /app/
+# Dependencias Python (capa con caché, solo cambia con requirements.txt)
+COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 3. Playwright (Instalación separada para caché)
-# Instalamos Chromium y sus dependencias de sistema específicas
+# Playwright (capa separada, solo se reinstala si cambia playwright en requirements)
 RUN playwright install --with-deps chromium
 
-# 4. Copiar código de la aplicación (Capa que cambia frecuentemente)
+# ===== STAGE 2: Solo código fuente (capa ultra-ligera) =====
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# Copiar site-packages y bins del stage builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
+COPY --from=builder /root/.cache/ms-playwright/ /root/.cache/ms-playwright/
+
+# Copiar solo el código de la app (capa que cambia frecuentemente)
 COPY . /app/
 
-# 5. Preparación de entorno
 RUN mkdir -p /app/media /app/staticfiles
-RUN python manage.py collectstatic --noinput || true
 
-# Configuración de ejecución
 EXPOSE 8000
 RUN chmod +x /app/start.sh
 
-# El comando se define por el script de inicio (Web por defecto)
 CMD ["/bin/bash", "/app/start.sh"]
