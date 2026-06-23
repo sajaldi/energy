@@ -561,6 +561,7 @@
             const icon = template.querySelector('.item-icon');
 
             wrapper.dataset.id = node.id;
+            wrapper.dataset.type = node.tipo || 'UBICACION';
             label.textContent = node.nombre;
             
             if (node.tipo === 'EDIFICIO') icon.setAttribute('name', 'business');
@@ -609,8 +610,19 @@
         el.classList.add('active');
         currentActiveNode = el;
 
-        const id = el.closest('.tree-node-wrapper').dataset.id;
-        loadUbicacionDetail(id);
+        const wrapper = el.closest('.tree-node-wrapper');
+        const id = wrapper.dataset.id;
+        const type = wrapper.dataset.type;
+
+        if (type === 'CATEGORIA') {
+            // id format: cat_{categoria_id}_{ubicacion_id}
+            const parts = id.split('_');
+            if (parts.length === 3) {
+                loadCategoriaDetail(parts[1], parts[2]);
+            }
+        } else {
+            loadUbicacionDetail(id);
+        }
     }
 
     async function loadUbicacionDetail(id) {
@@ -624,6 +636,66 @@
         } catch (e) {
             container.innerHTML = '<p>Error al cargar detalles</p>';
         }
+    }
+
+    async function loadCategoriaDetail(catId, ubicacionId) {
+        const container = document.getElementById('main-content');
+        container.innerHTML = '<div class="loader"></div>';
+
+        try {
+            const res = await fetch(`/activos/api/ubicacion-categoria-activos/${ubicacionId}/${catId}/`);
+            const data = await res.json();
+            renderCategoriaPage(catId, ubicacionId, data, container);
+        } catch (e) {
+            container.innerHTML = '<p>Error al cargar detalles de categoría</p>';
+        }
+    }
+
+    function renderCategoriaPage(catId, ubicacionId, data, container) {
+        let html = `
+            <div class="fiori-object-page-header">
+                <div class="object-page-subtitle">Activos filtrados por categoría</div>
+                <h1 class="object-page-title">Categoría seleccionada</h1>
+            </div>
+            <div class="fiori-section">
+                <div class="section-title"><ion-icon name="list-outline"></ion-icon> Activos en esta categoría</div>
+        `;
+
+        if (!data.activos || data.activos.length === 0) {
+            html += '<p style="color:#999; text-align:center; padding:40px;">No hay activos en esta categoría.</p>';
+        } else {
+            html += `<table class="asset-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre</th>
+                        <th>Modelo/Marca</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            data.activos.forEach(a => {
+                html += `<tr class="asset-row" onclick="viewAsset(${a.id})">
+                    <td style="font-weight:700; color:var(--fiori-primary);">${a.codigo}</td>
+                    <td>${a.nombre}</td>
+                    <td>${a.modelo || '-'}</td>
+                    <td><span class="status-badge status-${a.estado}">${a.estado_display}</span></td>
+                    <td>
+                        <button class="btn-icon" onclick="event.stopPropagation(); window.location.href='/activos/editar-activo/${a.id}/'">
+                            <ion-icon name="create-outline"></ion-icon>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+            if (data.more) {
+                html += '<p style="text-align:center; color:var(--fiori-primary); font-size:0.8rem; padding:15px; background:#f8f9fa; font-weight:600;">Mostrando los primeros 500 activos. Usa filtros para búsquedas específicas.</p>';
+            }
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
     }
 
     const isSelectionMode = new URLSearchParams(window.location.search).has('select');
