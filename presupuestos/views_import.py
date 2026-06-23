@@ -326,13 +326,14 @@ def requisicion_qr(request, pk):
     import io
     import base64
     from django.http import HttpResponse
+    from django.conf import settings
     from .models import Requisicion
 
     requisicion = get_object_or_404(Requisicion, pk=pk)
 
-    # URL que will contain the QR code
+    # URL que irá en el QR — usa SITE_URL para evitar IP interna de Coolify
     relative_url = reverse('presupuestos:requisicion_editar', kwargs={'pk': requisicion.cr8ca_requisicionid})
-    qr_data = request.build_absolute_uri(relative_url)
+    qr_data = f"{settings.SITE_URL.rstrip('/')}{relative_url}"
 
     # Generate QR code
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
