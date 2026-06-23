@@ -331,9 +331,16 @@ def requisicion_qr(request, pk):
 
     requisicion = get_object_or_404(Requisicion, pk=pk)
 
-    # URL que irá en el QR — usa SITE_URL para evitar IP interna de Coolify
+    # URL para el QR — prioriza el host real del proxy (Cloudflare/Traefik)
+    # si no, usa SITE_URL de settings
+    host = request.META.get('HTTP_X_FORWARDED_HOST', '')
+    if not host or 'sslip.io' in host:
+        site_url = settings.SITE_URL.rstrip('/')
+    else:
+        proto = request.META.get('HTTP_X_FORWARDED_PROTO', 'https')
+        site_url = f"{proto}://{host.split(',')[0].strip()}"
     relative_url = reverse('presupuestos:requisicion_editar', kwargs={'pk': requisicion.cr8ca_requisicionid})
-    qr_data = f"{settings.SITE_URL.rstrip('/')}{relative_url}"
+    qr_data = f"{site_url}{relative_url}"
 
     # Generate QR code
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
