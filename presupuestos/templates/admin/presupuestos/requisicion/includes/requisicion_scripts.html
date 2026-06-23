@@ -261,6 +261,7 @@
 
             // ReadOnly Check
             const isReadOnly = "{{ is_readonly|yesno:'true,false' }}" === "true";
+            const estadoRequisicion = "{{ instance.estado_requisicion|default:'' }}";
 
             if (isReadOnly) {
                 console.log('Modo Solo Lectura Activado');
@@ -274,9 +275,12 @@
                 $('.next-step, .prev-step').prop('disabled', false).show();
 
                 // Mensaje informativo
-                if ($('.alert-readonly').length === 0) {
-                    $('.form-container').prepend('<div class="alert-msg alert-error notify-readonly">🔒 Esta requisición fue enviada a aprobación y está bloqueada para edición.</div>');
-                }
+            if ($('.alert-readonly').length === 0 && estadoRequisicion !== 'AUTORIZADO') {
+                const msg = estadoRequisicion === 'PENDIENTE'
+                    ? '🔒 Esta requisición fue enviada a aprobación y está bloqueada para edición.'
+                    : '🔒 Esta requisición está bloqueada para edición.';
+                $('.form-container').prepend(`<div class="alert-msg alert-error notify-readonly">${msg}</div>`);
+            }
             }
 
             // Stepper click logic
