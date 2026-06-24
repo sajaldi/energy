@@ -966,7 +966,8 @@
                     inpProv.value = proveedoresMap[art.proveedor_id];
                 }
                 inpProv.oninput = function() { filtrarProveedoresFila(inpProv, selProv, ddProv); };
-                inpProv.onfocus = function() { filtrarProveedoresFila(inpProv, selProv, ddProv); };
+                inpProv.onfocus = function() { mostrarTodosProveedores(inpProv, selProv, ddProv); };
+                inpProv.onclick = function() { mostrarTodosProveedores(inpProv, selProv, ddProv); };
                 inpProv.onblur = function() { setTimeout(function() { ddProv.style.display = 'none'; }, 200); };
             });
 
@@ -1178,7 +1179,8 @@
                     provSearch.value = '';
                 }
                 provSearch.oninput = function() { filtrarOCProveedores(provSearch, provSelect, provDropdown); };
-                provSearch.onfocus = function() { filtrarOCProveedores(provSearch, provSelect, provDropdown); };
+                provSearch.onfocus = function() { mostrarTodosOCProveedores(provSearch, provSelect, provDropdown); };
+                provSearch.onclick = function() { mostrarTodosOCProveedores(provSearch, provSelect, provDropdown); };
                 provSearch.onblur = function() { setTimeout(function() { provDropdown.style.display = 'none'; }, 200); };
 
                 // Artículos
@@ -1270,7 +1272,82 @@
     }
 
     // --- Buscador de proveedores (OC modal) ---
+    function mostrarTodosOCProveedores(input, select, dropdown) {
+        var q = input.value.toLowerCase();
+        var opts = select.querySelectorAll('option');
+        dropdown.innerHTML = '';
+        var has = false;
+        opts.forEach(function(opt) {
+            if (!opt.value) return;
+            has = true;
+            var item = document.createElement('div');
+            item.textContent = opt.textContent;
+            item.style.cssText = 'padding:6px 8px; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f1f5f9;';
+            item.onmouseover = function() { this.style.background = '#f1f5f9'; };
+            item.onmouseout = function() { this.style.background = ''; };
+            item.onmousedown = function(e) {
+                e.preventDefault();
+                select.value = opt.value;
+                input.value = opt.textContent;
+                dropdown.style.display = 'none';
+            };
+            dropdown.appendChild(item);
+        });
+        dropdown.style.display = has ? 'block' : 'none';
+    }
+
     function filtrarOCProveedores(input, select, dropdown) {
+        var q = input.value.toLowerCase();
+        var opts = select.querySelectorAll('option');
+        dropdown.innerHTML = '';
+        var has = false;
+        opts.forEach(function(opt) {
+            if (!opt.value) return;
+            if (opt.textContent.toLowerCase().includes(q)) {
+                has = true;
+                var item = document.createElement('div');
+                item.textContent = opt.textContent;
+                item.style.cssText = 'padding:6px 8px; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f1f5f9;';
+                item.onmouseover = function() { this.style.background = '#f1f5f9'; };
+                item.onmouseout = function() { this.style.background = ''; };
+                item.onmousedown = function(e) {
+                    e.preventDefault();
+                    select.value = opt.value;
+                    input.value = opt.textContent;
+                    dropdown.style.display = 'none';
+                };
+                dropdown.appendChild(item);
+            }
+        });
+        dropdown.style.display = has ? 'block' : 'none';
+    }
+
+    // --- Buscador de proveedores (por fila) ---
+    function mostrarTodosProveedores(input, select, dropdown) {
+        var q = input.value.toLowerCase();
+        var opts = select.querySelectorAll('option');
+        dropdown.innerHTML = '';
+        var has = false;
+        opts.forEach(function(opt) {
+            if (!opt.value) return;
+            has = true;
+            var item = document.createElement('div');
+            item.textContent = opt.textContent;
+            item.style.cssText = 'padding:5px 8px; cursor:pointer; font-size:0.8rem; border-bottom:1px solid #f1f5f9;';
+            item.onmouseover = function() { this.style.background = '#f1f5f9'; };
+            item.onmouseout = function() { this.style.background = ''; };
+            item.onmousedown = function(e) {
+                e.preventDefault();
+                select.value = opt.value;
+                input.value = opt.textContent;
+                dropdown.style.display = 'none';
+            };
+            dropdown.appendChild(item);
+        });
+        dropdown.style.display = has ? 'block' : 'none';
+    }
+
+    function filtrarProveedoresFila(input, select, dropdown) {
         var q = input.value.toLowerCase();
         var opts = select.querySelectorAll('option');
         dropdown.innerHTML = '';
