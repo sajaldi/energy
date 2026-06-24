@@ -8,7 +8,7 @@ from .models import (
     PresupuestoAgrupado, Requisicion, ArticuloRequisicion, DocumentoRequisicion,
     SolicitudPago, ItemSolicitudPago,
     REPEX, REPEXItem, Moneda,
-    OrdenCompra, OrdenCompraArticulo
+    OrdenCompra, OrdenCompraArticulo, CentroCosto
 )
 from .resources import RequisicionResource
 
@@ -631,6 +631,13 @@ class OrdenCompraArticuloInline(admin.TabularInline):
         return request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
 
 
+@admin.register(CentroCosto)
+class CentroCostoAdmin(admin.ModelAdmin):
+    list_display = ['nombre', 'descripcion', 'activo']
+    list_filter = ['activo']
+    search_fields = ['nombre']
+
+
 @admin.register(OrdenCompra)
 class OrdenCompraAdmin(admin.ModelAdmin):
     list_display = ['numero_oc', 'tipo_documento', 'requisicion_link', 'proveedor', 'total', 'estado', 'fecha_creacion']
@@ -639,7 +646,9 @@ class OrdenCompraAdmin(admin.ModelAdmin):
     readonly_fields = ['numero_oc', 'subtotal', 'impuestos', 'total', 'fecha_creacion', 'creado_por']
     fieldsets = [
         ('Documento', {'fields': ['tipo_documento', 'numero_oc', 'estado']}),
-        ('Referencias', {'fields': ['requisicion', 'proveedor']}),
+        ('Referencias', {'fields': ['requisicion', 'proveedor', 'centro_costo']}),
+        ('Condiciones de Pago', {'fields': ['anticipo', 'anticipo_porcentaje', 'contraentrega', 'credito', 'credito_dias']}),
+        ('Documentación', {'fields': ['doc_factura', 'doc_estimacion', 'doc_respaldo', 'doc_garantia']}),
         ('Montos', {'fields': ['subtotal', 'impuestos', 'total']}),
         ('Fechas', {'fields': ['fecha_creacion', 'fecha_entrega_estimada']}),
         ('Auditoría', {'fields': ['creado_por', 'notas']}),

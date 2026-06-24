@@ -1044,6 +1044,11 @@ def detalle_orden_compra(request, pk):
         for p in Empresa.objects.all().order_by('nombre'):
             proveedores_list.append({'id': p.id, 'nombre': p.nombre})
 
+        centros_list = []
+        from .models import CentroCosto
+        for cc in CentroCosto.objects.filter(activo=True).order_by('nombre'):
+            centros_list.append({'id': cc.id, 'nombre': cc.nombre})
+
         data = {
             'id': oc.id,
             'numero_oc': oc.numero_oc,
@@ -1051,6 +1056,17 @@ def detalle_orden_compra(request, pk):
             'estado': oc.estado,
             'proveedor_id': oc.proveedor_id,
             'proveedor_nombre': oc.proveedor.nombre if oc.proveedor else '',
+            'centro_costo_id': oc.centro_costo_id,
+            'centro_costo_nombre': oc.centro_costo.nombre if oc.centro_costo else '',
+            'anticipo': oc.anticipo,
+            'anticipo_porcentaje': float(oc.anticipo_porcentaje) if oc.anticipo_porcentaje else 0,
+            'contraentrega': oc.contraentrega,
+            'credito': oc.credito,
+            'credito_dias': oc.credito_dias,
+            'doc_factura': oc.doc_factura,
+            'doc_estimacion': oc.doc_estimacion,
+            'doc_respaldo': oc.doc_respaldo,
+            'doc_garantia': oc.doc_garantia,
             'subtotal': float(oc.subtotal),
             'impuestos': float(oc.impuestos),
             'total': float(oc.total),
@@ -1061,6 +1077,7 @@ def detalle_orden_compra(request, pk):
             'requisicion_numero': oc.requisicion.cr8ca_requisicion if oc.requisicion else '',
             'articulos': articulos,
             'proveedores': proveedores_list,
+            'centros_costo': centros_list,
         }
 
         return JsonResponse({'success': True, 'data': data})
@@ -1094,6 +1111,32 @@ def actualizar_orden_compra(request, pk):
         oc.impuestos = Decimal(str(data.get('impuestos', oc.impuestos)))
         oc.fecha_entrega_estimada = data.get('fecha_entrega_estimada') or None
         oc.notas = data.get('notas', oc.notas)
+
+        # Centro de costo
+        if 'centro_costo_id' in data:
+            oc.centro_costo_id = data['centro_costo_id'] or None
+
+        # Condiciones de pago
+        if 'anticipo' in data:
+            oc.anticipo = bool(data['anticipo'])
+        if 'anticipo_porcentaje' in data:
+            oc.anticipo_porcentaje = Decimal(str(data['anticipo_porcentaje'])) if data['anticipo_porcentaje'] else None
+        if 'contraentrega' in data:
+            oc.contraentrega = bool(data['contraentrega'])
+        if 'credito' in data:
+            oc.credito = bool(data['credito'])
+        if 'credito_dias' in data:
+            oc.credito_dias = int(data['credito_dias']) if data['credito_dias'] else None
+
+        # Documentación
+        if 'doc_factura' in data:
+            oc.doc_factura = bool(data['doc_factura'])
+        if 'doc_estimacion' in data:
+            oc.doc_estimacion = bool(data['doc_estimacion'])
+        if 'doc_respaldo' in data:
+            oc.doc_respaldo = bool(data['doc_respaldo'])
+        if 'doc_garantia' in data:
+            oc.doc_garantia = bool(data['doc_garantia'])
 
         # Actualizar artículos
         for art_data in data.get('articulos', []):

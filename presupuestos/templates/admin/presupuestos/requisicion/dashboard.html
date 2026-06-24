@@ -690,6 +690,12 @@
                 <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Fecha Entrega Estimada</label>
                 <input type="date" id="oc-fecha-entrega" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem;">
             </div>
+            <div>
+                <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Centro de Costo</label>
+                <select id="oc-centro-costo" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem;">
+                    <option value="">Seleccionar centro de costo</option>
+                </select>
+            </div>
         </div>
         <!-- Artículos -->
         <div style="margin-bottom:16px;">
@@ -717,9 +723,57 @@
             </table>
         </div>
         <!-- Notas -->
-        <div>
+        <div style="margin-bottom:16px;">
             <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Notas</label>
             <textarea id="oc-notas" rows="3" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem; resize:vertical;"></textarea>
+        </div>
+        <!-- Condiciones de Pago -->
+        <div style="margin-bottom:16px; border:1px solid #e2e8f0; border-radius:6px; padding:12px;">
+            <div style="font-size:0.85rem; font-weight:600; color:#1e293b; margin-bottom:10px;">Condiciones de Pago</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                    <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:flex; align-items:center; gap:6px;">
+                        <input type="checkbox" id="oc-anticipo"> Anticipo
+                    </label>
+                    <div id="oc-anticipo-fields" style="display:none; margin-top:6px;">
+                        <label style="font-size:0.7rem; color:#64748b;">% Anticipo</label>
+                        <input type="number" id="oc-anticipo-porcentaje" value="0" step="0.01" min="0" max="100" style="width:80px; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.8rem;">
+                        <span style="font-size:0.75rem; color:#64748b; margin-left:6px;">Monto: L. <span id="oc-anticipo-monto">0.00</span></span>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:flex; align-items:center; gap:6px;">
+                        <input type="checkbox" id="oc-contraentrega"> Contraentrega
+                    </label>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:flex; align-items:center; gap:6px;">
+                        <input type="checkbox" id="oc-credito"> Crédito
+                    </label>
+                    <div id="oc-credito-fields" style="display:none; margin-top:6px;">
+                        <label style="font-size:0.7rem; color:#64748b;">Días de crédito</label>
+                        <input type="number" id="oc-credito-dias" value="0" step="1" min="0" style="width:80px; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.8rem;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Documentos del Proveedor -->
+        <div style="margin-bottom:16px; border:1px solid #e2e8f0; border-radius:6px; padding:12px;">
+            <div style="font-size:0.85rem; font-weight:600; color:#1e293b; margin-bottom:10px;">Documentos del Proveedor</div>
+            <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                <label style="font-size:0.8rem; color:#1e293b; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="checkbox" id="oc-doc-factura"> Factura
+                </label>
+                <label style="font-size:0.8rem; color:#1e293b; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="checkbox" id="oc-doc-estimacion"> Estimación
+                </label>
+                <label style="font-size:0.8rem; color:#1e293b; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="checkbox" id="oc-doc-respaldo"> Respaldo
+                </label>
+                <label style="font-size:0.8rem; color:#1e293b; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="checkbox" id="oc-doc-garantia"> Garantía
+                </label>
+            </div>
         </div>
         <!-- Meta -->
         <div style="margin-top:12px; font-size:0.75rem; color:#94a3b8;">
@@ -1183,6 +1237,52 @@
                 provSearch.onclick = function() { mostrarTodosOCProveedores(provSearch, provSelect, provDropdown); };
                 provSearch.onblur = function() { setTimeout(function() { provDropdown.style.display = 'none'; }, 200); };
 
+                // Centros de Costo
+                var ccSelect = document.getElementById('oc-centro-costo');
+                ccSelect.innerHTML = '<option value="">Seleccionar centro de costo</option>';
+                if (d.centros_costo) {
+                    d.centros_costo.forEach(function(cc) {
+                        var opt = document.createElement('option');
+                        opt.value = cc.id;
+                        opt.textContent = cc.nombre;
+                        if (cc.id === d.centro_costo_id) opt.selected = true;
+                        ccSelect.appendChild(opt);
+                    });
+                }
+
+                // Condiciones de Pago
+                document.getElementById('oc-anticipo').checked = d.anticipo;
+                if (d.anticipo) {
+                    document.getElementById('oc-anticipo-fields').style.display = 'block';
+                } else {
+                    document.getElementById('oc-anticipo-fields').style.display = 'none';
+                }
+                document.getElementById('oc-anticipo-porcentaje').value = d.anticipo_porcentaje || 0;
+                document.getElementById('oc-contraentrega').checked = d.contraentrega;
+                document.getElementById('oc-credito').checked = d.credito;
+                if (d.credito) {
+                    document.getElementById('oc-credito-fields').style.display = 'block';
+                } else {
+                    document.getElementById('oc-credito-fields').style.display = 'none';
+                }
+                document.getElementById('oc-credito-dias').value = d.credito_dias || 0;
+
+                // Documentos
+                document.getElementById('oc-doc-factura').checked = d.doc_factura;
+                document.getElementById('oc-doc-estimacion').checked = d.doc_estimacion;
+                document.getElementById('oc-doc-respaldo').checked = d.doc_respaldo;
+                document.getElementById('oc-doc-garantia').checked = d.doc_garantia;
+
+                // --- Event listeners for condiciones de pago ---
+                document.getElementById('oc-anticipo').onchange = function() {
+                    document.getElementById('oc-anticipo-fields').style.display = this.checked ? 'block' : 'none';
+                    recalcularOC();
+                };
+                document.getElementById('oc-anticipo-porcentaje').oninput = function() { recalcularOC(); };
+                document.getElementById('oc-credito').onchange = function() {
+                    document.getElementById('oc-credito-fields').style.display = this.checked ? 'block' : 'none';
+                };
+
                 // Artículos
                 var tbody = document.getElementById('oc-articulos-tbody');
                 tbody.innerHTML = '';
@@ -1216,7 +1316,13 @@
             total += sub;
         });
         var imp = parseFloat(document.getElementById('oc-impuestos').value) || 0;
-        document.getElementById('oc-total').textContent = 'L. ' + (total + imp).toFixed(2);
+        var granTotal = total + imp;
+        document.getElementById('oc-total').textContent = 'L. ' + granTotal.toFixed(2);
+
+        // Calcular monto de anticipo
+        var pct = parseFloat(document.getElementById('oc-anticipo-porcentaje').value) || 0;
+        var anticipoMonto = granTotal * (pct / 100);
+        document.getElementById('oc-anticipo-monto').textContent = anticipoMonto.toFixed(2);
     }
 
     function cerrarModalOC() {
@@ -1247,9 +1353,19 @@
             body: JSON.stringify({
                 estado: document.getElementById('oc-estado').value,
                 proveedor_id: parseInt(document.getElementById('oc-proveedor').value) || null,
+                centro_costo_id: parseInt(document.getElementById('oc-centro-costo').value) || null,
                 impuestos: parseFloat(document.getElementById('oc-impuestos').value) || 0,
                 fecha_entrega_estimada: document.getElementById('oc-fecha-entrega').value || null,
                 notas: document.getElementById('oc-notas').value,
+                anticipo: document.getElementById('oc-anticipo').checked,
+                anticipo_porcentaje: parseFloat(document.getElementById('oc-anticipo-porcentaje').value) || null,
+                contraentrega: document.getElementById('oc-contraentrega').checked,
+                credito: document.getElementById('oc-credito').checked,
+                credito_dias: parseInt(document.getElementById('oc-credito-dias').value) || null,
+                doc_factura: document.getElementById('oc-doc-factura').checked,
+                doc_estimacion: document.getElementById('oc-doc-estimacion').checked,
+                doc_respaldo: document.getElementById('oc-doc-respaldo').checked,
+                doc_garantia: document.getElementById('oc-doc-garantia').checked,
                 articulos: articulos
             })
         })

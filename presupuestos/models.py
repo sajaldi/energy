@@ -1087,6 +1087,20 @@ class REPEXItem(models.Model):
         verbose_name_plural = "Ítems REPEX"
 
 
+class CentroCosto(models.Model):
+    nombre = models.CharField(max_length=200, verbose_name="Centro de Costo")
+    descripcion = models.TextField(null=True, blank=True, verbose_name="Descripción")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Centro de Costo"
+        verbose_name_plural = "Centros de Costo"
+        ordering = ['nombre']
+
+
 class OrdenCompra(models.Model):
     TIPO_DOC_CHOICES = (
         ('OC', 'OC'),
@@ -1121,6 +1135,19 @@ class OrdenCompra(models.Model):
         related_name='ordenes_compra_creadas', verbose_name="Creado por"
     )
     notas = models.TextField(null=True, blank=True, verbose_name="Notas")
+    centro_costo = models.ForeignKey(
+        CentroCosto, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ordenes_compra', verbose_name="Centro de Costo"
+    )
+    anticipo = models.BooleanField(default=False, verbose_name="Anticipo")
+    anticipo_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="% Anticipo")
+    contraentrega = models.BooleanField(default=False, verbose_name="Contraentrega")
+    credito = models.BooleanField(default=False, verbose_name="Crédito")
+    credito_dias = models.IntegerField(null=True, blank=True, verbose_name="Días de crédito")
+    doc_factura = models.BooleanField(default=False, verbose_name="Factura")
+    doc_estimacion = models.BooleanField(default=False, verbose_name="Estimación")
+    doc_respaldo = models.BooleanField(default=False, verbose_name="Respaldo")
+    doc_garantia = models.BooleanField(default=False, verbose_name="Garantía")
 
     def save(self, *args, **kwargs):
         if not self.numero_oc:
