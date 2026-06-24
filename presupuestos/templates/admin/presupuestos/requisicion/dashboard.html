@@ -680,7 +680,11 @@
             </div>
             <div>
                 <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Proveedor</label>
-                <select id="oc-proveedor" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem;"></select>
+                <div id="oc-proveedor-wrapper" style="position:relative;">
+                    <input type="text" id="oc-proveedor-search" placeholder="Buscar proveedor..." autocomplete="off" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem; box-sizing:border-box;">
+                    <select id="oc-proveedor" style="display:none;"></select>
+                    <div id="oc-proveedor-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:200px; overflow-y:auto; background:white; border:1px solid #e2e8f0; border-radius:4px; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
+                </div>
             </div>
             <div>
                 <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Fecha Entrega Estimada</label>
@@ -944,7 +948,8 @@
                     '<td style="padding:10px 12px; text-align:right;">' +
                     '<input type="number" class="art-impuestos" value="0" step="0.01" min="0" style="width:90px; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; text-align:right;"></td>' +
                     '<td style="padding:10px 12px; text-align:right; font-weight:600;" class="art-subtotal-cell">L. ' + subtotal.toFixed(2) + '</td>' +
-                    '<td style="padding:10px 12px;"><select class="art-proveedor" style="width:100%; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px;">' + optionsHtml + '</select></td>';
+                    '<td style="padding:10px 12px;"><select class="art-proveedor" style="display:none;">' + optionsHtml + '</select>' +
+                    '<div class="art-proveedor-search-wrapper" style="position:relative;"><input type="text" class="art-proveedor-search" placeholder="Buscar..." autocomplete="off" style="width:100%; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem; box-sizing:border-box;"><div class="art-proveedor-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:150px; overflow-y:auto; background:white; border:1px solid #e2e8f0; border-radius:4px; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div></div></td>';
                 tbody.appendChild(tr);
 
                 // Recalcular subtotal al cambiar cantidad, costo o impuestos
@@ -952,6 +957,17 @@
                 inputs.forEach(function(inp) {
                     inp.addEventListener('input', function() { recalcularFila(tr); recalcularTotalProcesar(); });
                 });
+
+                // Inicializar buscador de proveedores por fila
+                var selProv = tr.querySelector('.art-proveedor');
+                var inpProv = tr.querySelector('.art-proveedor-search');
+                var ddProv = tr.querySelector('.art-proveedor-dropdown');
+                if (art.proveedor_id && proveedoresMap[art.proveedor_id]) {
+                    inpProv.value = proveedoresMap[art.proveedor_id];
+                }
+                inpProv.oninput = function() { filtrarProveedoresFila(inpProv, selProv, ddProv); };
+                inpProv.onfocus = function() { filtrarProveedoresFila(inpProv, selProv, ddProv); };
+                inpProv.onblur = function() { setTimeout(function() { ddProv.style.display = 'none'; }, 200); };
             });
 
             // Documentos adjuntos
@@ -1146,13 +1162,24 @@
 
                 // Proveedores
                 var provSelect = document.getElementById('oc-proveedor');
-                provSelect.innerHTML = '<option value="">Seleccionar</option>';
+                var provSearch = document.getElementById('oc-proveedor-search');
+                var provDropdown = document.getElementById('oc-proveedor-dropdown');
+                provSelect.innerHTML = '';
+                provDropdown.innerHTML = '';
                 d.proveedores.forEach(function(p) {
                     var opt = document.createElement('option');
                     opt.value = p.id; opt.textContent = p.nombre;
                     if (p.id === d.proveedor_id) opt.selected = true;
                     provSelect.appendChild(opt);
                 });
+                if (d.proveedor_id && d.proveedor_nombre) {
+                    provSearch.value = d.proveedor_nombre;
+                } else {
+                    provSearch.value = '';
+                }
+                provSearch.oninput = function() { filtrarOCProveedores(provSearch, provSelect, provDropdown); };
+                provSearch.onfocus = function() { filtrarOCProveedores(provSearch, provSelect, provDropdown); };
+                provSearch.onblur = function() { setTimeout(function() { provDropdown.style.display = 'none'; }, 200); };
 
                 // Artículos
                 var tbody = document.getElementById('oc-articulos-tbody');
@@ -1240,6 +1267,58 @@
             Swal.close();
             Swal.fire('Error', 'Error de conexión: ' + err.message, 'error');
         });
+    }
+
+    // --- Buscador de proveedores (OC modal) ---
+    function filtrarOCProveedores(input, select, dropdown) {
+        var q = input.value.toLowerCase();
+        var opts = select.querySelectorAll('option');
+        dropdown.innerHTML = '';
+        var has = false;
+        opts.forEach(function(opt) {
+            if (!opt.value) return;
+            if (opt.textContent.toLowerCase().includes(q)) {
+                has = true;
+                var item = document.createElement('div');
+                item.textContent = opt.textContent;
+                item.style.cssText = 'padding:6px 8px; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f1f5f9;';
+                item.onmouseover = function() { this.style.background = '#f1f5f9'; };
+                item.onmouseout = function() { this.style.background = ''; };
+                item.onclick = function() {
+                    select.value = opt.value;
+                    input.value = opt.textContent;
+                    dropdown.style.display = 'none';
+                };
+                dropdown.appendChild(item);
+            }
+        });
+        dropdown.style.display = has ? 'block' : 'none';
+    }
+
+    // --- Buscador de proveedores (por fila) ---
+    function filtrarProveedoresFila(input, select, dropdown) {
+        var q = input.value.toLowerCase();
+        var opts = select.querySelectorAll('option');
+        dropdown.innerHTML = '';
+        var has = false;
+        opts.forEach(function(opt) {
+            if (!opt.value) return;
+            if (opt.textContent.toLowerCase().includes(q)) {
+                has = true;
+                var item = document.createElement('div');
+                item.textContent = opt.textContent;
+                item.style.cssText = 'padding:5px 8px; cursor:pointer; font-size:0.8rem; border-bottom:1px solid #f1f5f9;';
+                item.onmouseover = function() { this.style.background = '#f1f5f9'; };
+                item.onmouseout = function() { this.style.background = ''; };
+                item.onclick = function() {
+                    select.value = opt.value;
+                    input.value = opt.textContent;
+                    dropdown.style.display = 'none';
+                };
+                dropdown.appendChild(item);
+            }
+        });
+        dropdown.style.display = has ? 'block' : 'none';
     }
 </script>
 {% endblock %}
