@@ -1045,9 +1045,8 @@ def detalle_orden_compra(request, pk):
 
         proveedores_list = []
         from mantenimiento.models import Empresa
-        all_provs = Empresa.objects.filter(es_proveedor=True).values('id', 'nombre')
-        for p in all_provs:
-            proveedores_list.append({'id': p['id'], 'nombre': p['nombre']})
+        for p in Empresa.objects.all().order_by('nombre'):
+            proveedores_list.append({'id': p.id, 'nombre': p.nombre})
 
         data = {
             'id': oc.id,
