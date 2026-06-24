@@ -804,6 +804,7 @@ def procesar_requisicion(request, pk):
     try:
         from .models import Requisicion
         import json
+        from mantenimiento.models import Empresa
         requisicion = get_object_or_404(Requisicion, pk=pk)
 
         if not request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists():
@@ -830,14 +831,9 @@ def procesar_requisicion(request, pk):
                 'proveedor_id': proveedor.id if proveedor else None,
             })
 
-        proveedores_ids = set(
-            a.proveedor_id for a in requisicion.articulos.all()
-            if a.proveedor_id
-        )
-        from mantenimiento.models import Empresa
         proveedores_data = [
             {'id': p.id, 'nombre': p.nombre}
-            for p in Empresa.objects.filter(id__in=proveedores_ids)
+            for p in Empresa.objects.all().order_by('nombre')
         ]
 
         documentos_data = []
