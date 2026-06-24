@@ -447,7 +447,8 @@ def requisicion_dashboard(request):
         dept = request.user.perfil.departamento
 
     if es_procura:
-        # Procura ve todas las requisiciones sin filtro de departamento
+        # Procura ve todas las requisiciones sin filtro de departamento,
+        # pero excluye Borrador y Pendiente (no les interesa)
         dept_q = Q()
     elif dept:
         dept_user_ids = dept.usuarios.values_list('usuario_id', flat=True)
@@ -457,6 +458,8 @@ def requisicion_dashboard(request):
 
     # Base queryset filtrada por departamento
     base_qs = Requisicion.objects.filter(dept_q)
+    if es_procura:
+        base_qs = base_qs.exclude(estado_requisicion__in=['BORRADOR', 'PENDIENTE'])
 
     # Métricas (siempre filtradas por departamento)
     total_reqs = base_qs.count()
@@ -475,6 +478,8 @@ def requisicion_dashboard(request):
             Q(cr8ca_asunto__icontains=search_query) |
             Q(cr8ca_motivo__icontains=search_query)
         )
+        if es_procura:
+            query = query.exclude(estado_requisicion__in=['BORRADOR', 'PENDIENTE'])
     else:
         query = base_qs
     ultimas_requisiciones = query.order_by('-fecha', '-createdon')[:20]
