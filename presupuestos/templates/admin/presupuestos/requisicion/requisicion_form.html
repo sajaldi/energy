@@ -583,6 +583,46 @@
     </form>
 </div>
 
+{% if historial %}
+<div class="main-surface" style="margin-top:20px;">
+    <div class="surface-header" style="border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
+        <h3 style="margin:0; font-size:1rem; font-weight:600; color:#1e293b;">📋 Línea de Tiempo</h3>
+    </div>
+    <div style="position:relative; padding-left:24px;">
+        <div style="position:absolute; left:8px; top:0; bottom:0; width:2px; background:#e2e8f0;"></div>
+        {% for h in historial %}
+        <div style="position:relative; padding-bottom:20px;">
+            <div style="position:absolute; left:-20px; top:4px; width:12px; height:12px; border-radius:50%;
+                {% if h.estado_nuevo == 'AUTORIZADO' %}background:#22c55e;
+                {% elif h.estado_nuevo == 'RECHAZADO' or h.estado_nuevo == 'CANCELADO' %}background:#ef4444;
+                {% elif h.estado_nuevo == 'BORRADOR' %}background:#94a3b8;
+                {% elif h.estado_nuevo == 'EN_ORDEN_COMPRA' %}background:#3b82f6;
+                {% elif h.estado_nuevo == 'PROCURA_PROCESANDO' %}background:#f97316;
+                {% elif h.estado_nuevo == 'VISTO_PROCURA' %}background:#6366f1;
+                {% else %}background:#64748b;{% endif %}
+                border:2px solid white; box-shadow:0 1px 3px rgba(0,0,0,0.15);"></div>
+            <div style="font-size:0.75rem; color:#64748b; margin-bottom:2px;">
+                {{ h.creado_en|date:"d/m/Y H:i" }}
+            </div>
+            <div style="font-weight:600; font-size:0.9rem; color:#1e293b;">
+                {% if h.estado_anterior %}
+                {{ h.get_estado_anterior_display }} → {{ h.get_estado_nuevo_display }}
+                {% else %}
+                {{ h.get_estado_nuevo_display }}
+                {% endif %}
+            </div>
+            {% if h.usuario %}
+            <div style="font-size:0.8rem; color:#64748b;">por {{ h.usuario.get_full_name|default:h.usuario.username }}</div>
+            {% endif %}
+            {% if h.descripcion %}
+            <div style="font-size:0.8rem; color:#475569; margin-top:2px;">{{ h.descripcion }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 {% include "admin/presupuestos/requisicion/includes/requisicion_modals.html" %}
 {% include "admin/presupuestos/requisicion/includes/requisicion_scripts.html" %}
 

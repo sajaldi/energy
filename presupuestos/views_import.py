@@ -14,6 +14,21 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.urls import reverse
 
+
+def _registrar_historial(requisicion, estado_nuevo, usuario=None, descripcion=''):
+    from .models import RequisicionHistorial
+    estado_anterior = requisicion.estado_requisicion
+    if estado_anterior == estado_nuevo:
+        return
+    RequisicionHistorial.objects.create(
+        requisicion=requisicion,
+        estado_anterior=estado_anterior,
+        estado_nuevo=estado_nuevo,
+        usuario=usuario,
+        descripcion=descripcion,
+    )
+
+
 @staff_member_required
 def import_requisiciones_background(request):
     """Renders the upload form for background import."""
@@ -128,13 +143,14 @@ def requisicion_unlock_edit(request, pk):
         return redirect('presupuestos:requisicion_editar', pk=pk)
     
     # Cambiar a BORRADOR para permitir edición
-    estado_anterior = requisicion.get_estado_requisicion_display()
+    estado_anterior_display = requisicion.get_estado_requisicion_display()
+    _registrar_historial(requisicion, 'BORRADOR', usuario=request.user)
     requisicion.estado_requisicion = 'BORRADOR'
     requisicion.save()
     
     messages.success(
         request, 
-        f"Requisición desbloqueada. Estado cambiado de {estado_anterior} a Borrador. "
+        f"Requisición desbloqueada. Estado cambiado de {estado_anterior_display} a Borrador. "
         f"Deberá solicitar nuevamente la autorización después de editar."
     )
     
@@ -174,7 +190,7 @@ def requisicion_upsert(request, pk=None):
     
     if instance and instance.pk:
         # Estados que bloquean la edición
-        locked_states = ['PENDIENTE', 'AUTORIZADO', 'RECHAZADO']
+        locked_states = ['PENDIENTE', 'AUTORIZADO', 'VISTO_PROCURA', 'PROCURA_PROCESANDO', 'EN_ORDEN_COMPRA', 'RECHAZADO']
         
         if instance.estado_requisicion in locked_states:
             is_readonly = True
@@ -184,7 +200,20 @@ def requisicion_upsert(request, pk=None):
                 can_unlock = True
                 messages.info(request, "Esta requisición fue enviada a aprobación y está bloqueada para edición.")
             elif instance.estado_requisicion == 'AUTORIZADO':
-                messages.warning(request, "Esta requisición ya fue AUTORIZADA y no puede modificarse.")
+                # Auto-marcar como Visto por Procura si el usuario pertenece al grupo PROCURA
+                if request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists():
+                    _registrar_historial(instance, 'VISTO_PROCURA', usuario=request.user)
+                    instance.estado_requisicion = 'VISTO_PROCURA'
+                    instance.save(update_fields=['estado_requisicion'])
+                    messages.info(request, "Requisición marcada como Visto por Procura.")
+                else:
+                    messages.warning(request, "Esta requisición ya fue AUTORIZADA y no puede modificarse.")
+            elif instance.estado_requisicion == 'VISTO_PROCURA':
+                messages.info(request, "Requisición revisada por Procura, pendiente de procesar a Orden de Compra.")
+            elif instance.estado_requisicion == 'PROCURA_PROCESANDO':
+                messages.info(request, "Requisición está siendo procesada por Procura.")
+            elif instance.estado_requisicion == 'EN_ORDEN_COMPRA':
+                messages.info(request, "Esta requisición ya fue procesada a Orden de Compra.")
             elif instance.estado_requisicion == 'RECHAZADO':
                 can_unlock = True
                 messages.warning(request, "Esta requisición fue RECHAZADA. Puede desbloquearla para editarla.")
@@ -259,6 +288,7 @@ def requisicion_upsert(request, pk=None):
             if is_final_save and success:
                 # Cambiar a estado PENDIENTE si estaba en BORRADOR (lógica de flujo)
                 if instance.estado_requisicion == 'BORRADOR':
+                    _registrar_historial(instance, 'PENDIENTE', usuario=request.user)
                     instance.estado_requisicion = 'PENDIENTE'
                     instance.save()
                 
@@ -316,6 +346,7 @@ def requisicion_upsert(request, pk=None):
         'current_step': current_step,
         'is_readonly': is_readonly,
         'can_unlock': can_unlock,
+        'historial': instance.historial.all() if instance else [],
     }
     return render(request, 'admin/presupuestos/requisicion/requisicion_form.html', context)
 
@@ -408,12 +439,17 @@ def requisicion_dashboard(request):
     from datetime import timedelta
 
     search_query = request.GET.get('q', '').strip()
+    es_procura = request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
 
     # Departamento del usuario logueado
     dept = None
     if hasattr(request.user, 'perfil'):
         dept = request.user.perfil.departamento
-    if dept:
+
+    if es_procura:
+        # Procura ve todas las requisiciones sin filtro de departamento
+        dept_q = Q()
+    elif dept:
         dept_user_ids = dept.usuarios.values_list('usuario_id', flat=True)
         dept_q = Q(usuario_solicitante_id__in=dept_user_ids)
     else:
@@ -464,6 +500,7 @@ def requisicion_dashboard(request):
         'search_query': search_query,
         'title': 'Dashboard de Requisiciones',
         'dept': dept,
+        'es_procura': es_procura,
     }
     return render(request, 'admin/presupuestos/requisicion/dashboard.html', context)
 
@@ -646,6 +683,12 @@ def import_requisiciones_json(request):
                 obj.usuario_solicitante = request.user
                 obj.estado_requisicion = 'BORRADOR'
                 obj.save()
+                from .models import RequisicionHistorial
+                RequisicionHistorial.objects.create(
+                    requisicion=obj, estado_anterior=None,
+                    estado_nuevo='BORRADOR', usuario=request.user,
+                    descripcion="Requisición importada"
+                )
                 created_count += 1
             
             msg = f'Proceso completado. Se importaron {created_count} nuevas requisiciones.'
@@ -700,3 +743,279 @@ def trigger_power_automate_sync(request):
             
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Error de conexión: {str(e)}'}, status=500)
+
+
+@staff_member_required
+@login_required
+@require_POST
+def notificar_recepcion(request, pk):
+    import json
+    from datetime import datetime
+    from django.contrib.auth.models import Group, User
+    from django.utils import timezone
+    try:
+        requisicion = get_object_or_404(Requisicion, pk=pk)
+
+        if requisicion.estado_requisicion not in ['EN_ORDEN_COMPRA', 'AUTORIZADO']:
+            return JsonResponse({'success': False, 'message': 'La requisición debe estar procesada a Orden de Compra para notificar recepción.'}, status=400)
+
+        data = json.loads(request.body)
+        fecha_entrega_str = data.get('fecha_probable_entrega', '').strip()
+
+        if not fecha_entrega_str:
+            return JsonResponse({'success': False, 'message': 'Debe indicar la fecha probable de entrega.'}, status=400)
+
+        try:
+            fecha_probable = datetime.strptime(fecha_entrega_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'success': False, 'message': 'Formato de fecha inválido.'}, status=400)
+
+        requisicion.recepcion_notificada = True
+        requisicion.fecha_probable_entrega = fecha_probable
+        requisicion.save()
+
+        # Notificar a usuarios del grupo Almacenes
+        from mantenimiento.models import NotificacionMantenimiento
+        almacenes_group = Group.objects.filter(name__in=['Almacenes', 'ALMACEN']).first()
+        if almacenes_group:
+            mensaje = (
+                f"📦 Recepción notificada - {requisicion.cr8ca_requisicion}: {requisicion.cr8ca_asunto[:60]}. "
+                f"Fecha probable de entrega: {fecha_probable.strftime('%d/%m/%Y')}."
+            )
+            for user in almacenes_group.user_set.filter(is_active=True):
+                NotificacionMantenimiento.objects.create(
+                    user=user,
+                    mensaje=mensaje,
+                    tipo='INFO'
+                )
+
+        return JsonResponse({'success': True, 'message': f'Recepción notificada al personal de Almacenes para {requisicion.cr8ca_requisicion}.'})
+
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'success': False, 'message': f'Error interno: {str(e)}'}, status=500)
+
+
+@staff_member_required
+@login_required
+@require_POST
+def procesar_requisicion(request, pk):
+    try:
+        from .models import Requisicion
+        import json
+        requisicion = get_object_or_404(Requisicion, pk=pk)
+
+        if not request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists():
+            return JsonResponse({'success': False, 'message': 'Solo usuarios del grupo Procura pueden procesar requisiciones.'}, status=403)
+
+        if requisicion.estado_requisicion not in ['AUTORIZADO', 'VISTO_PROCURA', 'PROCURA_PROCESANDO']:
+            return JsonResponse({'success': False, 'message': 'La requisición debe estar Autorizada, Visto por Procura o en Procesamiento.'}, status=400)
+
+        _registrar_historial(requisicion, 'PROCURA_PROCESANDO', usuario=request.user)
+        requisicion.estado_requisicion = 'PROCURA_PROCESANDO'
+        requisicion.save()
+
+        # Armar datos de la requisición para el modal
+        articulos_data = []
+        for art in requisicion.articulos.all():
+            proveedor = art.proveedor
+            articulos_data.append({
+                'id': str(art.cr8ca_itemderequisicionid),
+                'descripcion': art.cr8ca_articulo or '',
+                'cantidad': float(art.cr8ca_cantidad or 0),
+                'costo_actual': float(art.cr8ca_costoaproximado or 0),
+                'subtotal': float(art.subtotal or 0),
+                'proveedor_actual': proveedor.nombre if proveedor else '',
+                'proveedor_id': proveedor.id if proveedor else None,
+            })
+
+        proveedores_ids = set(
+            a.proveedor_id for a in requisicion.articulos.all()
+            if a.proveedor_id
+        )
+        from mantenimiento.models import Empresa
+        proveedores_data = [
+            {'id': p.id, 'nombre': p.nombre}
+            for p in Empresa.objects.filter(id__in=proveedores_ids)
+        ]
+
+        documentos_data = []
+        for doc in requisicion.documentos.all():
+            archivo_nombre = None
+            if doc.archivo:
+                import os
+                archivo_nombre = os.path.basename(doc.archivo.name)
+            documentos_data.append({
+                'id': doc.id,
+                'nombre': doc.nombre or archivo_nombre or f"Documento #{doc.id}",
+                'archivo_nombre': archivo_nombre,
+                'url': doc.get_proxy_url(),
+                'creado_en': doc.creado_en.strftime('%d/%m/%Y %H:%M') if doc.creado_en else '',
+            })
+
+        data = {
+            'requisicion': {
+                'numero': requisicion.cr8ca_requisicion,
+                'asunto': requisicion.cr8ca_asunto,
+                'motivo': requisicion.cr8ca_motivo or '',
+                'total_actual': float(requisicion.cr8ca_totalenarticulos or 0),
+                'total_estimado': float(requisicion.total_estimado or 0),
+            },
+            'articulos': articulos_data,
+            'proveedores': proveedores_data,
+            'documentos': documentos_data,
+        }
+
+        return JsonResponse({'success': True, 'data': data, 'message': 'Procesando requisición...'})
+
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'success': False, 'message': f'Error interno: {str(e)}'}, status=500)
+
+
+@staff_member_required
+@login_required
+@require_POST
+@csrf_exempt
+def finalizar_procesamiento(request, pk):
+    try:
+        import json
+        from .models import Requisicion, OrdenCompra, OrdenCompraArticulo
+        from decimal import Decimal
+        from mantenimiento.models import Empresa, NotificacionMantenimiento
+
+        requisicion = get_object_or_404(Requisicion, pk=pk)
+
+        if not request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists():
+            return JsonResponse({'success': False, 'message': 'Solo usuarios del grupo Procura pueden finalizar procesamiento.'}, status=403)
+
+        if requisicion.estado_requisicion != 'PROCURA_PROCESANDO':
+            return JsonResponse({'success': False, 'message': 'La requisición debe estar en estado Procura Procesando.'}, status=400)
+
+        data = json.loads(request.body)
+        articulos_data = data.get('articulos', [])
+        tipo_documento = data.get('tipo_documento', 'OC')
+        if tipo_documento not in ('OC', 'DOIH'):
+            tipo_documento = 'OC'
+
+        if not articulos_data:
+            return JsonResponse({'success': False, 'message': 'No hay artículos para procesar.'}, status=400)
+
+        # Agrupar artículos por proveedor
+        oc_articulos_por_proveedor = {}
+        for art_data in articulos_data:
+            proveedor_id = art_data.get('proveedor_id')
+            if not proveedor_id:
+                return JsonResponse({'success': False, 'message': f'Artículo "{art_data.get("descripcion", "")}" no tiene proveedor asignado.'}, status=400)
+            proveedor_id = int(proveedor_id)
+            if proveedor_id not in oc_articulos_por_proveedor:
+                oc_articulos_por_proveedor[proveedor_id] = []
+            oc_articulos_por_proveedor[proveedor_id].append(art_data)
+
+        # Crear una Orden de Compra por proveedor
+        oc_numbers = []
+        for proveedor_id, articulos_prov in oc_articulos_por_proveedor.items():
+            proveedor = Empresa.objects.filter(id=proveedor_id).first()
+            if not proveedor:
+                continue
+
+            subtotal_oc = sum(
+                Decimal(str(a.get('cantidad', 0))) * Decimal(str(a.get('costo_unitario', 0)))
+                for a in articulos_prov
+            )
+            impuestos_oc = sum(Decimal(str(a.get('impuestos', 0))) for a in articulos_prov)
+            total_oc = subtotal_oc + impuestos_oc
+
+            oc = OrdenCompra.objects.create(
+                requisicion=requisicion,
+                proveedor=proveedor,
+                tipo_documento=tipo_documento,
+                subtotal=subtotal_oc,
+                impuestos=impuestos_oc,
+                total=total_oc,
+                creado_por=request.user,
+            )
+            oc_numbers.append(oc.numero_oc)
+
+            for art_data in articulos_prov:
+                from .models import ArticuloRequisicion
+                art_req = ArticuloRequisicion.objects.filter(
+                    cr8ca_itemderequisicionid=art_data.get('id')
+                ).first()
+
+                cantidad = Decimal(str(art_data.get('cantidad', 0)))
+                costo = Decimal(str(art_data.get('costo_unitario', 0)))
+
+                OrdenCompraArticulo.objects.create(
+                    orden_compra=oc,
+                    articulo_requisicion=art_req,
+                    descripcion=art_data.get('descripcion', ''),
+                    cantidad=cantidad,
+                    costo_unitario=costo,
+                    subtotal=cantidad * costo,
+                )
+
+        # Cambiar estado de la requisición
+        _registrar_historial(requisicion, 'EN_ORDEN_COMPRA', usuario=request.user,
+                             descripcion=f"OC: {', '.join(oc_numbers)}" if oc_numbers else '')
+        requisicion.estado_requisicion = 'EN_ORDEN_COMPRA'
+        requisicion.save()
+
+        # Notificar al solicitante
+        if requisicion.usuario_solicitante:
+            NotificacionMantenimiento.objects.create(
+                user=requisicion.usuario_solicitante,
+                mensaje=f"✅ Requisición {requisicion.cr8ca_requisicion} procesada a Orden de Compra.",
+                tipo='SUCCESS'
+            )
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Requisición {requisicion.cr8ca_requisicion} procesada a Orden de Compra exitosamente.',
+            'oc_numbers': oc_numbers,
+        })
+
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'success': False, 'message': f'Error interno: {str(e)}'}, status=500)
+
+
+@login_required
+@staff_member_required
+@require_POST
+def revertir_orden_compra(request, pk):
+    try:
+        from .models import Requisicion
+
+        if not request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists():
+            return JsonResponse({'success': False, 'message': 'Solo usuarios del grupo Procura pueden revertir órdenes de compra.'}, status=403)
+
+        requisicion = get_object_or_404(Requisicion, pk=pk)
+
+        if requisicion.estado_requisicion != 'EN_ORDEN_COMPRA':
+            return JsonResponse({'success': False, 'message': 'La requisición debe estar en estado En Orden de Compra.'}, status=400)
+
+        if requisicion.recepcion_notificada:
+            return JsonResponse({'success': False, 'message': 'No se puede revertir: ya se notificó recepción a Almacenes.'}, status=400)
+
+        # Eliminar órdenes de compra asociadas
+        requisicion.ordenes_compra.all().delete()
+
+        # Revertir estado
+        _registrar_historial(requisicion, 'PROCURA_PROCESANDO', usuario=request.user,
+                             descripcion="Revertido desde En Orden de Compra")
+        requisicion.estado_requisicion = 'PROCURA_PROCESANDO'
+        requisicion.save(update_fields=['estado_requisicion'])
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Requisición {requisicion.cr8ca_requisicion} revertida a Procura Procesando. Las órdenes de compra fueron eliminadas.'
+        })
+
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'success': False, 'message': f'Error interno: {str(e)}'}, status=500)

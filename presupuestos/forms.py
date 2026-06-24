@@ -71,14 +71,26 @@ class RequisicionForm(forms.ModelForm):
                 depto_id = self.user.perfil.departamento_id
 
             if depto_id:
-                # Una partida es visible si:
-                # 1. El PresupuestoAnual padre no tiene departamento (global) O coincide con el depto
-                # 2. Y la propia partida no tiene departamentos asignados (global) O incluye el depto
-                partidas_permitidas = PartidaPresupuestaria.objects.filter(
-                    Q(presupuesto_anual__departamento__isnull=True) | Q(presupuesto_anual__departamento_id=depto_id)
+                # Prioridad: partidas de presupuesto del propio departamento
+                partidas_del_depto = PartidaPresupuestaria.objects.filter(
+                    presupuesto_anual__departamento_id=depto_id
                 ).filter(
                     Q(departamentos__isnull=True) | Q(departamentos__id=depto_id)
                 ).distinct()
+
+                if partidas_del_depto.exists():
+                    # El departamento tiene su propio presupuesto con partidas → solo mostrar esas
+                    partidas_permitidas = partidas_del_depto
+                else:
+                    # El departamento NO tiene presupuesto propio → mostrar globales
+                    # (partidas cuyos presupuesto_anual no tienen departamento asignado)
+                    # y también partidas cuyo m2m departamentos incluye al depto o está vacío
+                    partidas_permitidas = PartidaPresupuestaria.objects.filter(
+                        presupuesto_anual__departamento__isnull=True
+                    ).filter(
+                        Q(departamentos__isnull=True) | Q(departamentos__id=depto_id)
+                    ).distinct()
+
                 self.fields['partida'].queryset = partidas_permitidas
 
                 # Filtrar también los ítems de presupuesto a solo los de partidas permitidas
@@ -87,6 +99,7 @@ class RequisicionForm(forms.ModelForm):
                         partida__in=partidas_permitidas
                     )
             # Si no hay departamento asociado, ve todas (comportamiento por defecto)
+
 
 class MaterialConSkuField(forms.ModelChoiceField):
     def label_from_instance(self, obj):

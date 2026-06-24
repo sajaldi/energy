@@ -496,6 +496,9 @@ class Requisicion(models.Model):
         ('BORRADOR', 'Borrador'),
         ('PENDIENTE', 'En espera de autorización'),
         ('AUTORIZADO', 'Autorizado'),
+        ('VISTO_PROCURA', 'Visto por Procura'),
+        ('PROCURA_PROCESANDO', 'Procura Procesando'),
+        ('EN_ORDEN_COMPRA', 'En Orden de Compra'),
         ('RECHAZADO', 'Rechazado'),
         ('CANCELADO', 'Cancelado'),
     )
@@ -571,6 +574,15 @@ class Requisicion(models.Model):
         blank=True,
         related_name='requisiciones',
         verbose_name="Proyecto"
+    )
+
+    recepcion_notificada = models.BooleanField(
+        default=False,
+        verbose_name="Notificación de Recepción Enviada"
+    )
+    fecha_probable_entrega = models.DateField(
+        null=True, blank=True,
+        verbose_name="Fecha Probable de Entrega"
     )
 
     def save(self, *args, **kwargs):
@@ -936,6 +948,36 @@ class NotaRequisicion(models.Model):
         verbose_name_plural = "Notas de Requisición"
         ordering = ['-creado_en']
 
+
+class RequisicionHistorial(models.Model):
+    requisicion = models.ForeignKey(
+        Requisicion, on_delete=models.CASCADE,
+        related_name='historial', verbose_name="Requisición"
+    )
+    estado_anterior = models.CharField(
+        max_length=50, null=True, blank=True, verbose_name="Estado Anterior",
+        choices=Requisicion.ESTADO_REQUISICION_CHOICES
+    )
+    estado_nuevo = models.CharField(
+        max_length=50, verbose_name="Estado Nuevo",
+        choices=Requisicion.ESTADO_REQUISICION_CHOICES
+    )
+    usuario = models.ForeignKey(
+        User, on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name="Usuario"
+    )
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Fecha del Cambio")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+
+    class Meta:
+        verbose_name = "Historial de Requisición"
+        verbose_name_plural = "Historial de Requisiciones"
+        ordering = ['creado_en']
+
+    def __str__(self):
+        return f"{self.creado_en.strftime('%d/%m/%Y %H:%M')} | {self.estado_anterior or '---'} → {self.estado_nuevo}"
+
+
 class REPEX(models.Model):
     """
     Replacement Expenditure - Plan de reposición de activos.
@@ -1043,3 +1085,89 @@ class REPEXItem(models.Model):
     class Meta:
         verbose_name = "Ítem REPEX"
         verbose_name_plural = "Ítems REPEX"
+
+
+class OrdenCompra(models.Model):
+    TIPO_DOC_CHOICES = (
+        ('OC', 'OC'),
+        ('DOIH', 'DOIH'),
+    )
+    ESTADO_OC_CHOICES = (
+        ('BORRADOR', 'Borrador'),
+        ('ENVIADA', 'Enviada a Proveedor'),
+        ('CONFIRMADA', 'Confirmada'),
+        ('RECIBIDA', 'Recibida'),
+        ('CANCELADA', 'Cancelada'),
+    )
+    tipo_documento = models.CharField(max_length=10, choices=TIPO_DOC_CHOICES, default='OC', verbose_name="Tipo Documento")
+    numero_oc = models.CharField(max_length=50, unique=True, verbose_name="N° Orden de Compra")
+    requisicion = models.ForeignKey(
+        Requisicion, on_delete=models.CASCADE,
+        related_name='ordenes_compra', verbose_name="Requisición"
+    )
+    proveedor = models.ForeignKey(
+        'mantenimiento.Empresa', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='ordenes_compra',
+        verbose_name="Proveedor"
+    )
+    estado = models.CharField(max_length=20, choices=ESTADO_OC_CHOICES, default='BORRADOR', verbose_name="Estado")
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de creación")
+    fecha_entrega_estimada = models.DateField(null=True, blank=True, verbose_name="Fecha de entrega estimada")
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Subtotal")
+    impuestos = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Impuestos")
+    total = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Total")
+    creado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ordenes_compra_creadas', verbose_name="Creado por"
+    )
+    notas = models.TextField(null=True, blank=True, verbose_name="Notas")
+
+    def save(self, *args, **kwargs):
+        if not self.numero_oc:
+            from datetime import datetime
+            anio = str(datetime.now().year)[-2:]
+            tipo = self.tipo_documento or 'OC'
+            if tipo == 'DOIH':
+                oc_prefix = f"DOIH_OC{anio}-"
+            else:
+                oc_prefix = f"OC{anio}-"
+            correlativo = OrdenCompra.objects.filter(
+                numero_oc__startswith=oc_prefix
+            ).count() + 1
+            self.numero_oc = f"{oc_prefix}{str(correlativo).zfill(3)}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.numero_oc
+
+    class Meta:
+        verbose_name = "Orden de Compra"
+        verbose_name_plural = "Órdenes de Compra"
+        ordering = ['-fecha_creacion']
+
+
+class OrdenCompraArticulo(models.Model):
+    orden_compra = models.ForeignKey(
+        OrdenCompra, on_delete=models.CASCADE,
+        related_name='articulos', verbose_name="Orden de Compra"
+    )
+    articulo_requisicion = models.ForeignKey(
+        ArticuloRequisicion, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='ordenes_compra_articulos',
+        verbose_name="Artículo de Requisición"
+    )
+    descripcion = models.CharField(max_length=1000, verbose_name="Descripción")
+    cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Cantidad")
+    costo_unitario = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Costo Unitario")
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Subtotal")
+
+    def save(self, *args, **kwargs):
+        self.subtotal = self.cantidad * self.costo_unitario
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.descripcion[:50]} ({self.cantidad})"
+
+    class Meta:
+        verbose_name = "Artículo de Orden de Compra"
+        verbose_name_plural = "Artículos de Órdenes de Compra"

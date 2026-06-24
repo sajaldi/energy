@@ -7,7 +7,8 @@ from .models import (
     ItemPresupuesto, Compromiso, DetalleCompromiso, CambioPresupuesto, DetallePeriodico,
     PresupuestoAgrupado, Requisicion, ArticuloRequisicion, DocumentoRequisicion,
     SolicitudPago, ItemSolicitudPago,
-    REPEX, REPEXItem, Moneda
+    REPEX, REPEXItem, Moneda,
+    OrdenCompra, OrdenCompraArticulo
 )
 from .resources import RequisicionResource
 
@@ -602,6 +603,77 @@ class REPEXAdmin(admin.ModelAdmin):
             )
         return "Guarde primero para ver el resumen."
     get_costo_total_detail.short_description = "Inversión Total Estimada"
+
+
+class OrdenCompraArticuloInline(admin.TabularInline):
+    model = OrdenCompraArticulo
+    extra = 0
+    readonly_fields = ['subtotal']
+    fields = ['articulo_requisicion', 'descripcion', 'cantidad', 'costo_unitario', 'subtotal']
+    autocomplete_fields = ['articulo_requisicion']
+    classes = ['collapse']
+    verbose_name = "Artículo de OC"
+    verbose_name_plural = "Artículos de la OC"
+
+    def has_module_permission(self, request):
+        return request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+
+    def has_add_permission(self, request, obj=None):
+        return request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+
+
+@admin.register(OrdenCompra)
+class OrdenCompraAdmin(admin.ModelAdmin):
+    list_display = ['numero_oc', 'tipo_documento', 'requisicion_link', 'proveedor', 'total', 'estado', 'fecha_creacion']
+    list_filter = ['estado', 'tipo_documento', 'fecha_creacion']
+    search_fields = ['numero_oc', 'proveedor__nombre', 'requisicion__cr8ca_requisicion']
+    readonly_fields = ['numero_oc', 'subtotal', 'impuestos', 'total', 'fecha_creacion', 'creado_por']
+    fieldsets = [
+        ('Documento', {'fields': ['tipo_documento', 'numero_oc', 'estado']}),
+        ('Referencias', {'fields': ['requisicion', 'proveedor']}),
+        ('Montos', {'fields': ['subtotal', 'impuestos', 'total']}),
+        ('Fechas', {'fields': ['fecha_creacion', 'fecha_entrega_estimada']}),
+        ('Auditoría', {'fields': ['creado_por', 'notas']}),
+    ]
+    inlines = [OrdenCompraArticuloInline]
+    date_hierarchy = 'fecha_creacion'
+
+    def requisicion_link(self, obj):
+        from django.urls import reverse
+        url = reverse('presupuestos:requisicion_editar', args=[obj.requisicion.pk])
+        return format_html('<a href="{}">{}</a>', url, obj.requisicion.cr8ca_requisicion)
+    requisicion_link.short_description = "Requisición"
+    requisicion_link.admin_order_field = 'requisicion__cr8ca_requisicion'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists():
+            return qs
+        return qs.none()
+
+    def has_module_permission(self, request):
+        return request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+
+    def has_add_permission(self, request, obj=None):
+        return False  # OCs are created via the processing flow, not manually
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
 
 
 @admin.register(REPEXItem)

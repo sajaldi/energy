@@ -1,11 +1,14 @@
 import json
 from datetime import datetime
+from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 import requests
 from .models import Requisicion
 
 import traceback
+from .views_import import _registrar_historial
 
 def requisicion_autorizar(request, pk):
     try:
@@ -14,11 +17,13 @@ def requisicion_autorizar(request, pk):
         
         requisicion = get_object_or_404(Requisicion, pk=pk)
         
-        # 1. Información del Solicitante y Responsable
+        # 1. Información del Solicitante, Responsable y Aprobador
         solicitante = requisicion.usuario_solicitante
         perfil_sol = getattr(solicitante, 'perfil', None) if solicitante else None
         responsable = perfil_sol.responsable if perfil_sol else None
         perfil_resp = getattr(responsable, 'perfil', None) if responsable else None
+        aprobador = requisicion.aprobador
+        perfil_aprobador = getattr(aprobador, 'perfil', None) if aprobador else None
 
         # 2. Artículos de la Requisición
         articulos_list = []
@@ -51,7 +56,11 @@ def requisicion_autorizar(request, pk):
             "gerente_nombre": f"{responsable.first_name or ''} {responsable.last_name or ''}".strip() if responsable else "No asignado",
             "gerente_email": (responsable.email or "N/A") if responsable else "N/A",
             "gerente_telefono": (perfil_resp.telefono or "N/A") if perfil_resp else "N/A",
+            "aprobador_nombre": f"{aprobador.first_name or ''} {aprobador.last_name or ''}".strip() if aprobador else "No asignado",
+            "aprobador_email": (aprobador.email or "N/A") if aprobador else "N/A",
+            "aprobador_telefono": (perfil_aprobador.telefono or "N/A") if perfil_aprobador else "N/A",
             "proveedores": ", ".join(proveedores_nombres),
+            "vinculo_aprobacion": f"{settings.SITE_URL}{reverse('presupuestos:requisicion_editar', kwargs={'pk': requisicion.pk})}?step=4",
             "articulos": articulos_list,
             "timestamp": datetime.now().isoformat()
         }
@@ -67,6 +76,7 @@ def requisicion_autorizar(request, pk):
         response = requests.post(url, json=payload)
         logger.error(f"PA RESPONSE: {response.status_code} - {response.text}")
         if response.status_code in [200, 202]:
+            _registrar_historial(requisicion, 'PENDIENTE', usuario=request.user)
             requisicion.estado_requisicion = 'PENDIENTE'
             requisicion.save()
             return JsonResponse({'success': True, 'message': 'Autorización solicitada exitosamente.'})

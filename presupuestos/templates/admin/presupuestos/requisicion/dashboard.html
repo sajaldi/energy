@@ -4,6 +4,8 @@
 {% block extrahead %}
 {{ block.super }}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>if(typeof Swal==='undefined'){document.write('<script src="https://unpkg.com/sweetalert2@11"><\\/script>')}</script>
 <style>
     :root {
         --primary: #10b981;
@@ -376,6 +378,7 @@
                             <th>Prioridad</th>
                             <th>Estado</th>
                             <th>Total</th>
+                            <th>O/C</th>
                             <th style="text-align: right;">Acciones</th>
                         </tr>
                     </thead>
@@ -398,23 +401,60 @@
                                     {% if req.estado_requisicion == 'AUTORIZADO' %}background:#dcfce7; color:#166534;{% endif %}
                                     {% if req.estado_requisicion == 'PENDIENTE' %}background:#fef9c3; color:#854d0e;{% endif %}
                                     {% if req.estado_requisicion == 'BORRADOR' %}background:#f1f5f9; color:#475569;{% endif %}
+                                    {% if req.estado_requisicion == 'VISTO_PROCURA' %}background:#e0e7ff; color:#3730a3;{% endif %}
+                                    {% if req.estado_requisicion == 'EN_ORDEN_COMPRA' %}background:#dbeafe; color:#1e40af;{% endif %}
                                     {% if req.estado_requisicion == 'RECHAZADO' %}background:#fee2e2; color:#991b1b;{% endif %}
                                 ">
-                                    {{req.estado_requisicion|default:'BORRADOR'}}
+                                    {{req.get_estado_requisicion_display}}
                                 </span>
                             </td>
                             <td style="font-family: monospace; font-weight: 600;">
                                 L.{{req.cr8ca_totalenarticulos|floatformat:2}}</td>
-                            <td style="text-align: right;">
+                            <td style="font-size:0.8rem;">
+                                {% for oc in req.ordenes_compra.all %}
+                                <div style="white-space:nowrap;">{{ oc.numero_oc }}</div>
+                                {% endfor %}
+                            </td>
+                            <td style="text-align: right; white-space: nowrap;">
                                 <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
                                     class="btn-custom btn-outline-custom" style="padding: 6px 12px; font-size: 0.75rem;">
                                     Editar
                                 </a>
+                                {% if es_procura %}
+                                {% if req.estado_requisicion == 'AUTORIZADO' or req.estado_requisicion == 'VISTO_PROCURA' %}
+                                <button type="button" class="btn-custom btn-procesar-requisicion"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #f59e0b; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    📋 Procesar Requisición
+                                </button>
+                                {% endif %}
+                                {% if req.estado_requisicion == 'PROCURA_PROCESANDO' %}
+                                <button type="button" class="btn-custom btn-procesar-requisicion"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #f97316; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    🔄 Continuar Procesando
+                                </button>
+                                {% endif %}
+                                {% endif %}
+                                {% if req.estado_requisicion == 'EN_ORDEN_COMPRA' and not req.recepcion_notificada %}
+                                <button type="button" class="btn-custom btn-notificar-recepcion"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #6366f1; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    📬 Notificar Recepción
+                                </button>
+                                {% if es_procura %}
+                                <button type="button" class="btn-custom btn-revertir-oc"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #ef4444; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    ↩️ Revertir
+                                </button>
+                                {% endif %}
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
                                 No hay requisiciones registradas.
                             </td>
                         </tr>
@@ -446,6 +486,7 @@
                             <th>Prioridad</th>
                             <th>Estado</th>
                             <th>Total</th>
+                            <th>O/C</th>
                             <th style="text-align: right;">Acciones</th>
                         </tr>
                     </thead>
@@ -468,23 +509,61 @@
                                     {% if req.estado_requisicion == 'AUTORIZADO' %}background:#dcfce7; color:#166534;{% endif %}
                                     {% if req.estado_requisicion == 'PENDIENTE' %}background:#fef9c3; color:#854d0e;{% endif %}
                                     {% if req.estado_requisicion == 'BORRADOR' %}background:#f1f5f9; color:#475569;{% endif %}
+                                    {% if req.estado_requisicion == 'VISTO_PROCURA' %}background:#e0e7ff; color:#3730a3;{% endif %}
+                                    {% if req.estado_requisicion == 'PROCURA_PROCESANDO' %}background:#fff7ed; color:#9a3412;{% endif %}
+                                    {% if req.estado_requisicion == 'EN_ORDEN_COMPRA' %}background:#dbeafe; color:#1e40af;{% endif %}
                                     {% if req.estado_requisicion == 'RECHAZADO' %}background:#fee2e2; color:#991b1b;{% endif %}
                                 ">
-                                    {{req.estado_requisicion|default:'BORRADOR'}}
+                                    {{req.get_estado_requisicion_display}}
                                 </span>
                             </td>
                             <td style="font-family: monospace; font-weight: 600;">
                                 L.{{req.cr8ca_totalenarticulos|floatformat:2}}</td>
-                            <td style="text-align: right;">
+                            <td style="font-size:0.8rem;">
+                                {% for oc in req.ordenes_compra.all %}
+                                <div style="white-space:nowrap;">{{ oc.numero_oc }}</div>
+                                {% endfor %}
+                            </td>
+                            <td style="text-align: right; white-space: nowrap;">
                                 <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
                                     class="btn-custom btn-outline-custom" style="padding: 6px 12px; font-size: 0.75rem;">
                                     Editar
                                 </a>
+                                {% if es_procura %}
+                                {% if req.estado_requisicion == 'AUTORIZADO' or req.estado_requisicion == 'VISTO_PROCURA' %}
+                                <button type="button" class="btn-custom btn-procesar-requisicion"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #f59e0b; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    📋 Procesar Requisición
+                                </button>
+                                {% endif %}
+                                {% if req.estado_requisicion == 'PROCURA_PROCESANDO' %}
+                                <button type="button" class="btn-custom btn-procesar-requisicion"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #f97316; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    🔄 Continuar Procesando
+                                </button>
+                                {% endif %}
+                                {% endif %}
+                                {% if req.estado_requisicion == 'EN_ORDEN_COMPRA' and not req.recepcion_notificada %}
+                                <button type="button" class="btn-custom btn-notificar-recepcion"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #6366f1; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    📬 Notificar Recepción
+                                </button>
+                                {% if es_procura %}
+                                <button type="button" class="btn-custom btn-revertir-oc"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #ef4444; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    ↩️ Revertir
+                                </button>
+                                {% endif %}
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
                                 No has creado o no tienes requisiciones asignadas recientemente.
                             </td>
                         </tr>
@@ -494,17 +573,85 @@
             </div>
         </div>
     </div>
+ </div>
+
+<!-- Modal Notificar Recepción -->
+<div id="modal-notificar-recepcion" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:8px; padding:32px; max-width:480px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative;">
+        <button type="button" id="btn-cerrar-modal-recepcion" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#94a3b8;">&times;</button>
+        <h3 style="margin:0 0 8px; font-size:1.2rem; font-weight:700; color:#1e293b;">📬 Notificar Recepción</h3>
+        <p style="margin:0 0 20px; color:#64748b; font-size:0.9rem;" id="modal-recepcion-req-info"></p>
+        <div style="margin-bottom:20px;">
+            <label style="display:block; font-weight:600; color:#1e293b; margin-bottom:6px; font-size:0.9rem;">Fecha Probable de Entrega</label>
+            <input type="date" id="input-fecha-entrega" style="width:100%; padding:10px 14px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.95rem; font-family:'Inter',sans-serif; box-sizing:border-box;">
+        </div>
+        <div style="display:flex; gap:12px; justify-content:flex-end;">
+            <button type="button" id="btn-cancelar-recepcion" class="btn-custom btn-outline-custom" style="padding:10px 24px;">Cancelar</button>
+            <button type="button" id="btn-confirmar-recepcion" class="btn-custom" style="padding:10px 24px; background:#6366f1; color:white !important; border:none; cursor:pointer; font-weight:600;">Confirmar Notificación</button>
+        </div>
+    </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Modal Procesar Requisición (Procura) -->
+<div id="modal-procesar-requisicion" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:flex-start; justify-content:center; padding-top:30px; overflow-y:auto;">
+    <div style="background:white; border-radius:8px; padding:32px; max-width:960px; width:95%; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative; margin-bottom:30px;">
+        <button type="button" id="btn-cerrar-modal-procesar" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#94a3b8;">&times;</button>
+        <h3 style="margin:0 0 4px; font-size:1.2rem; font-weight:700; color:#1e293b;">📋 Procesar Requisición</h3>
+        <p style="margin:0 0 20px; color:#64748b; font-size:0.9rem;" id="modal-procesar-req-info"></p>
+
+        <div id="procesar-articulos-container">
+            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                <thead>
+                    <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+                        <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b;">Descripción</th>
+                        <th style="padding:10px 12px; text-align:center; font-weight:600; color:#64748b;">Cantidad</th>
+                        <th style="padding:10px 12px; text-align:right; font-weight:600; color:#64748b;">Costo Unitario</th>
+                        <th style="padding:10px 12px; text-align:right; font-weight:600; color:#64748b;">Impuestos</th>
+                        <th style="padding:10px 12px; text-align:right; font-weight:600; color:#64748b;">Subtotal</th>
+                        <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b;">Proveedor</th>
+                    </tr>
+                </thead>
+                <tbody id="procesar-articulos-tbody"></tbody>
+                <tfoot>
+                    <tr style="border-top:2px solid #e2e8f0; font-weight:700;">
+                        <td colspan="4" style="padding:12px; text-align:right;">Totales:</td>
+                        <td style="padding:12px; text-align:right;" id="procesar-total">L. 0.00</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Tipo de Documento -->
+        <div style="margin-top:16px; display:flex; align-items:center; gap:12px;">
+            <label style="font-weight:600; color:#1e293b; font-size:0.9rem;">Tipo de Documento:</label>
+            <select id="tipo-documento-select" style="padding:6px 12px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem; background:white;">
+                <option value="OC">OC</option>
+                <option value="DOIH">DOIH</option>
+            </select>
+        </div>
+
+        <!-- Documentos adjuntos -->
+        <div id="procesar-documentos-section" style="margin-top:24px; border-top:1px solid #e2e8f0; padding-top:16px; display:none;">
+            <h4 style="margin:0 0 12px; font-size:0.95rem; font-weight:600; color:#1e293b;">📎 Documentos Adjuntos</h4>
+            <div id="procesar-documentos-lista" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        </div>
+
+        <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:24px;">
+            <button type="button" id="btn-cancelar-procesar" class="btn-custom btn-outline-custom" style="padding:10px 24px;">Cancelar</button>
+            <button type="button" id="btn-finalizar-procesar" class="btn-custom" style="padding:10px 24px; background:#f59e0b; color:white !important; border:none; cursor:pointer; font-weight:600;">✅ Finalizar y Generar Órdenes de Compra</button>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         function checkNotifications() {
             fetch('/mantenimiento/api/notifications/')
-                .then(response => response.json())
+                .then(response => { if (!response.ok) return null; return response.json(); })
                 .then(data => {
-                    if (data.status === 'success' && data.notificaciones.length > 0) {
-                        data.notificaciones.forEach(notif => {
+                    if (!data || data.status !== 'success' || !data.notificaciones.length) return;
+                    data.notificaciones.forEach(notif => {
                             // Show Toast
                             Swal.fire({
                                 toast: true,
@@ -526,14 +673,334 @@
                                 body: JSON.stringify({ notif_id: notif.id })
                             });
                         });
-                    }
-                })
-                .catch(err => console.error('Error checking notifications:', err));
+                    })
+                    .catch(function() {}); // Silenciar errores de conexión
         }
 
         // Check initially and then every 10 seconds
         setTimeout(checkNotifications, 1000);
         setInterval(checkNotifications, 10000);
+
+        // Modal Notificar Recepción
+        var currentRequisicionPk = null;
+        var modal = document.getElementById('modal-notificar-recepcion');
+
+        document.querySelectorAll('.btn-notificar-recepcion').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                currentRequisicionPk = this.getAttribute('data-pk');
+                var reqNum = this.getAttribute('data-req');
+                document.getElementById('modal-recepcion-req-info').textContent = 'Requisición: ' + reqNum;
+                document.getElementById('input-fecha-entrega').value = '';
+                modal.style.display = 'flex';
+            });
+        });
+
+        function cerrarModalRecepcion() {
+            modal.style.display = 'none';
+            currentRequisicionPk = null;
+        }
+
+        document.getElementById('btn-cerrar-modal-recepcion').addEventListener('click', cerrarModalRecepcion);
+        document.getElementById('btn-cancelar-recepcion').addEventListener('click', cerrarModalRecepcion);
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) cerrarModalRecepcion();
+        });
+
+        document.getElementById('btn-confirmar-recepcion').addEventListener('click', function() {
+            var fecha = document.getElementById('input-fecha-entrega').value;
+            if (!fecha) {
+                Swal.fire('Campo requerido', 'Debe seleccionar una fecha probable de entrega.', 'warning');
+                return;
+            }
+            if (!currentRequisicionPk) return;
+
+            fetch('/presupuestos/requisiciones/' + currentRequisicionPk + '/notificar-recepcion/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ fecha_probable_entrega: fecha })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                cerrarModalRecepcion();
+                if (data.success) {
+                    Swal.fire('¡Notificado!', data.message, 'success').then(function() {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            })
+            .catch(function(err) {
+                cerrarModalRecepcion();
+                Swal.fire('Error', 'Error de conexión: ' + err, 'error');
+            });
+        });
+
+        // Botón Revertir OC
+        document.querySelectorAll('.btn-revertir-oc').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var pk = this.getAttribute('data-pk');
+                var reqNum = this.getAttribute('data-req');
+                Swal.fire({
+                    title: '¿Revertir órdenes de compra?',
+                    html: 'Se eliminarán las órdenes de compra de <strong>' + reqNum + '</strong> y volverá a estado Procura Procesando.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    confirmButtonText: 'Sí, revertir',
+                    cancelButtonText: 'Cancelar'
+                }).then(function(result) {
+                    if (!result.isConfirmed) return;
+                    fetch('/presupuestos/requisiciones/' + pk + '/revertir-oc/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            Swal.fire('¡Revertido!', data.message, 'success').then(function() { location.reload(); });
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    })
+                    .catch(function(err) {
+                        Swal.fire('Error', 'Error de conexión: ' + err, 'error');
+                    });
+                });
+            });
+        });
+
+        // Botón Procesar Requisición - abre modal con datos
+        var currentProcesarPk = null;
+        var proveedoresMap = {};
+        var modalProcesar = document.getElementById('modal-procesar-requisicion');
+
+        document.querySelectorAll('.btn-procesar-requisicion').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var pk = this.getAttribute('data-pk');
+                var reqNum = this.getAttribute('data-req');
+                var btnEl = this;
+
+                Swal.fire({
+                    title: 'Cargando...',
+                    text: 'Obteniendo datos de la requisición',
+                    allowOutsideClick: false,
+                    didOpen: function() { Swal.showLoading(); }
+                });
+
+                fetch('/presupuestos/requisiciones/' + pk + '/procesar/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    Swal.close();
+                    if (!data.success) {
+                        Swal.fire('Error', data.message, 'error');
+                        return;
+                    }
+                    cargarModalProcesar(data.data, pk, reqNum);
+                })
+                .catch(function(err) {
+                    Swal.close();
+                    Swal.fire('Error', 'Error de conexión: ' + err, 'error');
+                });
+            });
+        });
+
+        function cargarModalProcesar(data, pk, reqNum) {
+            currentProcesarPk = pk;
+            modalProcesar.dataset.pk = pk;
+            var req = data.requisicion;
+            var articulos = data.articulos;
+            proveedoresMap = {};
+            data.proveedores.forEach(function(p) { proveedoresMap[p.id] = p.nombre; });
+
+            document.getElementById('modal-procesar-req-info').textContent =
+                req.numero + ' - ' + req.asunto + ' | Total actual: L. ' + req.total_actual.toFixed(2);
+
+            var tbody = document.getElementById('procesar-articulos-tbody');
+            tbody.innerHTML = '';
+            var totalGeneral = 0;
+
+            articulos.forEach(function(art, idx) {
+                var costo = art.costo_actual || 0;
+                var cant = art.cantidad || 0;
+                var subtotal = cant * costo;
+                totalGeneral += subtotal;
+
+                var optionsHtml = '<option value="">Seleccionar proveedor</option>';
+                data.proveedores.forEach(function(p) {
+                    var selected = (p.id === art.proveedor_id) ? 'selected' : '';
+                    optionsHtml += '<option value="' + p.id + '" ' + selected + '>' + p.nombre + '</option>';
+                });
+
+                var tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid #e2e8f0';
+                tr.innerHTML =
+                    '<td style="padding:10px 12px;">' + art.descripcion +
+                    '<input type="hidden" class="art-id" value="' + art.id + '">' +
+                    '<input type="hidden" class="art-descripcion" value="' + art.descripcion.replace(/"/g, '&quot;') + '"></td>' +
+                    '<td style="padding:10px 12px; text-align:center;">' +
+                    '<input type="number" class="art-cantidad" value="' + cant + '" step="0.01" min="0" style="width:70px; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; text-align:center;"></td>' +
+                    '<td style="padding:10px 12px; text-align:right;">' +
+                    '<input type="number" class="art-costo" value="' + costo + '" step="0.01" min="0" style="width:100px; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; text-align:right;"></td>' +
+                    '<td style="padding:10px 12px; text-align:right;">' +
+                    '<input type="number" class="art-impuestos" value="0" step="0.01" min="0" style="width:90px; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; text-align:right;"></td>' +
+                    '<td style="padding:10px 12px; text-align:right; font-weight:600;" class="art-subtotal-cell">L. ' + subtotal.toFixed(2) + '</td>' +
+                    '<td style="padding:10px 12px;"><select class="art-proveedor" style="width:100%; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px;">' + optionsHtml + '</select></td>';
+                tbody.appendChild(tr);
+
+                // Recalcular subtotal al cambiar cantidad, costo o impuestos
+                var inputs = tr.querySelectorAll('.art-cantidad, .art-costo, .art-impuestos');
+                inputs.forEach(function(inp) {
+                    inp.addEventListener('input', function() { recalcularFila(tr); recalcularTotalProcesar(); });
+                });
+            });
+
+            // Documentos adjuntos
+            var docsSection = document.getElementById('procesar-documentos-section');
+            var docsLista = document.getElementById('procesar-documentos-lista');
+            docsLista.innerHTML = '';
+            if (data.documentos && data.documentos.length > 0) {
+                data.documentos.forEach(function(doc) {
+                    var wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'display:flex; flex-direction:column; gap:2px;';
+                    var link = document.createElement('a');
+                    link.href = doc.url;
+                    link.target = '_blank';
+                    link.className = 'btn-custom btn-outline-custom';
+                    link.style.cssText = 'padding:6px 12px; font-size:0.85rem; text-decoration:none; font-weight:500;';
+                    link.textContent = doc.nombre;
+                    wrapper.appendChild(link);
+                    if (doc.archivo_nombre && doc.archivo_nombre !== doc.nombre) {
+                        var fname = document.createElement('span');
+                        fname.style.cssText = 'font-size:0.7rem; color:#64748b; padding-left:4px;';
+                        fname.textContent = doc.archivo_nombre;
+                        wrapper.appendChild(fname);
+                    }
+                    docsLista.appendChild(wrapper);
+                });
+                docsSection.style.display = 'block';
+            } else {
+                docsSection.style.display = 'none';
+            }
+
+            document.getElementById('procesar-total').textContent = 'L. ' + totalGeneral.toFixed(2);
+            modalProcesar.style.display = 'flex';
+        }
+
+        function recalcularFila(tr) {
+            var cant = parseFloat(tr.querySelector('.art-cantidad').value) || 0;
+            var costo = parseFloat(tr.querySelector('.art-costo').value) || 0;
+            var sub = cant * costo;
+            tr.querySelector('.art-subtotal-cell').textContent = 'L. ' + sub.toFixed(2);
+        }
+
+        function recalcularTotalProcesar() {
+            var total = 0;
+            document.querySelectorAll('#procesar-articulos-tbody tr').forEach(function(tr) {
+                var cant = parseFloat(tr.querySelector('.art-cantidad').value) || 0;
+                var costo = parseFloat(tr.querySelector('.art-costo').value) || 0;
+                var imp = parseFloat(tr.querySelector('.art-impuestos').value) || 0;
+                total += cant * costo + imp;
+            });
+            document.getElementById('procesar-total').textContent = 'L. ' + total.toFixed(2);
+        }
+
+        function cerrarModalProcesar() {
+            modalProcesar.style.display = 'none';
+            currentProcesarPk = null;
+        }
+
+        document.getElementById('btn-cerrar-modal-procesar').addEventListener('click', cerrarModalProcesar);
+        document.getElementById('btn-cancelar-procesar').addEventListener('click', cerrarModalProcesar);
+        modalProcesar.addEventListener('click', function(e) {
+            if (e.target === modalProcesar) cerrarModalProcesar();
+        });
+
+        document.getElementById('btn-finalizar-procesar').addEventListener('click', function() {
+            var pk = currentProcesarPk || modalProcesar.dataset.pk;
+            if (!pk) return;
+
+            var articulosData = [];
+            var valid = true;
+            document.querySelectorAll('#procesar-articulos-tbody tr').forEach(function(tr) {
+                var proveedorSelect = tr.querySelector('.art-proveedor');
+                if (!proveedorSelect.value) { valid = false; return; }
+                articulosData.push({
+                    id: tr.querySelector('.art-id').value,
+                    descripcion: tr.querySelector('.art-descripcion').value,
+                    cantidad: parseFloat(tr.querySelector('.art-cantidad').value) || 0,
+                    costo_unitario: parseFloat(tr.querySelector('.art-costo').value) || 0,
+                    impuestos: parseFloat(tr.querySelector('.art-impuestos').value) || 0,
+                    proveedor_id: parseInt(proveedorSelect.value),
+                });
+            });
+
+            if (!valid) {
+                Swal.fire('Error', 'Todos los artículos deben tener un proveedor asignado.', 'error');
+                return;
+            }
+
+            modalProcesar.style.display = 'none';
+            Swal.fire({
+                title: '¿Generar Órdenes de Compra?',
+                text: 'Se crearán órdenes de compra agrupadas por proveedor. Esta acción no se puede deshacer.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#f59e0b',
+                confirmButtonText: 'Sí, generar',
+                cancelButtonText: 'Cancelar'
+            }).then(function(result) {
+                if (!result.isConfirmed) { modalProcesar.style.display = 'flex'; return; }
+                Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+
+                var tipoDoc = document.getElementById('tipo-documento-select').value;
+                fetch('/presupuestos/requisiciones/' + pk + '/finalizar-procesamiento/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ articulos: articulosData, tipo_documento: tipoDoc })
+                })
+                .then(function(r) {
+                    if (!r.ok) {
+                        return r.text().then(function(text) {
+                            throw new Error('Servidor respondió ' + r.status + ': ' + text.substring(0, 200));
+                        });
+                    }
+                    return r.json();
+                })
+                .then(function(data) {
+                    Swal.close();
+                    cerrarModalProcesar();
+                    if (data.success) {
+                        var msg = data.message;
+                        if (data.oc_numbers && data.oc_numbers.length > 0) {
+                            msg += '<br><br><strong>Órdenes generadas:</strong><br>' + data.oc_numbers.join('<br>');
+                        }
+                        Swal.fire({ title: '¡Completado!', html: msg, icon: 'success' }).then(function() { location.reload(); });
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                })
+                .catch(function(err) {
+                    Swal.close();
+                    Swal.fire('Error', err.message || 'Error de conexión', 'error');
+                });
+            });
+        });
     });
 
     // Tab Switching Logic (Global scope)

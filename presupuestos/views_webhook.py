@@ -7,6 +7,7 @@ from .models import Requisicion
 from .utils_documentos import generate_requisicion_pdf
 import json
 import logging
+from .views_import import _registrar_historial
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,8 @@ def requisicion_webhook_update(request):
         
         # Actualizar estado
         estado_anterior = requisicion.estado_requisicion
+        _registrar_historial(requisicion, nuevo_estado,
+                             descripcion=f"Webhook Power Automate: {accion}{' - ' + comentarios if comentarios else ''}")
         requisicion.estado_requisicion = nuevo_estado
         
         # Guardar fecha de aprobación si aplica
@@ -250,6 +253,12 @@ def dynamics_sync_webhook(request):
             obj.usuario_solicitante = default_user
             obj.estado_requisicion = 'BORRADOR'
             obj.save()
+            from .models import RequisicionHistorial
+            RequisicionHistorial.objects.create(
+                requisicion=obj, estado_anterior=None,
+                estado_nuevo='BORRADOR',
+                descripcion="Importada desde Dynamics"
+            )
             created_count += 1
         
         msg = f'Sincronización Cloud exitosa. Se importaron {created_count} nuevas requisiciones.'
