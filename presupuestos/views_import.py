@@ -1019,3 +1019,111 @@ def revertir_orden_compra(request, pk):
         import traceback
         print(traceback.format_exc())
         return JsonResponse({'success': False, 'message': f'Error interno: {str(e)}'}, status=500)
+
+
+@login_required
+@staff_member_required
+def detalle_orden_compra(request, pk):
+    try:
+        from .models import OrdenCompra
+
+        if not request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists():
+            return JsonResponse({'success': False, 'message': 'Solo usuarios del grupo Procura pueden ver órdenes de compra.'}, status=403)
+
+        oc = get_object_or_404(OrdenCompra, pk=pk)
+
+        articulos = []
+        for art in oc.articulos.all():
+            articulos.append({
+                'id': art.id,
+                'articulo_requisicion_id': str(art.articulo_requisicion_id) if art.articulo_requisicion_id else None,
+                'descripcion': art.descripcion,
+                'cantidad': float(art.cantidad),
+                'costo_unitario': float(art.costo_unitario),
+                'subtotal': float(art.subtotal),
+            })
+
+        proveedores_list = []
+        from mantenimiento.models import Empresa
+        all_provs = Empresa.objects.filter(es_proveedor=True).values('id', 'nombre')
+        for p in all_provs:
+            proveedores_list.append({'id': p['id'], 'nombre': p['nombre']})
+
+        data = {
+            'id': oc.id,
+            'numero_oc': oc.numero_oc,
+            'tipo_documento': oc.tipo_documento,
+            'estado': oc.estado,
+            'proveedor_id': oc.proveedor_id,
+            'proveedor_nombre': oc.proveedor.nombre if oc.proveedor else '',
+            'subtotal': float(oc.subtotal),
+            'impuestos': float(oc.impuestos),
+            'total': float(oc.total),
+            'fecha_creacion': oc.fecha_creacion.strftime('%d/%m/%Y %H:%M'),
+            'fecha_entrega_estimada': oc.fecha_entrega_estimada.strftime('%Y-%m-%d') if oc.fecha_entrega_estimada else '',
+            'notas': oc.notas or '',
+            'creado_por': oc.creado_por.get_full_name() or str(oc.creado_por) if oc.creado_por else '',
+            'requisicion_numero': oc.requisicion.cr8ca_requisicion if oc.requisicion else '',
+            'articulos': articulos,
+            'proveedores': proveedores_list,
+        }
+
+        return JsonResponse({'success': True, 'data': data})
+
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'success': False, 'message': f'Error interno: {str(e)}'}, status=500)
+
+
+@login_required
+@staff_member_required
+@require_POST
+def actualizar_orden_compra(request, pk):
+    try:
+        import json
+        from .models import OrdenCompra, OrdenCompraArticulo
+        from decimal import Decimal
+        from mantenimiento.models import Empresa
+
+        if not request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists():
+            return JsonResponse({'success': False, 'message': 'Solo usuarios del grupo Procura pueden editar órdenes de compra.'}, status=403)
+
+        oc = get_object_or_404(OrdenCompra, pk=pk)
+        data = json.loads(request.body)
+
+        # Actualizar campos de cabecera
+        oc.estado = data.get('estado', oc.estado)
+        if data.get('proveedor_id'):
+            oc.proveedor_id = int(data['proveedor_id'])
+        oc.impuestos = Decimal(str(data.get('impuestos', oc.impuestos)))
+        oc.fecha_entrega_estimada = data.get('fecha_entrega_estimada') or None
+        oc.notas = data.get('notas', oc.notas)
+
+        # Actualizar artículos
+        for art_data in data.get('articulos', []):
+            art_id = art_data.get('id')
+            if not art_id:
+                continue
+            art = oc.articulos.filter(id=art_id).first()
+            if not art:
+                continue
+            art.cantidad = Decimal(str(art_data.get('cantidad', art.cantidad)))
+            art.costo_unitario = Decimal(str(art_data.get('costo_unitario', art.costo_unitario)))
+            art.save()
+
+        # Recalcular totales
+        subtotal = sum(a.subtotal for a in oc.articulos.all())
+        oc.subtotal = subtotal
+        oc.total = subtotal + oc.impuestos
+        oc.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Orden {oc.numero_oc} actualizada exitosamente.'
+        })
+
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'success': False, 'message': f'Error interno: {str(e)}'}, status=500)

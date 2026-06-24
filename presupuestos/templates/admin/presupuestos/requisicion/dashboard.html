@@ -412,7 +412,7 @@
                                 L.{{req.cr8ca_totalenarticulos|floatformat:2}}</td>
                             <td style="font-size:0.8rem;">
                                 {% for oc in req.ordenes_compra.all %}
-                                <div style="white-space:nowrap;">{% if es_procura %}<a href="{% url 'admin:presupuestos_ordencompra_change' oc.pk %}" style="color:#2563eb;text-decoration:underline;">{{ oc.numero_oc }}</a>{% else %}{{ oc.numero_oc }}{% endif %}</div>
+                                <div style="white-space:nowrap;">{% if es_procura %}<a href="#" onclick="abrirModalOC({{ oc.pk }}); return false;" style="color:#2563eb;text-decoration:underline;">{{ oc.numero_oc }}</a>{% else %}{{ oc.numero_oc }}{% endif %}</div>
                                 {% endfor %}
                             </td>
                             <td style="text-align: right; white-space: nowrap;">
@@ -521,7 +521,7 @@
                                 L.{{req.cr8ca_totalenarticulos|floatformat:2}}</td>
                             <td style="font-size:0.8rem;">
                                 {% for oc in req.ordenes_compra.all %}
-                                <div style="white-space:nowrap;">{% if es_procura %}<a href="{% url 'admin:presupuestos_ordencompra_change' oc.pk %}" style="color:#2563eb;text-decoration:underline;">{{ oc.numero_oc }}</a>{% else %}{{ oc.numero_oc }}{% endif %}</div>
+                                <div style="white-space:nowrap;">{% if es_procura %}<a href="#" onclick="abrirModalOC({{ oc.pk }}); return false;" style="color:#2563eb;text-decoration:underline;">{{ oc.numero_oc }}</a>{% else %}{{ oc.numero_oc }}{% endif %}</div>
                                 {% endfor %}
                             </td>
                             <td style="text-align: right; white-space: nowrap;">
@@ -643,6 +643,93 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Fiori: Detalle de Orden de Compra -->
+<div id="modal-oc-detalle" style="display:none; position:fixed; top:0; right:0; width:680px; max-width:100vw; height:100vh; background:white; z-index:9999; box-shadow:-4px 0 24px rgba(0,0,0,0.15); flex-direction:column; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+    <!-- Header -->
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #e2e8f0; background:#f8fafc; flex-shrink:0;">
+        <div>
+            <div style="font-size:0.75rem; color:#64748b;">Orden de Compra</div>
+            <div style="font-size:1.1rem; font-weight:700; color:#0f172a;" id="modal-oc-numero">-</div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <span id="modal-oc-estado-badge" class="priority-badge" style="font-size:0.75rem;"></span>
+            <button onclick="cerrarModalOC()" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b; padding:4px 8px;">✕</button>
+        </div>
+    </div>
+    <!-- Body -->
+    <div style="flex:1; overflow-y:auto; padding:20px;">
+        <!-- Cabecera -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+            <div>
+                <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Tipo Documento</label>
+                <select id="oc-tipo-documento" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem;">
+                    <option value="OC">OC</option>
+                    <option value="DOIH">DOIH</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Estado</label>
+                <select id="oc-estado" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem;">
+                    <option value="BORRADOR">Borrador</option>
+                    <option value="ENVIADA">Enviada a Proveedor</option>
+                    <option value="CONFIRMADA">Confirmada</option>
+                    <option value="RECIBIDA">Recibida</option>
+                    <option value="CANCELADA">Cancelada</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Proveedor</label>
+                <select id="oc-proveedor" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem;"></select>
+            </div>
+            <div>
+                <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Fecha Entrega Estimada</label>
+                <input type="date" id="oc-fecha-entrega" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem;">
+            </div>
+        </div>
+        <!-- Artículos -->
+        <div style="margin-bottom:16px;">
+            <div style="font-size:0.85rem; font-weight:600; color:#1e293b; margin-bottom:8px;">Artículos</div>
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                <thead>
+                    <tr style="border-bottom:2px solid #e2e8f0;">
+                        <th style="padding:6px 8px; text-align:left; color:#64748b;">Descripción</th>
+                        <th style="padding:6px 8px; text-align:right; color:#64748b;">Cantidad</th>
+                        <th style="padding:6px 8px; text-align:right; color:#64748b;">Costo U.</th>
+                        <th style="padding:6px 8px; text-align:right; color:#64748b;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody id="oc-articulos-tbody"></tbody>
+                <tfoot>
+                    <tr style="border-top:2px solid #e2e8f0; font-weight:700;">
+                        <td style="padding:8px; text-align:right;" colspan="3">Impuestos:</td>
+                        <td style="padding:8px; text-align:right;"><input type="number" id="oc-impuestos" value="0" step="0.01" min="0" style="width:90px; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; text-align:right;"></td>
+                    </tr>
+                    <tr style="font-weight:700;">
+                        <td style="padding:8px; text-align:right;" colspan="3">Total:</td>
+                        <td style="padding:8px; text-align:right;" id="oc-total">L. 0.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <!-- Notas -->
+        <div>
+            <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Notas</label>
+            <textarea id="oc-notas" rows="3" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem; resize:vertical;"></textarea>
+        </div>
+        <!-- Meta -->
+        <div style="margin-top:12px; font-size:0.75rem; color:#94a3b8;">
+            Creado por: <span id="oc-creado-por">-</span> | Fecha: <span id="oc-fecha-creacion">-</span> | Requisición: <span id="oc-req-numero">-</span>
+        </div>
+    </div>
+    <!-- Footer -->
+    <div style="display:flex; gap:8px; justify-content:flex-end; padding:12px 20px; border-top:1px solid #e2e8f0; background:#f8fafc; flex-shrink:0;">
+        <button onclick="cerrarModalOC()" style="padding:8px 16px; border:1px solid #e2e8f0; border-radius:6px; background:white; cursor:pointer; font-size:0.85rem;">Cancelar</button>
+        <button onclick="guardarOC()" style="padding:8px 16px; border:none; border-radius:6px; background:#2563eb; color:white; cursor:pointer; font-weight:600; font-size:0.85rem;">💾 Guardar</button>
+    </div>
+</div>
+<!-- Overlay -->
+<div id="modal-oc-overlay" onclick="cerrarModalOC()" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:9998;"></div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -1025,6 +1112,134 @@
         if (evt && evt.currentTarget) {
             evt.currentTarget.classList.add("active");
         }
+    }
+
+    // --- Modal Fiori: Orden de Compra ---
+    var currentOCId = null;
+
+    function abrirModalOC(ocId) {
+        currentOCId = ocId;
+        var modal = document.getElementById('modal-oc-detalle');
+        var overlay = document.getElementById('modal-oc-overlay');
+        modal.style.display = 'flex';
+        overlay.style.display = 'block';
+
+        fetch('/presupuestos/ordenes-compra/' + ocId + '/detalle/')
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                if (!resp.success) { Swal.fire('Error', resp.message, 'error'); return; }
+                var d = resp.data;
+                document.getElementById('modal-oc-numero').textContent = d.numero_oc;
+                document.getElementById('oc-tipo-documento').value = d.tipo_documento;
+                document.getElementById('oc-estado').value = d.estado;
+                document.getElementById('oc-fecha-entrega').value = d.fecha_entrega_estimada || '';
+                document.getElementById('oc-notas').value = d.notas || '';
+                document.getElementById('oc-creado-por').textContent = d.creado_por;
+                document.getElementById('oc-fecha-creacion').textContent = d.fecha_creacion;
+                document.getElementById('oc-req-numero').textContent = d.requisicion_numero;
+                document.getElementById('oc-impuestos').value = d.impuestos;
+
+                var badge = document.getElementById('modal-oc-estado-badge');
+                badge.textContent = d.estado;
+                var colors = {BORRADOR:'#f1f5f9;color:#475569', ENVIADA:'#dbeafe;color:#1e40af', CONFIRMADA:'#dcfce7;color:#166534', RECIBIDA:'#fef9c3;color:#854d0e', CANCELADA:'#fee2e2;color:#991b1b'};
+                badge.style.cssText = 'padding:2px 8px; border-radius:4px; font-size:0.75rem; background:' + (colors[d.estado] || '#f1f5f9;color:#475569');
+
+                // Proveedores
+                var provSelect = document.getElementById('oc-proveedor');
+                provSelect.innerHTML = '<option value="">Seleccionar</option>';
+                d.proveedores.forEach(function(p) {
+                    var opt = document.createElement('option');
+                    opt.value = p.id; opt.textContent = p.nombre;
+                    if (p.id === d.proveedor_id) opt.selected = true;
+                    provSelect.appendChild(opt);
+                });
+
+                // Artículos
+                var tbody = document.getElementById('oc-articulos-tbody');
+                tbody.innerHTML = '';
+                d.articulos.forEach(function(art) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td style="padding:6px 8px;">' + art.descripcion + '</td>' +
+                        '<td style="padding:6px 8px; text-align:right;"><input type="number" class="oc-art-cant" value="' + art.cantidad + '" step="0.01" min="0" style="width:70px;padding:4px;border:1px solid #e2e8f0;border-radius:4px;text-align:right;" data-id="' + art.id + '"></td>' +
+                        '<td style="padding:6px 8px; text-align:right;"><input type="number" class="oc-art-costo" value="' + art.costo_unitario + '" step="0.01" min="0" style="width:80px;padding:4px;border:1px solid #e2e8f0;border-radius:4px;text-align:right;" data-id="' + art.id + '"></td>' +
+                        '<td style="padding:6px 8px; text-align:right; font-weight:600;" class="oc-art-subtot">L. ' + art.subtotal.toFixed(2) + '</td>';
+                    tbody.appendChild(tr);
+
+                    tr.querySelector('.oc-art-cant').addEventListener('input', function() { recalcularOC(); });
+                    tr.querySelector('.oc-art-costo').addEventListener('input', function() { recalcularOC(); });
+                });
+                document.getElementById('oc-impuestos').addEventListener('input', function() { recalcularOC(); });
+                recalcularOC();
+            })
+            .catch(function(err) {
+                Swal.fire('Error', 'Error al cargar: ' + err.message, 'error');
+            });
+    }
+
+    function recalcularOC() {
+        var total = 0;
+        document.querySelectorAll('#oc-articulos-tbody tr').forEach(function(tr) {
+            var cant = parseFloat(tr.querySelector('.oc-art-cant').value) || 0;
+            var costo = parseFloat(tr.querySelector('.oc-art-costo').value) || 0;
+            var sub = cant * costo;
+            tr.querySelector('.oc-art-subtot').textContent = 'L. ' + sub.toFixed(2);
+            total += sub;
+        });
+        var imp = parseFloat(document.getElementById('oc-impuestos').value) || 0;
+        document.getElementById('oc-total').textContent = 'L. ' + (total + imp).toFixed(2);
+    }
+
+    function cerrarModalOC() {
+        document.getElementById('modal-oc-detalle').style.display = 'none';
+        document.getElementById('modal-oc-overlay').style.display = 'none';
+        currentOCId = null;
+    }
+
+    function guardarOC() {
+        if (!currentOCId) return;
+        var articulos = [];
+        document.querySelectorAll('#oc-articulos-tbody tr').forEach(function(tr) {
+            articulos.push({
+                id: parseInt(tr.querySelector('.oc-art-cant').getAttribute('data-id')),
+                cantidad: parseFloat(tr.querySelector('.oc-art-cant').value) || 0,
+                costo_unitario: parseFloat(tr.querySelector('.oc-art-costo').value) || 0,
+            });
+        });
+
+        Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+
+        fetch('/presupuestos/ordenes-compra/' + currentOCId + '/actualizar/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                estado: document.getElementById('oc-estado').value,
+                proveedor_id: parseInt(document.getElementById('oc-proveedor').value) || null,
+                impuestos: parseFloat(document.getElementById('oc-impuestos').value) || 0,
+                fecha_entrega_estimada: document.getElementById('oc-fecha-entrega').value || null,
+                notas: document.getElementById('oc-notas').value,
+                articulos: articulos
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            Swal.close();
+            if (data.success) {
+                Swal.fire('Guardado', data.message, 'success').then(function() {
+                    cerrarModalOC();
+                    location.reload();
+                });
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        })
+        .catch(function(err) {
+            Swal.close();
+            Swal.fire('Error', 'Error de conexión: ' + err.message, 'error');
+        });
     }
 </script>
 {% endblock %}
