@@ -836,6 +836,24 @@
         </div>
         
         <div class="tab-container">
+            <!-- Tab Bar -->
+            <div class="sap-icon-tab-bar" style="margin: 0 -32px; padding: 0 32px;">
+                <div class="sap-tab-item active" data-tab="tab-general" onclick="switchTab('tab-general')">
+                    <i class="fas fa-info-circle"></i><span>General</span>
+                </div>
+                <div class="sap-tab-item" data-tab="tab-seguimiento" onclick="switchTab('tab-seguimiento')">
+                    <i class="fas fa-tasks"></i><span>Seguimiento</span>
+                </div>
+                <div class="sap-tab-item" data-tab="tab-documentos" onclick="switchTab('tab-documentos')">
+                    <i class="fas fa-folder-open"></i><span>Documentos</span>
+                </div>
+                <div class="sap-tab-item" data-tab="tab-auditoria" onclick="switchTab('tab-auditoria')">
+                    <i class="fas fa-history"></i><span>Auditorías</span>
+                </div>
+                <div class="sap-tab-item" data-tab="tab-comentarios" onclick="switchTab('tab-comentarios')">
+                    <i class="fas fa-comment-alt"></i><span>Comentarios</span>
+                </div>
+            </div>
             <!-- TAB 1: GENERAL -->
             <div id="tab-general" class="tab-content active">
                 <!-- Section 1: Cabecera -->
@@ -1042,9 +1060,80 @@
 
             <!-- TAB 3: DOCUMENTOS -->
             <div id="tab-documentos" class="tab-content">
+                {% if kpi %}
+                <div class="fiori-section" style="border: 2px dashed var(--sap-brand-color);">
+                    <div class="section-header" style="background:#f0f7ff;">
+                        <i class="fas fa-cloud-upload-alt"></i> Subir Archivos
+                    </div>
+                    <div class="section-content">
+                        <div id="kpi-dropzone" style="border: 2px dashed var(--sap-border); border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafbfc;">
+                            <i class="fas fa-file-upload" style="font-size: 48px; color: var(--sap-blue); display: block; margin-bottom: 12px;"></i>
+                            <p style="font-size: 16px; font-weight: 600; color: var(--sap-text); margin: 0 0 4px;">Arrastre archivos aquí</p>
+                            <p style="font-size: 13px; color: var(--sap-neutral); margin: 0;">o haga clic para seleccionar</p>
+                            <input type="file" id="kpi-file-input" multiple style="display:none;">
+                        </div>
+                        <div id="kpi-subida-progreso" style="display:none; margin-top: 12px;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <i class="fas fa-spinner fa-spin" style="color:var(--sap-blue);"></i>
+                                <span id="kpi-subida-texto" style="font-size:13px; color:var(--sap-neutral);">Subiendo...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="fiori-section">
                     <div class="section-header">
-                        <i class="fas fa-file-pdf"></i> Documentos Relacionados
+                        <i class="fas fa-folder-open"></i> Archivos Subidos ({{ kpi.archivos.count }})
+                    </div>
+                    <div class="section-content">
+                        <div class="doc-grid" id="kpi-archivos-grid">
+                            {% for archivo in kpi.archivos.all %}
+                            <div class="doc-card" data-id="{{ archivo.id }}">
+                                <div class="doc-icon" style="background:#e8f4f8;">
+                                    {% if archivo.archivo.name|lower|slice:"-4:" == ".pdf" %}
+                                    <i class="fas fa-file-pdf" style="color:#dc2626;"></i>
+                                    {% elif archivo.archivo.name|lower|slice:"-4:" == ".jpg" or archivo.archivo.name|lower|slice:"-5:" == ".jpeg" or archivo.archivo.name|lower|slice:"-4:" == ".png" or archivo.archivo.name|lower|slice:"-4:" == ".gif" or archivo.archivo.name|lower|slice:"-4:" == ".webp" %}
+                                    <i class="fas fa-file-image" style="color:#0891b2;"></i>
+                                    {% elif archivo.archivo.name|lower|slice:"-4:" == ".xls" or archivo.archivo.name|lower|slice:"-5:" == ".xlsx" %}
+                                    <i class="fas fa-file-excel" style="color:#16a34a;"></i>
+                                    {% elif archivo.archivo.name|lower|slice:"-4:" == ".doc" or archivo.archivo.name|lower|slice:"-5:" == ".docx" %}
+                                    <i class="fas fa-file-word" style="color:#2563eb;"></i>
+                                    {% else %}
+                                    <i class="fas fa-file" style="color:var(--sap-neutral);"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="doc-info" style="flex: 1; min-width: 0;">
+                                    <div style="font-weight: 600; font-size: 14px; color: var(--sap-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ archivo.nombre }}">
+                                        {{ archivo.nombre }}
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--sap-neutral); margin-bottom: 6px;">
+                                        {{ archivo.creado_en|date:"d/m/Y H:i" }}
+                                        {% if archivo.subido_por %} &middot; {{ archivo.subido_por.get_full_name|default:archivo.subido_por.username }}{% endif %}
+                                    </div>
+                                    <div style="display: flex; gap: 6px;">
+                                        <a href="{{ archivo.archivo.url }}" target="_blank" class="sap-btn sap-btn-ghost" style="padding: 4px 10px; font-size: 11px;">
+                                            <i class="fas fa-download"></i> Descargar
+                                        </a>
+                                        <button type="button" class="sap-btn" style="padding: 4px 10px; font-size: 11px; background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; cursor: pointer;" onclick="kpiEliminarArchivo({{ archivo.id }}, this)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div style="grid-column: 1/-1; text-align: center; padding: 48px; background: white; border-radius: 8px; border: 1px dashed var(--sap-border);">
+                                <i class="fas fa-folder-open" style="font-size: 48px; color: #f0f4f8; margin-bottom: 16px;"></i>
+                                <p style="color: var(--sap-neutral); font-size: 14px;">No hay archivos en la carpeta de este KPI.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if documentos_relacionados %}
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-link"></i> Documentos Vinculados (Sistema Documental)
                     </div>
                     <div class="section-content">
                         <div class="doc-grid">
@@ -1068,22 +1157,45 @@
                                             <i class="fas fa-external-link-alt"></i> Detalles
                                         </a>
                                     </div>
-                                </div>
-                            </div>
-                            {% empty %}
-                            <div style="grid-column: 1/-1; text-align: center; padding: 48px; background: white; border-radius: 8px; border: 1px dashed var(--sap-border);">
-                                <i class="fas fa-folder-open" style="font-size: 48px; color: #f0f4f8; margin-bottom: 16px;"></i>
-                                <p style="color: var(--sap-neutral); font-size: 14px;">No hay documentos vinculados a este KPI.</p>
-                                <p style="font-size: 12px; color: var(--sap-neutral);">Los documentos se indexan desde el módulo de Documentación mediante metadatos.</p>
-                            </div>
-                            {% endfor %}
                         </div>
                     </div>
                 </div>
+
+                <!-- Section 5b: Frecuencia de Supervisión -->
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-clock"></i> Frecuencia de Supervisión
+                    </div>
+                    <div class="section-content">
+                        <select name="frecuencia_supervision" style="width:100%; max-width:400px; padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem;">
+                            <option value="">Seleccionar frecuencia...</option>
+                            {% for f in frecuencias %}
+                            <option value="{{ f.id }}" {% if kpi.frecuencia_supervision_id == f.id %}selected{% endif %}>
+                                {{ f.nombre }} (cada {{ f.dias }} días)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% else %}
+                <div style="text-align: center; padding: 48px; background: white; border-radius: 8px; border: 1px dashed var(--sap-border);">
+                    <i class="fas fa-save" style="font-size: 48px; color: #f0f4f8; margin-bottom: 16px;"></i>
+                    <p style="color: var(--sap-neutral); font-size: 14px;">Guarde el KPI primero para poder subir archivos.</p>
+                </div>
+                {% endif %}
             </div>
 
             <!-- TAB 4: AUDITORIAS -->
             <div id="tab-auditoria" class="tab-content">
+                <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+                    <a href="{% url 'servicios:auditoria_form' %}" target="_blank" class="sap-btn sap-btn-primary" style="text-decoration:none;">
+                        <i class="fas fa-plus"></i> Nueva Auditoría
+                    </a>
+                </div>
                 <div class="fiori-section">
                     <div class="section-header">
                         <i class="fas fa-history"></i> Historial de Auditorías
@@ -1386,6 +1498,101 @@ function filterRutinas(input) {
         item.style.display = text.includes(term) ? 'flex' : 'none';
     });
 }
+
+// ── KPI Document Upload ──
+(function() {
+    const dropzone = document.getElementById('kpi-dropzone');
+    const fileInput = document.getElementById('kpi-file-input');
+    const progreso = document.getElementById('kpi-subida-progreso');
+    const progresoTexto = document.getElementById('kpi-subida-texto');
+    const grid = document.getElementById('kpi-archivos-grid');
+    const kpiId = {{ kpi.id|default:"null" }};
+
+    if (!dropzone || !kpiId) return;
+
+    function subirArchivos(files) {
+        if (!files.length) return;
+        progreso.style.display = 'block';
+        progresoTexto.textContent = 'Subiendo ' + files.length + ' archivo(s)...';
+        Array.from(files).forEach(function(file) {
+            var fd = new FormData();
+            fd.append('archivo', file);
+            fetch('/servicios/kpi/' + kpiId + '/subir-archivo/', {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'success') {
+                    agregarArchivoGrid(data);
+                }
+            })
+            .catch(function(err) { console.error('Error subiendo archivo:', err); })
+            .finally(function() {
+                progreso.style.display = 'none';
+            });
+        });
+    }
+
+    function agregarArchivoGrid(data) {
+        var emptyMsg = grid.querySelector('div[style*="grid-column"]');
+        if (emptyMsg) emptyMsg.remove();
+
+        var ext = data.nombre.split('.').pop().toLowerCase();
+        var iconHtml = '<i class="fas fa-file" style="color:var(--sap-neutral);"></i>';
+        if (ext === 'pdf') iconHtml = '<i class="fas fa-file-pdf" style="color:#dc2626;"></i>';
+        else if (['jpg','jpeg','png','gif','webp'].includes(ext)) iconHtml = '<i class="fas fa-file-image" style="color:#0891b2;"></i>';
+        else if (['xls','xlsx'].includes(ext)) iconHtml = '<i class="fas fa-file-excel" style="color:#16a34a;"></i>';
+        else if (['doc','docx'].includes(ext)) iconHtml = '<i class="fas fa-file-word" style="color:#2563eb;"></i>';
+
+        var div = document.createElement('div');
+        div.className = 'doc-card';
+        div.dataset.id = data.id;
+        div.innerHTML = '<div class="doc-icon" style="background:#e8f4f8;">' + iconHtml + '</div>'
+            + '<div class="doc-info" style="flex:1;min-width:0;">'
+            + '<div style="font-weight:600;font-size:14px;color:var(--sap-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + data.nombre + '">' + data.nombre + '</div>'
+            + '<div style="font-size:11px;color:var(--sap-neutral);margin-bottom:6px;">' + new Date(data.creado_en).toLocaleString('es-HN') + '</div>'
+            + '<div style="display:flex;gap:6px;">'
+            + '<a href="' + data.url + '" target="_blank" class="sap-btn sap-btn-ghost" style="padding:4px 10px;font-size:11px;"><i class="fas fa-download"></i> Descargar</a>'
+            + '<button type="button" class="sap-btn" style="padding:4px 10px;font-size:11px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;cursor:pointer;" onclick="kpiEliminarArchivo(' + data.id + ', this)"><i class="fas fa-trash"></i></button>'
+            + '</div></div>';
+        grid.insertBefore(div, grid.firstChild);
+    }
+
+    // Drag and drop
+    ['dragenter', 'dragover'].forEach(function(ev) {
+        dropzone.addEventListener(ev, function(e) { e.preventDefault(); dropzone.style.borderColor = 'var(--sap-brand-color)'; dropzone.style.background = '#f0f7ff'; });
+    });
+    ['dragleave', 'drop'].forEach(function(ev) {
+        dropzone.addEventListener(ev, function(e) { e.preventDefault(); dropzone.style.borderColor = ''; dropzone.style.background = ''; });
+    });
+    dropzone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        if (e.dataTransfer.files.length) subirArchivos(e.dataTransfer.files);
+    });
+    dropzone.addEventListener('click', function() { fileInput.click(); });
+    fileInput.addEventListener('change', function() {
+        if (this.files.length) subirArchivos(this.files);
+        this.value = '';
+    });
+})();
+
+window.kpiEliminarArchivo = function(id, btn) {
+    if (!confirm('¿Eliminar este archivo?')) return;
+    fetch('/servicios/kpi/archivo/' + id + '/eliminar/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.status === 'success') {
+            var card = btn.closest('.doc-card');
+            card.parentElement.removeChild(card);
+        }
+    })
+    .catch(function(err) { console.error('Error eliminando archivo:', err); });
+};
 
 // ── Tab Management ──
 function switchTab(tabId) {

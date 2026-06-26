@@ -62,6 +62,12 @@ class KPI(models.Model):
         related_name='kpis',
         help_text="Rutinas de mantenimiento vinculadas a este KPI"
     )
+    frecuencia_supervision = models.ForeignKey(
+        'mantenimiento.Frecuencia',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name="Frecuencia de Supervisión",
+        help_text="Frecuencia con la que se supervisa este KPI"
+    )
     
     class Meta:
         verbose_name = "KPI"
@@ -142,6 +148,32 @@ class KPIFragmento(models.Model):
 
     def __str__(self):
         return f"Fragmento {self.orden} de KPI {self.kpi_id}"
+
+
+class KPIArchivo(models.Model):
+    """Archivo adjunto directamente a un KPI (carpeta de documentos)."""
+    kpi = models.ForeignKey(KPI, on_delete=models.CASCADE, related_name='archivos')
+    archivo = models.FileField(upload_to='kpi_documentos/')
+    nombre = models.CharField(max_length=255, blank=True)
+    descripcion = models.TextField(blank=True, default='')
+    subido_por = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Documento de KPI"
+        verbose_name_plural = "Documentos de KPI"
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return self.nombre or (self.archivo.name if self.archivo else 'Documento')
+
+    def save(self, *args, **kwargs):
+        if not self.nombre and self.archivo:
+            import os
+            self.nombre = os.path.basename(self.archivo.name)
+        super().save(*args, **kwargs)
 
 
 # --- Signal: Auto-vectorización de KPIs al guardar ---

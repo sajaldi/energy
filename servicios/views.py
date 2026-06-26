@@ -1,6 +1,7 @@
 import time
 import os
-from django.contrib import messages
+from django.contrib import admin, messages
+from django.utils import timezone
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.cache import cache
 from django.core.files.storage import default_storage
@@ -16,9 +17,8 @@ from documentos.models import MetadatoValor
 def kpi_form_view(request, pk=None):
     """Vista de formulario KPI estilo SAP Fiori con editor Markdown."""
     from .models import KPI, Servicio, ChecklistItem, Auditoria, AuditoriaResultado
-    from mantenimiento.models import Rutina
+    from mantenimiento.models import Rutina, Frecuencia
     from django.shortcuts import get_object_or_404, redirect
-    from django.contrib import admin, messages
     
     kpi = get_object_or_404(KPI, pk=pk) if pk else None
     servicios = Servicio.objects.filter(activo=True).order_by('nombre')
@@ -46,8 +46,11 @@ def kpi_form_view(request, pk=None):
             kpi.comentarios = comentarios
             if fecha_medicion:
                 kpi.fecha_medicion = fecha_medicion
+            freq_id = request.POST.get('frecuencia_supervision')
+            kpi.frecuencia_supervision_id = int(freq_id) if freq_id else None
             kpi.save()
         else:
+            freq_id = request.POST.get('frecuencia_supervision')
             kpi = KPI.objects.create(
                 servicio_id=servicio_id,
                 nombre=nombre,
@@ -58,6 +61,7 @@ def kpi_form_view(request, pk=None):
                 estado=estado,
                 comentarios=comentarios,
                 fecha_medicion=fecha_medicion or None,
+                frecuencia_supervision_id=int(freq_id) if freq_id else None,
             )
         
         # Procesar Rutinas M2M
@@ -98,6 +102,7 @@ def kpi_form_view(request, pk=None):
         'servicios': servicios,
         'rutinas_todas': rutinas_todas,
         'rutinas_seleccionadas_ids': list(kpi.rutinas.values_list('id', flat=True)) if kpi else [],
+        'frecuencias': Frecuencia.objects.all().order_by('dias'),
         'categorias': KPI.CATEGORIA_CHOICES,
         'estados': KPI.ESTADO_CHOICES,
         'checklist_items': kpi.checklist_items.all().order_by('orden') if kpi else [],
@@ -108,7 +113,51 @@ def kpi_form_view(request, pk=None):
 
 
 @staff_member_required
+@csrf_exempt
+def api_kpi_subir_archivo(request, pk):
+    """API para subir un archivo a un KPI."""
+    from django.shortcuts import get_object_or_404
+    from .models import KPI, KPIArchivo
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    kpi = get_object_or_404(KPI, pk=pk)
+    archivo = request.FILES.get('archivo')
+    if not archivo:
+        return JsonResponse({'status': 'error', 'message': 'No se envió ningún archivo'}, status=400)
+    descripcion = request.POST.get('descripcion', '')
+    obj = KPIArchivo.objects.create(
+        kpi=kpi, archivo=archivo,
+        descripcion=descripcion,
+        subido_por=request.user
+    )
+    return JsonResponse({
+        'status': 'success',
+        'id': obj.id,
+        'nombre': obj.nombre,
+        'url': obj.archivo.url,
+        'creado_en': obj.creado_en.isoformat(),
+    })
+
+
+@staff_member_required
+@csrf_exempt
+def api_kpi_eliminar_archivo(request, pk):
+    """API para eliminar un archivo de un KPI."""
+    from django.shortcuts import get_object_or_404
+    from .models import KPIArchivo
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    archivo = get_object_or_404(KPIArchivo, pk=pk)
+    archivo.archivo.delete(save=False)
+    archivo.delete()
+    return JsonResponse({'status': 'success'})
+
+
+@staff_member_required
 def auditoria_form_view(request, pk=None):
+    from django.shortcuts import get_object_or_404, redirect
+    from .models import KPI, Auditoria, AuditoriaResultado
+
     auditoria = get_object_or_404(Auditoria, pk=pk) if pk else None
     
     if request.method == 'POST':
@@ -150,6 +199,9 @@ def auditoria_form_view(request, pk=None):
         
         messages.success(request, f'Auditoría "{auditoria.nombre}" guardada exitosamente.')
         return redirect('servicios:auditoria_form_edit', pk=auditoria.pk)
+
+    kpis = KPI.objects.select_related('servicio').all().order_by('servicio__nombre', 'nombre')
+    resultados = auditoria.resultados.all().select_related('kpi') if auditoria else []
 
     context = {
         **admin.site.each_context(request),
