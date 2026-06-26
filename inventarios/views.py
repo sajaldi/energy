@@ -41,12 +41,21 @@ def inventario_dashboard(request):
     # Verificar si el usuario es del grupo Almacenes o Superusuario
     es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
     
+    ot_id = request.GET.get('ot_id')
+    ot_pre = None
+    if ot_id:
+        try:
+            ot_pre = OrdenTrabajo.objects.get(pk=ot_id)
+        except OrdenTrabajo.DoesNotExist:
+            pass
+
     context = {
         'ubicaciones': ubicaciones,
         'categorias': categorias,
         'total_materiales': total_materiales,
         'pedidos_pendientes': pedidos_pendientes,
         'es_almacen': es_almacen,
+        'ot_pre': ot_pre,
         'title': 'Gestión de Inventarios'
     }
     return render(request, 'inventarios/dashboard.html', context)

@@ -1,3 +1,4 @@
+{% load l10n %}
 <div class="otnp-dialog-header" style="border-radius: 0;">
     <div class="otnp-dialog-title">
         <ion-icon name="construct-outline" style="font-size:1.3rem"></ion-icon>
@@ -174,6 +175,95 @@
         <label class="otnp-label">Descripción Detallada *</label>
         <textarea name="descripcion" class="otnp-textarea" style="border-radius: 0;" placeholder="Explique la necesidad de esta orden..." required>{{ ot.descripcion_detallada|default:ot.notas }}</textarea>
     </div>
+
+    {% if not cierre %}
+    <div class="otnp-section-label" style="margin-top:16px;"><ion-icon name="flag-outline"></ion-icon> Finalizar Orden</div>
+    <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:14px; margin-top:6px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <div style="font-size:0.85rem; color:#166534;">
+            <ion-icon name="checkmark-circle-outline" style="vertical-align:middle; font-size:1.2rem;"></ion-icon>
+            <strong>Orden en ejecución</strong> — Registre el cierre para finalizarla.
+        </div>
+        <button type="button" onclick="openFioriCierreModal({{ ot.id|unlocalize }})" class="otnp-btn-primary" style="border-radius:0; padding:8px 20px; font-size:0.85rem; white-space:nowrap;">
+            <ion-icon name="checkmark-done-outline"></ion-icon> Cerrar Orden
+        </button>
+    </div>
+    {% endif %}
+
+    {% if cierre or archivos %}
+    <div class="otnp-section-label" style="margin-top:16px; display:flex; align-items:center; justify-content:space-between;">
+        <span><ion-icon name="checkmark-done-outline"></ion-icon> Cierre de la Orden</span>
+        <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" class="otnp-btn-ghost" style="padding:4px 12px; font-size:0.75rem; height:auto; border-radius:0; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+            <ion-icon name="print-outline"></ion-icon> Reporte
+        </a>
+    </div>
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:16px; margin-top:6px;">
+        {% if cierre %}
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+            <div>
+                <label class="otnp-label">Inicio Real</label>
+                <div style="font-size:0.9rem; font-weight:600;">{{ cierre.fecha_inicio_real|date:"d/m/Y H:i" }}</div>
+            </div>
+            <div>
+                <label class="otnp-label">Fin Real</label>
+                <div style="font-size:0.9rem; font-weight:600;">{{ cierre.fecha_fin_real|date:"d/m/Y H:i" }}</div>
+            </div>
+            <div>
+                <label class="otnp-label">HH Totales</label>
+                <div style="font-size:0.9rem; font-weight:600;">{{ cierre.horas_hombre }}</div>
+            </div>
+            <div>
+                <label class="otnp-label">Técnico</label>
+                <div style="font-size:0.9rem; font-weight:600;">{{ cierre.tecnico.get_full_name|default:cierre.tecnico.username }}</div>
+            </div>
+        </div>
+        {% if cierre.comentarios %}
+        <div style="margin-bottom:10px;">
+            <label class="otnp-label">Comentarios Técnicos</label>
+            <div style="background:#fff; border:1px solid #e2e8f0; padding:10px; font-size:0.85rem; margin-top:4px; white-space:pre-wrap;">{{ cierre.comentarios }}</div>
+        </div>
+        {% endif %}
+        {% if cierre.materiales_utilizados %}
+        <div>
+            <label class="otnp-label">Materiales Utilizados</label>
+            <div style="background:#fff; border:1px solid #e2e8f0; padding:10px; font-size:0.85rem; margin-top:4px; white-space:pre-wrap;">{{ cierre.materiales_utilizados }}</div>
+        </div>
+        {% endif %}
+        {% else %}
+        <div style="text-align:center; padding:12px; color:#94a3b8;">
+            <ion-icon name="document-outline" style="font-size:1.5rem;"></ion-icon>
+            <p style="margin:6px 0 0; font-size:0.85rem;">Sin cierre registrado</p>
+        </div>
+        {% endif %}
+
+        {% if archivos %}
+        <div style="margin-top:16px; border-top:1px solid #e2e8f0; padding-top:14px;">
+            <label class="otnp-label" style="margin-bottom:8px; display:block;">
+                <ion-icon name="images-outline" style="vertical-align:middle;"></ion-icon>
+                Fotos y Archivos ({{ archivos|length }})
+            </label>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px;">
+                {% for a in archivos %}
+                <div style="border:1px solid #e2e8f0; background:#fff; overflow:hidden;">
+                    {% if a.tipo == 'IMAGEN' %}
+                    <a href="{{ a.archivo.url }}" target="_blank" style="display:block;">
+                        <img src="{{ a.archivo.url }}" style="width:100%; height:90px; object-fit:cover; display:block;" loading="lazy">
+                    </a>
+                    {% else %}
+                    <div style="display:flex; align-items:center; justify-content:center; height:90px; background:#f1f5f9; color:#64748b;">
+                        <ion-icon name="document-outline" style="font-size:1.8rem;"></ion-icon>
+                    </div>
+                    {% endif %}
+                    <div style="padding:4px 6px; font-size:0.65rem; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        {{ a.nombre|default:a.archivo.name|cut:"ot_archivos/"|truncatechars:25 }}
+                        {% if a.momento %}<span style="background:#e2e8f0; padding:0 4px; margin-left:2px;">{{ a.get_momento_display }}</span>{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 </form>
 
 <div class="otnp-dialog-footer" style="border-radius: 0;">
@@ -355,5 +445,165 @@
                 btn.disabled = false; btn.innerHTML = 'Guardar Cambios';
             });
         };
+
     })();
 </script>
+<script>
+// ── Cierre de Orden (definido fuera del IIFE para que innerHTML lo evalúe) ──
+window.abrirCierreOT = function(otId) {
+    const activos = [];
+    document.querySelectorAll('#otnp-edit-activos-chips .otnp-chip').forEach(chip => {
+        const name = chip.textContent.trim();
+        const id = chip.dataset.id;
+        if (id) activos.push({id: id, name: name});
+    });
+    {% for a in ot.activos.all %}
+    activos.push({id: '{{ a.id }}', name: '{{ a.nombre|escapejs }}'});
+    {% endfor %}
+
+    const now = new Date();
+    const pad = n => n.toString().padStart(2,'0');
+    const localDT = now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+'T'+pad(now.getHours())+':'+pad(now.getMinutes());
+
+    let activosHtml = '';
+    if (activos.length) {
+        activosHtml = '<div style="margin-bottom:12px;"><label style="font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;display:block;margin-bottom:6px;">Activos Afectados</label>';
+        activos.forEach(a => {
+            activosHtml += '<label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.85rem;cursor:pointer;">'
+                + '<input type="checkbox" class="swal2-activo" value="' + a.id + '" checked> '
+                + '<ion-icon name="cube-outline" style="color:#3b82f6;"></ion-icon> ' + a.name
+                + '</label>';
+        });
+        activosHtml += '</div>';
+    }
+
+    // ── Técnicos y Empresa ──
+    let personalHtml = '';
+    {% if tecnicos_list or colaboradores or empresa_responsable %}
+    personalHtml = '<div style="margin-bottom:14px; background:#f8fafc; border:1px solid #e2e8f0; padding:12px;">'
+        + '<div style="font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:8px;"><ion-icon name="people-outline" style="font-size:1rem;vertical-align:middle;"></ion-icon> Personal y Empresa</div>';
+        {% if empresa_responsable %}
+        personalHtml += '<div style="font-size:0.85rem;margin-bottom:6px;"><ion-icon name="business-outline" style="color:#059669;vertical-align:middle;"></ion-icon> <strong>Empresa:</strong> {{ empresa_responsable|escapejs }}</div>';
+        {% endif %}
+        {% if tecnicos_list %}
+        personalHtml += '<div style="font-size:0.85rem;margin-bottom:3px;"><strong>Técnicos (Usuario):</strong></div>';
+        {% for t in tecnicos_list %}
+        personalHtml += '<span style="display:inline-block;background:#dbeafe;color:#1e40af;padding:3px 10px;font-size:0.8rem;margin:2px;border-radius:12px;"><ion-icon name="person-outline" style="font-size:0.8rem;vertical-align:middle;"></ion-icon> {{ t|escapejs }}</span>';
+        {% endfor %}
+        {% endif %}
+        {% if colaboradores %}
+        personalHtml += '<div style="font-size:0.85rem;margin-top:6px;margin-bottom:3px;"><strong>Colaboradores (Puesto):</strong></div>';
+        {% for c in colaboradores %}
+        personalHtml += '<span style="display:inline-block;background:#fef3c7;color:#92400e;padding:3px 10px;font-size:0.8rem;margin:2px;border-radius:12px;"><ion-icon name="hardware-chip-outline" style="font-size:0.8rem;vertical-align:middle;"></ion-icon> {{ c|escapejs }}</span>';
+        {% endfor %}
+        {% endif %}
+    personalHtml += '</div>';
+    {% endif %}
+
+    // ── Materiales (Inventario) ──
+    let materialesHtml = '<div style="margin-bottom:12px;"><label style="font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;display:block;margin-bottom:6px;">Materiales Utilizados</label>';
+    {% with materiales=ot.materiales_usados.all %}
+    {% if materiales %}
+    materialesHtml += '<div style="background:#f8fafc;border:1px solid #e2e8f0;padding:8px;max-height:140px;overflow-y:auto;margin-bottom:8px;">';
+    {% for m in materiales %}
+    materialesHtml += '<div style="display:flex;justify-content:space-between;font-size:0.85rem;padding:3px 0;border-bottom:1px solid #f1f5f9;">'
+        + '<span><ion-icon name="cube-outline" style="color:#6366f1;vertical-align:middle;"></ion-icon> {{ m.material.codigo|default:''|escapejs }} - {{ m.material.descripcion|escapejs }}</span>'
+        + '<span style="font-weight:600;">{{ m.cantidad|floatformat }} {{ m.material.unidad_medida|default:''|escapejs }}</span>'
+        + '</div>';
+    {% endfor %}
+    materialesHtml += '</div>';
+    {% endif %}
+    {% endwith %}
+    materialesHtml += '<button type="button" onclick="window.open(\'/inventarios/?ot_id=' + otId + '\', \'_blank\')" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:0;padding:8px 14px;font-size:0.85rem;cursor:pointer;width:100%;text-align:left;">'
+        + '<ion-icon name="add-circle-outline" style="color:#16a34a;vertical-align:middle;"></ion-icon> Gestionar en Inventarios</button>';
+    {% with materiales=ot.materiales_usados.all %}
+    {% if not materiales %}
+    materialesHtml += '<div style="font-size:0.8rem;color:#94a3b8;margin-top:4px;">Aún no se han registrado materiales. Use el botón para gestionarlos.</div>';
+    {% endif %}
+    {% endwith %}
+    materialesHtml += '</div>';
+
+    Swal.fire({
+        title: 'Cerrar Orden de Trabajo',
+        html:
+            '<form id="swal-cierre-form" style="text-align:left;">'
+            + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">'
+            + '<div><label style="font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;display:block;margin-bottom:4px;">Inicio Real</label>'
+            + '<input type="datetime-local" id="swal-fecha-inicio" class="swal2-input" style="width:100%;margin:0;" value="' + localDT + '"></div>'
+            + '<div><label style="font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;display:block;margin-bottom:4px;">Fin Real</label>'
+            + '<input type="datetime-local" id="swal-fecha-fin" class="swal2-input" style="width:100%;margin:0;" value="' + localDT + '"></div>'
+            + '</div>'
+            + '<div style="margin-bottom:10px;">'
+            + '<label style="font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;display:block;margin-bottom:4px;">Horas Hombre (HH)</label>'
+            + '<input type="number" step="0.5" id="swal-hh" class="swal2-input" style="width:100%;margin:0;" placeholder="0" value="0">'
+            + '</div>'
+            + personalHtml
+            + activosHtml
+            + '<div style="margin-bottom:10px;">'
+            + '<label style="font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;display:block;margin-bottom:4px;">Comentarios Técnicos / Hallazgos</label>'
+            + '<textarea id="swal-comentarios" class="swal2-textarea" style="width:100%;margin:0;min-height:60px;" placeholder="Describa los hallazgos..."></textarea>'
+            + '</div>'
+            + materialesHtml
+            + '</form>',
+        showCancelButton: true,
+        confirmButtonText: 'Cerrar Orden',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#10b981',
+        width: 600,
+        customClass: { container: 'swal-cierre-container' },
+        didOpen: () => {
+            document.querySelector('.swal-cierre-container').style.zIndex = '100000';
+        },
+        preConfirm: () => {
+            const fechaInicio = document.getElementById('swal-fecha-inicio').value;
+            const fechaFin = document.getElementById('swal-fecha-fin').value;
+            const hh = document.getElementById('swal-hh').value;
+            if (!fechaInicio || !fechaFin) {
+                Swal.showValidationMessage('Las fechas de inicio y fin son requeridas');
+                return false;
+            }
+            const activosSel = [];
+            document.querySelectorAll('.swal2-activo:checked').forEach(cb => activosSel.push(cb.value));
+            return {
+                fecha_inicio: fechaInicio,
+                fecha_fin: fechaFin,
+                horas_hombre: hh || 0,
+                comentarios: document.getElementById('swal-comentarios').value,
+                activos: activosSel,
+            };
+        }
+    }).then(result => {
+        if (!result.isConfirmed) return;
+        const btn = Swal.getConfirmButton();
+        btn.disabled = true;
+        btn.innerHTML = 'Guardando...';
+        fetch('/mantenimiento/api/cerrar-ot/' + otId + '/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(result.value)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Orden Cerrada',
+                    text: data.message || 'Cierre registrado correctamente.',
+                }).then(() => {
+                    closeFioriEditModal();
+                    location.reload();
+                });
+            } else {
+                Swal.fire('Error', data.message || 'No se pudo cerrar la orden', 'error');
+            }
+        })
+        .catch(err => {
+            Swal.fire('Error de conexión', err.message, 'error');
+        });
+    });
+};
+</script>
+</div>

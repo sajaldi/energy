@@ -101,11 +101,15 @@ urlpatterns = [
     path('import-tipos/template/', views.import_categorias.download_categorias_template, name='tipo_download_template'),
 
     path('api/search-ordenes/', views.api_search_ordenes, name='api_search_ordenes'),
+    path('api/busqueda-global/', views.api_busqueda_global, name='api_busqueda_global'),
     path('api/ot/<int:pk>/detalle/', views.api_get_ot_detail, name='api_get_ot_detail'),
     path('api/ot/<int:pk>/update/', views.api_update_ot_status_notes, name='api_update_ot_status_notes'),
     path('api/foto/<int:pk>/update-descripcion/', views.api_update_foto_descripcion, name='api_update_foto_descripcion'),
     path('api/search-activos/', views.api_buscar_activos, name='api_buscar_activos'),
     path('api/search-activos-filtrados/', views.api_buscar_activos_filtrados, name='api_buscar_activos_filtrados'),
+    path('api/ordenes-hoy/', views.api_ordenes_hoy, name='api_ordenes_hoy'),
+    path('api/cerrar-ot/<int:pk>/', views.api_cerrar_ot, name='api_cerrar_ot'),
+    path('api/guardar-cierre/<int:pk>/', views.api_guardar_cierre, name='api_guardar_cierre'),
     path('rutina-pdf/<int:ot_id>/', views.pdf_views.generate_rutina_pdf_view, name='rutina_pdf'),
     path('aviso-pdf/<int:aviso_id>/', views.pdf_views.generate_aviso_pdf_view, name='aviso_pdf'),
 

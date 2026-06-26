@@ -466,12 +466,188 @@
     .stat-card-clickable:hover {
         background: #eaecee;
     }
+
+    .shell-search-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        margin-left: 16px;
+        flex: 0 1 320px;
+        min-width: 200px;
+    }
+
+    .shell-search-icon {
+        position: absolute;
+        left: 10px;
+        font-size: 1rem;
+        color: rgba(255,255,255,0.5);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .shell-search-input {
+        width: 100%;
+        padding: 6px 12px 6px 32px;
+        font-family: '72', Arial, Helvetica, sans-serif;
+        font-size: 0.85rem;
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 4px;
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        outline: none;
+        transition: all 0.2s;
+        box-sizing: border-box;
+    }
+
+    .shell-search-input::placeholder {
+        color: rgba(255,255,255,0.45);
+    }
+
+    .shell-search-input:focus {
+        background: rgba(255,255,255,0.18);
+        border-color: rgba(255,255,255,0.3);
+    }
+
+    .global-search-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        margin-top: 6px;
+        background: #fff;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        max-height: 480px;
+        overflow-y: auto;
+        display: none;
+        z-index: 10000;
+    }
+
+    .global-search-dropdown.show {
+        display: block;
+    }
+
+    .gs-section-header {
+        padding: 8px 12px 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #6a6d70;
+        background: #f5f6f7;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .gs-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f3f4f6;
+        text-decoration: none;
+        color: var(--sapText);
+        transition: background 0.1s;
+    }
+
+    .gs-item:hover {
+        background: #eaecee;
+    }
+
+    .gs-item:last-child {
+        border-bottom: none;
+    }
+
+    .gs-item-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        border-radius: 4px;
+    }
+
+    .gs-item-icon.ot {
+        background: #eef4fb;
+        color: var(--sapBlue);
+    }
+
+    .gs-item-icon.aviso {
+        background: #fef7f0;
+        color: var(--sapCritical);
+    }
+
+    .gs-item-icon.activo {
+        background: #f0faf0;
+        color: var(--sapPositive);
+    }
+
+    .gs-item-body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .gs-item-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--sapText);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .gs-item-subtitle {
+        font-size: 0.75rem;
+        color: #6a6d70;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .gs-item-meta {
+        font-size: 0.7rem;
+        color: #6a6d70;
+        text-align: right;
+        flex-shrink: 0;
+    }
+
+    .gs-item-estado {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 1px 6px;
+        border: 1px solid;
+        margin-top: 2px;
+        display: inline-block;
+    }
+
+    .gs-empty {
+        padding: 20px;
+        text-align: center;
+        color: #6a6d70;
+        font-size: 0.85rem;
+    }
+
+    .gs-loading {
+        padding: 16px;
+        text-align: center;
+        color: #6a6d70;
+        font-size: 0.8rem;
+    }
 </style>
 </head>
 <body>
 <div class="fiori-shell">
     <ion-icon name="construct-outline" class="shell-icon"></ion-icon>
     <span class="shell-title">{% trans "Gestión de Mantenimiento" %}</span>
+    <div class="shell-search-wrap">
+        <ion-icon name="search-outline" class="shell-search-icon"></ion-icon>
+        <input type="text" id="globalSearchInput" class="shell-search-input" placeholder="Buscar OTs, avisos, activos..." autocomplete="off">
+        <div id="globalSearchResults" class="global-search-dropdown"></div>
+    </div>
     <span class="shell-spacer"></span>
     <span class="shell-user">{% if user.is_authenticated %}{{ user.get_full_name|default:user.username }}{% endif %}</span>
 </div>
@@ -565,34 +741,48 @@
                     <h2><ion-icon name="today-outline"></ion-icon> {% trans "Órdenes para Hoy" %}</h2>
                     <a href="{% url 'admin:mantenimiento_ordentrabajo_changelist' %}?inicio_programado__date={{ today|date:'Y-m-d' }}">{% trans "Ver todas" %}</a>
                 </div>
-                {% if proximas_ots %}
-                <table class="custom-table">
-                    <tbody>
-                        {% for ot in proximas_ots %}
-                        <tr>
-                            <td style="width:60px;font-weight:700;color:var(--sapBlue);">{{ ot.inicio_programado|date:"H:i" }}</td>
-                            <td>
-                                <div style="font-weight:700;">{{ ot.codigo_de_orden }}</div>
-                                <div style="font-size:0.8rem;color:var(--sapTextMuted);">{{ ot.rutina.nombre|default:ot.descripcion_corta|default:"OT Correctiva" }}</div>
-                            </td>
-                            <td><span style="color:var(--sapTextMuted);">{{ ot.ubicacion.nombre }}</span></td>
-                            <td><span>{% if ot.tecnico %}{{ ot.tecnico.get_full_name|default:ot.tecnico.username }}{% else %}N/A{% endif %}</span></td>
-                            <td><span class="badge-status bg-{{ ot.estado|lower }}">{{ ot.get_estado_display }}</span></td>
-                            <td style="width:40px;text-align:right;">
-                                <button onclick="openOtFioriEditModal({{ ot.id }})" style="border:none;background:none;cursor:pointer;color:var(--sapBlue);font-size:1.1rem;">
-                                    <ion-icon name="open-outline"></ion-icon>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <div style="text-align:center;padding:24px;color:var(--sapTextMuted);">
-                    <ion-icon name="cafe-outline" style="font-size:3rem;opacity:0.3;"></ion-icon>
-                    <p style="margin-top:8px;">{% trans "No hay órdenes programadas para hoy" %}</p>
+                <div class="ot-filters" style="display:flex;gap:8px;margin-bottom:12px;">
+                    <div style="position:relative;flex:1;">
+                        <ion-icon name="search-outline" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.9rem;pointer-events:none;"></ion-icon>
+                        <input type="text" id="ot-search-input" placeholder="Buscar por código, descripción, ubicación..." style="width:100%;padding:6px 8px 6px 28px;border:1px solid var(--sapBorder);border-radius:4px;font-family:'72',Arial,Helvetica,sans-serif;font-size:0.82rem;outline:none;box-sizing:border-box;" autocomplete="off">
+                    </div>
+                    <select id="ot-tipo-filter" style="padding:6px 8px;border:1px solid var(--sapBorder);border-radius:4px;font-family:'72',Arial,Helvetica,sans-serif;font-size:0.82rem;outline:none;min-width:130px;">
+                        <option value="">{% trans "Todos los tipos" %}</option>
+                        <option value="PREVENTIVA">{% trans "Preventiva" %}</option>
+                        <option value="CORRECTIVA">{% trans "Correctiva" %}</option>
+                        <option value="NO_PROGRAMADA">{% trans "No Programada" %}</option>
+                    </select>
                 </div>
-                {% endif %}
+                <div id="ot-table-container">
+                    {% if proximas_ots %}
+                    <table class="custom-table" id="ot-table">
+                        <tbody>
+                            {% for ot in proximas_ots %}
+                            <tr>
+                                <td style="width:60px;font-weight:700;color:var(--sapBlue);">{{ ot.inicio_programado|date:"H:i" }}</td>
+                                <td>
+                                    <div style="font-weight:700;">{{ ot.codigo_de_orden }}</div>
+                                    <div style="font-size:0.8rem;color:var(--sapTextMuted);">{{ ot.rutina.nombre|default:ot.descripcion_corta|default:"OT Correctiva" }}</div>
+                                </td>
+                                <td><span style="color:var(--sapTextMuted);">{{ ot.ubicacion.nombre }}</span></td>
+                                <td><span>{% if ot.tecnico %}{{ ot.tecnico.get_full_name|default:ot.tecnico.username }}{% else %}N/A{% endif %}</span></td>
+                                <td><span class="badge-status bg-{{ ot.estado|lower }}">{{ ot.get_estado_display }}</span></td>
+                                <td style="width:40px;text-align:right;">
+                                    <button onclick="openOtFioriEditModal({{ ot.id|unlocalize }})" style="border:none;background:none;cursor:pointer;color:var(--sapBlue);font-size:1.1rem;">
+                                        <ion-icon name="open-outline"></ion-icon>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div id="ot-empty" style="text-align:center;padding:24px;color:var(--sapTextMuted);">
+                        <ion-icon name="cafe-outline" style="font-size:3rem;opacity:0.3;"></ion-icon>
+                        <p style="margin-top:8px;">{% trans "No hay órdenes programadas para hoy" %}</p>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -799,6 +989,17 @@
     </div>
 </div>
 
+<!-- ═══════ Cierre OT Fiori Modal ═══════ -->
+<div id="fiori-cierre-overlay" class="otnp-overlay" onclick="closeFioriCierreModal()">
+    <div class="otnp-dialog" onclick="event.stopPropagation()" style="max-width: 800px; width: 95%;">
+        <div id="fiori-cierre-content" class="otnp-dialog-body" style="padding: 0; min-height: 400px;">
+            <div style="display: flex; justify-content: center; align-items: center; height: 300px;">
+                <div class="spinner-border text-primary"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ═══════ Tickets Modal ═══════ -->
 <div id="tickets-modal-overlay" class="otnp-overlay" onclick="closeTicketsModal()">
     <div class="otnp-dialog" onclick="event.stopPropagation()" style="max-width: 900px; width: 95%;">
@@ -916,6 +1117,136 @@ document.addEventListener('DOMContentLoaded', function () {
     const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     document.getElementById('otnp-inicio').value = fmt(now);
     document.getElementById('otnp-fin').value = fmt(new Date(now.getTime()+7200000));
+
+    // ── Global Search ──
+    const searchInput = document.getElementById('globalSearchInput');
+    const searchDropdown = document.getElementById('globalSearchResults');
+    let searchTimer = null;
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimer);
+            const q = this.value.trim();
+            if (q.length < 2) {
+                searchDropdown.classList.remove('show');
+                return;
+            }
+            searchDropdown.innerHTML = '<div class="gs-loading"><ion-icon name="hourglass-outline"></ion-icon> Buscando...</div>';
+            searchDropdown.classList.add('show');
+            searchTimer = setTimeout(() => {
+                fetch('/mantenimiento/api/busqueda-global/?q=' + encodeURIComponent(q))
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.results || !data.results.length) {
+                            searchDropdown.innerHTML = '<div class="gs-empty"><ion-icon name="search-outline" style="font-size:1.5rem;opacity:0.3;display:block;margin-bottom:6px;"></ion-icon>Sin resultados para <strong>' + escapeHtml(q) + '</strong></div>';
+                            return;
+                        }
+                        let html = '';
+                        let currentType = '';
+                        data.results.forEach(item => {
+                            if (item.type !== currentType) {
+                                currentType = item.type;
+                                const labels = { ot: 'Órdenes de Trabajo', aviso: 'Avisos', activo: 'Activos' };
+                                html += '<div class="gs-section-header">' + (labels[currentType] || currentType) + '</div>';
+                            }
+                            const iconName = item.type === 'ot' ? 'construct-outline' : item.type === 'aviso' ? 'warning-outline' : 'cube-outline';
+                            const estadoHtml = item.estado ? '<span class="gs-item-estado bg-' + item.estado_class + '">' + item.estado + '</span>' : '';
+                            html += '<a href="' + item.url + '" class="gs-item" target="_blank">'
+                                + '<div class="gs-item-icon ' + item.type + '"><ion-icon name="' + iconName + '"></ion-icon></div>'
+                                + '<div class="gs-item-body">'
+                                + '<div class="gs-item-title">' + escapeHtml(item.title) + '</div>'
+                                + '<div class="gs-item-subtitle">' + escapeHtml(item.subtitle) + '</div>'
+                                + '</div>'
+                                + '<div class="gs-item-meta">' + escapeHtml(item.meta) + estadoHtml + '</div>'
+                                + '</a>';
+                        });
+                        searchDropdown.innerHTML = html;
+                        searchDropdown.classList.add('show');
+                    })
+                    .catch(() => {
+                        searchDropdown.innerHTML = '<div class="gs-empty">Error al buscar</div>';
+                    });
+            }, 350);
+        });
+
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                searchDropdown.classList.remove('show');
+                this.blur();
+            }
+        });
+
+        // Cerrar al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.shell-search-wrap')) {
+                searchDropdown.classList.remove('show');
+            }
+        });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // ── Órdenes para Hoy: Filtro dinámico ──
+    const otSearchInput = document.getElementById('ot-search-input');
+    const otTipoFilter = document.getElementById('ot-tipo-filter');
+    const otContainer = document.getElementById('ot-table-container');
+    let otFilterTimer = null;
+
+    function cargarOrdenesHoy() {
+        const q = otSearchInput ? otSearchInput.value.trim() : '';
+        const tipo = otTipoFilter ? otTipoFilter.value : '';
+        const params = new URLSearchParams();
+        if (q) params.set('q', q);
+        if (tipo) params.set('tipo', tipo);
+
+        otContainer.innerHTML = '<div style="text-align:center;padding:20px;color:var(--sapTextMuted);"><ion-icon name="hourglass-outline" style="font-size:1.5rem;"></ion-icon><p style="margin-top:6px;font-size:0.85rem;">Cargando...</p></div>';
+
+        fetch('/mantenimiento/api/ordenes-hoy/?' + params.toString())
+            .then(r => r.json())
+            .then(data => {
+                if (!data.ots || !data.ots.length) {
+                    otContainer.innerHTML = '<div style="text-align:center;padding:24px;color:var(--sapTextMuted);"><ion-icon name="cafe-outline" style="font-size:3rem;opacity:0.3;"></ion-icon><p style="margin-top:8px;">{% trans "No hay órdenes programadas para hoy" %}</p></div>';
+                    return;
+                }
+                const hasForeignDates = data.ots.some(ot => ot.fecha);
+                let html = '<table class="custom-table" id="ot-table"><tbody>';
+                data.ots.forEach(ot => {
+                    const horaFecha = ot.fecha ? escapeHtml(ot.fecha) + ' ' + escapeHtml(ot.hora) : escapeHtml(ot.hora);
+                    html += '<tr>'
+                        + '<td style="width:80px;font-weight:700;color:var(--sapBlue);font-size:0.82rem;">' + horaFecha + '</td>'
+                        + '<td><div style="font-weight:700;">' + escapeHtml(ot.codigo) + '</div>'
+                        + '<div style="font-size:0.8rem;color:var(--sapTextMuted);">' + escapeHtml(ot.descripcion) + '</div></td>'
+                        + '<td><span style="color:var(--sapTextMuted);">' + escapeHtml(ot.ubicacion) + '</span></td>'
+                        + '<td><span>' + escapeHtml(ot.tecnico) + '</span></td>'
+                        + '<td><span class="badge-status bg-' + ot.estado_class + '">' + escapeHtml(ot.estado) + '</span></td>'
+                        + '<td style="width:40px;text-align:right;">'
+                        + '<button onclick="openOtFioriEditModal(' + ot.id + ')" style="border:none;background:none;cursor:pointer;color:var(--sapBlue);font-size:1.1rem;">'
+                        + '<ion-icon name="open-outline"></ion-icon></button></td>'
+                        + '</tr>';
+                });
+                html += '</tbody></table>';
+                otContainer.innerHTML = html;
+            })
+            .catch(() => {
+                otContainer.innerHTML = '<div style="text-align:center;padding:24px;color:var(--sapNegative);"><ion-icon name="alert-circle-outline" style="font-size:1.5rem;"></ion-icon><p style="margin-top:6px;">Error al cargar órdenes</p></div>';
+            });
+    }
+
+    if (otSearchInput) {
+        otSearchInput.addEventListener('input', function() {
+            clearTimeout(otFilterTimer);
+            otFilterTimer = setTimeout(cargarOrdenesHoy, 350);
+        });
+    }
+
+    if (otTipoFilter) {
+        otTipoFilter.addEventListener('change', cargarOrdenesHoy);
+    }
 });
 
 function openOtnpModal(){ document.getElementById('otnp-overlay').classList.add('active'); }
@@ -931,15 +1262,43 @@ function openOtFioriEditModal(otId) {
         .then(response => response.text())
         .then(html => {
             content.innerHTML = html;
-            // Reinicializar componentes JS si es necesario
+            content.querySelectorAll('script').forEach(script => {
+                const nuevo = document.createElement('script');
+                if (script.src) { nuevo.src = script.src; } else { nuevo.textContent = script.textContent; }
+                document.body.appendChild(nuevo).parentNode.removeChild(nuevo);
+            });
         })
         .catch(err => {
-            content.innerHTML = '<div class="alert alert-danger">Error al cargar la orden de trabajo.</div>';
+            content.innerHTML = '<div class="alert alert-danger">Error al cargar la orden de trabajo.<\/div>';
         });
 }
 
 function closeFioriEditModal() {
     document.getElementById('fiori-edit-overlay').classList.remove('active');
+}
+
+function openFioriCierreModal(otId) {
+    const overlay = document.getElementById('fiori-cierre-overlay');
+    const content = document.getElementById('fiori-cierre-content');
+    overlay.classList.add('active');
+    content.innerHTML = '<div style="display: flex; justify-content: center; align-items: center; height: 300px;"><div class="spinner-border text-primary"></div><p style="margin-left:15px">Cargando cierre...</p></div>';
+    fetch(`/admin/mantenimiento/ordentrabajo/fiori-cierre/${otId}/`)
+        .then(response => response.text())
+        .then(html => {
+            content.innerHTML = html;
+            content.querySelectorAll('script').forEach(script => {
+                const nuevo = document.createElement('script');
+                if (script.src) { nuevo.src = script.src; } else { nuevo.textContent = script.textContent; }
+                document.body.appendChild(nuevo).parentNode.removeChild(nuevo);
+            });
+        })
+        .catch(err => {
+            content.innerHTML = '<div class="alert alert-danger">Error al cargar el cierre.<\/div>';
+        });
+}
+
+function closeFioriCierreModal() {
+    document.getElementById('fiori-cierre-overlay').classList.remove('active');
 }
 
 function openTicketsModal() {

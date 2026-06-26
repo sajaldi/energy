@@ -36,10 +36,11 @@ def mantenimiento_dashboard(request):
     tecnicos_disponibles = TecnicoPuesto.objects.filter(disponible=True).count()
     
     # OTs para hoy (proximas 24 horas o del calendario de hoy)
+    # Incluye NO_PROGRAMADA sin filtro de fecha (siempre visibles)
     proximas_ots = OrdenTrabajo.objects.filter(
-        inicio_programado__date=today,
-        estado__in=['ESPERA', 'PROGRAMADA', 'EJECUCION']
-    ).select_related('rutina', 'aviso', 'ubicacion', 'tecnico').order_by('inicio_programado')[:10]
+        Q(inicio_programado__date=today, estado__in=['ESPERA', 'PROGRAMADA', 'EJECUCION']) |
+        Q(tipo='NO_PROGRAMADA')
+    ).select_related('rutina', 'aviso', 'ubicacion', 'tecnico').order_by('inicio_programado')[:15]
     
     # Avisos recientes y críticos
     avisos_prioritarios = Aviso.objects.filter(

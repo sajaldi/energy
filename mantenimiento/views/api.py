@@ -1,12 +1,14 @@
 import json
+import re
 from datetime import datetime
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from ..models import OrdenTrabajo, Programacion, NotificacionMantenimiento
-from activos.models import Activo, Ubicacion
+from ..models import OrdenTrabajo, Programacion, NotificacionMantenimiento, Aviso, CierreOrdenTrabajo, ArchivoOrdenTrabajo, ValorPasoOrden
+from activos.models import Activo, Ubicacion, DocumentoMedicion
+from django.utils import timezone
 
 @staff_member_required
 @require_POST
@@ -496,3 +498,312 @@ def api_update_foto_descripcion(request, pk):
         return JsonResponse({'success': False, 'error': 'La foto no existe.'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@staff_member_required
+def api_busqueda_global(request):
+    """
+    Búsqueda global en el dashboard de mantenimiento.
+    Busca en OTs, Avisos y Activos.
+    """
+    query = request.GET.get('q', '').strip()
+    if not query or len(query) < 2:
+        return JsonResponse({'results': []})
+
+    from django.db.models import Q
+
+    # 1. Buscar Órdenes de Trabajo
+    ots = OrdenTrabajo.objects.filter(
+        Q(id__icontains=query) |
+        Q(codigo_de_orden__icontains=query) |
+        Q(descripcion_corta__icontains=query) |
+        Q(ubicacion__nombre__icontains=query) |
+        Q(activos__nombre__icontains=query) |
+        Q(activos__codigo_interno__icontains=query)
+    ).select_related('ubicacion').distinct()[:8]
+
+    ot_results = []
+    for ot in ots:
+        lugar = ot.ubicacion.nombre if ot.ubicacion else ""
+        ot_results.append({
+            'id': ot.id,
+            'type': 'ot',
+            'type_label': 'OT',
+            'title': ot.codigo_de_orden or f"OT #{ot.id}",
+            'subtitle': ot.descripcion_corta or "",
+            'meta': lugar,
+            'url': f"/admin/mantenimiento/ordentrabajo/{ot.id}/change/",
+            'estado': ot.get_estado_display(),
+            'estado_class': ot.estado.lower(),
+        })
+
+    # 2. Buscar Avisos
+    avisos = Aviso.objects.filter(
+        Q(id__icontains=query) |
+        Q(descripcion__icontains=query) |
+        Q(ubicacion__nombre__icontains=query) |
+        Q(activo__nombre__icontains=query) |
+        Q(solicitante__username__icontains=query) |
+        Q(solicitante__first_name__icontains=query)
+    ).select_related('ubicacion', 'activo').distinct()[:8]
+
+    aviso_results = []
+    for aviso in avisos:
+        aviso_results.append({
+            'id': aviso.id,
+            'type': 'aviso',
+            'type_label': 'Aviso',
+            'title': f"AV-{aviso.id}",
+            'subtitle': aviso.descripcion[:100],
+            'meta': aviso.ubicacion.nombre if aviso.ubicacion else "",
+            'url': f"/admin/mantenimiento/aviso/{aviso.id}/change/",
+            'estado': aviso.get_estado_display(),
+            'estado_class': aviso.estado.lower(),
+        })
+
+    # 3. Buscar Activos (limitado)
+    activos = Activo.objects.filter(
+        Q(nombre__icontains=query) |
+        Q(codigo_interno__icontains=query) |
+        Q(serie__icontains=query)
+    )[:5]
+
+    activo_results = []
+    for a in activos:
+        activo_results.append({
+            'id': a.id,
+            'type': 'activo',
+            'type_label': 'Activo',
+            'title': a.nombre,
+            'subtitle': a.codigo_interno or "",
+            'meta': a.serie or "",
+            'url': f"/admin/activos/activo/{a.id}/change/",
+            'estado': "",
+            'estado_class': "",
+        })
+
+    return JsonResponse({
+        'results': ot_results + aviso_results + activo_results,
+        'total_ots': len(ot_results),
+        'total_avisos': len(aviso_results),
+        'total_activos': len(activo_results),
+    })
+
+@staff_member_required
+def api_ordenes_hoy(request):
+    """
+    API que retorna OTs del día filtradas por búsqueda y tipo.
+    """
+    from django.utils import timezone
+    from django.db.models import Q
+
+    today = timezone.now().date()
+    q = request.GET.get('q', '').strip()
+    tipo = request.GET.get('tipo', '').strip()
+
+    # Base: OTs del día activas + NO_PROGRAMADA (sin filtro de fecha)
+    base_qs = OrdenTrabajo.objects.filter(
+        Q(inicio_programado__date=today, estado__in=['ESPERA', 'PROGRAMADA', 'EJECUCION']) |
+        Q(tipo='NO_PROGRAMADA')
+    ).select_related('rutina', 'aviso', 'ubicacion', 'tecnico')
+
+    # Si hay búsqueda numérica (ID) o por código específico,
+    # buscar sin filtrar por fecha para encontrar OTs antiguas
+    es_busqueda_especifica = bool(re.match(r'^[\d\-]+$', q)) if q else False
+
+    if q and es_busqueda_especifica:
+        base_qs = OrdenTrabajo.objects.filter(
+            Q(id__icontains=q) |
+            Q(codigo_de_orden__icontains=q)
+        ).select_related('rutina', 'aviso', 'ubicacion', 'tecnico')
+    elif q:
+        base_qs = base_qs.filter(
+            Q(id__icontains=q) |
+            Q(codigo_de_orden__icontains=q) |
+            Q(descripcion_corta__icontains=q) |
+            Q(ubicacion__nombre__icontains=q) |
+            Q(rutina__nombre__icontains=q)
+        )
+
+    if tipo and not es_busqueda_especifica:
+        base_qs = base_qs.filter(tipo=tipo)
+
+    ots = base_qs.order_by('-inicio_programado')[:20]
+    if not es_busqueda_especifica:
+        ots = base_qs.order_by('inicio_programado')[:20]
+
+    resultados = []
+    for ot in ots:
+        resultados.append({
+            'id': ot.id,
+            'codigo': ot.codigo_de_orden or f"OT #{ot.id}",
+            'descripcion': ot.rutina.nombre if ot.rutina else (ot.descripcion_corta or "OT Correctiva"),
+            'ubicacion': ot.ubicacion.nombre if ot.ubicacion else "",
+            'tecnico': ot.tecnico.get_full_name() or ot.tecnico.username if ot.tecnico else "N/A",
+            'estado': ot.get_estado_display(),
+            'estado_class': ot.estado.lower(),
+            'hora': ot.inicio_programado.strftime('%H:%M') if ot.inicio_programado else "",
+            'fecha': ot.inicio_programado.strftime('%d/%m') if ot.inicio_programado and ot.inicio_programado.date() != today else "",
+            'tipo': ot.tipo,
+        })
+
+    return JsonResponse({'ots': resultados, 'total': len(resultados)})
+
+@staff_member_required
+@require_POST
+def api_cerrar_ot(request, pk):
+    import json
+    ot = get_object_or_404(OrdenTrabajo, pk=pk)
+    if hasattr(ot, 'cierre') and ot.cierre:
+        return JsonResponse({'status': 'error', 'message': 'Esta orden ya tiene un cierre registrado.'}, status=400)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido.'}, status=400)
+
+    fecha_inicio = data.get('fecha_inicio')
+    fecha_fin = data.get('fecha_fin')
+    if not fecha_inicio or not fecha_fin:
+        return JsonResponse({'status': 'error', 'message': 'Las fechas de inicio y fin son requeridas.'}, status=400)
+
+    CierreOrdenTrabajo.objects.create(
+        orden_trabajo=ot,
+        fecha_inicio_real=datetime.strptime(fecha_inicio, '%Y-%m-%dT%H:%M'),
+        fecha_fin_real=datetime.strptime(fecha_fin, '%Y-%m-%dT%H:%M'),
+        horas_hombre=float(data.get('horas_hombre', 0)),
+        comentarios=data.get('comentarios', ''),
+        tecnico=request.user,
+    )
+
+    return JsonResponse({'status': 'success', 'message': 'Orden cerrada correctamente.'})
+
+@staff_member_required
+@require_POST
+@csrf_exempt
+def api_guardar_cierre(request, pk):
+    try:
+        ot = get_object_or_404(OrdenTrabajo, pk=pk)
+        is_gerente = request.user.groups.filter(name='Gerentes').exists() or request.user.is_superuser
+
+        if ot.estado == 'REALIZADA' and not is_gerente:
+            return JsonResponse({'status': 'error', 'message': 'No tienes permiso para editar un cierre finalizado.'}, status=403)
+
+        pasos = []
+        if ot.rutina:
+            pasos = ot.rutina.pasos.all()
+        activo_principal = ot.activos.first()
+        for paso in pasos:
+            if paso.tipo_respuesta == 'MEDICION':
+                punto = None
+                if paso.punto_medicion_exacto:
+                    punto = paso.punto_medicion_exacto
+                elif paso.punto_medicion_codigo and activo_principal:
+                    punto = activo_principal.puntos_medicion.filter(codigo=paso.punto_medicion_codigo).first()
+                paso.punto_vinculado = punto
+
+            valor_text = request.POST.get(f'paso_{paso.id}_text')
+            valor_num = request.POST.get(f'paso_{paso.id}_num')
+            valor_bool = request.POST.get(f'paso_{paso.id}_bool') == 'on'
+            no_aplica = request.POST.get(f'paso_{paso.id}_na') == 'on'
+            comentarios = request.POST.get(f'paso_{paso.id}_com')
+
+            if paso.tipo_respuesta == 'FOTO':
+                fotos_paso = request.FILES.getlist(f'paso_{paso.id}_fotos')
+                for foto in fotos_paso:
+                    ArchivoOrdenTrabajo.objects.create(
+                        orden_trabajo=ot, paso=paso, archivo=foto,
+                        subido_por=request.user, tipo='IMAGEN'
+                    )
+                if fotos_paso:
+                    valor_text = f"{len(fotos_paso)} foto(s) adjuntada(s)"
+
+            if valor_text or valor_num or valor_bool or no_aplica or paso.tipo_respuesta in ('MEDICION', 'FOTO'):
+                ValorPasoOrden.objects.update_or_create(
+                    orden_trabajo=ot, paso=paso,
+                    defaults={
+                        'valor_texto': valor_text,
+                        'valor_numerico': float(valor_num) if valor_num else None,
+                        'valor_bool': valor_bool,
+                        'no_aplica': no_aplica,
+                        'comentarios': comentarios,
+                        'capturado_por': request.user,
+                    }
+                )
+                if paso.tipo_respuesta == 'MEDICION' and valor_num and not no_aplica:
+                    punto = getattr(paso, 'punto_vinculado', None)
+                    if punto:
+                        DocumentoMedicion.objects.create(
+                            punto=punto, valor=float(valor_num),
+                            tecnico=request.user, orden_trabajo=ot,
+                            observaciones=f"Capturado vía checklist OT #{ot.id}"
+                        )
+
+        activos = ot.activos.all().prefetch_related('puntos_medicion')
+        puntos_ids = [p.punto_vinculado.id for p in pasos if getattr(p, 'tipo_respuesta', None) == 'MEDICION' and getattr(p, 'punto_vinculado', None)]
+        for a in activos:
+            for punto in a.puntos_medicion.all():
+                if punto.id not in puntos_ids:
+                    valor_lectura = request.POST.get(f'punto_{punto.id}')
+                    if valor_lectura:
+                        DocumentoMedicion.objects.create(
+                            punto=punto, valor=float(valor_lectura),
+                            tecnico=request.user, orden_trabajo=ot,
+                            observaciones=f"Capturado durante cierre de OT #{ot.id}"
+                        )
+
+        for foto in request.FILES.getlist('fotos_inicio'):
+            ArchivoOrdenTrabajo.objects.create(
+                orden_trabajo=ot, archivo=foto,
+                subido_por=request.user, momento='INICIO'
+            )
+
+        for foto in request.FILES.getlist('fotos_cierre'):
+            ArchivoOrdenTrabajo.objects.create(
+                orden_trabajo=ot, archivo=foto,
+                subido_por=request.user, momento='CIERRE'
+            )
+
+        comentarios_cierre = request.POST.get('comentarios_cierre', '').strip()
+        if comentarios_cierre:
+            prefix = '[Edición]' if ot.estado == 'REALIZADA' else '[Cierre]'
+            nueva_nota = f"\n{prefix} {comentarios_cierre}"
+            ot.notas = (ot.notas or '') + nueva_nota
+            ot.save(update_fields=['notas'])
+
+        accion = request.POST.get('action')
+        if accion == 'finalize' or (ot.estado == 'REALIZADA' and is_gerente):
+            fecha_cierre_str = request.POST.get('fecha_cierre')
+            fecha_cierre = timezone.now()
+            if fecha_cierre_str:
+                try:
+                    fecha_cierre = timezone.make_aware(datetime.fromisoformat(fecha_cierre_str))
+                except Exception:
+                    pass
+
+            if ot.estado != 'REALIZADA':
+                ot.estado = 'REALIZADA'
+                ot.fecha_ejecucion = fecha_cierre
+            ot.save()
+
+            if not hasattr(ot, 'cierre') or not ot.cierre:
+                CierreOrdenTrabajo.objects.create(
+                    orden_trabajo=ot,
+                    tecnico=request.user,
+                    fecha_inicio_real=fecha_cierre,
+                    fecha_fin_real=fecha_cierre,
+                    horas_hombre=0,
+                    comentarios=request.POST.get('comentarios_cierre', ''),
+                )
+
+            try:
+                from .mobile import task_generar_ot_pdf
+                task_generar_ot_pdf.delay(ot.id)
+            except Exception:
+                pass
+            return JsonResponse({'status': 'success', 'message': 'Orden finalizada correctamente.'})
+
+        ot.save()
+        return JsonResponse({'status': 'success', 'message': 'Borrador guardado correctamente.'})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

@@ -24,7 +24,11 @@ from .api import (
     api_update_ot_status_notes,
     api_buscar_activos,
     api_buscar_activos_filtrados,
-    api_update_foto_descripcion
+    api_update_foto_descripcion,
+    api_busqueda_global,
+    api_ordenes_hoy,
+    api_cerrar_ot,
+    api_guardar_cierre
 )
 from .wizard import programar_rutina_wizard
 from .mobile import (

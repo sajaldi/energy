@@ -1,0 +1,537 @@
+{% load l10n %}
+<style>
+#fiori-cierre-content {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--sap-text-color, #1e293b);
+    background: var(--sap-bg-color, #f5f6f7);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+#fiori-cierre-content .fiori-hdr {
+    background: var(--sap-shell-bg, #1d2d3e);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    flex-shrink: 0;
+}
+#fiori-cierre-content .fiori-hdr h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    flex: 1;
+}
+#fiori-cierre-content .fiori-hdr-close {
+    width: 32px; height: 32px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+}
+#fiori-cierre-content .fiori-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+#fiori-cierre-content .fi-card {
+    background: var(--sap-card-bg, #fff);
+    border: 1px solid var(--sap-border-color, #e2e8f0);
+    border-radius: var(--sap-border-radius, 4px);
+    box-shadow: var(--sap-card-shadow, 0 1px 3px rgba(0,0,0,0.05));
+    overflow: hidden;
+}
+#fiori-cierre-content .fi-card-hdr {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--sap-border-color, #e2e8f0);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fafafa;
+}
+#fiori-cierre-content .fi-card-hdr ion-icon { font-size: 18px; color: var(--sap-brand-color, #0070b2); }
+#fiori-cierre-content .fi-card-hdr h4 {
+    margin: 0;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--sap-text-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+#fiori-cierre-content .fi-card-body { padding: 14px; }
+#fiori-cierre-content .fi-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--sap-text-muted, #64748b);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+}
+#fiori-cierre-content .fi-input, #fiori-cierre-content .fi-textarea, #fiori-cierre-content .fi-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--sap-border-color, #e2e8f0);
+    border-radius: var(--sap-border-radius, 4px);
+    font-size: 13px;
+    background: #fafafa;
+    outline: none;
+    box-sizing: border-box;
+    transition: border .2s, background .2s;
+}
+#fiori-cierre-content .fi-input:focus, #fiori-cierre-content .fi-textarea:focus {
+    border-color: var(--sap-brand-color, #0070b2);
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--sap-brand-color, #0070b2);
+}
+#fiori-cierre-content .fi-textarea { resize: vertical; min-height: 60px; }
+#fiori-cierre-content .fi-step {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--sap-border-color, #e2e8f0);
+}
+#fiori-cierre-content .fi-step:last-child { border-bottom: none; }
+#fiori-cierre-content .fi-step-hdr {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+#fiori-cierre-content .fi-badge {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 2px;
+    background: rgba(0,112,242,0.08);
+    color: var(--sap-brand-color, #0070b2);
+    text-transform: uppercase;
+    border: 1px solid rgba(0,112,242,0.1);
+}
+#fiori-cierre-content .fi-step-title { font-size: 13px; font-weight: 700; color: var(--sap-text-color, #1e293b); }
+#fiori-cierre-content .fi-att-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+#fiori-cierre-content .fi-att-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: var(--sap-border-radius, 4px);
+    overflow: hidden;
+    border: 1px solid var(--sap-border-color, #e2e8f0);
+    background: #fff;
+}
+#fiori-cierre-content .fi-att-item img { width: 100%; height: 100%; object-fit: cover; }
+#fiori-cierre-content .fi-att-del {
+    position: absolute; top: 2px; right: 2px;
+    background: rgba(0,0,0,0.55); color: #fff;
+    border: none; border-radius: 50%;
+    width: 20px; height: 20px;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+}
+#fiori-cierre-content .fi-toolbar {
+    flex-shrink: 0;
+    background: #fff;
+    padding: 12px 16px;
+    border-top: 1px solid var(--sap-border-color, #e2e8f0);
+    display: flex;
+    gap: 10px;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+}
+#fiori-cierre-content .fi-btn {
+    flex: 1;
+    height: 42px;
+    border-radius: var(--sap-border-radius, 4px);
+    border: none;
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all .2s;
+}
+#fiori-cierre-content .fi-btn:active { transform: scale(0.97); }
+#fiori-cierre-content .fi-btn-pri {
+    background: var(--sap-brand-color, #0070b2); color: #fff;
+}
+#fiori-cierre-content .fi-btn-pri:hover { background: #005a94; }
+#fiori-cierre-content .fi-btn-ghost {
+    background: transparent;
+    border: 1px solid var(--sap-brand-color, #0070b2);
+    color: var(--sap-brand-color, #0070b2);
+}
+#fiori-cierre-content .fi-btn-ghost:hover { background: rgba(0,112,242,0.05); }
+#fiori-cierre-content .fi-dropzone {
+    border: 1.5px dashed var(--sap-border-color, #e2e8f0);
+    border-radius: 8px;
+    padding: 18px;
+    text-align: center;
+    transition: border-color .2s, background .2s;
+}
+#fiori-cierre-content .fi-dropzone.drag-over,
+#fiori-cierre-content .fi-dropzone:hover { border-color: var(--sap-brand-color, #0070b2); background: rgba(0,112,242,0.05); cursor: pointer; }
+#fiori-cierre-content .fi-dropzone ion-icon { font-size: 28px; color: var(--sap-brand-color, #0070b2); }
+#fiori-cierre-content .fi-dropzone div { font-size: 13px; font-weight: 600; color: var(--sap-brand-color, #0070b2); }
+#fiori-cierre-content .fi-dropzone small { font-size: 11px; color: var(--sap-text-muted, #64748b); }
+    border: 1.5px dashed var(--sap-border-color, #e2e8f0);
+    border-radius: 8px;
+    padding: 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s;
+}
+#fiori-cierre-content .fi-dropzone:hover { border-color: var(--sap-brand-color, #0070b2); }
+#fiori-cierre-content .fi-dropzone ion-icon { font-size: 28px; color: var(--sap-brand-color, #0070b2); }
+#fiori-cierre-content .fi-dropzone div { font-size: 13px; font-weight: 600; color: var(--sap-brand-color, #0070b2); }
+#fiori-cierre-content .fi-dropzone small { font-size: 11px; color: var(--sap-text-muted, #64748b); }
+</style>
+
+<form id="fiori-cierre-form" method="POST" enctype="multipart/form-data" style="display:contents;">
+{% csrf_token %}
+
+<div id="fiori-cierre-content">
+    <div class="fiori-hdr">
+        <ion-icon name="checkmark-done-outline" style="font-size:1.3rem;"></ion-icon>
+        <h3>{% if ot.estado == 'REALIZADA' %}Editar{% else %}Cerrar{% endif %} OT {{ ot.codigo_de_orden|default:ot.id }}</h3>
+        <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid rgba(255,255,255,0.2);border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">
+            <ion-icon name="print-outline"></ion-icon> PDF
+        </a>
+        <button type="button" class="fiori-hdr-close" onclick="closeFioriCierreModal()">&times;</button>
+    </div>
+
+    <div class="fiori-scroll">
+        {% include 'core/fiori_tokens.html' %}
+
+        {% if tecnicos_list or colaboradores or empresa_responsable %}
+        <div class="fi-card">
+            <div class="fi-card-hdr">
+                <ion-icon name="people-outline"></ion-icon>
+                <h4>Personal y Empresa</h4>
+            </div>
+            <div class="fi-card-body">
+                {% if empresa_responsable %}
+                <div style="font-size:13px;margin-bottom:6px;"><ion-icon name="business-outline" style="color:#059669;vertical-align:middle;"></ion-icon> <strong>Empresa:</strong> {{ empresa_responsable }}</div>
+                {% endif %}
+                {% if tecnicos_list %}
+                <div style="font-size:12px;margin-bottom:4px;"><strong>Técnicos:</strong></div>
+                <div>{% for t in tecnicos_list %}<span style="display:inline-block;background:#dbeafe;color:#1e40af;padding:2px 10px;font-size:12px;margin:2px;border-radius:12px;"><ion-icon name="person-outline" style="font-size:12px;vertical-align:middle;"></ion-icon> {{ t }}</span>{% endfor %}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="fi-card">
+            <div class="fi-card-hdr">
+                <ion-icon name="camera-outline"></ion-icon>
+                <h4>Evidencia de Inicio</h4>
+            </div>
+            <div class="fi-card-body">
+                <div class="fi-dropzone" onclick="document.getElementById('fi-foto-inicio').click()">
+                    <ion-icon name="cloud-upload-outline"></ion-icon>
+                    <div>Tocar para subir fotos</div>
+                    <small>Fotos de inicio de actividad</small>
+                </div>
+                <input type="file" id="fi-foto-inicio" name="fotos_inicio" accept="image/*" multiple style="display:none;">
+                <div id="fi-grid-inicio" class="fi-att-grid"></div>
+            </div>
+        </div>
+
+        {% if pasos %}
+        <div class="fi-card">
+            <div class="fi-card-hdr">
+                <ion-icon name="list-outline"></ion-icon>
+                <h4>Checklist de Actividad ({{ pasos|length }} pasos)</h4>
+            </div>
+            <div class="fi-card-body" style="padding:0;">
+                {% for paso in pasos %}
+                    {% if paso.tipo_respuesta == 'HEADER' %}
+                    <div style="background:rgba(10,110,209,0.04);padding:10px 14px;border-bottom:1px solid var(--sap-border-color,#e2e8f0);display:flex;align-items:center;gap:8px;">
+                        <ion-icon name="chevron-forward-circle-outline" style="color:var(--sap-brand-color,#0070b2);"></ion-icon>
+                        <span style="font-size:11px;font-weight:700;color:var(--sap-brand-color,#0070b2);text-transform:uppercase;">{{ paso.descripcion }}</span>
+                    </div>
+                    {% else %}
+                    <div class="fi-step">
+                        <div class="fi-step-hdr">
+                            <div>
+                                <div style="display:flex;gap:6px;align-items:center;margin-bottom:3px;">
+                                    <span class="fi-badge">Paso {{ paso.orden }}</span>
+                                    <span style="font-size:9px;font-weight:600;color:var(--sap-text-muted,#64748b);text-transform:uppercase;">{{ paso.get_tipo_respuesta_display }}</span>
+                                </div>
+                                <div class="fi-step-title">{{ paso.descripcion }}</div>
+                            </div>
+                            {% if paso.no_aplica_habilitado %}
+                            <div style="display:flex;align-items:center;gap:6px;background:#f5f5f5;padding:3px 6px;border-radius:4px;flex-shrink:0;">
+                                <input type="checkbox" name="paso_{{ paso.id }}_na" id="fina_{{ paso.id }}" {% if paso.resultado.no_aplica %}checked{% endif %} style="width:14px;height:14px;">
+                                <label for="fina_{{ paso.id }}" style="font-size:10px;font-weight:700;color:#666;">N/A</label>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if paso.tipo_respuesta == 'CHECK' %}
+                            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(10,110,209,0.04);border-radius:6px;border:1px solid rgba(10,110,209,0.1);">
+                                <input type="checkbox" name="paso_{{ paso.id }}_bool" id="fip_{{ paso.id }}" {% if paso.resultado.valor_bool %}checked{% endif %} style="width:18px;height:18px;">
+                                <label for="fip_{{ paso.id }}" style="font-size:13px;font-weight:600;color:var(--sap-text-color,#1e293b);">Conforme / Realizado</label>
+                            </div>
+                            {% elif paso.tipo_respuesta == 'NUMERICO' or paso.tipo_respuesta == 'MEDICION' %}
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <input type="number" step="any" name="paso_{{ paso.id }}_num" class="fi-input" value="{{ paso.resultado.valor_numerico|default:'' }}" placeholder="0.00" style="flex:1;">
+                                <span style="font-size:12px;font-weight:700;color:var(--sap-brand-color,#0070b2);white-space:nowrap;">{{ paso.unidad_medida|default:'' }}</span>
+                            </div>
+                            {% if paso.rango_min is not None or paso.rango_max is not None %}
+                            <div style="font-size:10px;color:var(--sap-text-muted,#64748b);font-weight:600;margin-top:4px;">Rango: {{ paso.rango_min|default:"min" }} - {{ paso.rango_max|default:"max" }}</div>
+                            {% endif %}
+                            {% elif paso.tipo_respuesta == 'TEXTO' %}
+                            <textarea name="paso_{{ paso.id }}_text" class="fi-textarea" placeholder="Describa el hallazgo...">{{ paso.resultado.valor_texto|default:'' }}</textarea>
+                            {% elif paso.tipo_respuesta == 'FOTO' %}
+                            <div class="fi-drop-area" id="fidrop_{{ paso.id }}">
+                                <ion-icon name="cloud-upload-outline" style="font-size:24px;color:var(--sap-brand-color,#0070b2);"></ion-icon>
+                                <div style="font-size:12px;font-weight:600;color:var(--sap-brand-color,#0070b2);">Arrastre fotos o haga clic</div>
+                                <div id="figrid_{{ paso.id }}" class="fi-att-grid" style="margin-top:6px;"></div>
+                                <div style="display:flex;gap:6px;margin-top:6px;justify-content:center;">
+                                    <button type="button" onclick="document.getElementById('ficam_{{ paso.id }}').click()" class="fi-btn fi-btn-ghost" style="flex:none;padding:4px 10px;height:28px;font-size:10px;">
+                                        <ion-icon name="camera"></ion-icon> Cámara
+                                    </button>
+                                    <button type="button" onclick="document.getElementById('figal_{{ paso.id }}').click()" class="fi-btn fi-btn-ghost" style="flex:none;padding:4px 10px;height:28px;font-size:10px;border-color:#8b5cf6;color:#8b5cf6;">
+                                        <ion-icon name="images"></ion-icon> Galería
+                                    </button>
+                                </div>
+                                <input type="file" id="ficam_{{ paso.id }}" accept="image/*" capture="environment" style="display:none;" onchange="fiAddStepPhoto({{ paso.id }}, this)">
+                                <input type="file" id="figal_{{ paso.id }}" accept="image/*" multiple style="display:none;" onchange="fiAddStepPhoto({{ paso.id }}, this)">
+                                <input type="file" id="fireal_{{ paso.id }}" name="paso_{{ paso.id }}_fotos" multiple style="display:none;">
+                            </div>
+                            {% endif %}
+                            {% if paso.tipo_respuesta != 'INSTRUCCION' %}
+                            <div style="margin-top:8px;border-top:1px dashed var(--sap-border-color,#e2e8f0);padding-top:8px;">
+                                <input type="text" name="paso_{{ paso.id }}_com" class="fi-input" value="{{ paso.resultado.comentarios|default:'' }}" placeholder="Observaciones..." style="font-size:12px;height:30px;">
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="fi-card" style="border-top:4px solid var(--sap-brand-color,#0070b2);">
+            <div class="fi-card-hdr">
+                <ion-icon name="checkmark-circle-outline"></ion-icon>
+                <h4>Finalización de Actividad</h4>
+            </div>
+            <div class="fi-card-body">
+                <div style="display:flex;flex-direction:column;gap:14px;">
+                    <div>
+                        <label class="fi-label">Hora de Cierre</label>
+                        <input type="datetime-local" name="fecha_cierre" id="fi-fecha-cierre" class="fi-input" required>
+                    </div>
+                    <div>
+                        <label class="fi-label">Comentarios Finales</label>
+                        <textarea name="comentarios_cierre" class="fi-textarea" placeholder="Describa el resultado general del trabajo...">{{ ot.comentarios_cierre|default:'' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="fi-label">Evidencia de Cierre</label>
+                        <div class="fi-dropzone" onclick="document.getElementById('fi-foto-cierre').click()" style="margin-top:4px;">
+                            <ion-icon name="cloud-upload-outline"></ion-icon>
+                            <div>Tocar para subir fotos</div>
+                            <small>Fotos de cierre de actividad</small>
+                        </div>
+                        <input type="file" id="fi-foto-cierre" name="fotos_cierre" accept="image/*" multiple style="display:none;">
+                        <div id="fi-grid-cierre" class="fi-att-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fi-toolbar">
+        <button type="submit" name="action" value="save" class="fi-btn fi-btn-ghost">
+            <ion-icon name="save-outline"></ion-icon> Guardar Borrador
+        </button>
+        <button type="submit" name="action" value="finalize" class="fi-btn fi-btn-pri">
+            <ion-icon name="cloud-upload-outline"></ion-icon> Finalizar OT
+        </button>
+    </div>
+</div>
+
+</form>
+
+<script>
+(function(){
+    var now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    var inp = document.getElementById('fi-fecha-cierre');
+    if (inp && !inp.value) inp.value = now.toISOString().slice(0, 16);
+
+    // ── Reusable drag-drop logic ──
+    function fiSetupDrop(container, addFilesFn) {
+        if (!container) return;
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(ev){
+            container.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); }, false);
+        });
+        container.addEventListener('dragenter', function(){ container.classList.add('drag-over'); }, false);
+        container.addEventListener('dragover', function(){ container.classList.add('drag-over'); }, false);
+        container.addEventListener('dragleave', function(){ container.classList.remove('drag-over'); }, false);
+        container.addEventListener('drop', function(e){
+            container.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) addFilesFn(e.dataTransfer.files);
+        }, false);
+    }
+
+    // ── Step photos ──
+    var fiStepFiles = {};
+    window.fiAddStepPhoto = function(pasoId, trig) {
+        if (!fiStepFiles[pasoId]) fiStepFiles[pasoId] = [];
+        Array.from(trig.files).forEach(function(f){ if (f.type.startsWith('image/')) fiStepFiles[pasoId].push(f); });
+        trig.value = '';
+        fiSyncStep(pasoId); fiRenderStep(pasoId);
+    };
+    function fiRemoveStepPhoto(pasoId, idx) {
+        fiStepFiles[pasoId].splice(idx, 1);
+        fiSyncStep(pasoId); fiRenderStep(pasoId);
+    }
+    function fiSyncStep(pasoId) {
+        var ri = document.getElementById('fireal_'+pasoId);
+        if (!ri) return;
+        var dt = new DataTransfer();
+        (fiStepFiles[pasoId]||[]).forEach(function(f){ dt.items.add(f); });
+        ri.files = dt.files;
+    }
+    function fiRenderStep(pasoId) {
+        var grid = document.getElementById('figrid_'+pasoId);
+        if (!grid) return;
+        grid.innerHTML = '';
+        (fiStepFiles[pasoId]||[]).forEach(function(file, i){
+            var w = document.createElement('div'); w.className = 'fi-att-item';
+            var img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            var btn = document.createElement('button'); btn.type='button';
+            btn.className='fi-att-del'; btn.innerHTML='&times;';
+            btn.onclick = function(){ fiRemoveStepPhoto(pasoId, i); };
+            w.appendChild(img); w.appendChild(btn);
+            grid.appendChild(w);
+        });
+    }
+    // Setup drag-drop for paso FOTO areas
+    document.querySelectorAll('.fi-drop-area').forEach(function(el){
+        var id = el.id;
+        if (!id || !id.startsWith('fidrop_')) return;
+        var pasoId = parseInt(id.replace('fidrop_', ''), 10);
+        fiSetupDrop(el, function(files){
+            if (!fiStepFiles[pasoId]) fiStepFiles[pasoId] = [];
+            for (var i=0;i<files.length;i++) { if (files[i].type.startsWith('image/')) fiStepFiles[pasoId].push(files[i]); }
+            fiSyncStep(pasoId); fiRenderStep(pasoId);
+        });
+    });
+
+    // ── Area photos (inicio / cierre) ──
+    var fiAreaFiles = { inicio: [], cierre: [] };
+    function fiSetupArea(type, realId, gridId, dropEl) {
+        var real = document.getElementById(realId);
+        var grid = document.getElementById(gridId);
+        if (!real || !dropEl) return;
+        function addFiles(files) {
+            for (var i=0; i<files.length; i++) { if (files[i].type.startsWith('image/')) fiAreaFiles[type].push(files[i]); }
+            sync(); render();
+        }
+        function sync() {
+            var dt = new DataTransfer();
+            fiAreaFiles[type].forEach(function(f){ dt.items.add(f); });
+            real.files = dt.files;
+        }
+        function render() {
+            grid.innerHTML = '';
+            fiAreaFiles[type].forEach(function(file, i){
+                var w = document.createElement('div'); w.className = 'fi-att-item';
+                var img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                var btn = document.createElement('button'); btn.type='button';
+                btn.className='fi-att-del'; btn.innerHTML='&times;';
+                btn.onclick = function(){ fiAreaFiles[type].splice(i,1); sync(); render(); };
+                w.appendChild(img); w.appendChild(btn);
+                grid.appendChild(w);
+            });
+        }
+        dropEl.onclick = function(){ real.click(); };
+        real.addEventListener('change', function(){ addFiles(real.files); real.value = ''; });
+        fiSetupDrop(dropEl, function(files){ addFiles(files); });
+    }
+    var dropzones = document.querySelectorAll('#fiori-cierre-content .fi-dropzone');
+    fiSetupArea('inicio', 'fi-foto-inicio', 'fi-grid-inicio', dropzones[0]);
+    fiSetupArea('cierre', 'fi-foto-cierre', 'fi-grid-cierre', dropzones[1]);
+
+    // ── Form submit ──
+    document.getElementById('fiori-cierre-form').onsubmit = function(e) {
+        e.preventDefault();
+        var formData = new FormData(this);
+        var btn = this.querySelector('button[type=submit]:focus');
+        var action = btn ? btn.value : 'save';
+        formData.set('action', action);
+
+        var submitBtns = this.querySelectorAll('.fi-toolbar button');
+        submitBtns.forEach(function(b){ b.disabled = true; });
+        var loadingText = action === 'finalize' ? 'Finalizando...' : 'Guardando...';
+        if (btn) { btn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> '+loadingText; }
+
+        if (action === 'finalize') {
+            Swal.fire({
+                title: '¿Finalizar Orden?',
+                text: 'Una vez finalizada no podrá editarla. ¿Está seguro?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, finalizar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0070b2',
+                customClass: { container: 'swal-cierre-container' },
+                didOpen: function(){ document.querySelector('.swal-cierre-container').style.zIndex = '100000'; },
+            }).then(function(confirm){
+                if (!confirm.isConfirmed) {
+                    submitBtns.forEach(function(b){ b.disabled = false; });
+                    if (btn) btn.innerHTML = '<ion-icon name="cloud-upload-outline"></ion-icon> Finalizar OT';
+                    return;
+                }
+                fiEnviarCierre(formData, action, submitBtns, btn);
+            });
+        } else {
+            fiEnviarCierre(formData, action, submitBtns, btn);
+        }
+    };
+
+    function fiEnviarCierre(formData, action, submitBtns, btn) {
+        fetch('{% url "mantenimiento:api_guardar_cierre" ot.id %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            if (data.status === 'success') {
+                Swal.fire({ icon:'success', title:'¡Éxito!', text:data.message || 'Cierre registrado.', customClass:{container:'swal-cierre-container'}, didOpen:function(){document.querySelector('.swal-cierre-container').style.zIndex='100000';} }).then(function(){
+                    closeFioriCierreModal();
+                    location.reload();
+                });
+            } else {
+                Swal.fire({ icon:'error', title:'Error', text:data.message || 'No se pudo guardar.', customClass:{container:'swal-cierre-container'}, didOpen:function(){document.querySelector('.swal-cierre-container').style.zIndex='100000';} });
+                submitBtns.forEach(function(b){ b.disabled = false; });
+                if (btn) btn.innerHTML = action === 'finalize' ? '<ion-icon name="cloud-upload-outline"></ion-icon> Finalizar OT' : '<ion-icon name="save-outline"></ion-icon> Guardar Borrador';
+            }
+        })
+        .catch(function(err){
+            Swal.fire({ icon:'error', title:'Error de conexión', text:err.message, customClass:{container:'swal-cierre-container'}, didOpen:function(){document.querySelector('.swal-cierre-container').style.zIndex='100000';} });
+            submitBtns.forEach(function(b){ b.disabled = false; });
+            if (btn) btn.innerHTML = action === 'finalize' ? '<ion-icon name="cloud-upload-outline"></ion-icon> Finalizar OT' : '<ion-icon name="save-outline"></ion-icon> Guardar Borrador';
+        });
+    }
+})();
+</script>

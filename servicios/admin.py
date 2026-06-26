@@ -1,6 +1,6 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
-from .models import Servicio, KPI, ChecklistItem, Auditoria, AuditoriaResultado
+from .models import Servicio, KPI, ChecklistItem, Auditoria, AuditoriaResultado, KPIArchivo
 from .resources import ServicioResource, KPIResource
 from django.contrib.contenttypes.admin import GenericTabularInline
 from documentos.models import MetadatoValor
@@ -45,6 +45,16 @@ class ServicioAdmin(ImportExportModelAdmin):
     readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
     ordering = ('nombre',)
 
+class KPIArchivoInline(admin.TabularInline):
+    model = KPIArchivo
+    extra = 0
+    fields = ('nombre', 'archivo', 'subido_por', 'creado_en')
+    readonly_fields = ('subido_por', 'creado_en')
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(KPI)
 class KPIAdmin(ImportExportModelAdmin):
     resource_class = KPIResource
@@ -55,7 +65,7 @@ class KPIAdmin(ImportExportModelAdmin):
     readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
     filter_horizontal = ('rutinas',)
     ordering = ('nombre', 'servicio')
-    inlines = [ChecklistItemInline, DocumentoRelacionadoInline]
+    inlines = [ChecklistItemInline, DocumentoRelacionadoInline, KPIArchivoInline]
 
     def changelist_view(self, request, extra_context=None):
         from .views import kpi_dashboard_view

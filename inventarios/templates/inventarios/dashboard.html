@@ -1104,6 +1104,20 @@
         });
         $('#close-ingreso').on('click', () => $('#ingreso-modal').removeClass('active'));
 
+        {% if ot_pre %}
+        // Auto-abrir solicitud con OT pre-seleccionada
+        $('#solicitud-modal').addClass('active');
+        activeMode = 'solicitud';
+        (function() {
+            var id = {{ ot_pre.id }};
+            var codigo = '{{ ot_pre.codigo_de_orden|default:""|escapejs }}';
+            var desc = '{{ ot_pre.rutina.nombre|default:ot_pre.descripcion_corta|default:"OTNP"|escapejs }}';
+            var label = codigo ? (codigo + ' — ' + desc) : ('OT #' + id + ' — ' + desc);
+            $('#selectedOtId').val(id);
+            $('#otSearch').val(label);
+        })();
+        {% endif %}
+
         $('#open-catalog, #open-catalog-ingreso').on('click', () => {
             $('#catalog-modal').addClass('active');
             loadMaterials();

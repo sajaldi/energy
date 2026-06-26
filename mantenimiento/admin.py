@@ -1951,6 +1951,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             path('fiori-detail/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_view), name='mantenimiento_ordentrabajo_fiori_detail'),
             path('fiori-edit/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_edit_view), name='mantenimiento_ordentrabajo_fiori_edit'),
             path('fiori-save/<int:pk>/', csrf_exempt(self.admin_site.admin_view(self.guardar_ot_fiori_view)), name='mantenimiento_ordentrabajo_fiori_save'),
+            path('fiori-cierre/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_cierre_view), name='mantenimiento_ordentrabajo_fiori_cierre'),
             path('import-background/', self.admin_site.admin_view(import_ordenes.import_ordenes_background), name='mantenimiento_ordentrabajo_import_background'),
             path('import-background/process/', csrf_exempt(self.admin_site.admin_view(import_ordenes.import_ordenes_process)), name='mantenimiento_ordentrabajo_import_process'),
             path('import-background/progress/', self.admin_site.admin_view(import_ordenes.import_ordenes_progress), name='mantenimiento_ordentrabajo_import_progress'),
@@ -1971,14 +1972,68 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         from activos.models import Ubicacion
         from seguridad.models import TipoPermiso
         
+        tecnicos_list = []
+        for t in ot.tecnicos.all():
+            tecnicos_list.append(t.get_full_name() or t.username)
+        colaboradores = []
+        for c in ot.colaboradores_puesto.all():
+            colaboradores.append(c.nombre)
+        empresa_resp = ot.empresa_responsable.nombre if ot.empresa_responsable else None
+
         context = {
             'ot': ot,
             'empresas': Empresa.objects.all(),
             'personales': TecnicoPuesto.objects.filter(esta_vigente=True),
             'tipos_permiso': TipoPermiso.objects.all(),
             'prioridades': OrdenTrabajo.PRIORIDAD_CHOICES,
+            'cierre': getattr(ot, 'cierre', None),
+            'archivos': ot.archivos.all().order_by('-creado_en'),
+            'tecnicos_list': tecnicos_list,
+            'colaboradores': colaboradores,
+            'empresa_responsable': empresa_resp,
         }
         return render(request, 'admin/mantenimiento/ordentrabajo/fiori_edit_partial.html', context)
+
+    def visualizar_ot_fiori_cierre_view(self, request, pk):
+        ot = get_object_or_404(OrdenTrabajo, pk=pk)
+        pasos = []
+        if ot.rutina:
+            pasos = list(ot.rutina.pasos.prefetch_related('media_files').all().order_by('orden'))
+        activo_principal = ot.activos.first()
+        for paso in pasos:
+            if paso.tipo_respuesta == 'MEDICION':
+                punto = None
+                if paso.punto_medicion_exacto:
+                    punto = paso.punto_medicion_exacto
+                elif paso.punto_medicion_codigo and activo_principal:
+                    punto = activo_principal.puntos_medicion.filter(codigo=paso.punto_medicion_codigo).first()
+                paso.punto_vinculado = punto
+        resultados_qs = ot.resultados_checklist.all()
+        resultados_dict = {res.paso_id: res for res in resultados_qs}
+        archivos_pasos = ot.archivos.filter(paso__isnull=False)
+        import collections
+        archivos_dict = collections.defaultdict(list)
+        for a in archivos_pasos:
+            archivos_dict[a.paso_id].append(a)
+        for paso in pasos:
+            paso.resultado = resultados_dict.get(paso.id)
+            paso.fotos_guardadas = archivos_dict.get(paso.id, [])
+        from .models import TecnicoPuesto, Empresa
+        tecnicos_list = []
+        for t in ot.tecnicos.all():
+            tecnicos_list.append(t.get_full_name() or t.username)
+        colaboradores = []
+        for c in ot.colaboradores_puesto.all():
+            colaboradores.append(c.nombre)
+        empresa_resp = ot.empresa_responsable.nombre if ot.empresa_responsable else None
+        context = {
+            'ot': ot,
+            'pasos': pasos,
+            'tecnicos_list': tecnicos_list,
+            'colaboradores': colaboradores,
+            'empresa_responsable': empresa_resp,
+        }
+        return render(request, 'admin/mantenimiento/ordentrabajo/fiori_cierre_partial.html', context)
 
     def guardar_ot_fiori_view(self, request, pk):
         """Maneja el guardado AJAX de la edición Fiori"""

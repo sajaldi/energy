@@ -19,4 +19,7 @@ urlpatterns = [
     path('kpi/api/busqueda-semantica/', views.api_kpi_busqueda_semantica, name='api_kpi_busqueda'),
     path('kpi/api/rag/', views.api_kpi_rag, name='api_kpi_rag'),
     path('kpi/api/vectorize-all/', views.api_kpi_vectorize_all, name='api_kpi_vectorize_all'),
+    # Documentos directos del KPI
+    path('kpi/<int:pk>/subir-archivo/', views.api_kpi_subir_archivo, name='api_kpi_subir_archivo'),
+    path('kpi/archivo/<int:pk>/eliminar/', views.api_kpi_eliminar_archivo, name='api_kpi_eliminar_archivo'),
 ]

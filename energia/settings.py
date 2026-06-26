@@ -520,6 +520,7 @@ JAZZMIN_SETTINGS = {
         "presupuestos.ItemPresupuesto": "fas fa-tag",
         "presupuestos.DetallePeriodico": "fas fa-clock",
         "presupuestos.PresupuestoAgrupado": "fas fa-object-group",
+        "presupuestos.CentroCosto": "fas fa-calculator",
         "presupuestos.Requisicion": "fas fa-file-signature",
         "presupuestos.ArticuloRequisicion": "fas fa-shopping-basket",
         "presupuestos.DocumentoRequisicion": "fas fa-file-pdf",
