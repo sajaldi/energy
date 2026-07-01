@@ -84,7 +84,8 @@
                     {% csrf_token %}
                     <div class="field-group">
                         <label>Asignar a Usuario</label>
-                        <select name="usuario">
+                        <input type="text" id="user-search" placeholder="Buscar usuario..." style="width:100%;padding:8px 10px;border:1px solid var(--sap-border-color);border-radius:4px;margin-bottom:6px;font-family:var(--sap-font-family);font-size:0.88rem;">
+                        <select name="usuario" id="user-select" size="8" style="width:100%;padding:4px;border:1px solid var(--sap-border-color);border-radius:4px;font-size:0.85rem;">
                             <option value="">— Seleccionar usuario —</option>
                             {% for u in usuarios %}
                             <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
@@ -186,5 +187,22 @@
 
         <a href="{% url 'courses:lista_admin' %}" class="btn btn-secondary">← Volver a Gestión</a>
     </div>
+
+    <script>
+        document.getElementById('user-search').addEventListener('input', function() {
+            const q = this.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const select = document.getElementById('user-select');
+            const options = select.querySelectorAll('option');
+            let firstMatch = null;
+            options.forEach(opt => {
+                if (opt.value === '') return;
+                const text = opt.textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const match = text.includes(q);
+                opt.style.display = match ? '' : 'none';
+                if (match && !firstMatch) firstMatch = opt;
+            });
+            if (firstMatch) firstMatch.selected = true;
+        });
+    </script>
 </body>
 </html>
