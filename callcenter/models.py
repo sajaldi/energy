@@ -568,6 +568,47 @@ def trigger_vectorize_ticket(sender, instance, **kwargs):
             logger.warning(f"No se pudo encolar vectorización para ticket {instance.id}: {e}")
 
 
+def add_historial(ticket, accion, usuario=None, descripcion=''):
+    HistorialTicket.objects.create(
+        ticket=ticket,
+        accion=accion,
+        usuario=usuario,
+        descripcion=descripcion
+    )
+
+
+@receiver(post_save, sender=SolicitudTicket)
+def track_ticket_changes(sender, instance, **kwargs):
+    """
+    Auto-detecta cambios en campos clave y registra en el historial.
+    """
+    if kwargs.get('created'):
+        add_historial(instance, 'CREADO', descripcion="Ticket creado")
+        return
+
+    try:
+        old = SolicitudTicket.objects.get(pk=instance.pk)
+    except SolicitudTicket.DoesNotExist:
+        return
+
+    if instance.diagnostico and old.diagnostico != instance.diagnostico:
+        add_historial(instance, 'DIAGNOSTICO', descripcion="Diagnóstico ingresado")
+    if old.fecha_cierre != instance.fecha_cierre and instance.fecha_cierre:
+        add_historial(instance, 'CIERRE_FECHA', descripcion=f"Fecha de cierre: {instance.fecha_cierre.strftime('%d/%m/%Y %H:%M')}")
+    if not old.correo_cierre and instance.correo_cierre:
+        add_historial(instance, 'CORREO_CIERRE', descripcion="Correo de cierre enviado")
+    if old.robot_estatus != instance.robot_estatus and instance.robot_estatus:
+        accion = 'SIG_SYNC' if 'COMPLETAMENTE' in str(instance.robot_estatus) else 'SIG_ERROR'
+        add_historial(instance, accion, descripcion=f"SIG: {instance.robot_estatus}")
+    if old.usuario_responsable != instance.usuario_responsable:
+        name = instance.usuario_responsable.get_full_name() or str(instance.usuario_responsable) if instance.usuario_responsable else 'Sin asignar'
+        add_historial(instance, 'REASIGNADO', descripcion=f"Asignado a: {name}")
+    if old.deductiva != instance.deductiva and instance.deductiva:
+        add_historial(instance, 'DEDUCTIVA', descripcion=f"Deductiva: ${instance.deductiva}")
+    if not old.comentarios_internos and instance.comentarios_internos:
+        add_historial(instance, 'COMENTARIO', descripcion="Comentario interno agregado")
+
+
 # --- MODELOS DE CRONOGRAMAS PREDEFINIDOS (PLANTILLAS) ---
 
 class CronogramaPredefinido(models.Model):
@@ -705,3 +746,46 @@ class DiagnosticoTicket(models.Model):
         verbose_name = "Catálogo de Diagnóstico"
         verbose_name_plural = "Catálogos de Diagnósticos"
         ordering = ['falla__nombre', 'nombre']
+
+
+class HistorialTicket(models.Model):
+    ACCION_CHOICES = [
+        ('CREADO', 'Ticket Creado'),
+        ('ACTUALIZADO', 'Ticket Actualizado'),
+        ('DIAGNOSTICO', 'Diagnóstico Ingresado'),
+        ('CIERRE_FECHA', 'Fecha de Cierre Asignada'),
+        ('CORREO_CIERRE', 'Correo de Cierre Enviado'),
+        ('SIG_SYNC', 'Sincronización SIG'),
+        ('SIG_ERROR', 'Error en Sincronización SIG'),
+        ('DEDUCTIVA', 'Deductiva Actualizada'),
+        ('REASIGNADO', 'Técnico Reasignado'),
+        ('COMENTARIO', 'Comentario Interno'),
+        ('CIERRE_VISUAL', 'Cierre Visual Realizado'),
+    ]
+    ticket = models.ForeignKey(
+        SolicitudTicket,
+        on_delete=models.CASCADE,
+        related_name='historial',
+        verbose_name="Ticket"
+    )
+    accion = models.CharField(
+        max_length=20,
+        choices=ACCION_CHOICES,
+        verbose_name="Acción"
+    )
+    usuario = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name="Usuario"
+    )
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+
+    def __str__(self):
+        return f"{self.get_accion_display()} - {self.ticket.folio or self.ticket.id_solicitud}"
+
+    class Meta:
+        verbose_name = "Historial de Ticket"
+        verbose_name_plural = "Historial de Tickets"
+        ordering = ['-creado_en']

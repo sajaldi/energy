@@ -37,6 +37,7 @@ class FotoUbicacionAdmin(admin.ModelAdmin):
 from auditorias.models import ResultadoAuditoria
 
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from inventarios.models import CompatibilidadMaterial
 from documentos.models import Documento
@@ -94,7 +95,7 @@ class PlanoAdmin(ImportExportModelAdmin):
             rev = obj.revision_actual or ''
             return format_html('<span style="color: #2563eb;">{}</span> <small style="color: #64748b;">{}</small>', 
                              obj.documento.codigo, rev)
-        return format_html('<span style="color: #94a3b8;">Sin documento</span>')
+        return mark_safe('<span style="color: #94a3b8;">Sin documento</span>')
     documento_info.short_description = "Documento"
 
     def visualizar_archivo(self, obj):
@@ -368,7 +369,7 @@ class CategoriaAdmin(ImportExportModelAdmin):
     def cantidad_activos(self, obj):
         count = getattr(obj, '_activos_count', 0)
         if count == 0:
-            return format_html('<span style="color: #cbd5e1;">0</span>')
+            return mark_safe('<span style="color: #cbd5e1;">0</span>')
         return format_html(
             '<span style="background: #eff6ff; color: #2563eb; padding: 2px 10px; border-radius: 12px; font-weight: 700;">{}</span>',
             count
@@ -503,38 +504,48 @@ class ModeloAdmin(ImportExportModelAdmin):
     def thumbnail(self, obj):
         if obj.imagen:
             return format_html('<img src="{}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />', obj.imagen)
-        return format_html('<div style="width: 40px; height: 40px; background: #f1f5f9; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #cbd5e1;"><ion-icon name="image-outline"></ion-icon></div>')
+        return mark_safe('<div style="width: 40px; height: 40px; background: #f1f5f9; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #cbd5e1;"><ion-icon name="image-outline"></ion-icon></div>')
     thumbnail.short_description = 'Imagen'
 
     def preview_imagen(self, obj):
         if obj.imagen:
             return format_html('<img src="{}" style="max-width: 300px; max-height: 300px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);" />', obj.imagen)
-        return format_html('<span style="color: #94a3b8; font-style: italic;">No hay imagen configurada</span>')
+        return mark_safe('<span style="color: #94a3b8; font-style: italic;">No hay imagen configurada</span>')
     preview_imagen.short_description = 'Vista Previa'
 
     def rutinas_aplicables(self, obj):
         if not obj.categoria:
-            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay una categoría de activo definida para este modelo.</span>')
+            return mark_safe('<span style="color: #94a3b8; font-style: italic;">No hay una categoría de activo definida para este modelo.</span>')
         
-        # Buscar la categoría de mantenimiento vinculada (a través de la relación inversa)
-        m_cat = getattr(obj.categoria, 'mantenimiento_tipo', None)
-        
-        if not m_cat:
-            return format_html('<span style="color: #94a3b8; font-style: italic;">La categoría "{0}" no tiene una categoría de mantenimiento vinculada.</span>', obj.categoria.nombre)
+        cat = obj.categoria
+        from mantenimiento.models import Rutina, Tipo
 
-        from mantenimiento.models import Rutina
-        # Obtener ancestros de la categoría de mantenimiento vinculada para incluir rutinas generales
-        m_cats_ids = []
-        curr = m_cat
-        while curr:
-            m_cats_ids.append(curr.id)
-            curr = curr.padre
-            
-        rutinas = Rutina.objects.filter(tipo_id__in=m_cats_ids).select_related('frecuencia', 'tipo')
-        
+        # Obtener todos los Tipos vinculados a esta categoría
+        tipo_ids = set(Tipo.objects.filter(categoria_activo=cat).values_list('id', flat=True))
+
+        # También buscar por el reverse relation (mantenimiento_tipo)
+        m_cat_mgr = getattr(cat, 'mantenimiento_tipo', None)
+        if m_cat_mgr is not None:
+            tipo_ids.update(m_cat_mgr.values_list('id', flat=True))
+
+        # Obtener ancestros de todos esos tipos (jerarquía padre)
+        all_tipo_ids = set(tipo_ids)
+        queue = list(tipo_ids)
+        while queue:
+            children = Tipo.objects.filter(padre_id__in=queue).values_list('id', flat=True)
+            new_ids = set(children) - all_tipo_ids
+            all_tipo_ids.update(new_ids)
+            queue = list(new_ids)
+
+        # Buscar rutinas vinculadas por tipo (jerarquía) O directamente por categoria_activo
+        q = Q(categoria_activo=cat)
+        if all_tipo_ids:
+            q |= Q(tipo_id__in=all_tipo_ids)
+        rutinas = Rutina.objects.filter(q).select_related('frecuencia', 'tipo')
+
         if not rutinas.exists():
-            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas de mantenimiento configuradas para la categoría "{0}".</span>', obj.categoria.nombre)
-            
+            return format_html('<span style="color: #94a3b8; font-style: italic;">La categoría "{0}" no tiene tipos de mantenimiento vinculados ni rutinas directas.</span>', cat.nombre)
+
         html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
         html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
         html += '<thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">'
@@ -567,7 +578,7 @@ class ModeloAdmin(ImportExportModelAdmin):
             html += '</a></td></tr>'
         
         html += '</tbody></table></div>'
-        return format_html(html)
+        return mark_safe(html)
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(activos_count=Count('activos'))
@@ -580,7 +591,7 @@ class ModeloAdmin(ImportExportModelAdmin):
     def lista_activos_ubicacion(self, obj):
         activos = obj.activos.select_related('ubicacion').order_by('ubicacion__nombre')
         if not activos:
-            return format_html('<span style="color: #999;">No hay activos registrados con este modelo.</span>')
+            return mark_safe('<span style="color: #999;">No hay activos registrados con este modelo.</span>')
 
         html = '<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">'
         html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
@@ -615,7 +626,7 @@ class ModeloAdmin(ImportExportModelAdmin):
             html += f'</td></tr>'
 
         html += '</tbody></table></div>'
-        return format_html(html)
+        return mark_safe(html)
     lista_activos_ubicacion.short_description = 'Activos Clasificados por Ubicación'
 
     fieldsets = (
@@ -683,33 +694,43 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
 
     def rutinas_mantenimiento(self, obj):
         if not obj.categoria:
-            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay categoría asignada. Asigne una categoría (ej: "Quirófano", "Subestación") para ver las rutinas.</span>')
+            return mark_safe('<span style="color: #94a3b8; font-style: italic;">No hay categoría asignada. Asigne una categoría (ej: "Quirófano", "Subestación") para ver las rutinas.</span>')
         
-        # Buscar la categoría de mantenimiento vinculada
-        m_cat = getattr(obj.categoria, 'mantenimiento_tipo', None)
-        
-        if not m_cat:
+        cat = obj.categoria
+        from mantenimiento.models import Rutina, Tipo
+
+        # Obtener todos los Tipos vinculados a esta categoría
+        tipo_ids = set(Tipo.objects.filter(categoria_activo=cat).values_list('id', flat=True))
+
+        # También buscar por el reverse relation (mantenimiento_tipo)
+        m_cat_mgr = getattr(cat, 'mantenimiento_tipo', None)
+        if m_cat_mgr is not None:
+            tipo_ids.update(m_cat_mgr.values_list('id', flat=True))
+
+        # Obtener ancestros de todos esos tipos (jerarquía padre)
+        all_tipo_ids = set(tipo_ids)
+        queue = list(tipo_ids)
+        while queue:
+            children = Tipo.objects.filter(padre_id__in=queue).values_list('id', flat=True)
+            new_ids = set(children) - all_tipo_ids
+            all_tipo_ids.update(new_ids)
+            queue = list(new_ids)
+
+        # Buscar rutinas vinculadas por tipo (jerarquía) O directamente por categoria_activo
+        q = Q(categoria_activo=cat)
+        if all_tipo_ids:
+            q |= Q(tipo_id__in=all_tipo_ids)
+        rutinas = Rutina.objects.filter(q).select_related('frecuencia', 'tipo', 'puesto_trabajo')
+
+        if not rutinas.exists():
             return format_html(
                 '<div style="background: #fff1f2; color: #be123c; padding: 10px; border-radius: 6px; border: 1px solid #fecaca;">'
                 '<strong style="display:block; margin-bottom:4px;">Sin vinculación de Mantenimiento</strong>'
-                'La categoría de activo <em>"{}"</em> no está vinculada a ninguna categoría de mantenimiento. '
+                'La categoría de activo <em>"{}"</em> no tiene rutinas configuradas. '
                 '<a href="/admin/mantenimiento/categoria/" target="_blank">Configure esto aquí</a>.'
                 '</div>', 
-                obj.categoria.nombre
+                cat.nombre
             )
-
-        from mantenimiento.models import Rutina
-        # Obtener ancestros de la categoría de mantenimiento para herencia de rutinas
-        m_cats_ids = []
-        curr = m_cat
-        while curr:
-            m_cats_ids.append(curr.id)
-            curr = curr.padre
-            
-        rutinas = Rutina.objects.filter(tipo_id__in=m_cats_ids).select_related('frecuencia', 'tipo', 'puesto_trabajo')
-        
-        if not rutinas.exists():
-            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas definidas para el tipo "{}" ni sus superiores.</span>', m_cat.nombre)
             
         html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 5px;">'
         html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
@@ -753,7 +774,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
             html += '</a></td></tr>'
         
         html += '</tbody></table></div>'
-        return format_html(html)
+        return mark_safe(html)
     rutinas_mantenimiento.short_description = "Rutinas Aplicables"
     change_list_template = 'admin/activos/ubicacion/change_list.html'
 
@@ -809,7 +830,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     def total_hijos(self, obj):
         count = getattr(obj, '_hijos_count', obj.sub_ubicaciones.count())
         if count == 0:
-            return format_html('<span style="color: #cbd5e1; font-size: 0.8rem;">Vacio</span>')
+            return mark_safe('<span style="color: #cbd5e1; font-size: 0.8rem;">Vacio</span>')
         return format_html('<span style="background: #f1f5f9; color: #475569; padding: 2px 10px; border-radius: 12px; font-weight: 700; font-size: 0.75rem;">{} sub-niveles</span>', count)
     total_hijos.short_description = 'Estructura'
 
@@ -820,7 +841,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
         total = Activo.objects.filter(ubicacion_id__in=ubicaciones_ids).count()
         
         if total == 0:
-            return format_html('<span style="color: #cbd5e1; font-size: 0.8rem;">Sin equipos</span>')
+            return mark_safe('<span style="color: #cbd5e1; font-size: 0.8rem;">Sin equipos</span>')
         return format_html('<span style="background: #eff6ff; color: #1d4ed8; padding: 2px 10px; border-radius: 12px; font-weight: 700; font-size: 0.75rem;">{} equipos</span>', total)
     total_activos.short_description = 'Carga de Activos'
 
@@ -1285,23 +1306,33 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
 
     def rutinas_aplicables(self, obj):
         if not obj.modelo or not obj.modelo.categoria:
-            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay una categoría de activo definida para este modelo.</span>')
+            return mark_safe('<span style="color: #94a3b8; font-style: italic;">No hay una categoría de activo definida para este modelo.</span>')
         
-        # Buscar la categoría de mantenimiento vinculada
-        m_cat = getattr(obj.modelo.categoria, 'mantenimiento_tipo', None)
+        cat = obj.modelo.categoria
+        from mantenimiento.models import Rutina, Tipo
 
-        if not m_cat:
-            return format_html('<span style="color: #94a3b8; font-style: italic;">La categoría "{0}" no tiene una categoría de mantenimiento vinculada.</span>', obj.modelo.categoria.nombre)
+        # Obtener todos los Tipos vinculados a esta categoría
+        tipo_ids = set(Tipo.objects.filter(categoria_activo=cat).values_list('id', flat=True))
 
-        from mantenimiento.models import Rutina
-        # Obtener ancestros de la categoría de mantenimiento vinculada
-        m_cats_ids = []
-        curr = m_cat
-        while curr:
-            m_cats_ids.append(curr.id)
-            curr = curr.padre
-            
-        rutinas = Rutina.objects.filter(tipo_id__in=m_cats_ids).select_related('frecuencia', 'tipo')
+        # También buscar por el reverse relation (mantenimiento_tipo)
+        m_cat_mgr = getattr(cat, 'mantenimiento_tipo', None)
+        if m_cat_mgr is not None:
+            tipo_ids.update(m_cat_mgr.values_list('id', flat=True))
+
+        # Obtener ancestros de todos esos tipos (jerarquía padre)
+        all_tipo_ids = set(tipo_ids)
+        queue = list(tipo_ids)
+        while queue:
+            children = Tipo.objects.filter(padre_id__in=queue).values_list('id', flat=True)
+            new_ids = set(children) - all_tipo_ids
+            all_tipo_ids.update(new_ids)
+            queue = list(new_ids)
+
+        # Buscar rutinas vinculadas por tipo (jerarquía) O directamente por categoria_activo
+        q = Q(categoria_activo=cat)
+        if all_tipo_ids:
+            q |= Q(tipo_id__in=all_tipo_ids)
+        rutinas = Rutina.objects.filter(q).select_related('frecuencia', 'tipo')
         
         if not rutinas.exists():
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas de mantenimiento configuradas para la categoría "{0}".</span>', obj.modelo.categoria.nombre)
@@ -1338,7 +1369,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             html += '</a></td></tr>'
         
         html += '</tbody></table></div>'
-        return format_html(html)
+        return mark_safe(html)
 
     def ordenes_programadas(self, obj):
         from mantenimiento.models import OrdenTrabajo
@@ -1353,7 +1384,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
         ordenes = ordenes_all[:10]
 
         if not ordenes.exists():
-            return format_html('<div style="color: #94a3b8; font-style: italic; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay órdenes de trabajo programadas pendientes para este equipo.</div>')
+            return mark_safe('<div style="color: #94a3b8; font-style: italic; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay órdenes de trabajo programadas pendientes para este equipo.</div>')
 
         html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
         html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
@@ -1404,7 +1435,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             html += '</div>'
             
         html += '</div>'
-        return format_html(html)
+        return mark_safe(html)
     ordenes_programadas.short_description = "Órdenes de Trabajo Pendientes"
 
     def historial_ordenes(self, obj):
@@ -1420,7 +1451,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
         ordenes = ordenes_all[:10]
 
         if not ordenes.exists():
-            return format_html('<div style="color: #94a3b8; font-style: italic; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay historial de órdenes de trabajo para este equipo.</div>')
+            return mark_safe('<div style="color: #94a3b8; font-style: italic; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay historial de órdenes de trabajo para este equipo.</div>')
 
         html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
         html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
@@ -1469,7 +1500,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             html += '</div>'
             
         html += '</div>'
-        return format_html(html)
+        return mark_safe(html)
     historial_ordenes.short_description = "Historial de Órdenes de Trabajo"
 
     def tickets_asociados(self, obj):
@@ -1477,7 +1508,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
         avisos = Aviso.objects.filter(activo=obj).order_by('-creado_en')
         
         if not avisos.exists():
-            return format_html('<div style="color: #94a3b8; font-style: italic; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay avisos/tickets reportados para este equipo.</div>')
+            return mark_safe('<div style="color: #94a3b8; font-style: italic; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay avisos/tickets reportados para este equipo.</div>')
 
         html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
         html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
@@ -1529,7 +1560,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             html += '</a></td></tr>'
 
         html += '</tbody></table></div>'
-        return format_html(html)
+        return mark_safe(html)
     tickets_asociados.short_description = "Avisos / Tickets Asociados"
 
     def crear_aviso_link(self, obj):
@@ -1556,13 +1587,13 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
     def get_modelo_img(self, obj):
         if obj.modelo and obj.modelo.imagen:
             return format_html('<img src="{}" style="max-width: 300px; max-height: 300px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);" />', obj.modelo.imagen)
-        return format_html('<span style="color: #94a3b8; font-style: italic;">El modelo no tiene imagen asociada</span>')
+        return mark_safe('<span style="color: #94a3b8; font-style: italic;">El modelo no tiene imagen asociada</span>')
     get_modelo_img.short_description = 'Imagen del Modelo'
 
     def get_parent_info(self, obj):
         if obj.padre:
             return format_html('<span style="color: #64748b; font-size: 0.85rem;">↳ {}</span>', obj.padre.nombre)
-        return format_html('<span style="color: #10b981; font-weight: bold; font-size: 0.75rem;">PRINCIPAL</span>')
+        return mark_safe('<span style="color: #10b981; font-weight: bold; font-size: 0.75rem;">PRINCIPAL</span>')
     get_parent_info.short_description = 'Jerarquía'
 
     def changelist_view(self, request, extra_context=None):
@@ -1652,7 +1683,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             html += f'<td style="padding:8px; text-align:center;">{p.duracion_horas:.1f}</td>'
             html += f'<td style="padding:8px;">{p.motivo or ""}</td></tr>'
         html += '</tbody></table>'
-        return format_html(html)
+        return mark_safe(html)
     historial_paradas_table.short_description = "Historial de Paradas"
     
     def get_categoria(self, obj):
@@ -1683,7 +1714,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
     def ultima_auditoria_display(self, obj):
         fecha = getattr(obj, 'ultima_auditoria_fecha', None)
         if not fecha:
-            return format_html('<span style="color: #94a3b8; font-style: italic;">Nunca auditado</span>')
+            return mark_safe('<span style="color: #94a3b8; font-style: italic;">Nunca auditado</span>')
         
         from django.utils.timezone import now
         dias = (now() - fecha).days
@@ -1704,7 +1735,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
     def ver_en_plano(self, obj):
         pines = obj.pines_planos.all()
         if not pines:
-            return format_html('<span style="color: #999;">❌ No ubicado en planos</span>')
+            return mark_safe('<span style="color: #999;">❌ No ubicado en planos</span>')
         
         html = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
         for pin in pines:
@@ -1720,7 +1751,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
                 pin.visor.nombre
             )
         html += '</div>'
-        return format_html(html)
+        return mark_safe(html)
     ver_en_plano.short_description = 'Ubicación en Planos'
 
     fieldsets = (
@@ -1772,7 +1803,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
         }),
     )
 
-    # change_form_template = 'admin/activos/activo/change_form.html'
+    change_form_template = 'admin/activos/activo/change_form.html'
 
     def ver_en_fiori(self, obj):
         url = reverse('activos:activo_fiori', args=[obj.pk])
@@ -1809,6 +1840,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
         urls = super().get_urls()
         custom_urls = [
             path('<path:object_id>/explorer/', self.admin_site.admin_view(self.explorer_view), name='activos_activo_explorer'),
+            path('<path:object_id>/documentos-altabaja/', self.admin_site.admin_view(self.documentos_altabaja_view), name='activos_activo_documentos_altabaja'),
             path('<int:activo_id>/sync-audit/<int:resultado_id>/', self.admin_site.admin_view(self.sync_audit_location), name='activos_activo_sync_audit_location'),
             path('import-background/', self.admin_site.admin_view(self.import_background), name='activos_activo_import_background'),
             path('import-process/', self.admin_site.admin_view(self.import_process), name='activos_activo_import_process'),
@@ -1837,6 +1869,18 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             'hide_chatbot': True,
         }
         return render(request, 'admin/activos/activo/explorer_tab.html', context)
+
+    def documentos_altabaja_view(self, request, object_id):
+        obj = self.get_object(request, object_id)
+        items = ItemAltaBaja.objects.filter(activo=obj).select_related('documento', 'activo').order_by('-documento__fecha')
+        context = {
+            **self.admin_site.each_context(request),
+            'object': obj,
+            'items': items,
+            'is_popup': True,
+            'hide_chatbot': True,
+        }
+        return render(request, 'admin/activos/activo/documentos_altabaja_tab.html', context)
 
     def import_background(self, request):
         context = {
@@ -1956,7 +2000,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
     def get_puntos_medicion_summary(self, obj):
         puntos = obj.puntos_medicion.all().prefetch_related('lecturas')
         if not puntos:
-            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay puntos de medición configurados para este equipo.</span>')
+            return mark_safe('<span style="color: #94a3b8; font-style: italic;">No hay puntos de medición configurados para este equipo.</span>')
         
         html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
         html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
@@ -1985,7 +2029,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             html += '</td></tr>'
         
         html += '</tbody></table></div>'
-        return format_html(html)
+        return mark_safe(html)
 
 @admin.register(PuntoMedicion)
 class PuntoMedicionAdmin(admin.ModelAdmin):

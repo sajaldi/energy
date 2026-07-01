@@ -277,6 +277,36 @@
             cursor: pointer;
         }
 
+        .photo-dropzone {
+            border: 1.5px dashed var(--sap-border-color, #e2e8f0);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            transition: border-color .2s, background .2s;
+            cursor: pointer;
+        }
+        .photo-dropzone.drag-over,
+        .photo-dropzone:hover {
+            border-color: var(--sap-brand-color, #0070b2);
+            background: rgba(0,112,242,0.05);
+        }
+        .photo-dropzone ion-icon {
+            font-size: 32px;
+            color: var(--sap-brand-color, #0070b2);
+        }
+        .photo-dropzone div {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--sap-text-color, #1e293b);
+            margin-top: 6px;
+        }
+        .photo-dropzone small {
+            font-size: 11px;
+            color: var(--sap-text-muted, #64748b);
+            display: block;
+            margin-top: 4px;
+        }
+
         .fiori-toolbar {
             position: fixed;
             bottom: 0; left: 0; right: 0;
@@ -503,16 +533,58 @@
                     <h2>Evidencias Fotográficas</h2>
                 </div>
                 <div class="card-content">
+                    {% if aviso and aviso.fotos.all %}
+                    <div style="margin-bottom:12px;font-size:12px;color:var(--sap-text-muted);">Fotos existentes:</div>
+                    <div class="photo-grid" style="margin-bottom:12px;">
+                        {% for foto in aviso.fotos.all %}
+                        <div class="photo-item" style="cursor:default;">
+                            <img src="{{ foto.foto.url }}" style="flex:1;object-fit:cover;min-height:0;">
+                            {% if foto.descripcion %}
+                            <div style="font-size:10px;padding:2px 4px;background:#f5f5f5;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ foto.descripcion }}</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     <div class="photo-uploader">
-                        <button type="button" class="fiori-btn fiori-btn-ghost" style="width: 100%; padding: 12px; text-transform: uppercase;" onclick="document.getElementById('foto-input').click()">
-                            <ion-icon name="camera-outline"></ion-icon>
-                            Capturar Imagen
-                        </button>
-                        <input type="file" name="fotos" id="foto-input" accept="image/*" capture="environment" style="display: none;">
+                        <div class="photo-dropzone" id="photo-dropzone">
+                            <ion-icon name="cloud-upload-outline"></ion-icon>
+                            <div>Arrastra y suelta imágenes aquí</div>
+                            <small>o haz clic para seleccionar</small>
+                        </div>
+                        <input type="file" name="fotos" id="foto-input" accept="image/*" capture="environment" multiple style="display: none;">
+                        <input type="hidden" name="foto_tipo" id="foto-tipo-input" value="APERTURA">
                         <div class="photo-grid" id="photo-grid-container"></div>
                     </div>
                 </div>
             </div>
+
+            {% if aviso %}
+            <div class="fiori-card" id="cierre">
+                <div class="card-header">
+                    <ion-icon name="checkmark-done-circle-outline"></ion-icon>
+                    <h2>Cierre del Aviso</h2>
+                </div>
+                <div class="card-content">
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Estado</label>
+                        <select name="estado" class="fiori-select" id="estado-select">
+                            {% for val, label in estados %}
+                            <option value="{{ val }}" {% if aviso.estado == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Diagnóstico</label>
+                        <textarea name="diagnostico" class="fiori-textarea" placeholder="Diagnóstico del problema...">{{ aviso.diagnostico|default:'' }}</textarea>
+                    </div>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Acciones Realizadas</label>
+                        <textarea name="acciones" class="fiori-textarea" placeholder="Describa las acciones realizadas...">{{ aviso.acciones|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </form>
     </div>
 
@@ -689,6 +761,7 @@
 
         const photoInput = document.getElementById('foto-input');
         const photoGrid = document.getElementById('photo-grid-container');
+        const photoDropzone = document.getElementById('photo-dropzone');
         let selectedFiles = [];
 
         function syncFilesInput() {
@@ -697,31 +770,65 @@
             photoInput.files = newDt.files;
         }
 
-        photoInput.onchange = function () {
-            Array.from(this.files).forEach((file) => {
-                const fileObj = { file: file, id: Math.random().toString(36).substring(7) };
-                selectedFiles.push(fileObj);
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const div = document.createElement('div');
-                    div.className = 'photo-item';
-                    div.innerHTML = `
-                        <img src="${e.target.result}">
-                        <input type="hidden" name="descripciones[]" value="">
-                        <button type="button" class="photo-remove">×</button>
-                    `;
-                    div.querySelector('button').onclick = () => {
-                        div.remove();
-                        selectedFiles = selectedFiles.filter(f => f.id !== fileObj.id);
-                        syncFilesInput();
-                    };
-                    photoGrid.appendChild(div);
+        function renderPhotos() {
+            photoGrid.innerHTML = '';
+            selectedFiles.forEach((fileObj) => {
+                const div = document.createElement('div');
+                div.className = 'photo-item';
+                div.innerHTML = `
+                    <img src="${URL.createObjectURL(fileObj.file)}">
+                    <input type="hidden" name="descripciones[]" value="">
+                    <button type="button" class="photo-remove">×</button>
+                `;
+                div.querySelector('button').onclick = () => {
+                    div.remove();
+                    selectedFiles = selectedFiles.filter(f => f.id !== fileObj.id);
                     syncFilesInput();
                 };
-                reader.readAsDataURL(file);
+                photoGrid.appendChild(div);
             });
+        }
+
+        function addFiles(files) {
+            Array.from(files).forEach((file) => {
+                if (!file.type.startsWith('image/')) return;
+                const fileObj = { file: file, id: Math.random().toString(36).substring(7) };
+                selectedFiles.push(fileObj);
+            });
+            renderPhotos();
+            syncFilesInput();
+        }
+
+        photoInput.onchange = function () {
+            addFiles(this.files);
             this.value = '';
         };
+
+        photoDropzone.onclick = () => photoInput.click();
+
+        function setupDrop(container) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(ev){
+                container.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); }, false);
+            });
+            container.addEventListener('dragenter', function(){ container.classList.add('drag-over'); }, false);
+            container.addEventListener('dragover', function(){ container.classList.add('drag-over'); }, false);
+            container.addEventListener('dragleave', function(){ container.classList.remove('drag-over'); }, false);
+            container.addEventListener('drop', function(e){
+                container.classList.remove('drag-over');
+                if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+            }, false);
+        }
+        setupDrop(photoDropzone);
+
+        const estadoSelect = document.getElementById('estado-select');
+        const fotoTipoInput = document.getElementById('foto-tipo-input');
+        if (estadoSelect && fotoTipoInput) {
+            function updateFotoTipo() {
+                fotoTipoInput.value = estadoSelect.value === 'CERRADO' ? 'CIERRE' : 'APERTURA';
+            }
+            estadoSelect.addEventListener('change', updateFotoTipo);
+            updateFotoTipo();
+        }
 
         async function saveAvisoOffline(payload) {
             const dbRequest = indexedDB.open('SoftcomOfflineDB', 1);
@@ -782,7 +889,10 @@
                 modelo: "{{ activo.modelo.nombre|default:activo.modelo_legacy|default:'S/M' }}",
                 categoria: "{{ activo.modelo.categoria.nombre|default:'S/C' }}",
                 serie: "{{ activo.serie|default:'S/S' }}"
-            });{% endif %}
+            });
+            {% elif aviso and aviso.ubicacion_id %}
+            autoSelectHierarchy("{{ aviso.ubicacion_id }}");
+            {% endif %}
         });
     </script>
 </body>

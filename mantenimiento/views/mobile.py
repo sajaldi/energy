@@ -326,6 +326,14 @@ def mobile_crear_aviso(request, pk=None):
         elif not instance:
             data['estado'] = 'ABIERTO'
 
+        # Si el estado cambia a CERRADO, asignar fecha_cierre y cerrado_por
+        if data.get('estado') == 'CERRADO':
+            if not data.get('fecha_cierre'):
+                data['fecha_cierre'] = timezone.now()
+            # Si estamos creando, no puede ser CERRADO
+            if not instance:
+                data['fecha_cierre'] = None
+
         # Procesar fechas si vienen en el POST
         fecha_reporte = request.POST.get('creado_en')
         if fecha_reporte:
@@ -339,13 +347,19 @@ def mobile_crear_aviso(request, pk=None):
                 data['fecha_cierre'] = timezone.make_aware(datetime.fromisoformat(fecha_cierre))
             except Exception: 
                 data['fecha_cierre'] = None
-        elif instance:
-            # Si estamos editando y no viene fecha_cierre, podría significar que se limpió o que no se mostró
-            # Pero en este caso, si no viene en el POST, lo dejamos como estaba o lo limpiamos?
-            # SAP PM: Si el estado cambia a CERRADO, se debería poner la fecha.
-            pass
+
+        # Campos de cierre: diagnóstico y acciones
+        diagnostico = request.POST.get('diagnostico', '').strip()
+        if diagnostico:
+            data['diagnostico'] = diagnostico
+        acciones = request.POST.get('acciones', '').strip()
+        if acciones:
+            data['acciones'] = acciones
 
         if instance:
+            # Si cambia a CERRADO, registrar quién cerró
+            if data.get('estado') == 'CERRADO' and instance.estado != 'CERRADO':
+                data['cerrado_por'] = request.user
             for k, v in data.items(): setattr(instance, k, v)
             instance.save()
             aviso = instance
@@ -355,6 +369,7 @@ def mobile_crear_aviso(request, pk=None):
         
         fotos = request.FILES.getlist('fotos')
         descripciones = request.POST.getlist('descripciones[]')
+        foto_tipo = request.POST.get('foto_tipo', 'APERTURA')
         
         if fotos:
             if not aviso.foto:
@@ -362,7 +377,7 @@ def mobile_crear_aviso(request, pk=None):
                 aviso.save()
             for i, f in enumerate(fotos):
                 desc = descripciones[i] if i < len(descripciones) else ''
-                FotoAviso.objects.create(aviso=aviso, foto=f, descripcion=desc)
+                FotoAviso.objects.create(aviso=aviso, foto=f, descripcion=desc, tipo=foto_tipo)
         
         if activo: return redirect('activos:mobile_activo_detalle', pk=activo.id)
         return redirect('mantenimiento:mobile_aviso_detalle', pk=aviso.id)
@@ -766,6 +781,18 @@ def mobile_aviso_detalle(request, pk):
 
     return render(request, 'mantenimiento/mobile_aviso_detalle.html', {
         'aviso': aviso,
+    })
+
+@staff_member_required
+def aviso_fiori_view(request, pk):
+    """Vista Fiori para el detalle de Aviso (usada en modal desde el dashboard)."""
+    aviso = get_object_or_404(Aviso.objects.select_related(
+        'falla', 'activo__modelo__marca', 'activo__ubicacion', 'ubicacion', 'solicitante',
+        'responsable', 'departamento', 'proyecto'
+    ), pk=pk)
+    return render(request, 'mantenimiento/mobile_aviso_detalle.html', {
+        'aviso': aviso,
+        'iframe_mode': True,
     })
 
 @staff_member_required

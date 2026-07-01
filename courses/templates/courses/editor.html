@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if es_nuevo %}Crear Curso{% else %}Editar: {{ curso.titulo }}{% endif %}</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* ── Header ── */
+        .editor-header {
+            background: var(--sap-shell-bg); color: var(--sap-shell-color);
+            padding: 16px 32px; display: flex; align-items: center; gap: 20px;
+            position: sticky; top: 0; z-index: 50;
+        }
+        .editor-header h1 { font-size: 1.15rem; font-weight: 600; flex: 1; }
+        .editor-header .back { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.75); font-size: 0.85rem; padding: 6px 12px; border-radius: 4px; transition: all 0.15s; }
+        .editor-header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+        .header-actions { display: flex; gap: 8px; }
+
+        /* ── Container ── */
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px 16px 80px; }
+
+        /* ── Messages ── */
+        .messages { margin-bottom: 16px; }
+        .msg { padding: 12px 16px; border-radius: 4px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .msg.success { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+
+        /* ── Card ── */
+        .card {
+            background: var(--sap-card-bg); border: 1px solid var(--sap-border-color);
+            border-radius: 6px; box-shadow: var(--sap-card-shadow); margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 14px 20px; background: var(--sap-group-bg);
+            border-bottom: 1px solid var(--sap-border-color);
+            font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;
+        }
+        .card-body { padding: 20px; }
+
+        /* ── Form Fields ── */
+        .field-group { margin-bottom: 16px; }
+        .field-group:last-child { margin-bottom: 0; }
+        .field-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; color: var(--sap-text-color); }
+        .field-group .help { font-size: 0.75rem; color: var(--sap-text-muted); margin-top: 3px; }
+        .field-group input[type="text"],
+        .field-group input[type="number"],
+        .field-group textarea,
+        .field-group select {
+            width: 100%; padding: 8px 10px; border: 1px solid var(--sap-border-color);
+            border-radius: 4px; font-family: var(--sap-font-family); font-size: 0.9rem;
+            background: #fff; transition: border-color 0.15s;
+        }
+        .field-group input:focus,
+        .field-group textarea:focus,
+        .field-group select:focus { outline: none; border-color: var(--sap-brand-color); box-shadow: 0 0 0 2px rgba(0,112,242,0.15); }
+        .field-group input[type="file"] { padding: 6px 0; border: none; }
+        .field-group .errorlist { color: var(--sap-error); font-size: 0.78rem; list-style: none; margin-top: 3px; }
+        .field-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .field-row .field-group { flex: 1; min-width: 100px; }
+        .field-row .field-group.small { flex: 0 0 auto; }
+
+        /* ── Checkbox / Toggle ── */
+        .toggle-wrap { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+        .toggle-wrap input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--sap-brand-color); cursor: pointer; }
+
+        /* ── Image preview ── */
+        .img-preview { margin-top: 8px; }
+        .img-preview img { max-height: 100px; border-radius: 4px; border: 1px solid var(--sap-border-color); }
+
+        /* ── Secciones ── */
+        .secciones-list { display: flex; flex-direction: column; gap: 12px; }
+        .seccion-item {
+            background: #fff; border: 1px solid var(--sap-border-color); border-radius: 6px;
+            transition: box-shadow 0.15s, border-color 0.15s;
+        }
+        .seccion-item:hover { border-color: var(--sap-brand-color); }
+        .seccion-item.dragging { opacity: 0.5; border-style: dashed; }
+        .seccion-head {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; background: var(--sap-bg-color); border-bottom: 1px solid var(--sap-border-color);
+            border-radius: 6px 6px 0 0; cursor: move; user-select: none;
+        }
+        .seccion-head .drag-handle { color: var(--sap-text-muted); font-size: 1.1rem; cursor: grab; }
+        .seccion-head .seccion-order { font-weight: 700; color: var(--sap-brand-color); font-size: 0.85rem; min-width: 28px; }
+        .seccion-head .seccion-title-preview { flex: 1; font-weight: 600; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .seccion-head .seccion-title-preview.empty { color: var(--sap-text-muted); font-weight: 400; }
+        .seccion-head .delete-btn {
+            background: none; border: none; color: var(--sap-text-muted); cursor: pointer;
+            padding: 4px 8px; border-radius: 4px; font-size: 1.1rem; transition: all 0.15s;
+        }
+        .seccion-head .delete-btn:hover { background: var(--sap-error-bg); color: var(--sap-error); }
+        .seccion-body { padding: 16px; display: none; }
+        .seccion-body.open { display: block; }
+        .seccion-item .seccion-head { cursor: pointer; }
+        .seccion-item .drag-handle { cursor: grab; }
+
+        /* ── HTML Editor Split ── */
+        .html-split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--sap-border-color); border-radius: 4px; overflow: hidden; }
+        .html-split textarea { border: none; border-radius: 0; resize: vertical; min-height: 200px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; line-height: 1.6; padding: 10px; }
+        .html-split textarea:focus { box-shadow: none; }
+        .html-preview {
+            padding: 12px 14px; overflow-y: auto; min-height: 200px; max-height: 400px;
+            background: #fff; border-left: 1px solid var(--sap-border-color);
+            font-size: 0.9rem; line-height: 1.7; color: #334155;
+        }
+        .html-preview :first-child { margin-top: 0; }
+        .html-preview :last-child { margin-bottom: 0; }
+        .html-preview img { max-width: 100%; border-radius: 6px; margin: 8px 0; }
+        .html-preview iframe { max-width: 100%; border-radius: 6px; margin: 8px 0; aspect-ratio: 16/9; width: 100%; }
+        .html-preview video { max-width: 100%; border-radius: 6px; margin: 8px 0; }
+        .html-preview.empty { display: flex; align-items: center; justify-content: center; color: #94a3b8; font-style: italic; }
+        .html-preview-tabs { display: flex; gap: 0; margin-bottom: 4px; }
+        .html-preview-tabs button { padding: 4px 14px; font-size: 0.78rem; border: 1px solid var(--sap-border-color); background: var(--sap-bg-color); cursor: pointer; border-radius: 4px 4px 0 0; font-family: var(--sap-font-family); color: var(--sap-text-muted); transition: all 0.1s; }
+        .html-preview-tabs button.active { background: #fff; border-bottom-color: #fff; color: var(--sap-brand-color); font-weight: 600; }
+        .html-preview.edit-mode { cursor: text; outline: 2px dashed var(--sap-brand-color); outline-offset: -2px; min-height: 200px; }
+        .html-preview.edit-mode:focus { outline-color: var(--sap-success); }
+
+        /* ── Visual Toolbar ── */
+        .visual-toolbar { display: none; flex-wrap: wrap; gap: 2px; padding: 4px 6px; background: #f8fafc; border: 1px solid var(--sap-border-color); border-bottom: none; border-radius: 4px 4px 0 0; }
+        .visual-toolbar.show { display: flex; }
+        .visual-toolbar .tb-group { display: flex; gap: 1px; padding: 0 4px; border-right: 1px solid #e2e8f0; }
+        .visual-toolbar .tb-group:last-child { border-right: none; }
+        .visual-toolbar button { background: none; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.82rem; color: #475569; transition: all 0.1s; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .visual-toolbar button:hover { background: #e2e8f0; color: #0f172a; }
+        .visual-toolbar button.active { background: #dbeafe; color: #2563eb; }
+        .visual-toolbar button.tb-label { font-weight: 700; font-size: 0.7rem; padding: 4px 6px; }
+        .visual-toolbar input[type="file"] { display: none; }
+
+        /* ── Pages ── */
+        .paginas-section { margin-top: 16px; border-top: 1px dashed var(--sap-border-color); padding-top: 12px; }
+        .paginas-title { font-size: 0.82rem; font-weight: 700; color: var(--sap-text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .pagina-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 6px; overflow: hidden; }
+        .pagina-head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; font-size: 0.82rem; user-select: none; }
+        .pagina-head:hover { background: #f1f5f9; }
+        .pagina-order { font-weight: 700; color: var(--sap-brand-color); font-size: 0.78rem; min-width: 20px; }
+        .pagina-title { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pagina-badge { font-size: 0.65rem; padding: 1px 8px; border-radius: 8px; font-weight: 600; }
+        .pagina-badge.obligatorio { background: #dcfce7; color: #16a34a; }
+        .pagina-badge.opcional { background: #fef3c7; color: #d97706; }
+        .pagina-dur { font-size: 0.72rem; color: #94a3b8; white-space: nowrap; }
+        .pagina-btn { background: none; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 0.85rem; color: #94a3b8; transition: all 0.1s; }
+        .pagina-btn:hover { background: #e2e8f0; color: #475569; }
+        .pagina-btn.eliminar:hover { background: #fef2f2; color: #dc2626; }
+        .pagina-body { display: none; padding: 8px 12px 12px; border-top: 1px solid #f1f5f9; }
+        .pagina-body.open { display: block; }
+        .pagina-content { font-size: 0.82rem; color: #64748b; line-height: 1.6; }
+        .pagina-content img { max-width: 100%; border-radius: 4px; }
+        .paginas-empty { font-size: 0.8rem; color: #94a3b8; font-style: italic; padding: 6px 0; }
+        .pagina-edit-form { display: flex; flex-direction: column; gap: 8px; }
+        .pagina-edit-form input, .pagina-edit-form textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--sap-border-color); border-radius: 4px; font-size: 0.82rem; font-family: var(--sap-font-family); }
+        .pagina-edit-form textarea { min-height: 80px; font-family: Consolas, monospace; font-size: 0.78rem; resize: vertical; }
+        .pagina-edit-form .form-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .pagina-edit-form .form-row label { font-size: 0.78rem; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+        .pagina-actions { display: flex; gap: 6px; margin-top: 4px; }
+        .pagina-actions .btn-sm { padding: 4px 12px; font-size: 0.78rem; border-radius: 3px; border: none; cursor: pointer; font-weight: 600; }
+        .btn-sm-primary { background: var(--sap-brand-color); color: #fff; }
+        .btn-sm-primary:hover { background: var(--sap-highlight-color); }
+        .btn-sm-cancel { background: #e2e8f0; color: #475569; }
+        .btn-sm-cancel:hover { background: #cbd5e1; }
+        .btn-sm-danger { background: #dc2626; color: #fff; }
+        .btn-sm-danger:hover { background: #b91c1c; }
+
+        @media (max-width: 800px) {
+            .html-split { grid-template-columns: 1fr; }
+            .html-preview { border-left: none; border-top: 1px solid var(--sap-border-color); }
+        }
+
+        /* ── Add Section Button ── */
+        .add-section-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 14px; border: 2px dashed var(--sap-border-color); border-radius: 6px;
+            background: transparent; cursor: pointer; font-family: var(--sap-font-family);
+            font-size: 0.9rem; color: var(--sap-text-muted); transition: all 0.15s;
+            width: 100%;
+        }
+        .add-section-btn:hover { border-color: var(--sap-brand-color); color: var(--sap-brand-color); background: rgba(0,112,242,0.04); }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 9px 20px; border-radius: 4px; font-family: var(--sap-font-family);
+            font-size: 0.88rem; font-weight: 600; border: none; cursor: pointer;
+            transition: all 0.15s; text-decoration: none;
+        }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; }
+        .btn-primary:hover { background: var(--sap-highlight-color); }
+        .btn-secondary { background: var(--sap-neutral-bg); color: var(--sap-text-color); }
+        .btn-secondary:hover { background: #e4e4e4; }
+        .btn-success { background: var(--sap-success); color: #fff; }
+        .btn-success:hover { background: #0c6b32; }
+
+        .save-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--sap-card-bg); border-top: 1px solid var(--sap-border-color);
+            padding: 12px 32px; display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.06); z-index: 50;
+        }
+        .save-bar .status { flex: 1; font-size: 0.82rem; color: var(--sap-text-muted); }
+
+        /* ── Drag over states ── */
+        .seccion-item.drag-over { border-color: var(--sap-brand-color); box-shadow: 0 0 0 2px rgba(0,112,242,0.2); }
+        .drag-over-top { border-top: 2px solid var(--sap-brand-color) !important; }
+        .drag-over-bottom { border-bottom: 2px solid var(--sap-brand-color) !important; }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .editor-header { padding: 14px 16px; flex-wrap: wrap; }
+            .editor-header h1 { font-size: 1rem; min-width: 100%; order: -1; }
+            .container { padding: 16px 12px 100px; }
+            .card-body { padding: 14px; }
+            .field-row { flex-direction: column; }
+            .field-row .field-group { min-width: auto; }
+            .save-bar { padding: 12px 16px; flex-wrap: wrap; }
+            .seccion-head { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <div class="editor-header">
+        <a href="{% url 'courses:lista_admin' %}" class="back">← Gestión</a>
+        <h1>{% if es_nuevo %}Crear Nuevo Curso{% else %}Editando: {{ curso.titulo }}{% endif %}</h1>
+        {% if not es_nuevo %}
+        <a href="{% url 'courses:visualizar' curso.id %}" class="back" style="border:1px solid rgba(255,255,255,0.2);" target="_blank">👁 Vista Previa</a>
+        {% endif %}
+    </div>
+
+    <!-- ── Messages ── -->
+    {% if messages %}
+    <div class="container" style="padding-bottom:0;">
+        <div class="messages">
+            {% for msg in messages %}
+            <div class="msg {{ msg.tags }}">{{ msg }}</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" id="curso-form" action="{% if es_nuevo %}{% url 'courses:crear_curso' %}{% else %}{% url 'courses:editar_curso' curso.pk %}{% endif %}">
+        {% csrf_token %}
+        {{ formset.management_form }}
+
+        <div class="container">
+
+            <!-- ── Card: Información del Curso ── -->
+            <div class="card">
+                <div class="card-header">Información del Curso</div>
+                <div class="card-body">
+                    {% for field in form %}
+                    <div class="field-group">
+                        <label>{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+                        {% if field.errors %}<div class="errorlist">{{ field.errors }}</div>{% endif %}
+                        {% if field.name == 'imagen' and curso.imagen %}
+                        <div class="img-preview"><img src="{{ curso.imagen.url }}" alt="Preview" onerror="this.style.display='none'"></div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- ── Card: Secciones ── -->
+            <div class="card">
+                <div class="card-header">Secciones del Curso</div>
+                <div class="card-body">
+                    <div class="secciones-list" id="secciones-list">
+
+                        {% for seccion_form in formset %}
+                        {% with prefix=formset.prefix %}
+                        <div class="seccion-item" data-prefix="{{ prefix }}" data-index="{{ forloop.counter0 }}">
+                            <div class="seccion-head" onclick="toggleSeccion(this)">
+                                <span class="drag-handle" onmousedown="iniciarArrastre(event, this)">⠿</span>
+                                <span class="seccion-order">{{ forloop.counter }}</span>
+                                <span class="seccion-title-preview {% if not seccion_form.titulo.value %}empty{% endif %}" data-preview>
+                                    {% if seccion_form.titulo.value %}{{ seccion_form.titulo.value }}{% else %}Nueva sección...{% endif %}
+                                </span>
+                                <button type="button" class="delete-btn" onclick="eliminarSeccion(this)" title="Eliminar sección">✕</button>
+                            </div>
+                            <div class="seccion-body">
+                                {% for hidden in seccion_form.hidden_fields %}{{ hidden }}{% endfor %}
+                                <div class="field-row">
+                                    <div class="field-group small" style="max-width:80px;">
+                                        <label>Orden</label>
+                                        {{ seccion_form.orden }}
+                                    </div>
+                                    <div class="field-group">
+                                        <label>Título</label>
+                                        {{ seccion_form.titulo }}
+                                    </div>
+                                    <div class="field-group small" style="max-width:110px;">
+                                        <label>Duración (min)</label>
+                                        {{ seccion_form.duracion_minutos }}
+                                    </div>
+                                    <div class="field-group small" style="min-width:90px;">
+                                        <label>Obligatorio</label>
+                                        <div class="toggle-wrap">{{ seccion_form.obligatorio }}</div>
+                                    </div>
+                                    {% if seccion_form.DELETE %}
+                                    <div style="display:none;">{{ seccion_form.DELETE }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="field-group">
+                                    <label>Contenido HTML</label>
+                                    <div class="html-preview-tabs">
+                                        <button type="button" class="active" data-mode="source" onclick="cambiarModoPreview(this, 'source')">📝 Código</button>
+                                        <button type="button" data-mode="visual" onclick="cambiarModoPreview(this, 'visual')">🎨 Visual</button>
+                                    </div>
+                                    <div class="visual-toolbar" data-toolbar-for="{{ seccion_form.contenido_html.id_for_label }}">
+                                        <div class="tb-group">
+                                            <button onclick="tbCmd('bold')" title="Negrita"><b>B</b></button>
+                                            <button onclick="tbCmd('italic')" title="Cursiva"><i>I</i></button>
+                                            <button onclick="tbCmd('underline')" title="Subrayado"><u>U</u></button>
+                                            <button onclick="tbCmd('strikeThrough')" title="Tachado"><s>S</s></button>
+                                        </div>
+                                        <div class="tb-group">
+                                            <button class="tb-label" onclick="tbCmd('formatBlock','h2')">H1</button>
+                                            <button class="tb-label" onclick="tbCmd('formatBlock','h3')">H2</button>
+                                            <button class="tb-label" onclick="tbCmd('formatBlock','h4')">H3</button>
+                                        </div>
+                                        <div class="tb-group">
+                                            <button onclick="tbCmd('insertOrderedList')" title="Lista numerada">1.</button>
+                                            <button onclick="tbCmd('insertUnorderedList')" title="Lista con viñetas">•</button>
+                                        </div>
+                                        <div class="tb-group">
+                                            <button onclick="tbInsertImage('{{ seccion_form.contenido_html.id_for_label }}')" title="Insertar imagen">🖼</button>
+                                            <button onclick="tbInsertVideo('{{ seccion_form.contenido_html.id_for_label }}')" title="Insertar video">▶</button>
+                                            <button onclick="tbCmd('createLink')" title="Insertar enlace">🔗</button>
+                                        </div>
+                                        <div class="tb-group">
+                                            <button onclick="tbCmd('insertHorizontalRule')" title="Línea horizontal">―</button>
+                                            <button onclick="tbCmd('removeFormat')" title="Limpiar formato">✖</button>
+                                        </div>
+                                    </div>
+                                    <div class="html-split">
+                                        {{ seccion_form.contenido_html }}
+                                        <div class="html-preview empty" data-preview-for="{{ seccion_form.contenido_html.id_for_label }}">🪞 Vista previa en vivo</div>
+                                    </div>
+                                    <div class="help">HTML, imágenes (&lt;img&gt;), videos (&lt;iframe&gt;)</div>
+                                </div>
+
+                                <!-- ── Pages ── -->
+                                <div class="paginas-section">
+                                    <div class="paginas-title">📄 Páginas de esta sección</div>
+                                    <div class="paginas-list" data-seccion-id="{{ seccion_form.instance.id|default:'' }}" data-curso-id="{{ curso.id|default:'' }}">
+                                        {% if seccion_form.instance.id %}
+                                        {% with paginas=seccion_form.instance.paginas.all %}
+                                        {% include 'courses/_paginas_list.html' %}
+                                        {% endwith %}
+                                        {% else %}
+                                        <div class="paginas-empty">Guarda la sección primero para agregar páginas.</div>
+                                        {% endif %}
+                                    </div>
+                                    {% if seccion_form.instance.id %}
+                                    <button type="button" class="add-section-btn" style="padding:8px;font-size:0.82rem;margin-top:6px;" onclick="agregarPagina({{ seccion_form.instance.id }},{{ curso.id }})">+ Agregar Página</button>
+                                    {% endif %}
+                                </div>
+
+                            </div>
+                        </div>
+                        {% endwith %}
+                        {% endfor %}
+
+                    </div>
+
+                    <button type="button" class="add-section-btn" onclick="agregarSeccion()">
+                        + Agregar Sección
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ── Save Bar ── -->
+        <div class="save-bar">
+            <div class="status" id="save-status">{% if formset.total_form_count > 0 %}{{ formset.total_form_count }} sección(es){% else %}Sin secciones{% endif %}</div>
+            <a href="{% url 'courses:lista_admin' %}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-success">Guardar Curso</button>
+        </div>
+
+    </form>
+
+    <!-- ── Empty form template (hidden) ── -->
+    <div id="empty-form-template" style="display:none;">
+        <div class="seccion-item" data-prefix="{{ formset.prefix }}" data-index="__prefix__">
+            <div class="seccion-head" onclick="toggleSeccion(this)">
+                <span class="drag-handle" onmousedown="iniciarArrastre(event, this)">⠿</span>
+                <span class="seccion-order">0</span>
+                <span class="seccion-title-preview empty" data-preview>Nueva sección...</span>
+                <button type="button" class="delete-btn" onclick="eliminarSeccion(this)" title="Eliminar sección">✕</button>
+            </div>
+            <div class="seccion-body open">
+                {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                <div class="field-row">
+                    <div class="field-group small" style="max-width:80px;">
+                        <label>Orden</label>
+                        {{ formset.empty_form.orden }}
+                    </div>
+                    <div class="field-group">
+                        <label>Título</label>
+                        {{ formset.empty_form.titulo }}
+                    </div>
+                    <div class="field-group small" style="max-width:110px;">
+                        <label>Duración (min)</label>
+                        {{ formset.empty_form.duracion_minutos }}
+                    </div>
+                    <div class="field-group small" style="min-width:90px;">
+                        <label>Obligatorio</label>
+                        <div class="toggle-wrap">{{ formset.empty_form.obligatorio }}</div>
+                    </div>
+                    <div style="display:none;">{{ formset.empty_form.DELETE }}</div>
+                </div>
+                <div class="field-group">
+                    <label>Contenido HTML</label>
+                    <div class="html-preview-tabs">
+                        <button type="button" class="active" data-mode="source" onclick="cambiarModoPreview(this, 'source')">📝 Código</button>
+                        <button type="button" data-mode="visual" onclick="cambiarModoPreview(this, 'visual')">🎨 Visual</button>
+                    </div>
+                    <div class="visual-toolbar" data-toolbar-for="id_{{ formset.prefix }}-__prefix__-contenido_html">
+                        <div class="tb-group">
+                            <button onclick="tbCmd('bold')" title="Negrita"><b>B</b></button>
+                            <button onclick="tbCmd('italic')" title="Cursiva"><i>I</i></button>
+                            <button onclick="tbCmd('underline')" title="Subrayado"><u>U</u></button>
+                            <button onclick="tbCmd('strikeThrough')" title="Tachado"><s>S</s></button>
+                        </div>
+                        <div class="tb-group">
+                            <button class="tb-label" onclick="tbCmd('formatBlock','h2')">H1</button>
+                            <button class="tb-label" onclick="tbCmd('formatBlock','h3')">H2</button>
+                            <button class="tb-label" onclick="tbCmd('formatBlock','h4')">H3</button>
+                        </div>
+                        <div class="tb-group">
+                            <button onclick="tbCmd('insertOrderedList')" title="Lista numerada">1.</button>
+                            <button onclick="tbCmd('insertUnorderedList')" title="Lista con viñetas">•</button>
+                        </div>
+                        <div class="tb-group">
+                            <button onclick="tbInsertImage('id_{{ formset.prefix }}-__prefix__-contenido_html')" title="Insertar imagen">🖼</button>
+                            <button onclick="tbInsertVideo('id_{{ formset.prefix }}-__prefix__-contenido_html')" title="Insertar video">▶</button>
+                            <button onclick="tbCmd('createLink')" title="Insertar enlace">🔗</button>
+                        </div>
+                        <div class="tb-group">
+                            <button onclick="tbCmd('insertHorizontalRule')" title="Línea horizontal">―</button>
+                            <button onclick="tbCmd('removeFormat')" title="Limpiar formato">✖</button>
+                        </div>
+                    </div>
+                    <div class="html-split">
+                        {{ formset.empty_form.contenido_html }}
+                        <div class="html-preview empty" data-preview-for="id_{{ formset.prefix }}-__prefix__-contenido_html">🪞 Vista previa en vivo</div>
+                    </div>
+                    <div class="help">HTML, imágenes (&lt;img&gt;), videos (&lt;iframe&gt;)</div>
+                </div>
+
+                <!-- ── Pages (will be populated after save) ── -->
+                <div class="paginas-section">
+                    <div class="paginas-title">📄 Páginas de esta sección</div>
+                    <div class="paginas-list" data-seccion-id="" data-curso-id="">
+                        <div class="paginas-empty">Guarda la sección primero para agregar páginas.</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="image-upload-input" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
+
+    <script>
+        const PREFIX = '{{ formset.prefix }}';
+        let activeToolbarTextareaId = null;
+
+        // ── Toggle section body ──
+        function toggleSeccion(head) {
+            if (event.target.closest('.delete-btn') || event.target.closest('.drag-handle')) return;
+            const body = head.nextElementSibling;
+            if (!body) return;
+            body.classList.toggle('open');
+        }
+
+        // ── Add section ──
+        function agregarSeccion() {
+            const container = document.getElementById('secciones-list');
+            const template = document.getElementById('empty-form-template');
+            const totalInput = document.getElementById('id_' + PREFIX + '-TOTAL_FORMS');
+            const count = parseInt(totalInput.value);
+
+            let html = template.innerHTML;
+            html = html.replace(/__prefix__/g, count);
+
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            const item = div.firstElementChild;
+            item.dataset.index = count;
+            container.appendChild(item);
+
+            totalInput.value = count + 1;
+            actualizarOrdenes();
+            actualizarStatus();
+            const ta = item.querySelector('textarea[name$="-contenido_html"]');
+            if (ta) actualizarPreview(ta);
+        }
+
+        // ── Delete section ──
+        function eliminarSeccion(btn) {
+            const item = btn.closest('.seccion-item');
+            const deleteInput = item.querySelector('input[name$="-DELETE"]');
+            if (deleteInput) {
+                deleteInput.checked = true;
+                deleteInput.value = 'on';
+            }
+            item.style.display = 'none';
+            item.querySelector('.seccion-body').classList.remove('open');
+            actualizarOrdenes();
+            actualizarStatus();
+        }
+
+        // ── Update order numbers ──
+        function actualizarOrdenes() {
+            const items = document.querySelectorAll('#secciones-list .seccion-item');
+            let visibleIdx = 0;
+            items.forEach((item, i) => {
+                if (item.style.display === 'none') return;
+                visibleIdx++;
+                const orderEl = item.querySelector('.seccion-order');
+                if (orderEl) orderEl.textContent = visibleIdx;
+                const orderInput = item.querySelector('input[name$="-orden"]');
+                if (orderInput) orderInput.value = visibleIdx;
+                const titleInput = item.querySelector('input[name$="-titulo"]');
+                const preview = item.querySelector('[data-preview]');
+                if (preview && titleInput) {
+                    preview.textContent = titleInput.value || 'Nueva sección...';
+                    preview.classList.toggle('empty', !titleInput.value);
+                }
+            });
+        }
+
+        // ── Status bar ──
+        function actualizarStatus() {
+            const visible = document.querySelectorAll('#secciones-list .seccion-item:not([style*="display: none"])');
+            const status = document.getElementById('save-status');
+            status.textContent = visible.length + ' sección(es)';
+        }
+
+        // ── Live title preview ──
+        document.addEventListener('input', function(e) {
+            if (e.target.matches('input[name$="-titulo"]')) {
+                const item = e.target.closest('.seccion-item');
+                if (!item) return;
+                const preview = item.querySelector('[data-preview]');
+                if (preview) {
+                    preview.textContent = e.target.value || 'Nueva sección...';
+                    preview.classList.toggle('empty', !e.target.value);
+                }
+            }
+        });
+
+        // ── Drag & Drop Reorder ──
+        let dragItem = null;
+        let dragHandle = null;
+
+        function iniciarArrastre(e, handle) {
+            e.stopPropagation();
+            dragHandle = handle;
+            dragItem = handle.closest('.seccion-item');
+            document.addEventListener('mousemove', onDragMove);
+            document.addEventListener('mouseup', onDragEnd);
+            dragItem.classList.add('dragging');
+        }
+
+        function onDragMove(e) {
+            if (!dragItem) return;
+            const items = [...document.querySelectorAll('#secciones-list .seccion-item')].filter(el => el.style.display !== 'none');
+            const container = document.getElementById('secciones-list');
+            const rect = container.getBoundingClientRect();
+            const y = e.clientY;
+            items.forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+            for (let i = 0; i < items.length; i++) {
+                if (items[i] === dragItem) continue;
+                const r = items[i].getBoundingClientRect();
+                const mid = r.top + r.height / 2;
+                if (y < mid) {
+                    items[i].classList.add('drag-over-top');
+                    break;
+                } else if (y < r.bottom) {
+                    items[i].classList.add('drag-over-bottom');
+                }
+            }
+        }
+
+        function onDragEnd(e) {
+            document.removeEventListener('mousemove', onDragMove);
+            document.removeEventListener('mouseup', onDragEnd);
+            if (!dragItem) return;
+            dragItem.classList.remove('dragging');
+            document.querySelectorAll('.seccion-item').forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+            const container = document.getElementById('secciones-list');
+            const items = [...container.querySelectorAll('.seccion-item')].filter(el => el.style.display !== 'none');
+            let targetIndex = -1;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i] === dragItem) continue;
+                const r = items[i].getBoundingClientRect();
+                const mid = r.top + r.height / 2;
+                if (e.clientY < mid) {
+                    targetIndex = i;
+                    break;
+                } else {
+                    targetIndex = i + 1;
+                }
+            }
+            if (targetIndex >= 0 && targetIndex < items.length) {
+                if (items[targetIndex] !== dragItem) {
+                    container.insertBefore(dragItem, items[targetIndex]);
+                }
+            } else if (targetIndex >= items.length) {
+                container.appendChild(dragItem);
+            }
+            actualizarOrdenes();
+            dragItem = null;
+            dragHandle = null;
+        }
+
+        // ── Toolbar commands ──
+        function tbCmd(cmd, val) {
+            const sel = window.getSelection();
+            if (!sel.rangeCount) return;
+            const preview = sel.anchorNode?.closest('.html-preview.edit-mode');
+            if (!preview) return;
+            preview.focus();
+            document.execCommand(cmd, false, val || null);
+            preview.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        function tbInsertImage(textareaId) {
+            activeToolbarTextareaId = textareaId;
+            const sel = window.getSelection();
+            const preview = sel.anchorNode?.closest('.html-preview.edit-mode');
+            const url = prompt('URL de la imagen (o dejar vacío para subir archivo):');
+            if (url) {
+                preview.focus();
+                document.execCommand('insertImage', false, url);
+                preview.dispatchEvent(new Event('input', { bubbles: true }));
+            } else {
+                document.getElementById('image-upload-input').click();
+            }
+        }
+
+        function handleImageUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            fetch('{% url "courses:upload_image" %}', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.url) {
+                        const preview = document.querySelector(`#${activeToolbarTextareaId}`)
+                            ?.closest('.field-group')
+                            ?.querySelector('.html-preview.edit-mode');
+                        if (preview) {
+                            preview.focus();
+                            document.execCommand('insertImage', false, data.url);
+                            preview.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    }
+                })
+                .catch(e => alert('Error al subir imagen: ' + e.message))
+                .finally(() => { input.value = ''; });
+        }
+
+        function tbInsertVideo(textareaId) {
+            const sel = window.getSelection();
+            const preview = sel.anchorNode?.closest('.html-preview.edit-mode');
+            const url = prompt('URL del video (YouTube, Vimeo, etc.):');
+            if (!url) return;
+            let embed = '';
+            const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+            if (ytMatch) {
+                embed = `<iframe width="560" height="315" src="https://www.youtube.com/embed/${ytMatch[1]}" frameborder="0" allowfullscreen></iframe>`;
+            } else {
+                embed = `<iframe src="${url}" frameborder="0" allowfullscreen style="width:100%;aspect-ratio:16/9;"></iframe>`;
+            }
+            preview.focus();
+            document.execCommand('insertHTML', false, embed);
+            preview.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // ── Modo Visual / Código ──
+        function cambiarModoPreview(btn, mode) {
+            const tabs = btn.closest('.html-preview-tabs');
+            tabs.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const fieldGroup = btn.closest('.field-group');
+            const split = fieldGroup.querySelector('.html-split');
+            const textarea = split.querySelector('textarea');
+            const preview = split.querySelector('.html-preview');
+            const toolbar = fieldGroup.querySelector('.visual-toolbar');
+
+            if (mode === 'visual') {
+                split.style.gridTemplateColumns = '1fr';
+                textarea.style.display = 'none';
+                const html = textarea.value.trim() || '<p style="color:#94a3b8;">Empezá a escribir aquí...</p>';
+                preview.innerHTML = html;
+                preview.classList.remove('empty');
+                preview.contentEditable = true;
+                preview.classList.add('edit-mode');
+                toolbar?.classList.add('show');
+                preview.focus();
+            } else {
+                split.style.gridTemplateColumns = '';
+                preview.contentEditable = false;
+                preview.classList.remove('edit-mode');
+                toolbar?.classList.remove('show');
+                textarea.style.display = '';
+                const previewHtml = preview.innerHTML;
+                const textareaVal = textarea.value || '';
+                if (previewHtml !== textareaVal && previewHtml !== '<p style="color:#94a3b8;">Empezá a escribir aquí...</p>') {
+                    textarea.value = previewHtml;
+                }
+                actualizarPreview(textarea);
+            }
+        }
+
+        // Sync contenteditable preview back to textarea on input
+        document.addEventListener('input', function(e) {
+            if (e.target.matches('.html-preview.edit-mode')) {
+                const split = e.target.closest('.html-split');
+                if (!split) return;
+                const textarea = split.querySelector('textarea');
+                if (textarea) {
+                    textarea.value = e.target.innerHTML;
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+        });
+
+        // ── Live HTML Preview (source mode) ──
+        function actualizarPreview(textarea) {
+            const preview = document.querySelector(`[data-preview-for="${textarea.id}"]`);
+            if (!preview) return;
+            if (preview.contentEditable === 'true') return;
+            const val = textarea.value.trim();
+            if (val) {
+                preview.innerHTML = val;
+                preview.classList.remove('empty');
+            } else {
+                preview.innerHTML = '🪞 Vista previa en vivo';
+                preview.classList.add('empty');
+            }
+        }
+
+        document.addEventListener('input', function(e) {
+            if (e.target.matches('textarea[name$="-contenido_html"]')) {
+                actualizarPreview(e.target);
+            }
+        });
+
+        // ── Page Management ──
+        function togglePagina(head) {
+            const body = head.nextElementSibling;
+            if (body) body.classList.toggle('open');
+        }
+
+        function agregarPagina(seccionId, cursoId) {
+            const list = document.querySelector(`.paginas-list[data-seccion-id="${seccionId}"]`);
+            if (!list) return;
+            // Show inline form
+            const form = document.createElement('div');
+            form.className = 'pagina-item';
+            form.innerHTML = `
+                <div class="pagina-head" style="background:#eef2ff;">
+                    <span class="pagina-order">+</span>
+                    <span class="pagina-title" style="font-style:italic;">Nueva página</span>
+                </div>
+                <div class="pagina-body open">
+                    <div class="pagina-edit-form">
+                        <input class="pag-edit-titulo" placeholder="Título de la página" value="">
+                        <textarea class="pag-edit-contenido" placeholder="Contenido HTML..."></textarea>
+                        <div class="form-row">
+                            <input class="pag-edit-duracion" type="number" value="0" min="0" style="width:80px;">
+                            <label><input class="pag-edit-obligatorio" type="checkbox" checked> Obligatorio</label>
+                        </div>
+                        <div class="pagina-actions">
+                            <button class="btn-sm btn-sm-primary" onclick="guardarPagina(this,${seccionId},${cursoId})">Guardar</button>
+                            <button class="btn-sm btn-sm-cancel" onclick="this.closest('.pagina-item').remove()">Cancelar</button>
+                        </div>
+                    </div>
+                </div>`;
+            list.appendChild(form);
+            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function guardarPagina(btn, seccionId, cursoId) {
+            const item = btn.closest('.pagina-item');
+            const fd = new FormData();
+            fd.append('action', 'crear');
+            fd.append('titulo', item.querySelector('.pag-edit-titulo').value);
+            fd.append('contenido_html', item.querySelector('.pag-edit-contenido').value);
+            fd.append('duracion_minutos', item.querySelector('.pag-edit-duracion').value || '0');
+            fd.append('obligatorio', item.querySelector('.pag-edit-obligatorio').checked ? 'on' : '');
+            fetch(`/courses/admin/${cursoId}/seccion/${seccionId}/pagina/`, {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+            })
+            .then(r => r.text())
+            .then(html => {
+                const list = document.querySelector(`.paginas-list[data-seccion-id="${seccionId}"]`);
+                if (list) list.innerHTML = html;
+                // Re-add the add button if missing
+                const section = list?.closest('.paginas-section');
+                let addBtn = section?.querySelector('.add-section-btn');
+                if (!addBtn && section) {
+                    const btn2 = document.createElement('button');
+                    btn2.type = 'button';
+                    btn2.className = 'add-section-btn';
+                    btn2.style.cssText = 'padding:8px;font-size:0.82rem;margin-top:6px;';
+                    btn2.textContent = '+ Agregar Página';
+                    btn2.onclick = () => agregarPagina(seccionId, cursoId);
+                    section.appendChild(btn2);
+                }
+            })
+            .catch(e => alert('Error: ' + e.message));
+        }
+
+        function editarPagina(paginaId, seccionId) {
+            const item = document.querySelector(`.pagina-item[data-pagina-id="${paginaId}"]`);
+            if (!item) return;
+            const list = item.closest('.paginas-list');
+            const cursoId = list?.dataset.cursoId;
+            const body = item.querySelector('.pagina-body');
+            if (body && body.classList.contains('open') && body.querySelector('.pagina-edit-form')) return;
+            fetch(`/courses/admin/${cursoId}/seccion/${seccionId}/pagina/${paginaId}/`)
+            .then(r => r.json())
+            .then(data => {
+                body.innerHTML = `
+                    <div class="pagina-edit-form">
+                        <input class="pag-edit-titulo" placeholder="Título" value="${data.titulo.replace(/"/g,'&quot;')}">
+                        <textarea class="pag-edit-contenido" placeholder="Contenido HTML...">${data.contenido_html.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+                        <div class="form-row">
+                            <input class="pag-edit-duracion" type="number" value="${data.duracion_minutos}" min="0" style="width:80px;">
+                            <label><input class="pag-edit-obligatorio" type="checkbox" ${data.obligatorio?'checked':''}> Obligatorio</label>
+                        </div>
+                        <div class="pagina-actions">
+                            <button class="btn-sm btn-sm-primary" onclick="actualizarPagina(this,${paginaId},${seccionId})">Guardar</button>
+                            <button class="btn-sm btn-sm-cancel" onclick="cancelarEdicionPagina(this,${paginaId})">Cancelar</button>
+                        </div>
+                    </div>`;
+                body.classList.add('open');
+            })
+            .catch(e => alert('Error: ' + e.message));
+        }
+
+        function cancelarEdicionPagina(btn, paginaId) {
+            const item = btn.closest('.pagina-item[data-pagina-id]');
+            const body = item?.querySelector('.pagina-body');
+            if (body) {
+                body.innerHTML = '<div class="pagina-content">Contenido</div>';
+                body.classList.remove('open');
+            }
+        }
+
+        function actualizarPagina(btn, paginaId, seccionId) {
+            const item = btn.closest('.pagina-item');
+            const list = item.closest('.paginas-list');
+            const cursoId = list?.dataset.cursoId;
+            const fd = new FormData();
+            fd.append('action', 'editar');
+            fd.append('titulo', item.querySelector('.pag-edit-titulo').value);
+            fd.append('contenido_html', item.querySelector('.pag-edit-contenido').value);
+            fd.append('duracion_minutos', item.querySelector('.pag-edit-duracion').value || '0');
+            fd.append('obligatorio', item.querySelector('.pag-edit-obligatorio').checked ? 'on' : '');
+            fetch(`/courses/admin/${cursoId}/seccion/${seccionId}/pagina/${paginaId}/`, {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+            })
+            .then(r => r.text())
+            .then(html => {
+                if (list) list.innerHTML = html;
+            })
+            .catch(e => alert('Error: ' + e.message));
+        }
+
+        function eliminarPagina(paginaId, seccionId) {
+            if (!confirm('¿Eliminar esta página?')) return;
+            const item = document.querySelector(`.pagina-item[data-pagina-id="${paginaId}"]`);
+            const list = item?.closest('.paginas-list');
+            const cursoId = list?.dataset.cursoId;
+            const fd = new FormData();
+            fd.append('action', 'eliminar');
+            fetch(`/courses/admin/${cursoId}/seccion/${seccionId}/pagina/${paginaId}/`, {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok && list) {
+                    fetch(`/courses/admin/${cursoId}/seccion/${seccionId}/pagina/`)
+                    .then(r => r.text())
+                    .then(html => { list.innerHTML = html; });
+                }
+            })
+            .catch(e => alert('Error: ' + e.message));
+        }
+
+        // ── Init ──
+        document.addEventListener('DOMContentLoaded', function() {
+            actualizarOrdenes();
+            document.querySelectorAll('textarea[name$="-contenido_html"]').forEach(el => actualizarPreview(el));
+        });
+    </script>
+</body>
+</html>

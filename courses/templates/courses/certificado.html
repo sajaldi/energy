@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificado — {{ curso.titulo }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', 'Georgia', serif;
+            background: #f0f2f5;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; padding: 40px 20px;
+        }
+        .cert-wrap {
+            max-width: 900px; width: 100%;
+            background: #fff; border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            overflow: hidden;
+            position: relative;
+        }
+        .cert-border {
+            margin: 12px; border: 3px double #cba135;
+            border-radius: 10px; padding: 48px 48px 40px;
+            position: relative; background: #fffcf8;
+        }
+        .cert-seal {
+            position: absolute; top: 24px; right: 36px;
+            width: 90px; height: 90px; border-radius: 50%;
+            border: 3px solid #cba135; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 2.5rem; background: #fef7e6; color: #cba135;
+            transform: rotate(-12deg); font-weight: 900;
+        }
+        .cert-header { text-align: center; margin-bottom: 32px; }
+        .cert-header .subtitle { font-size: 0.85rem; color: #cba135; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px; }
+        .cert-header h1 { font-family: 'Playfair Display', serif; font-size: 2.5rem; font-weight: 900; color: #1e293b; letter-spacing: 1px; }
+        .cert-header .divider { width: 80px; height: 2px; background: #cba135; margin: 12px auto; }
+        .cert-body { text-align: center; }
+        .cert-body .otorgado { font-size: 0.9rem; color: #64748b; margin-bottom: 4px; }
+        .cert-body .nombre { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+        .cert-body .completo { font-size: 0.9rem; color: #64748b; margin-bottom: 12px; }
+        .cert-body .curso-nombre { font-size: 1.3rem; font-weight: 700; color: #cba135; margin-bottom: 16px; }
+        .cert-body .desc { font-size: 0.85rem; color: #94a3b8; max-width: 500px; margin: 0 auto 20px; line-height: 1.6; }
+        .cert-meta { display: flex; justify-content: center; gap: 40px; margin-top: 24px; font-size: 0.82rem; color: #64748b; }
+        .cert-meta span { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .cert-meta strong { font-size: 0.9rem; color: #1e293b; }
+        .cert-footer { display: flex; justify-content: space-between; align-items: end; margin-top: 36px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+        .cert-footer .firma { text-align: center; min-width: 160px; }
+        .cert-footer .firma .line { width: 100%; height: 1px; background: #1e293b; margin-bottom: 4px; }
+        .cert-footer .firma .label { font-size: 0.75rem; color: #94a3b8; }
+        .cert-footer .codigo { font-size: 0.7rem; color: #94a3b8; font-family: monospace; }
+        .actions { text-align: center; margin-top: 20px; padding: 0 12px 20px; }
+        .actions .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 600; border: none; cursor: pointer; text-decoration: none; transition: all 0.15s; }
+        .actions .btn-primary { background: #1e293b; color: #fff; }
+        .actions .btn-primary:hover { background: #0f172a; }
+        .actions .btn-secondary { background: #e2e8f0; color: #1e293b; margin-left: 10px; }
+        .actions .btn-secondary:hover { background: #cbd5e1; }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .cert-wrap { box-shadow: none; max-width: 100%; border-radius: 0; }
+            .actions { display: none; }
+            .cert-seal { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .cert-border { border-color: #cba135; }
+        }
+        @media (max-width: 640px) {
+            .cert-border { padding: 28px 20px; }
+            .cert-header h1 { font-size: 1.6rem; }
+            .cert-body .nombre { font-size: 1.3rem; }
+            .cert-body .curso-nombre { font-size: 1rem; }
+            .cert-seal { width: 60px; height: 60px; font-size: 1.6rem; top: 14px; right: 16px; }
+            .cert-meta { flex-direction: column; gap: 12px; }
+            .cert-footer { flex-direction: column; align-items: center; gap: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="cert-wrap">
+            <div class="cert-border">
+                <div class="cert-seal">★</div>
+
+                <div class="cert-header">
+                    <div class="subtitle">Certificado de Finalización</div>
+                    <h1>CERTIFICADO</h1>
+                    <div class="divider"></div>
+                </div>
+
+                <div class="cert-body">
+                    <p class="otorgado">Este certificado se otorga a</p>
+                    <p class="nombre">{{ usuario.get_full_name|default:usuario.username }}</p>
+                    <p class="completo">por haber completado satisfactoriamente el curso</p>
+                    <p class="curso-nombre">{{ curso.titulo }}</p>
+                    {% if curso.descripcion %}
+                    <p class="desc">{{ curso.descripcion }}</p>
+                    {% endif %}
+                    <div class="cert-meta">
+                        <span>Duración<strong>{{ curso.duracion_estimada }} min</strong></span>
+                        <span>Secciones<strong>{{ completadas }}/{{ total }}</strong></span>
+                        <span>Fecha<strong>{{ fecha|date:'d F Y' }}</strong></span>
+                    </div>
+                </div>
+
+                <div class="cert-footer">
+                    <div class="firma">
+                        <div class="line"></div>
+                        <div class="label">Firma del Instructor</div>
+                    </div>
+                    <div class="codigo">#CERT-{{ curso.id }}-{{ usuario.id }}-{{ fecha|date:'Ymd' }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir / PDF</button>
+            <a href="{% url 'courses:detalle' curso.id %}" class="btn btn-secondary">← Volver al curso</a>
+        </div>
+    </div>
+</body>
+</html>

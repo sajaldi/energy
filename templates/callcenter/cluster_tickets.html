@@ -202,6 +202,17 @@
                                    style="padding: 0 12px 0 35px; height: 40px; border: 1px solid var(--sap-border); border-radius: 8px; font-size: 0.875rem; width: 100%; outline: none; background: white; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
                         </div>
 
+                        <!-- Folio Filter (Ultradinámico) -->
+                        <div style="position: relative; min-width: 220px;">
+                            <i class="ph ph-hash" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6366f1; font-size: 1.1rem;"></i>
+                            <input type="text" id="folio-filter-input" placeholder="Folios exactos (separados por coma o espacio)" 
+                                   style="padding: 0 12px 0 38px; height: 40px; border: 1.5px solid #c7d2fe; border-radius: 8px; font-size: 0.875rem; width: 100%; outline: none; background: #f8faff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.04); transition: border-color 0.15s; box-sizing: border-box;"
+                                   onfocus="this.style.borderColor='#6366f1'; this.style.background='#fff'"
+                                   onblur="this.style.borderColor='#c7d2fe'; this.style.background='#f8faff'"
+                                   oninput="filterByFolios(this.value)">
+                            <div id="folio-count" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; color: #6366f1; font-weight: 700; background: #eef2ff; padding: 2px 8px; border-radius: 10px; pointer-events: none; display: none;"></div>
+                        </div>
+
                         <!-- Dropdowns Group -->
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <!-- Status Filter -->
@@ -423,6 +434,7 @@
                         {% for t in group.list %}
                         <tr class="ticket-row group-row group-{{ forloop.parentloop.counter }}" 
                             data-ticket-id="{{ t.id_unlocalized }}"
+                            data-folio="{{ t.folio|default:t.id_solicitud }}"
                             style="{% if q %}display: table-row;{% else %}display: none;{% endif %}">
                             <td style="font-weight: 700;">
                                 <a href="#" class="ticket-detail-link" 
@@ -677,6 +689,7 @@
                     <button class="tm-tab" data-panel="tm-panel-tecnico" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-wrench"></i> Seguimiento Técnico</button>
                     <button class="tm-tab" data-panel="tm-panel-financiero" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-currency-dollar"></i> Financiero</button>
                     <button id="tm-tab-tiempos" class="tm-tab" data-panel="tm-panel-tiempos" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-calendar-check"></i> Tiempos Acordados <span id="tm-tiempos-badge" style="background: #0078d4; color: white; border-radius: 10px; padding: 1px 7px; font-size: 0.7rem; display: none;"></span></button>
+                    <button class="tm-tab" data-panel="tm-panel-historial" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-clock-counter-clockwise"></i> Historial</button>
                 </div>
 
                 <!-- Panels -->
@@ -781,6 +794,16 @@
                         <div id="tm-tiempos-empty" style="display: none; text-align: center; padding: 32px; color: #94a3b8;">
                             <i class="ph ph-calendar" style="font-size: 2rem; display: block; margin-bottom: 8px;"></i>
                             Sin tiempos acordados registrados.
+                        </div>
+                    </div>
+
+                    <!-- Panel: Historial -->
+                    <div id="tm-panel-historial" class="tm-panel" style="display: none;">
+                        <div class="historial-timeline" id="tm-historial-list">
+                            <div style="text-align: center; padding: 32px; color: #94a3b8;">
+                                <i class="ph ph-spinner" style="font-size: 1.5rem; display: block; margin-bottom: 8px; animation: spin 0.8s linear infinite;"></i>
+                                Cargando historial...
+                            </div>
                         </div>
                     </div>
 
@@ -918,6 +941,37 @@
         .tm-edit-textarea { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #1e293b; background: #fff; box-sizing: border-box; resize: vertical; transition: border-color 0.15s, box-shadow 0.15s; outline: none; font-family: inherit; line-height: 1.6; }
         .tm-edit-textarea:focus { border-color: #0078d4; box-shadow: 0 0 0 3px rgba(0,120,212,0.1); }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        /* Timeline */
+        .historial-timeline { position: relative; padding: 0; }
+        .historial-timeline::before {
+            content: ''; position: absolute; left: 20px; top: 8px; bottom: 8px;
+            width: 2px; background: #e2e8f0; border-radius: 2px;
+        }
+        .ht-item { position: relative; padding: 0 0 20px 52px; }
+        .ht-item:last-child { padding-bottom: 0; }
+        .ht-dot {
+            position: absolute; left: 12px; top: 4px; width: 18px; height: 18px;
+            border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 0 0 2px #cbd5e1, 0 2px 4px rgba(0,0,0,0.06);
+            display: flex; align-items: center; justify-content: center; font-size: 0.55rem; color: #fff;
+        }
+        .ht-dot.created { background: #0078d4; box-shadow: 0 0 0 2px #0078d4, 0 2px 4px rgba(0,120,212,0.2); }
+        .ht-dot.diagnostico { background: #16a34a; box-shadow: 0 0 0 2px #16a34a, 0 2px 4px rgba(22,163,74,0.2); }
+        .ht-dot.cierre_fecha { background: #ea580c; box-shadow: 0 0 0 2px #ea580c, 0 2px 4px rgba(234,88,12,0.2); }
+        .ht-dot.correo_cierre { background: #7c3aed; box-shadow: 0 0 0 2px #7c3aed, 0 2px 4px rgba(124,58,237,0.2); }
+        .ht-dot.sig_sync { background: #0891b2; box-shadow: 0 0 0 2px #0891b2, 0 2px 4px rgba(8,145,178,0.2); }
+        .ht-dot.sig_error { background: #dc2626; box-shadow: 0 0 0 2px #dc2626, 0 2px 4px rgba(220,38,38,0.2); }
+        .ht-dot.deductiva { background: #d97706; box-shadow: 0 0 0 2px #d97706, 0 2px 4px rgba(217,119,6,0.2); }
+        .ht-dot.reasignado { background: #0891b2; box-shadow: 0 0 0 2px #0891b2, 0 2px 4px rgba(8,145,178,0.2); }
+        .ht-dot.comentario { background: #d97706; box-shadow: 0 0 0 2px #d97706, 0 2px 4px rgba(217,119,6,0.2); }
+        .ht-dot.cierre_visual { background: #16a34a; box-shadow: 0 0 0 2px #16a34a, 0 2px 4px rgba(22,163,74,0.2); }
+        .ht-dot.actualizado { background: #64748b; box-shadow: 0 0 0 2px #64748b, 0 2px 4px rgba(100,116,139,0.2); }
+        .ht-content { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; transition: background 0.15s; }
+        .ht-content:hover { background: #f1f5f9; }
+        .ht-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .ht-action { font-size: 0.82rem; font-weight: 700; color: #1e293b; }
+        .ht-user { font-size: 0.72rem; color: #64748b; }
+        .ht-desc { font-size: 0.8rem; color: #475569; margin-top: 2px; line-height: 1.5; white-space: pre-wrap; }
+        .ht-date { font-size: 0.68rem; color: #94a3b8; margin-top: 4px; }
     </style>
 
     {{ chart_data_json|json_script:"chart-data-script" }}
@@ -951,7 +1005,89 @@
                 }
             }
         }
-
+        
+        // ── Filtro ultradinámico por folios ──
+        function filterByFolios(raw) {
+            const value = raw.trim();
+            const folioInput = document.getElementById('folio-filter-input');
+            const countBadge = document.getElementById('folio-count');
+            
+            if (!value) {
+                countBadge.style.display = 'none';
+                // Remover marca de filtro, dejar que updateAllCharts maneje visibilidad
+                document.querySelectorAll('#filtered-tickets-table tbody tr.ticket-row').forEach(row => {
+                    row.removeAttribute('data-folio-hidden');
+                });
+                document.querySelectorAll('#filtered-tickets-table tbody tr.group-header').forEach(row => {
+                    row.removeAttribute('data-folio-hidden');
+                });
+                applyFolioVisibility('');
+                return;
+            }
+            
+            const folios = value.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+            const folioSet = new Set(folios);
+            
+            document.querySelectorAll('#filtered-tickets-table tbody tr.ticket-row').forEach(row => {
+                const rowFolio = row.getAttribute('data-folio');
+                if (folioSet.has(rowFolio)) {
+                    row.removeAttribute('data-folio-hidden');
+                } else {
+                    row.setAttribute('data-folio-hidden', 'true');
+                }
+            });
+            
+            countBadge.textContent = folios.length + ' folio' + (folios.length !== 1 ? 's' : '');
+            countBadge.style.display = 'block';
+            applyFolioVisibility(value);
+        }
+        
+        function applyFolioVisibility(value) {
+            const rows = document.querySelectorAll('#filtered-tickets-table tbody tr.ticket-row');
+            const hiddenByFolio = document.querySelectorAll('#filtered-tickets-table tbody tr.ticket-row[data-folio-hidden]');
+            const emptyMessageRow = document.getElementById('empty-tickets-message');
+            
+            if (!value || hiddenByFolio.length === 0) {
+                // No folio filter active - restore native group toggle behavior
+                rows.forEach(row => row.removeAttribute('data-folio-hidden'));
+                document.querySelectorAll('#filtered-tickets-table tbody tr.group-header').forEach(row => {
+                    row.style.display = '';
+                });
+                if (emptyMessageRow) emptyMessageRow.style.display = 'none';
+                // Re-trigger group toggle if a group is open
+                const expandedHeader = document.querySelector('.group-header .caret-icon[style*="rotate(90deg)"]');
+                if (!expandedHeader) {
+                    // Collapse all, then expand first group
+                    document.querySelectorAll('.group-row').forEach(r => r.style.display = 'none');
+                    const firstHeader = document.querySelector('.group-header');
+                    if (firstHeader) toggleGroup(firstHeader);
+                }
+                return;
+            }
+            
+            // Hide non-matching rows, show matching ones
+            rows.forEach(row => {
+                row.style.display = row.hasAttribute('data-folio-hidden') ? 'none' : 'table-row';
+            });
+            
+            // Hide group headers with no visible children
+            let anyVisible = false;
+            document.querySelectorAll('#filtered-tickets-table tbody tr.group-header').forEach(header => {
+                const groupId = header.getAttribute('data-group-id');
+                const children = document.querySelectorAll('#filtered-tickets-table tbody tr.' + groupId.replace(/\s+/g, '.'));
+                const hasVisible = Array.from(children).some(c => c.style.display !== 'none');
+                header.style.display = hasVisible ? 'table-row' : 'none';
+                if (hasVisible) anyVisible = true;
+            });
+            
+            if (emptyMessageRow) {
+                emptyMessageRow.style.display = anyVisible ? 'none' : 'table-row';
+                if (!anyVisible) {
+                    emptyMessageRow.innerHTML = '<td colspan="13" style="text-align:center;padding:32px;color:#94a3b8;"><i class="ph ph-hash" style="font-size:2rem;display:block;margin-bottom:8px;"></i><b>Ningún folio coincide</b><br><small style="color:#94a3b8;">Verifica que los folios estén escritos exactamente como aparecen en la tabla</small></td>';
+                }
+            }
+        }
+        
         // User Assignment logic
         let assignableUsers = null;
 
@@ -1233,6 +1369,45 @@
                 } else {
                     tiemposBadge.style.display = 'none';
                     emptyEl.style.display = 'block';
+                }
+
+                // --- Panel Historial ---
+                const historialContainer = document.getElementById('tm-historial-list');
+                if (d.historial && d.historial.length > 0) {
+                    historialContainer.innerHTML = '';
+                    d.historial.forEach(h => {
+                        const accionKey = h.accion.toLowerCase();
+                        const dotIconMap = {
+                            'creado': '<i class="ph ph-plus" style="font-size:0.55rem;"></i>',
+                            'diagnostico': '<i class="ph ph-stethoscope" style="font-size:0.55rem;"></i>',
+                            'cierre_fecha': '<i class="ph ph-calendar-check" style="font-size:0.55rem;"></i>',
+                            'correo_cierre': '<i class="ph ph-envelope" style="font-size:0.55rem;"></i>',
+                            'sig_sync': '<i class="ph ph-cloud-check" style="font-size:0.55rem;"></i>',
+                            'sig_error': '<i class="ph ph-warning" style="font-size:0.55rem;"></i>',
+                            'deductiva': '<i class="ph ph-currency-dollar" style="font-size:0.55rem;"></i>',
+                            'reasignado': '<i class="ph ph-user-switch" style="font-size:0.55rem;"></i>',
+                            'comentario': '<i class="ph ph-chat-text" style="font-size:0.55rem;"></i>',
+                            'cierre_visual': '<i class="ph ph-eye" style="font-size:0.55rem;"></i>',
+                            'actualizado': '<i class="ph ph-pencil" style="font-size:0.55rem;"></i>',
+                        };
+                        const icon = dotIconMap[accionKey] || '<i class="ph ph-circle" style="font-size:0.55rem;"></i>';
+                        const item = document.createElement('div');
+                        item.className = 'ht-item';
+                        item.innerHTML = `
+                            <div class="ht-dot ${accionKey}">${icon}</div>
+                            <div class="ht-content">
+                                <div class="ht-header">
+                                    <span class="ht-action">${h.accion_display}</span>
+                                    <span class="ht-user">por ${h.usuario}</span>
+                                </div>
+                                ${h.descripcion ? `<div class="ht-desc">${h.descripcion}</div>` : ''}
+                                <div class="ht-date">${h.creado_en}</div>
+                            </div>
+                        `;
+                        historialContainer.appendChild(item);
+                    });
+                } else {
+                    historialContainer.innerHTML = '<div style="text-align:center;padding:32px;color:#94a3b8;"><i class="ph ph-clock-counter-clockwise" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Sin historial registrado.</div>';
                 }
 
                 // Show body
@@ -2530,6 +2705,12 @@
             
             // UI Updates - Actualizar los Badges de filtro activos
             updateFilterBadges();
+            
+            // Re-aplicar filtro de folios si está activo
+            const folioInput = document.getElementById('folio-filter-input');
+            if (folioInput && folioInput.value.trim()) {
+                applyFolioVisibility(folioInput.value.trim());
+            }
         }
         
         function drawFallas(labels, data) {

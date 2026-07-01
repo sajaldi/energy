@@ -1,8 +1,9 @@
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Q
 from .models import Ubicacion
-from mantenimiento.models import Rutina
+from mantenimiento.models import Rutina, Tipo
 
 @staff_member_required
 def get_rutinas_ubicacion(request):
@@ -23,32 +24,40 @@ def get_rutinas_ubicacion(request):
     if not activos_cat:
         return JsonResponse({'rutinas': []})
     
-    # 1. Encontrar la categoría de mantenimiento vinculada a esta categoría de activo
-    # La relación es OneToOne en Mantenimiento.Tipo hacia Activos.Categoria
-    m_cat = getattr(activos_cat, 'mantenimiento_tipo', None)
+    # 1. Encontrar los Tipos de mantenimiento vinculados a esta categoría de activo
+    tipo_ids = set(Tipo.objects.filter(categoria_activo=activos_cat).values_list('id', flat=True))
     
-    if not m_cat:
-        # Intento de fallback: buscar si algún ANCESTRO de la categoría de activo tiene vínculo
-        # (Opción avanzada, por ahora devolvemos vacío si no hay link directo)
-        return JsonResponse({'rutinas': []})
+    m_cat_mgr = getattr(activos_cat, 'mantenimiento_tipo', None)
+    if m_cat_mgr is not None:
+        tipo_ids.update(m_cat_mgr.values_list('id', flat=True))
 
-    # 2. Recopilar IDs de la categoría de mantenimiento y sus ancestros
-    # Esto permite que las rutinas definidas en "Sistemas Generales" apliquen a "Sistema Eléctrico"
-    m_cats_ids = []
-    curr = m_cat
-    while curr:
-        m_cats_ids.append(curr.id)
-        curr = curr.padre
-        
-    # 3. Buscar todas las rutinas que pertenezcan a cualquiera de esas categorías
+    if not tipo_ids:
+        # Even without linked Tipos, check for Rutinas with direct categoria_activo
+        pass
+
+    # 2. Recopilar IDs de los tipos y sus ancestros
+    direct_tipo_ids = set(tipo_ids)
+    all_tipo_ids = set(tipo_ids)
+    queue = list(tipo_ids)
+    while queue:
+        children = Tipo.objects.filter(padre_id__in=queue).values_list('id', flat=True)
+        new_ids = set(children) - all_tipo_ids
+        all_tipo_ids.update(new_ids)
+        queue = list(new_ids)
+
+    # 3. Buscar todas las rutinas que pertenezcan a cualquiera de esos tipos
+    #    O que tengan categoria_activo apuntando directamente a esta categoría
+    q = Q(categoria_activo=activos_cat)
+    if all_tipo_ids:
+        q |= Q(tipo_id__in=all_tipo_ids)
     rutinas = Rutina.objects.filter(
-        tipo_id__in=m_cats_ids
+        q
     ).select_related('frecuencia', 'tipo', 'puesto_trabajo').order_by('tipo__nombre', 'nombre')
     
     data_rutinas = []
     for r in rutinas:
         titulo_cat = r.tipo.nombre if r.tipo else 'General'
-        if r.tipo and r.tipo.id != m_cat.id:
+        if r.tipo and r.tipo.id not in direct_tipo_ids:
             titulo_cat += " (Heredada)"
             
         data_rutinas.append({

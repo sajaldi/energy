@@ -207,6 +207,7 @@ INSTALLED_APPS = [
     'ayuda.apps.AyudaConfig',
     'iot',
     'costos.apps.CostosConfig',
+    'courses',
 ]
 
 
@@ -593,11 +594,18 @@ JAZZMIN_SETTINGS = {
         "costos.AnalisisCostoUnitario": "fas fa-file-invoice-dollar",
         "costos.DetalleCostoUnitario": "fas fa-cubes",
         "costos.FactorCosto": "fas fa-percent",
+        "courses": "fas fa-graduation-cap",
+        "courses.Curso": "fas fa-book",
+        "courses.Seccion": "fas fa-list-ol",
+        "courses.AsignacionCurso": "fas fa-user-graduate",
+        "courses.Pagina": "fas fa-file-alt",
+        "courses.ProgresoSeccion": "fas fa-check-circle",
+        "courses.RegistroTiempo": "fas fa-stopwatch",
     },
     "order_with_respect_to": [
         "core", "activos", "documentos", "proyectos", "mantenimiento", 
         "inventarios", "callcenter", "presupuestos", "costos", "seguridad",
-        "iot",
+        "iot", "courses",
         "auth", "servicios", "ayuda", "plantillas", "django_celery_results"
     ],
     "show_sidebar": True,
@@ -612,6 +620,20 @@ JAZZMIN_SETTINGS = {
     "use_google_fonts_cdn": True,
     "show_ui_builder": True,
     "custom_links": {
+        "courses": [
+            {
+                "name": "✏️ Editor de Cursos",
+                "url": "/courses/admin/",
+                "icon": "fas fa-pen",
+                "permissions": ["courses.change_curso"],
+            },
+            {
+                "name": "📖 Lista de Cursos (Alumno)",
+                "url": "/courses/",
+                "icon": "fas fa-graduation-cap",
+                "permissions": ["courses.view_curso"],
+            },
+        ],
         "activos": [
             {
                 "name": "📂 Jerarquía de Categorías",

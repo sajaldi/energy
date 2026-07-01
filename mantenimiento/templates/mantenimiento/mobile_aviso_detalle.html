@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Aviso AV-{{ aviso.id }} | SoftCoM-CCG</title>
-    {% include 'core/pwa_tags.html' %}
+    {% if not iframe_mode %}{% include 'core/pwa_tags.html' %}{% endif %}
     {% include 'core/fiori_tokens.html' %}
 
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -236,18 +236,23 @@
         }
 
         .fiori-toolbar {
-            position: fixed;
+            position: {% if iframe_mode %}static{% else %}fixed{% endif %};
             bottom: 0;
             left: 0;
             right: 0;
             background: white;
             border-top: 1px solid var(--sap-border-color);
-            padding: 12px 16px calc(12px + var(--safe-area-bottom));
+            padding: 12px 16px;
             display: flex;
             gap: 12px;
             z-index: 1000;
             box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
         }
+
+        {% if iframe_mode %}
+        body { padding-bottom: 0; }
+        .fiori-toolbar { margin-top: 16px; }
+        {% endif %}
 
         .fiori-toolbar .fiori-btn {
             flex: 1;
@@ -278,9 +283,15 @@
 <body>
 
     <header>
+        {% if iframe_mode %}
+        <a href="#" onclick="parent.closeAvisoFioriModal(); return false;" class="back-btn">
+            <ion-icon name="close-outline"></ion-icon>
+        </a>
+        {% else %}
         <a href="{% url 'mantenimiento:mobile_mis_avisos' %}" class="back-btn">
             <ion-icon name="chevron-back-outline"></ion-icon>
         </a>
+        {% endif %}
         <div class="shell-title">Detalle del Aviso</div>
     </header>
 
@@ -449,12 +460,33 @@
                     </div>
                 </div>
                 {% endif %}
+                {% if aviso.estado == 'CERRADO' and aviso.diagnostico %}
+                <div class="fiori-form-group">
+                    <label>Diagnóstico</label>
+                    <div class="value">
+                        <ion-icon name="search-outline"></ion-icon>
+                        <span>{{ aviso.diagnostico|linebreaksbr }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if aviso.estado == 'CERRADO' and aviso.acciones %}
+                <div class="fiori-form-group">
+                    <label>Acciones Realizadas</label>
+                    <div class="value">
+                        <ion-icon name="construct-outline"></ion-icon>
+                        <span>{{ aviso.acciones|linebreaksbr }}</span>
+                    </div>
+                </div>
+                {% endif %}
                 {% if aviso.fecha_cierre %}
                 <div class="fiori-form-group">
                     <label>Fecha de Cierre</label>
                     <div class="value">
                         <ion-icon name="checkmark-circle-outline"></ion-icon>
                         <span>{{ aviso.fecha_cierre|date:"d M Y, H:i" }}</span>
+                        {% if aviso.cerrado_por %}
+                        <small style="display:block;color:var(--sap-text-muted);font-size:11px;">por {{ aviso.cerrado_por.get_full_name|default:aviso.cerrado_por.username }}</small>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
@@ -464,9 +496,14 @@
     </div>
 
     <div class="fiori-toolbar">
-        {% if aviso.estado == 'ABIERTO' %}
+        {% if aviso.estado == 'ABIERTO' or aviso.estado == 'PROCESO' %}
         <a href="{% url 'mantenimiento:mobile_aviso_editar' aviso.id %}" class="fiori-btn fiori-btn-primary">
             <ion-icon name="create-outline"></ion-icon> Editar
+        </a>
+        {% endif %}
+        {% if aviso.estado == 'ABIERTO' or aviso.estado == 'PROCESO' %}
+        <a href="{% url 'mantenimiento:mobile_aviso_editar' aviso.id %}#cierre" class="fiori-btn fiori-btn-secondary" style="background:var(--sap-success);color:white;border:none;">
+            <ion-icon name="checkmark-done-circle-outline"></ion-icon> Cerrar Aviso
         </a>
         {% endif %}
         <a href="tel:{{ aviso.solicitante.perfil_usuario.telefono }}" class="fiori-btn fiori-btn-ghost">

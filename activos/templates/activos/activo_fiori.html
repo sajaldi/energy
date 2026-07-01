@@ -383,6 +383,7 @@
         <button class="fiori-tab-btn" onclick="switchTab(event, 'maintenance')">Mantenimiento</button>
         <button class="fiori-tab-btn" onclick="switchTab(event, 'measurements')">Puntos de Medición</button>
         <button class="fiori-tab-btn" onclick="switchTab(event, 'audits')">Auditorías</button>
+        <button class="fiori-tab-btn" onclick="switchTab(event, 'plano')">Plano</button>
     </div>
 
     <div class="page-content">
@@ -407,7 +408,7 @@
                         <div class="card-header"><ion-icon name="information-circle-outline"></ion-icon> Información Técnica</div>
                         <div class="card-body">
                             <div class="data-row"><span class="data-label">Marca</span><span class="data-val">{{ activo.modelo.marca.nombre|default:activo.marca_legacy|default:"---" }}</span></div>
-                            <div class="data-row"><span class="data-label">Modelo</span><span class="data-val">{{ activo.modelo.nombre|default:activo.modelo_legacy|default:"---" }}</span></div>
+                            <div class="data-row"><span class="data-label">Modelo</span><span class="data-val">{% if activo.modelo %}<a href="#" onclick="openModeloModal({{ activo.modelo.id }}); return false;" style="color: var(--sap-accent); text-decoration: none; border-bottom: 1px dashed var(--sap-accent);">{{ activo.modelo.nombre }}</a>{% else %}{{ activo.modelo_legacy|default:"---" }}{% endif %}</span></div>
                             <div class="data-row"><span class="data-label">Categoría</span><span class="data-val">{{ activo.modelo.categoria.nombre|default:"---" }}</span></div>
                             <div class="data-row"><span class="data-label">Familia</span><span class="data-val">{{ activo.familia.nombre|default:"---" }}</span></div>
                         </div>
@@ -490,9 +491,10 @@
             <div class="section-card">
                 <div class="card-header"><ion-icon name="calendar-outline"></ion-icon> Rutinas Aplicables</div>
                 <div class="card-body">
+                    {% if programaciones or rutinas_sugeridas %}
                     <div class="routine-grid">
                         {% for prog in programaciones %}
-                        <div class="routine-card">
+                        <div class="routine-card" style="cursor:pointer;" onclick="showRoutineDetail({{ prog.rutina.id }})">
                             <div class="routine-icon"><ion-icon name="shield-checkmark-outline"></ion-icon></div>
                             <div class="routine-info">
                                 <h4>{{ prog.rutina.nombre }}</h4>
@@ -501,6 +503,28 @@
                         </div>
                         {% endfor %}
                     </div>
+                    {% if rutinas_sugeridas %}
+                    <div style="margin-top: 16px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
+                        <small style="color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Sugeridas por categoría</small>
+                        <div class="routine-grid" style="margin-top: 8px;">
+                            {% for r in rutinas_sugeridas %}
+                            <div class="routine-card" style="border-color: #e2e8f0; background: #f8fafc; cursor:pointer;" onclick="showRoutineDetail({{ r.id }})">
+                                <div class="routine-icon"><ion-icon name="bulb-outline" style="color: #f59e0b;"></ion-icon></div>
+                                <div class="routine-info">
+                                    <h4 style="color: #475569;">{{ r.nombre }}</h4>
+                                    <span class="tag-frequency">{{ r.frecuencia.nombre }}</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div style="text-align: center; padding: 24px 16px; color: #94a3b8;">
+                        <ion-icon name="calendar-outline" style="font-size: 2rem; opacity: 0.4;"></ion-icon>
+                        <p style="margin: 8px 0 0; font-size: 0.9rem;">No hay rutinas configuradas para este activo.</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             <!-- HISTORIAL OT -->
@@ -564,6 +588,37 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- PLANO TAB -->
+        <div id="plano" class="tab-panel">
+            <div class="section-card">
+                <div class="card-header"><ion-icon name="map-outline"></ion-icon> Plano</div>
+                <div class="card-body" style="padding: 0;">
+                    {% if activo.plano %}
+                    <div style="padding: 1rem; border-bottom: 1px solid #e2e8f0;">
+                        <div class="data-row"><span class="data-label">Plano</span><span class="data-val">{{ activo.plano.nombre }}</span></div>
+                        <div class="data-row"><span class="data-label">N° Documento</span><span class="data-val">{{ activo.plano.numero_documento|default:"---" }}</span></div>
+                        {% if activo.plano.ubicacion %}
+                        <div class="data-row"><span class="data-label">Ubicación</span><span class="data-val">{{ activo.plano.ubicacion.nombre }}</span></div>
+                        {% endif %}
+                        <div style="margin-top: 0.75rem;">
+                            <a href="{% url 'activos:visor_plano_por_plano' activo.plano.id %}" target="_blank" class="btn btn-primary" style="padding:6px 16px;font-size:0.8rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                                <ion-icon name="open-outline"></ion-icon> Abrir Visor Completo
+                            </a>
+                        </div>
+                    </div>
+                    <div style="position:relative;width:100%;height:70vh;min-height:400px;background:#f1f5f9;overflow:hidden;">
+                        <iframe src="{% url 'activos:visor_plano_por_plano' activo.plano.id %}" style="width:100%;height:100%;border:none;" title="Visor de Plano"></iframe>
+                    </div>
+                    {% else %}
+                    <div style="text-align:center;padding:3rem 2rem;color:#94a3b8;">
+                        <ion-icon name="map-outline" style="font-size:3rem;opacity:0.4;"></ion-icon>
+                        <p style="margin:1rem 0 0;font-size:0.9rem;">Este activo no tiene un plano asignado.</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -873,5 +928,392 @@
             });
         });
     </script>
+
+    {% include 'mantenimiento/partials/routine_detail_modal.html' %}
+
+    <script>
+        /* === Modal de Rutina (reuse del dashboard) === */
+        const rModal = document.getElementById('routineModal');
+        const rLoader = document.getElementById('modal-loader');
+        let currentRoutineId = null;
+
+        function openRoutineDetail(id) { showRoutineDetail(id); }
+        function showRoutineDetail(id) {
+            if (id) id = parseInt(id);
+            currentRoutineId = id;
+            if (typeof updateQrButton === 'function') updateQrButton();
+            if (rModal) {
+                rModal.setAttribute('style',
+                    'display:flex !important;' +
+                    'position:fixed !important;' +
+                    'top:0 !important;' +
+                    'left:0 !important;' +
+                    'width:100vw !important;' +
+                    'height:100vh !important;' +
+                    'background:rgba(0,0,0,0.5);' +
+                    'z-index:100000 !important;' +
+                    'align-items:center;' +
+                    'justify-content:center;' +
+                    'backdrop-filter:blur(4px);' +
+                    'visibility:visible !important;' +
+                    'opacity:1 !important;' +
+                    'pointer-events:all !important;'
+                );
+            }
+            exitEditMode();
+            switchTab('general');
+            if (!id) return;
+            if (rLoader) rLoader.style.display = 'flex';
+            fetch('/mantenimiento/rutinas/dashboard/detail/' + id + '/')
+                .then(res => res.json())
+                .then(data => {
+                    if (rLoader) rLoader.style.display = 'none';
+                    if (data.status === 'success') {
+                        fillModalData(data.rutina);
+                        loadKpis(id);
+                        /* Populate history tab */
+                        const hBody = document.getElementById('m-history-body');
+                        const hEmpty = document.getElementById('m-history-empty');
+                        if (hBody) hBody.innerHTML = '';
+                        if (data.historial && data.historial.length > 0) {
+                            if (hEmpty) hEmpty.style.display = 'none';
+                            data.historial.forEach(ot => {
+                                const row = document.createElement('tr');
+                                row.innerHTML = '<td style="padding:12px;border-bottom:1px solid #f1f5f9;font-size:0.9rem;">' + ot.fecha_cierre + '</td>' +
+                                    '<td style="padding:12px;border-bottom:1px solid #f1f5f9;font-size:0.9rem;">' + ot.tecnico + '</td>' +
+                                    '<td style="padding:12px;border-bottom:1px solid #f1f5f9;font-size:0.9rem;">' + ot.hh + '</td>' +
+                                    '<td style="padding:12px;border-bottom:1px solid #f1f5f9;font-size:0.8rem;color:#64748b;">' + (ot.comentarios || '-') + '</td>';
+                                if (hBody) hBody.appendChild(row);
+                            });
+                        } else {
+                            if (hEmpty) hEmpty.style.display = 'block';
+                        }
+                        /* Populate steps tab */
+                        const stepsContainer = document.getElementById('m-steps-list-view');
+                        if (stepsContainer) {
+                            stepsContainer.innerHTML = '';
+                            if (data.rutina.pasos && data.rutina.pasos.length > 0) {
+                                data.rutina.pasos.forEach((p, i) => {
+                                    const stepDiv = document.createElement('div');
+                                    stepDiv.className = 'step-item-static';
+                                    stepDiv.innerHTML = '<div class="step-number-circle">' + (i + 1) + '</div>' +
+                                        '<div style="flex:1;"><div style="font-weight:600;color:#1e293b;margin-bottom:4px;">' + p.descripcion + '</div>' +
+                                        (p.verificacion ? '<div class="step-verif-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> ' + p.verificacion + '</div>' : '') +
+                                        '</div>';
+                                    stepsContainer.appendChild(stepDiv);
+                                });
+                            } else {
+                                stepsContainer.innerHTML = '<div style="text-align:center;padding:2rem;color:#94a3b8;">Esta rutina no tiene pasos definidos.</div>';
+                            }
+                        }
+                    }
+                })
+                .catch(() => { if (rLoader) rLoader.style.display = 'none'; });
+        }
+
+        function closeRoutineModal() {
+            if (rModal) rModal.setAttribute('style', 'display:none;');
+            currentRoutineId = null;
+        }
+
+        function fillModalData(r) {
+            document.getElementById('m-routine-name').textContent = r.nombre || '';
+            document.getElementById('m-routine-code').textContent = r.codigo ? '[' + r.codigo + ']' : '[SC]';
+            document.getElementById('m-category').textContent = r.categoria || '-';
+            document.getElementById('m-frequency').textContent = r.frecuencia || '-';
+            document.getElementById('m-time').textContent = r.tiempo_estimado || '-';
+            document.getElementById('m-techs').textContent = (r.tecnicos || '-').toString();
+            const invBadge = document.getElementById('m-invasiva-badge');
+            if (r.es_invasiva) {
+                invBadge.innerHTML = '<span style="background:#fff2f2;color:#bb0000;padding:4px 10px;border-radius:4px;font-weight:600;font-size:0.8rem;">Invasiva</span>';
+            } else {
+                invBadge.innerHTML = '<span style="background:#e7f0f7;color:#0a6ed1;padding:4px 10px;border-radius:4px;font-weight:600;font-size:0.8rem;">No Invasiva</span>';
+            }
+            document.getElementById('m-ubicacion').textContent = r.ubicacion_predeterminada_nombre || '-';
+            document.getElementById('m-cat-activo').textContent = r.categoria_activo_nombre || '-';
+            document.getElementById('m-horario').textContent = r.horario_predeterminado_nombre || '-';
+            document.getElementById('m-description').innerHTML = r.descripcion ? r.descripcion.replace(/\n/g, '<br>') : 'Sin descripción.';
+            document.getElementById('m-tools').innerHTML = r.herramientas ? r.herramientas.replace(/\n/g, '<br>') : 'Ninguna.';
+
+            document.getElementById('m-title').textContent = r.nombre || 'Detalles de Rutina';
+        }
+
+        function loadKpis(id) {
+            const tbody = document.getElementById('m-kpis-body');
+            const empty = document.getElementById('m-kpis-empty');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (empty) empty.style.display = 'none';
+            fetch('/mantenimiento/rutinas/dashboard/rutina/' + id + '/kpis/')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' && data.kpis && data.kpis.length > 0) {
+                        data.kpis.forEach(k => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = '<td style="padding:12px;border-bottom:1px solid #f1f5f9;font-size:0.9rem;color:#475569;">' + k.nombre + '</td>' +
+                                '<td style="padding:12px;border-bottom:1px solid #f1f5f9;font-size:0.85rem;color:#64748b;">' + (k.categoria_nombre || '-') + '</td>' +
+                                '<td style="padding:12px;border-bottom:1px solid #f1f5f9;"><span style="background:#e7f0f7;color:#0a6ed1;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">Vinculado</span></td>';
+                            tbody.appendChild(tr);
+                        });
+                    } else {
+                        if (empty) empty.style.display = 'block';
+                    }
+                })
+                .catch(() => { if (empty) empty.style.display = 'block'; });
+        }
+
+        // Save original Fiori tab switcher before overriding
+        const _fioriSwitchTab = typeof switchTab === 'function' ? switchTab : null;
+
+        // Override switchTab to handle BOTH Fiori tabs (2 args) and modal tabs (1 arg)
+        window.switchTab = function(evt, tabName) {
+            if (tabName !== undefined) {
+                // Fiori page tabs: switchTab(event, tabName)
+                return _fioriSwitchTab(evt, tabName);
+            }
+            // Modal routine tabs: switchTab(tab) — called by routine_detail_modal.html inline onclick
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            const content = document.getElementById('tab-' + evt);
+            const btn = document.getElementById('tab-btn-' + evt);
+            if (content) content.classList.add('active');
+            if (btn) btn.classList.add('active');
+        };
+
+        function enterEditMode() { console.warn('Edición no disponible en vista Fiori.'); }
+        function exitEditMode() {
+            document.querySelectorAll('.edit-mode').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.view-mode').forEach(el => el.style.display = 'block');
+            const fv = document.getElementById('m-footer-view');
+            const fe = document.getElementById('m-footer-edit');
+            if (fv) fv.style.display = 'flex';
+            if (fe) fe.style.display = 'none';
+        }
+        /* Stubs for edit/destructive actions (view-only modal) */
+        function toggleStepsEdit(v) {}
+        function addStepRow() {}
+        function saveRutinaSteps() {}
+        function openKpiSelector() {}
+        function closeKpiSelector() {}
+        function confirmKpiLinking() {}
+        function filterAvailableKpis(v) {}
+        function saveRoutine() {}
+        function confirmDeleteRoutine() {}
+        function closeMediaLightbox() {}
+
+        /* === Modal de Detalles del Modelo === */
+        let modeloCurrentData = null;
+        let modeloEditMode = false;
+
+        function openModeloModal(modeloId) {
+            const modal = document.getElementById('modeloModal');
+            if (!modal) return;
+            modal.style.display = 'flex';
+            modeloEditMode = false;
+            document.getElementById('modelo-loader').style.display = 'flex';
+            document.getElementById('modelo-body-content').style.display = 'none';
+            document.getElementById('modelo-footer-view').style.display = 'flex';
+            document.getElementById('modelo-footer-edit').style.display = 'none';
+            fetch('/activos/api/modelo-detalle/' + modeloId + '/')
+                .then(res => res.json())
+                .then(data => {
+                    modeloCurrentData = data;
+                    document.getElementById('modelo-loader').style.display = 'none';
+                    document.getElementById('modelo-body-content').style.display = 'block';
+                    fillModeloView(data);
+                })
+                .catch(() => {
+                    document.getElementById('modelo-loader').style.display = 'none';
+                    document.getElementById('modelo-body-content').style.display = 'block';
+                });
+        }
+
+        function fillModeloView(data) {
+            document.getElementById('modelo-title').textContent = data.nombre || 'Detalles del Modelo';
+            document.getElementById('mod-marca').textContent = data.marca || '-';
+            document.getElementById('mod-categoria').textContent = data.categoria || '-';
+            document.getElementById('mod-precio').textContent = 'L. ' + (data.precio || '0.00');
+            document.getElementById('mod-unidad').textContent = data.unidad || '-';
+            document.getElementById('mod-descripcion').innerHTML = (data.descripcion || 'Sin descripción.').replace(/\n/g, '<br>');
+            const img = document.getElementById('mod-imagen');
+            if (data.imagen) {
+                img.src = data.imagen;
+                img.style.display = 'block';
+            } else {
+                img.style.display = 'none';
+            }
+            const docsContainer = document.getElementById('mod-documentos');
+            docsContainer.innerHTML = '';
+            if (data.documentos && data.documentos.length > 0) {
+                data.documentos.forEach(d => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'padding:8px 12px;border:1px solid #e2e8f0;border-radius:4px;margin-bottom:6px;font-size:0.85rem;';
+                    div.innerHTML = '<strong>' + d.codigo + '</strong> — ' + d.titulo + ' <span style="color:#64748b;font-size:0.75rem;">(' + d.tipo + ')</span>';
+                    docsContainer.appendChild(div);
+                });
+            } else {
+                docsContainer.innerHTML = '<div style="color:#94a3b8;font-size:0.85rem;">No hay documentos asociados a este modelo.</div>';
+            }
+        }
+
+        function enterModeloEditMode() {
+            if (!modeloCurrentData) return;
+            modeloEditMode = true;
+            document.querySelectorAll('.mod-view').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.mod-edit').forEach(el => el.style.display = 'block');
+            document.getElementById('modelo-footer-view').style.display = 'none';
+            document.getElementById('modelo-footer-edit').style.display = 'flex';
+            document.getElementById('f-mod-nombre').value = modeloCurrentData.nombre || '';
+            document.getElementById('f-mod-marca').value = modeloCurrentData.marca_id || '';
+            document.getElementById('f-mod-categoria').value = modeloCurrentData.categoria_id || '';
+            document.getElementById('f-mod-precio').value = modeloCurrentData.precio ? modeloCurrentData.precio.toString().replace('L. ', '') : '';
+            document.getElementById('f-mod-unidad').value = modeloCurrentData.unidad_id || '';
+            document.getElementById('f-mod-descripcion').value = modeloCurrentData.descripcion || '';
+            // Set edit image if exists
+            const editImg = document.getElementById('mod-imagen-edit');
+            if (modeloCurrentData.imagen) {
+                editImg.src = modeloCurrentData.imagen;
+                editImg.style.display = 'block';
+            } else {
+                editImg.style.display = 'none';
+            }
+        }
+
+        function exitModeloEditMode() {
+            modeloEditMode = false;
+            document.querySelectorAll('.mod-view').forEach(el => el.style.display = 'block');
+            document.querySelectorAll('.mod-edit').forEach(el => el.style.display = 'none');
+            document.getElementById('modelo-footer-view').style.display = 'flex';
+            document.getElementById('modelo-footer-edit').style.display = 'none';
+        }
+
+        function saveModelo() {
+            if (!modeloCurrentData) return;
+            const formData = new FormData();
+            formData.append('id', modeloCurrentData.id);
+            formData.append('nombre', document.getElementById('f-mod-nombre').value);
+            formData.append('marca_id', document.getElementById('f-mod-marca').value);
+            formData.append('categoria_id', document.getElementById('f-mod-categoria').value || '');
+            formData.append('unidad_medida_id', document.getElementById('f-mod-unidad').value || '');
+            formData.append('precio_promedio', document.getElementById('f-mod-precio').value || '0');
+            formData.append('descripcion', document.getElementById('f-mod-descripcion').value || '');
+            const fileInput = document.getElementById('f-mod-imagen');
+            if (fileInput && fileInput.files[0]) {
+                formData.append('imagen_archivo', fileInput.files[0]);
+            }
+            fetch('/activos/api/modelo-fiori-save/', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Refresh model data
+                    return fetch('/activos/api/modelo-detalle/' + modeloCurrentData.id + '/');
+                } else {
+                    alert('Error: ' + (data.message || 'No se pudo guardar'));
+                }
+            })
+            .then(res => { if (res) return res.json(); })
+            .then(data => {
+                if (data) {
+                    modeloCurrentData = data;
+                    fillModeloView(data);
+                    exitModeloEditMode();
+                }
+            })
+            .catch(err => alert('Error al guardar: ' + err));
+        }
+
+        function closeModeloModal() {
+            document.getElementById('modeloModal').style.display = 'none';
+            exitModeloEditMode();
+        }
+    </script>
+
+    <!-- MODELO DETAIL MODAL -->
+    <div id="modeloModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:200000;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+        <div style="background:#fff;border-radius:0.35rem;width:90%;max-width:700px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 1rem 3rem rgba(0,0,0,0.15);">
+            <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #d9d9d9;display:flex;align-items:center;justify-content:space-between;">
+                <h3 id="modelo-title" style="margin:0;font-size:1.1rem;font-weight:600;color:#32363a;">Detalles del Modelo</h3>
+                <button onclick="closeModeloModal()" style="background:none;border:none;font-size:1.5rem;color:#6a6d70;cursor:pointer;">&times;</button>
+            </div>
+            <div style="flex:1;overflow-y:auto;padding:1.5rem;position:relative;">
+                <div id="modelo-loader" style="display:none;text-align:center;padding:3rem;">
+                    <div class="spinner"></div>
+                    <p style="color:#94a3b8;margin-top:1rem;">Cargando...</p>
+                </div>
+                <div id="modelo-body-content">
+                    <!-- VIEW MODE -->
+                    <div class="mod-view">
+                        <div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;">
+                            <div style="flex-shrink:0;width:160px;height:160px;background:#f8fafc;border-radius:0.35rem;overflow:hidden;display:flex;align-items:center;justify-content:center;border:1px solid #e2e8f0;">
+                                <img id="mod-imagen" src="" alt="Imagen del modelo" style="max-width:100%;max-height:100%;object-fit:contain;display:none;">
+                                <span id="mod-no-img" style="color:#cbd5e1;font-size:2rem;"><ion-icon name="cube-outline"></ion-icon></span>
+                            </div>
+                            <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                                <div><label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;">Marca</label><p id="mod-marca" class="mod-view" style="margin:2px 0 0;font-weight:400;color:#32363a;">-</p></div>
+                                <div><label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;">Categoría</label><p id="mod-categoria" class="mod-view" style="margin:2px 0 0;font-weight:400;color:#32363a;">-</p></div>
+                                <div><label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;">Precio Promedio</label><p id="mod-precio" class="mod-view" style="margin:2px 0 0;font-weight:400;color:#32363a;">-</p></div>
+                                <div><label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;">Unidad de Medida</label><p id="mod-unidad" class="mod-view" style="margin:2px 0 0;font-weight:400;color:#32363a;">-</p></div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:1.5rem;">
+                            <label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;margin-bottom:4px;">Descripción</label>
+                            <div id="mod-descripcion" style="background:#f7f7f7;padding:1rem;border-radius:0.25rem;font-size:0.9rem;color:#32363a;border:1px solid #d9d9d9;line-height:1.5;"></div>
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;margin-bottom:8px;">Documentos Asociados</label>
+                            <div id="mod-documentos"></div>
+                        </div>
+                    </div>
+                    <!-- EDIT MODE -->
+                    <div class="mod-edit" style="display:none;">
+                        <div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;">
+                            <div style="flex-shrink:0;width:160px;height:160px;background:#f8fafc;border-radius:0.35rem;overflow:hidden;display:flex;align-items:center;justify-content:center;border:1px solid #e2e8f0;flex-direction:column;gap:8px;">
+                                <img id="mod-imagen-edit" src="" alt="" style="max-width:100%;max-height:100px;object-fit:contain;">
+                                <input type="file" id="f-mod-imagen" accept="image/*" style="font-size:0.7rem;width:90%;">
+                            </div>
+                            <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                                <div><label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;">Nombre</label><input type="text" id="f-mod-nombre" class="form-control" style="padding:6px 10px;font-size:0.85rem;"></div>
+                                <div><label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;">Marca</label>
+                                    <select id="f-mod-marca" class="form-control" style="padding:6px 10px;font-size:0.85rem;">
+                                        <option value="">Seleccione...</option>
+                                        {% for m in marcas %}<option value="{{ m.id }}">{{ m.nombre }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                <div><label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;">Categoría</label>
+                                    <select id="f-mod-categoria" class="form-control" style="padding:6px 10px;font-size:0.85rem;">
+                                        <option value="">Seleccione...</option>
+                                        {% for c in categorias_modelo %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                <div><label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;">Unidad de Medida</label>
+                                    <select id="f-mod-unidad" class="form-control" style="padding:6px 10px;font-size:0.85rem;">
+                                        <option value="">Seleccione...</option>
+                                        {% for u in unidades_medida %}<option value="{{ u.id }}">{{ u.nombre }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                <div><label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;">Precio Promedio</label><input type="text" id="f-mod-precio" class="form-control" style="padding:6px 10px;font-size:0.85rem;" placeholder="0.00"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:500;color:#6a6d70;display:block;margin-bottom:4px;">Descripción</label>
+                            <textarea id="f-mod-descripcion" class="form-control" rows="3" style="font-size:0.85rem;"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mod-view" id="modelo-footer-view" style="padding:1rem 1.5rem;border-top:1px solid #d9d9d9;display:flex;justify-content:flex-end;gap:8px;">
+                <button class="btn btn-secondary" onclick="closeModeloModal()" style="padding:8px 20px;">Cerrar</button>
+                <button class="btn btn-primary" onclick="enterModeloEditMode()" style="padding:8px 20px;">Editar</button>
+            </div>
+            <div id="modelo-footer-edit" style="display:none;padding:1rem 1.5rem;border-top:1px solid #d9d9d9;justify-content:flex-end;gap:8px;">
+                <button class="btn btn-secondary" onclick="exitModeloEditMode()" style="padding:8px 20px;">Cancelar</button>
+                <button class="btn btn-success" onclick="saveModelo()" style="padding:8px 20px;">Guardar</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ curso.titulo }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; }
+
+        /* ── Progress Bar (fixed top, Amazon-style) ── */
+        .progress-header {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: white; border-bottom: 1px solid #e2e8f0;
+            padding: 8px 24px; display: flex; align-items: center; gap: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .progress-header .back { text-decoration: none; color: #64748b; display: flex; align-items: center; gap: 4px; font-size: 0.85rem; font-weight: 600; padding: 6px 10px; border-radius: 6px; transition: background 0.15s; white-space: nowrap; }
+        .progress-header .back:hover { background: #f1f5f9; color: #334155; }
+        .progress-header h2 { font-size: 0.95rem; font-weight: 700; color: #0f172a; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .progress-track { flex: 0 0 200px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a); border-radius: 3px; transition: width 0.4s ease; }
+        .progress-pct { font-size: 0.78rem; font-weight: 700; color: #16a34a; white-space: nowrap; min-width: 36px; text-align: right; }
+
+        /* ── Layout ── */
+        .container { max-width: 1200px; margin: 0 auto; padding: 70px 20px 40px; }
+
+        /* ── Hero ── */
+        .hero { margin-bottom: 32px; }
+        .hero h1 { font-size: 1.5rem; font-weight: 800; color: #0f172a; line-height: 1.3; }
+        .hero p { font-size: 0.9rem; color: #64748b; margin-top: 8px; line-height: 1.6; }
+        .hero-meta { display: flex; gap: 16px; margin-top: 12px; font-size: 0.82rem; color: #94a3b8; flex-wrap: wrap; }
+        .hero-meta span { display: flex; align-items: center; gap: 4px; }
+
+        /* ── Sección (Amazon-style card) ── */
+        .seccion {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            margin-bottom: 20px; overflow: hidden;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            scroll-margin-top: 80px;
+        }
+        .seccion:target { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+        .seccion-head {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 18px 20px; cursor: pointer; user-select: none;
+            background: #fafbfc; border-bottom: 1px solid #f1f5f9;
+        }
+        .seccion-head:hover { background: #f1f5f9; }
+        .seccion-num {
+            width: 32px; height: 32px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-size: 0.78rem;
+            font-weight: 700; flex-shrink: 0; transition: all 0.2s;
+        }
+        .seccion-num.pending { background: #e2e8f0; color: #64748b; }
+        .seccion-num.done { background: #dcfce7; color: #16a34a; }
+        .seccion-num.current { background: #dbeafe; color: #2563eb; }
+        .seccion-info { flex: 1; }
+        .seccion-info h3 { font-size: 1rem; font-weight: 700; color: #0f172a; }
+        .seccion-info .badge { font-size: 0.7rem; color: #94a3b8; display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+        .seccion-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; cursor: pointer; margin-top: 2px; font-size: 0.7rem; color: transparent; }
+        .seccion-check.done { background: #16a34a; border-color: #16a34a; color: white; }
+
+        .seccion-body { padding: 20px 24px; line-height: 1.8; font-size: 0.95rem; color: #334155; }
+        .seccion-contenido { margin-bottom: 16px; }
+        .seccion-body :first-child { margin-top: 0; }
+        .seccion-body :last-child { margin-bottom: 0; }
+        .seccion-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0; }
+        .seccion-body iframe { max-width: 100%; border-radius: 8px; margin: 16px 0; aspect-ratio: 16/9; width: 100%; }
+        .seccion-body video { max-width: 100%; border-radius: 8px; margin: 16px 0; }
+
+        /* ── Page Slides ── */
+        .slide-container { margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        .slide-header { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 0.82rem; }
+        .slide-header .slide-counter { font-weight: 700; color: #64748b; }
+        .slide-header .slide-title { flex: 1; font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .slide-body { padding: 16px 20px; min-height: 100px; }
+        .slide-body.hidden { display: none; }
+        .slide-nav { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 14px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+        .slide-nav button { background: none; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 16px; cursor: pointer; font-size: 0.82rem; color: #475569; transition: all 0.15s; font-weight: 600; }
+        .slide-nav button:hover:not(:disabled) { background: #e2e8f0; border-color: #94a3b8; }
+        .slide-nav button:disabled { opacity: 0.4; cursor: default; }
+        .slide-nav .slide-dots { display: flex; gap: 6px; }
+        .slide-nav .dot { width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1; transition: all 0.2s; cursor: pointer; }
+        .slide-nav .dot.active { background: #3b82f6; transform: scale(1.3); }
+
+        /* ── Complete Banner ── */
+        .complete-banner {
+            display: none; text-align: center; padding: 32px; margin: 32px 0;
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border: 2px solid #86efac; border-radius: 16px;
+        }
+        .complete-banner.visible { display: block; }
+        .complete-banner h2 { font-size: 1.3rem; color: #16a34a; }
+        .complete-banner p { color: #15803d; margin-top: 8px; }
+
+        @media (max-width: 640px) {
+            .progress-header { padding: 8px 12px; }
+            .progress-track { flex: 0 0 80px; }
+            .progress-header h2 { font-size: 0.82rem; }
+            .container { padding: 64px 12px 24px; }
+            .seccion-head { padding: 14px 16px; }
+            .seccion-body { padding: 14px 16px; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Fixed Progress Header (Amazon style) ── -->
+    <div class="progress-header" id="progress-header">
+        <a href="{% url 'courses:lista' %}" class="back">← Mis Cursos</a>
+        <h2>{{ curso.titulo }}</h2>
+        <div class="progress-track">
+            <div class="progress-fill" id="progress-fill" style="width: {{ progreso }}%"></div>
+        </div>
+        <span class="progress-pct" id="progress-pct">{{ progreso }}%</span>
+    </div>
+
+    <div class="container">
+
+        <!-- ── Hero ── -->
+        <div class="hero">
+            <h1>{{ curso.titulo }}</h1>
+            {% if curso.descripcion %}<p>{{ curso.descripcion }}</p>{% endif %}
+            <div class="hero-meta">
+                <span>📖 {{ total }} secciones</span>
+                <span>⏱ {{ curso.duracion_estimada }} min</span>
+                <span id="hero-progress">📊 {{ completadas }}/{{ total }} completadas</span>
+            </div>
+        </div>
+
+        <!-- ── Secciones lineales ── -->
+        <div id="secciones-container">
+            {% for item in secciones %}
+            {% with s=item.seccion %}
+            <div class="seccion" id="seccion-{{ s.id }}" data-seccion-id="{{ s.id }}">
+                <div class="seccion-head" onclick="toggleSeccion(this)">
+                    <div class="seccion-num {% if item.completado %}done{% else %}{% if forloop.first %}current{% else %}pending{% endif %}{% endif %}" id="num-{{ s.id }}">
+                        {% if item.completado %}✓{% else %}{{ s.orden }}{% endif %}
+                    </div>
+                    <div class="seccion-info">
+                        <h3>{{ s.titulo }}</h3>
+                        <div class="badge">
+                            {% if s.duracion_minutos %}<span>⏱ {{ s.duracion_minutos }} min</span>{% endif %}
+                            {% if not s.obligatorio %}<span>💡 Opcional</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="seccion-check {% if item.completado %}done{% endif %}" id="check-{{ s.id }}"
+                         onclick="event.stopPropagation(); marcarCompletada({{ s.id }})">
+                        {% if item.completado %}✓{% endif %}
+                    </div>
+                </div>
+                <div class="seccion-body" id="body-{{ s.id }}" style="display: {% if forloop.first or item.completado %}block{% else %}none{% endif %};">
+
+                    {% if s.contenido_html %}
+                    <div class="seccion-contenido">
+                        {{ s.contenido_html|safe }}
+                    </div>
+                    {% endif %}
+
+                    {% if item.paginas %}
+                    <div class="slide-container" data-paginas-count="{{ item.paginas|length }}">
+                        {% for p in item.paginas %}
+                        <div class="slide-page" data-slide-idx="{{ forloop.counter0 }}" {% if not forloop.first %}style="display:none;"{% endif %}>
+                            <div class="slide-header">
+                                <span class="slide-counter">Página {{ forloop.counter }} de {{ item.paginas|length }}</span>
+                                <span class="slide-title">{{ p.titulo }}</span>
+                            </div>
+                            <div class="slide-body">
+                                {% if p.contenido_html %}
+                                {{ p.contenido_html|safe }}
+                                {% else %}
+                                <p style="color:#94a3b8;">Sin contenido disponible.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="slide-nav">
+                            <button type="button" class="slide-prev" onclick="slideNavegar(this, -1)">◀ Anterior</button>
+                            <div class="slide-dots">
+                                {% for p in item.paginas %}
+                                <span class="dot {% if forloop.first %}active{% endif %}" onclick="slideIr(this, {{ forloop.counter0 }})"></span>
+                                {% endfor %}
+                            </div>
+                            <button type="button" class="slide-next" onclick="slideNavegar(this, 1)">Siguiente ▶</button>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+            {% endwith %}
+            {% endfor %}
+        </div>
+
+        <!-- ── Banner de curso completado ── -->
+        <div class="complete-banner {% if progreso == 100 %}visible{% endif %}" id="complete-banner">
+            <h2>🎉 ¡Curso Completado!</h2>
+            <p>Has finalizado todas las secciones de este curso.</p>
+            <a href="{% url 'courses:certificado' curso.id %}" class="btn" style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:10px 24px;background:#cba135;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9rem;">🎓 Obtener Certificado</a>
+        </div>
+
+    </div>
+
+    <script>
+        const COMPLETE_URL_TMPL = '{% url "courses:marcar_completada" curso.id 99999 %}';
+
+        // ── Toggle secci�n ──
+        function toggleSeccion(head) {
+            const body = head.nextElementSibling;
+            if (!body) return;
+            const isOpen = body.style.display !== 'none';
+            // Cerrar todas
+            document.querySelectorAll('.seccion-body').forEach(el => el.style.display = 'none');
+            if (!isOpen) body.style.display = 'block';
+            document.querySelectorAll('.seccion-num').forEach(el => {
+                if (el.classList.contains('current')) el.classList.remove('current');
+            });
+            if (!isOpen) {
+                const num = head.querySelector('.seccion-num');
+                if (num && !num.classList.contains('done')) num.classList.add('current');
+            }
+        }
+
+        // ── Marcar sección como completada ──
+        async function marcarCompletada(seccionId) {
+            const check = document.getElementById('check-' + seccionId);
+            const num = document.getElementById('num-' + seccionId);
+            const estabaCompleta = check.classList.contains('done');
+
+            if (estabaCompleta) return;
+
+            check.classList.add('done');
+            check.textContent = '✓';
+            num.classList.remove('pending', 'current');
+            num.classList.add('done');
+            num.textContent = '✓';
+
+            try {
+                const resp = await fetch(COMPLETE_URL_TMPL.replace('99999', seccionId), {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    document.getElementById('progress-fill').style.width = data.progreso + '%';
+                    document.getElementById('progress-pct').textContent = data.progreso + '%';
+                    document.getElementById('hero-progress').textContent = '📊 ' + data.completadas + '/' + data.total + ' completadas';
+
+                    if (data.curso_completado) {
+                        document.getElementById('complete-banner').classList.add('visible');
+                        const banner = document.getElementById('complete-banner');
+                        if (!banner.querySelector('.cert-link')) {
+                            const certLink = document.createElement('a');
+                            certLink.href = '{% url "courses:certificado" curso.id %}';
+                            certLink.className = 'cert-link';
+                            certLink.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:10px 24px;background:#cba135;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9rem;';
+                            certLink.textContent = '🎓 Obtener Certificado';
+                            banner.appendChild(certLink);
+                        }
+                    }
+
+                    // Auto-abrir siguiente sección
+                    const currentSeccion = document.getElementById('seccion-' + seccionId);
+                    const nextSeccion = currentSeccion.nextElementSibling;
+                    if (nextSeccion && nextSeccion.classList.contains('seccion')) {
+                        const nextHead = nextSeccion.querySelector('.seccion-head');
+                        if (nextHead) toggleSeccion(nextHead);
+                        nextSeccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            } catch (e) {
+                check.classList.remove('done');
+                check.textContent = '';
+                num.classList.remove('done');
+                num.classList.add('pending');
+                num.textContent = seccionId;
+            }
+        }
+
+        // ── Heartbeat: track study time ──
+        const HEARTBEAT_URL = '{% url "courses:heartbeat" curso.id %}';
+        let heartbeatInterval = null;
+
+        function sendHeartbeat(action, seconds) {
+            const fd = new FormData();
+            fd.append('action', action);
+            if (seconds) fd.append('seconds', seconds);
+            fetch(HEARTBEAT_URL, { method: 'POST', body: fd, headers: { 'X-CSRFToken': '{{ csrf_token }}' } }).catch(()=>{});
+        }
+
+        // ── Scroll-driven progress bar ──
+        document.addEventListener('DOMContentLoaded', function() {
+            sendHeartbeat('start');
+            let tickCount = 0;
+            heartbeatInterval = setInterval(() => {
+                tickCount++;
+                sendHeartbeat('tick', 30);
+            }, 30000);
+            const fill = document.getElementById('progress-fill');
+            const pct = document.getElementById('progress-pct');
+
+            window.addEventListener('scroll', function() {
+                const scrollTop = window.scrollY;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const p = docHeight > 0 ? Math.min((scrollTop / docHeight) * 100, 100) : 0;
+                fill.style.width = p + '%';
+                if (pct) pct.textContent = Math.round(p) + '%';
+            }, { passive: true });
+
+            // Intersection Observer for section highlighting
+            const secciones = document.querySelectorAll('.seccion');
+            if (secciones.length === 0) return;
+
+            const observer = new IntersectionObserver((entries) => {
+                let maxVisible = -1;
+                let maxId = null;
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const idx = Array.from(secciones).indexOf(entry.target);
+                        if (idx > maxVisible) {
+                            maxVisible = idx;
+                            maxId = entry.target.id;
+                        }
+                    }
+                });
+                if (maxId) {
+                    const numEl = document.querySelector('#' + maxId + ' .seccion-num');
+                    if (numEl && !numEl.classList.contains('done')) {
+                        document.querySelectorAll('.seccion-num').forEach(el => el.classList.remove('current'));
+                        numEl.classList.add('current');
+                    }
+                }
+            }, { threshold: 0.3 });
+
+            secciones.forEach(s => observer.observe(s));
+        });
+
+        window.addEventListener('beforeunload', function() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            sendHeartbeat('tick', 30);
+        });
+
+        // ── Slide navigation ──
+        function slideNavegar(btn, dir) {
+            const nav = btn.closest('.slide-nav');
+            const container = nav.closest('.slide-container');
+            const pages = container.querySelectorAll('.slide-page');
+            let current = 0;
+            pages.forEach((p, i) => { if (p.style.display !== 'none') current = i; });
+            const next = current + dir;
+            if (next < 0 || next >= pages.length) return;
+            pages[current].style.display = 'none';
+            pages[next].style.display = '';
+            const dots = nav.querySelectorAll('.dot');
+            dots.forEach(d => d.classList.remove('active'));
+            if (dots[next]) dots[next].classList.add('active');
+            nav.querySelector('.slide-prev').disabled = next === 0;
+            nav.querySelector('.slide-next').disabled = next === pages.length - 1;
+        }
+
+        function slideIr(dot, idx) {
+            const nav = dot.closest('.slide-nav');
+            const container = nav.closest('.slide-container');
+            const pages = container.querySelectorAll('.slide-page');
+            pages.forEach((p, i) => p.style.display = i === idx ? '' : 'none');
+            nav.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
+            dot.classList.add('active');
+            nav.querySelector('.slide-prev').disabled = idx === 0;
+            nav.querySelector('.slide-next').disabled = idx === pages.length - 1;
+        }
+
+        // Init slide nav states
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.slide-container').forEach(container => {
+                const nav = container.querySelector('.slide-nav');
+                if (nav) {
+                    nav.querySelector('.slide-prev').disabled = true;
+                    const pages = container.querySelectorAll('.slide-page');
+                    if (pages.length <= 1) nav.querySelector('.slide-next').disabled = true;
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>

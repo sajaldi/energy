@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ curso.titulo }} — Vista Previa</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .topbar {
+            background: var(--sap-shell-bg); color: var(--sap-shell-color);
+            padding: 10px 32px; display: flex; align-items: center; gap: 16px;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+            flex-wrap: wrap;
+        }
+        .topbar h1 { font-size: 0.95rem; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .topbar .back { color: rgba(255,255,255,0.75); font-size: 0.82rem; display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; }
+        .topbar .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+        .topbar .badge-preview { font-size: 0.72rem; background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 10px; white-space: nowrap; }
+
+        .progress-track-wrap { width: 100%; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden; flex: 0 0 100%; order: 1; }
+        .progress-track-fill { height: 100%; background: #22c55e; border-radius: 2px; transition: width 0.15s ease; width: 0%; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 72px 20px 60px; }
+
+        .hero { margin-bottom: 36px; }
+        .hero h1 { font-size: 1.65rem; font-weight: 800; color: #0f172a; line-height: 1.3; }
+        .hero .desc { font-size: 0.92rem; color: #64748b; margin-top: 10px; line-height: 1.7; }
+        .hero-meta { display: flex; gap: 20px; margin-top: 14px; font-size: 0.82rem; color: #94a3b8; flex-wrap: wrap; }
+        .hero-meta span { display: flex; align-items: center; gap: 5px; }
+
+        .hero-img { width: 100%; max-height: 280px; object-fit: cover; border-radius: 10px; margin-top: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+        .seccion {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+            margin-bottom: 18px; overflow: hidden;
+        }
+        .seccion-head {
+            display: flex; align-items: center; gap: 12px;
+            padding: 16px 20px; background: #fafbfc; border-bottom: 1px solid #f1f5f9;
+        }
+        .seccion-num {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: var(--sap-brand-color); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.78rem; font-weight: 700; flex-shrink: 0;
+        }
+        .seccion-info { flex: 1; }
+        .seccion-info h3 { font-size: 1rem; font-weight: 700; color: #0f172a; }
+        .seccion-info .meta { font-size: 0.75rem; color: #94a3b8; display: flex; gap: 10px; margin-top: 2px; }
+
+        .seccion-body {
+            padding: 24px 28px; line-height: 1.85; font-size: 0.95rem; color: #334155;
+        }
+        .seccion-body :first-child { margin-top: 0; }
+        .seccion-contenido { margin-bottom: 16px; }
+        .seccion-body :last-child { margin-bottom: 0; }
+        .seccion-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0; }
+        .seccion-body iframe { max-width: 100%; border-radius: 8px; margin: 16px 0; aspect-ratio: 16/9; width: 100%; }
+        .seccion-body video { max-width: 100%; border-radius: 8px; margin: 16px 0; }
+
+        .empty-content { color: #94a3b8; font-style: italic; }
+
+        /* ── Page Slides ── */
+        .slide-container { margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        .slide-header { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 0.82rem; }
+        .slide-header .slide-counter { font-weight: 700; color: #64748b; }
+        .slide-header .slide-title { flex: 1; font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .slide-body { padding: 16px 20px; min-height: 100px; }
+        .slide-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0; }
+        .slide-body iframe { max-width: 100%; border-radius: 8px; margin: 16px 0; aspect-ratio: 16/9; width: 100%; }
+        .slide-body video { max-width: 100%; border-radius: 8px; margin: 16px 0; }
+        .slide-nav { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 14px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+        .slide-nav button { background: none; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 16px; cursor: pointer; font-size: 0.82rem; color: #475569; transition: all 0.15s; font-weight: 600; font-family: var(--sap-font-family); }
+        .slide-nav button:hover:not(:disabled) { background: #e2e8f0; border-color: #94a3b8; }
+        .slide-nav button:disabled { opacity: 0.4; cursor: default; }
+        .slide-nav .slide-dots { display: flex; gap: 6px; }
+        .slide-nav .dot { width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1; transition: all 0.2s; cursor: pointer; }
+        .slide-nav .dot.active { background: var(--sap-brand-color); transform: scale(1.3); }
+
+        .seccion.locked { opacity: 0.6; }
+        .seccion.locked .seccion-body { filter: blur(2px); pointer-events: none; user-select: none; }
+        .seccion.locked .seccion-complete { filter: none; pointer-events: auto; }
+        .seccion.locked .lock-msg { display: flex; }
+        .lock-msg { display: none; align-items: center; justify-content: center; gap: 8px; padding: 14px; background: #f8fafc; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 0.85rem; }
+        .seccion-body { display: none; }
+        .seccion-body.open { display: block; }
+
+        .seccion-complete { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #e2e8f0; }
+        .seccion-complete .check-btn {
+            display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px;
+            border-radius: 6px; font-family: var(--sap-font-family); font-size: 0.82rem; font-weight: 600;
+            border: 2px solid var(--sap-border-color); background: #fff; cursor: pointer;
+            transition: all 0.15s; color: var(--sap-text-muted);
+        }
+        .seccion-complete .check-btn:hover { border-color: var(--sap-brand-color); color: var(--sap-brand-color); }
+        .seccion-complete .check-btn.done { background: var(--sap-success-bg); border-color: var(--sap-success); color: var(--sap-success); cursor: default; }
+        .seccion-complete .check-btn.done:hover { background: var(--sap-success-bg); border-color: var(--sap-success); }
+
+        .footer-links { margin-top: 32px; padding-top: 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .footer-links .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; border-radius: 6px; font-family: var(--sap-font-family); font-size: 0.88rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+        .footer-links .btn-edit { background: var(--sap-brand-color); color: #fff; }
+        .footer-links .btn-edit:hover { background: var(--sap-highlight-color); text-decoration: none; }
+        .footer-links .btn-outline { background: transparent; border: 1px solid var(--sap-border-color); color: var(--sap-text-color); }
+        .footer-links .btn-outline:hover { background: var(--sap-bg-color); text-decoration: none; }
+
+        @media (max-width: 640px) {
+            .topbar { padding: 10px 14px; }
+            .container { padding: 20px 14px 40px; }
+            .hero h1 { font-size: 1.25rem; }
+            .seccion-head { padding: 12px 14px; }
+            .seccion-body { padding: 16px 18px; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="topbar">
+        <a href="{% url 'courses:lista_admin' %}" class="back">← Gestión</a>
+        <h1>{{ curso.titulo }}</h1>
+        <span class="badge-preview">Vista Previa</span>
+        <div class="progress-track-wrap"><div class="progress-track-fill" id="progress-fill" style="width:{{ progreso }}%"></div></div>
+    </div>
+
+    <div class="container">
+
+        <div class="hero">
+            <h1>{{ curso.titulo }}</h1>
+            {% if curso.descripcion %}<p class="desc">{{ curso.descripcion }}</p>{% endif %}
+            <div class="hero-meta">
+                <span>📖 {{ total }} sección{% if total != 1 %}es{% endif %}</span>
+                {% if duracion %}<span>⏱ {{ duracion }} min</span>{% endif %}
+                <span id="hero-progress">✅ {{ completadas }}/{{ total }} completadas</span>
+            </div>
+            {% if curso.imagen %}
+            <img class="hero-img" src="{{ curso.imagen.url }}?t={{ curso.actualizado_en|date:'U' }}" alt="{{ curso.titulo }}" onerror="this.style.display='none'">
+            {% endif %}
+        </div>
+
+        {% for item in secciones %}
+        {% with s=item.seccion %}
+        <div class="seccion" id="seccion-{{ s.id }}" data-obligatorio="{{ s.obligatorio|yesno:'true,false' }}" data-completado="{{ item.completado|yesno:'true,false' }}">
+            <div class="seccion-head">
+                <div class="seccion-num" id="num-{{ s.id }}">
+                    {% if item.completado %}✓{% else %}{{ forloop.counter }}{% endif %}
+                </div>
+                <div class="seccion-info">
+                    <h3>{{ s.titulo }}</h3>
+                    <div class="meta">
+                        {% if s.duracion_minutos %}<span>⏱ {{ s.duracion_minutos }} min</span>{% endif %}
+                        {% if not s.obligatorio %}<span>💡 Opcional</span>{% endif %}
+                    </div>
+                </div>
+                {% if item.completado %}
+                <span class="done-badge" style="font-size:0.75rem;color:#16a34a;font-weight:600;white-space:nowrap;">✅ Completado</span>
+                {% endif %}
+            </div>
+            <div class="seccion-body" id="body-{{ s.id }}">
+
+                {% if s.contenido_html %}
+                <div class="seccion-contenido">
+                    {{ s.contenido_html|safe }}
+                </div>
+                {% endif %}
+
+                {% if item.paginas %}
+                <div class="slide-container" data-paginas-count="{{ item.paginas|length }}">
+                    {% for p in item.paginas %}
+                    <div class="slide-page" data-slide-idx="{{ forloop.counter0 }}" {% if not forloop.first %}style="display:none;"{% endif %}>
+                        <div class="slide-header">
+                            <span class="slide-counter">Página {{ forloop.counter }} de {{ item.paginas|length }}</span>
+                            <span class="slide-title">{{ p.titulo }}</span>
+                        </div>
+                        <div class="slide-body">
+                            {% if p.contenido_html %}
+                            {{ p.contenido_html|safe }}
+                            {% else %}
+                            <p class="empty-content">Esta página no tiene contenido aún.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <div class="slide-nav">
+                        <button type="button" class="slide-prev" onclick="slideNavegar(this, -1)" disabled>◀ Anterior</button>
+                        <div class="slide-dots">
+                            {% for p in item.paginas %}
+                            <span class="dot {% if forloop.first %}active{% endif %}" onclick="slideIr(this, {{ forloop.counter0 }})"></span>
+                            {% endfor %}
+                        </div>
+                        <button type="button" class="slide-next" onclick="slideNavegar(this, 1)">Siguiente ▶</button>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="seccion-complete">
+                    <button type="button" class="check-btn {% if item.completado %}done{% endif %}" data-seccion-id="{{ s.id }}" onclick="marcarCompletada(this)">
+                        {% if item.completado %}✅ Completado{% else %}☐ Marcar como completado{% endif %}
+                    </button>
+                    {% if item.completado_en %}
+                    <span style="font-size:0.75rem;color:#94a3b8;">{{ item.completado_en|date:'d/m/Y H:i' }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="lock-msg">🔒 Completa la sección anterior para desbloquear</div>
+        </div>
+        {% endwith %}
+        {% endfor %}
+
+        <div class="footer-links">
+            <a href="{% url 'courses:editar_curso' curso.id %}" class="btn btn-edit">✏️ Editar Curso</a>
+            <a href="{% url 'courses:lista_admin' %}" class="btn btn-outline">← Volver a Gestión</a>
+        </div>
+
+    </div>
+
+    <script>
+        const COMPLETE_URL_TMPL = '{% url "courses:marcar_completada" curso.id 99999 %}';
+        const CSRF = '{{ csrf_token }}';
+
+        // ── Desbloqueo secuencial ──
+        function actualizarBloqueos() {
+            const secciones = document.querySelectorAll('.seccion[id^="seccion-"]');
+            secciones.forEach((sec, i) => {
+                if (i === 0) {
+                    // Primera secci�n siempre abierta
+                    sec.classList.remove('locked');
+                    const body = sec.querySelector('.seccion-body');
+                    if (body) body.classList.add('open');
+                    return;
+                }
+                const prev = secciones[i - 1];
+                const prevObligatorio = prev.dataset.obligatorio === 'true';
+                const prevCompletado = prev.dataset.completado === 'true';
+                const body = sec.querySelector('.seccion-body');
+
+                if (prevObligatorio && !prevCompletado) {
+                    sec.classList.add('locked');
+                    if (body) body.classList.remove('open');
+                } else {
+                    sec.classList.remove('locked');
+                    if (body) body.classList.add('open');
+                }
+            });
+        }
+
+        // ── Marcar secci�n como completada ──
+        async function marcarCompletada(btn) {
+            if (btn.classList.contains('done')) return;
+            if (btn.disabled) return;
+
+            const seccion = btn.closest('.seccion');
+            const seccionId = btn.dataset.seccionId;
+
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+
+            try {
+                const resp = await fetch(COMPLETE_URL_TMPL.replace('99999', seccionId), {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': CSRF }
+                });
+                const data = await resp.json();
+
+                if (data.success) {
+                    btn.classList.add('done');
+                    btn.innerHTML = '✅ Completado';
+                    seccion.dataset.completado = 'true';
+
+                    // Update circle number
+                    const num = seccion.querySelector('.seccion-num');
+                    if (num) { num.textContent = '✓'; num.style.background = '#16a34a'; }
+
+                    // Add completed badge
+                    const head = seccion.querySelector('.seccion-head');
+                    if (head && !head.querySelector('.done-badge')) {
+                        const badge = document.createElement('span');
+                        badge.className = 'done-badge';
+                        badge.style.cssText = 'font-size:0.75rem;color:#16a34a;font-weight:600;white-space:nowrap;';
+                        badge.textContent = '✅ Completado';
+                        head.appendChild(badge);
+                    }
+
+                    // Update progress bar
+                    document.getElementById('progress-fill').style.width = data.progreso + '%';
+                    document.getElementById('hero-progress').textContent = '✅ ' + data.completadas + '/' + data.total + ' completadas';
+
+                    // Desbloquear siguiente secci�n
+                    actualizarBloqueos();
+
+                    // Scroll a la siguiente
+                    const next = seccion.nextElementSibling;
+                    if (next && next.classList.contains('seccion')) {
+                        setTimeout(() => next.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+                    }
+                }
+            } catch (e) {
+                btn.textContent = '☐ Error al guardar';
+                setTimeout(() => {
+                    btn.textContent = '☐ Marcar como completado';
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }
+
+        // ── Heartbeat: track study time ──
+        const HEARTBEAT_URL = '{% url "courses:heartbeat" curso.id %}';
+        let heartbeatInterval = null;
+
+        function sendHeartbeat(action, seconds) {
+            const fd = new FormData();
+            fd.append('action', action);
+            if (seconds) fd.append('seconds', seconds);
+            fetch(HEARTBEAT_URL, { method: 'POST', body: fd, headers: { 'X-CSRFToken': CSRF } }).catch(()=>{});
+        }
+
+        // ── Scroll progress ──
+        document.addEventListener('DOMContentLoaded', function() {
+            actualizarBloqueos();
+
+            sendHeartbeat('start');
+            heartbeatInterval = setInterval(() => sendHeartbeat('tick', 30), 30000);
+
+            const fill = document.getElementById('progress-fill');
+            window.addEventListener('scroll', function() {
+                const scrollTop = window.scrollY;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const pct = docHeight > 0 ? Math.min((scrollTop / docHeight) * 100, 100) : 0;
+                fill.style.width = pct + '%';
+            }, { passive: true });
+        });
+
+        window.addEventListener('beforeunload', function() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            sendHeartbeat('tick', 30);
+        });
+
+        // ── Slide navigation ──
+        function slideNavegar(btn, dir) {
+            const nav = btn.closest('.slide-nav');
+            const container = nav.closest('.slide-container');
+            const pages = container.querySelectorAll('.slide-page');
+            let current = 0;
+            pages.forEach((p, i) => { if (p.style.display !== 'none') current = i; });
+            const next = current + dir;
+            if (next < 0 || next >= pages.length) return;
+            pages[current].style.display = 'none';
+            pages[next].style.display = '';
+            const dots = nav.querySelectorAll('.dot');
+            dots.forEach(d => d.classList.remove('active'));
+            if (dots[next]) dots[next].classList.add('active');
+            nav.querySelector('.slide-prev').disabled = next === 0;
+            nav.querySelector('.slide-next').disabled = next === pages.length - 1;
+        }
+
+        function slideIr(dot, idx) {
+            const nav = dot.closest('.slide-nav');
+            const container = nav.closest('.slide-container');
+            const pages = container.querySelectorAll('.slide-page');
+            pages.forEach((p, i) => p.style.display = i === idx ? '' : 'none');
+            nav.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
+            dot.classList.add('active');
+            nav.querySelector('.slide-prev').disabled = idx === 0;
+            nav.querySelector('.slide-next').disabled = idx === pages.length - 1;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.slide-container').forEach(container => {
+                const nav = container.querySelector('.slide-nav');
+                if (nav) {
+                    nav.querySelector('.slide-prev').disabled = true;
+                    const pages = container.querySelectorAll('.slide-page');
+                    if (pages.length <= 1) nav.querySelector('.slide-next').disabled = true;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

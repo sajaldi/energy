@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Cursos</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 16px 32px; display: flex; align-items: center; gap: 16px; }
+        .header h1 { font-size: 1.15rem; font-weight: 600; flex: 1; }
+        .header .back { color: rgba(255,255,255,0.75); font-size: 0.85rem; padding: 6px 12px; border-radius: 4px; }
+        .header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+
+        .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); border-radius: 6px; box-shadow: var(--sap-card-shadow); margin-bottom: 16px; overflow: hidden; }
+        .card-header { padding: 14px 20px; background: var(--sap-group-bg); border-bottom: 1px solid var(--sap-border-color); font-weight: 600; font-size: 0.95rem; }
+        .card-body { padding: 0; }
+
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 4px; font-family: var(--sap-font-family); font-size: 0.88rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; }
+        .btn-primary:hover { background: var(--sap-highlight-color); text-decoration: none; }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 16px; font-size: 0.78rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.5px; background: var(--sap-bg-color); border-bottom: 1px solid var(--sap-border-color); }
+        td { padding: 12px 16px; font-size: 0.88rem; border-bottom: 1px solid var(--sap-border-color); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8f9fa; }
+
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .badge-activo { background: var(--sap-success-bg); color: var(--sap-success); }
+        .badge-inactivo { background: var(--sap-neutral-bg); color: var(--sap-neutral); }
+
+        .actions { display: flex; gap: 6px; }
+
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+
+        .empty { text-align: center; padding: 48px 20px; color: var(--sap-text-muted); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/" class="back">← Inicio</a>
+        <h1>Gestión de Cursos</h1>
+        <a href="{% url 'courses:crear_curso' %}" class="btn btn-primary btn-sm">+ Nuevo Curso</a>
+    </div>
+    <div class="container">
+        {% if cursos %}
+        <div class="card">
+            <div class="card-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Curso</th>
+                            <th>Secciones</th>
+                            <th>Asignaciones</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in cursos %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.curso.titulo }}</strong>
+                                {% if item.curso.descripcion %}
+                                <div style="font-size:0.78rem;color:var(--sap-text-muted);margin-top:2px;">{{ item.curso.descripcion|truncatechars:80 }}</div>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.secciones }}</td>
+                            <td>{{ item.asignados }}</td>
+                            <td><span class="badge {% if item.curso.activo %}badge-activo{% else %}badge-inactivo{% endif %}">{% if item.curso.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+                            <td>
+                                <div class="actions">
+                                    <a href="{% url 'courses:visualizar' item.curso.id %}" class="btn btn-sm btn-secondary" target="_blank">Ver</a>
+                                    <a href="{% url 'courses:asignar_curso' item.curso.id %}" class="btn btn-sm" style="background:#e8f0f8;color:#0a6ed1;">Asignar</a>
+                                    <a href="{% url 'courses:editar_curso' item.curso.id %}" class="btn btn-sm btn-primary">Editar</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="empty">
+                <p style="font-size:1.2rem;margin-bottom:8px;">No hay cursos aún</p>
+                <p style="font-size:0.85rem;">Crea tu primer curso para comenzar.</p>
+                <a href="{% url 'courses:crear_curso' %}" class="btn btn-primary" style="margin-top:16px;">+ Crear Curso</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

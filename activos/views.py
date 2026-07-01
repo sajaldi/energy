@@ -1311,13 +1311,12 @@ def mobile_ubicaciones(request, parent_id=None):
             m_cats = u.categoria.mantenimiento_tipo.all()
             if m_cats:
                 m_cat = m_cats[0]
-            # Verificar si m_cat o algún ancestro tiene rutinas
-            curr = m_cat
-            while curr:
-                if curr.id in m_cats_with_rutinas:
-                    u.has_rutinas = True
-                    break
-                curr = curr.padre
+                curr = m_cat
+                while curr:
+                    if curr.id in m_cats_with_rutinas:
+                        u.has_rutinas = True
+                        break
+                    curr = curr.padre
         
     return render(request, 'activos/mobile_ubicaciones.html', {
         'ubicaciones': ubicaciones,
@@ -1411,8 +1410,11 @@ def plano_documento_proxy(request, plano_id):
 @staff_member_required
 def activo_fiori_view(request, pk):
     """Vista de detalle de activo estilo SAP Fiori con gráficas y rutinas"""
-    from mantenimiento.models import OrdenTrabajo, Aviso, Rutina, Programacion
+    from mantenimiento.models import OrdenTrabajo, Aviso, Rutina, Programacion, Tipo
     from auditorias.models import ResultadoAuditoria
+    from .models.activo import Marca
+    from .models.categoria import Categoria
+    from core.models import UnidadMedida
     import json
     
     activo = get_object_or_404(
@@ -1493,9 +1495,31 @@ def activo_fiori_view(request, pk):
     # 2. Rutinas sugeridas por el tipo/categoría del activo
     rutinas_sugeridas = []
     if activo.modelo and activo.modelo.categoria:
-        # Buscar rutinas cuyo tipo esté vinculado a la categoría de este activo
+        cat = activo.modelo.categoria
+        
+        # 2a. Tipos directamente vinculados a esta categoría
+        tipo_ids = set(Tipo.objects.filter(categoria_activo=cat).values_list('id', flat=True))
+        
+        # 2b. Tipos vinculados a través del reverse relation (mantenimiento_tipo)
+        m_cat_mgr = getattr(cat, 'mantenimiento_tipo', None)
+        if m_cat_mgr:
+            tipo_ids.update(m_cat_mgr.values_list('id', flat=True))
+        
+        # 2c. Obtener ancestros de esos tipos (jerarquía padre)
+        all_tipo_ids = set(tipo_ids)
+        queue = list(tipo_ids)
+        while queue:
+            children = Tipo.objects.filter(padre_id__in=queue).values_list('id', flat=True)
+            new_ids = set(children) - all_tipo_ids
+            all_tipo_ids.update(new_ids)
+            queue = list(new_ids)
+
+        # 2d. Rutinas cuyo tipo está en la jerarquía, O cuya categoria_activo apunta directamente a esta categoría
+        q = Q(categoria_activo=cat)
+        if all_tipo_ids:
+            q |= Q(tipo_id__in=all_tipo_ids)
         rutinas_sugeridas = Rutina.objects.filter(
-            tipo__categoria_activo=activo.modelo.categoria
+            q
         ).exclude(id__in=rutinas_ids).select_related('frecuencia', 'tipo')
 
     context = {
@@ -1509,6 +1533,17 @@ def activo_fiori_view(request, pk):
         'breadcrumb_path': breadcrumb_path,
         'activos_cercanos': activos_cercanos,
         'title': f"{activo.nombre} - SAP Fiori",
+        # Context for routine detail modal (reused from dashboard)
+        'todas_categorias': [],
+        'frecuencias': [],
+        'puestos': [],
+        'ubicaciones': [],
+        'categorias_activos': [],
+        'horarios': [],
+        # Context for modelo edit modal
+        'marcas': list(Marca.objects.all().values('id', 'nombre')),
+        'categorias_modelo': list(Categoria.objects.all().values('id', 'nombre')),
+        'unidades_medida': list(UnidadMedida.objects.all().values('id', 'nombre')),
     }
     
     return render(request, 'activos/activo_fiori.html', context)
@@ -1930,14 +1965,26 @@ def api_modelo_detalle(request, modelo_id):
     """Returns JSON data for a specific asset model."""
     from .models.activo import Modelo
     modelo = get_object_or_404(Modelo, id=modelo_id)
+    docs_data = []
+    for doc in modelo.documentos.all():
+        docs_data.append({
+            'id': doc.id,
+            'codigo': doc.codigo,
+            'titulo': doc.titulo,
+            'tipo': str(doc.tipo_documento) if doc.tipo_documento else "",
+        })
     data = {
         'id': modelo.id,
         'nombre': modelo.nombre,
         'marca': str(modelo.marca),
+        'marca_id': modelo.marca_id,
         'categoria': str(modelo.categoria) if modelo.categoria else "Sin Categoría",
+        'categoria_id': modelo.categoria_id,
         'descripcion': modelo.descripcion or "Sin descripción técnica adicional.",
         'imagen': modelo.imagen if modelo.imagen else None,
         'precio': str(modelo.precio_promedio) if modelo.precio_promedio else "0.00",
-        'unidad': str(modelo.unidad_medida) if modelo.unidad_medida else "N/A"
+        'unidad': str(modelo.unidad_medida) if modelo.unidad_medida else "N/A",
+        'unidad_id': modelo.unidad_medida_id,
+        'documentos': docs_data,
     }
     return JsonResponse(data)

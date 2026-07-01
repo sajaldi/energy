@@ -1,0 +1,216 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    :root {
+        --primary: #2563eb;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --border: #e2e8f0;
+        --bg-hover: #f8fafc;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif !important;
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow-x: hidden !important;
+    }
+
+    #content {
+        padding: 0 !important;
+    }
+
+    .breadcrumbs {
+        display: none !important;
+    }
+
+    .header-bar {
+        padding: 15px 20px;
+        background: white;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-container {
+        padding: 20px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    thead th {
+        background: #f8fafc;
+        padding: 10px 14px;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid var(--border);
+    }
+
+    tbody td {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-main);
+    }
+
+    tbody tr:hover {
+        background: var(--bg-hover);
+    }
+
+    .badge-tipo {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+
+    .badge-tipo.alta {
+        background: #10B98115;
+        color: #10B981;
+    }
+
+    .badge-tipo.baja {
+        background: #EF444415;
+        color: #EF4444;
+    }
+
+    .badge-estado {
+        padding: 3px 10px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-estado.BORRADOR {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+    .badge-estado.PENDIENTE {
+        background: #fef3c7;
+        color: #d97706;
+    }
+    .badge-estado.APROBADO {
+        background: #d1fae5;
+        color: #059669;
+    }
+    .badge-estado.RECHAZADO {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .btn-view {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
+        background: #eff6ff;
+        color: #2563eb;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: background 0.15s;
+    }
+
+    .btn-view:hover {
+        background: #dbeafe;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 16px;
+        opacity: 0.4;
+    }
+
+    .empty-state h5 {
+        margin: 0 0 8px;
+        font-weight: 600;
+        color: var(--text-main);
+    }
+
+    .chatbot-widget-container,
+    #admin-chatbot-widget {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-bar">
+    <div>
+        <h5 class="m-0" style="display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-file-alt text-primary"></i> Documentos de Alta/Baja de <strong>{{ object.nombre }}</strong>
+        </h5>
+        <small class="text-muted">Código: {{ object.codigo_interno }} · {{ items|length }} documento{{ items|length|pluralize:"s" }}</small>
+    </div>
+</div>
+
+<div class="table-container">
+    {% if items %}
+    <table>
+        <thead>
+            <tr>
+                <th>N° Documento</th>
+                <th>Tipo</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Motivo</th>
+                <th>Elaborado por</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td><strong>{{ item.documento.numero }}</strong></td>
+                <td>
+                    <span class="badge-tipo {{ item.documento.tipo|lower }}">
+                        {% if item.documento.tipo == 'ALTA' %}<i class="fas fa-arrow-down"></i>{% else %}<i class="fas fa-arrow-up"></i>{% endif %}
+                        {{ item.documento.get_tipo_display }}
+                    </span>
+                </td>
+                <td>{{ item.documento.fecha|date:"d/m/Y" }}</td>
+                <td>
+                    <span class="badge-estado {{ item.documento.estado }}">{{ item.documento.get_estado_display }}</span>
+                </td>
+                <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ item.documento.motivo|default:"-" }}</td>
+                <td>{{ item.documento.elaborado_por.get_full_name|default:item.documento.elaborado_por.username|default:"-" }}</td>
+                <td>
+                    <a href="{% url 'admin:activos_documentoaltabaja_change' item.documento_id %}" target="_parent" class="btn-view">
+                        <i class="fas fa-external-link-alt"></i> Ver
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-file-alt"></i>
+        <h5>Sin documentos</h5>
+        <p class="text-muted">Este activo no tiene documentos de alta o baja asociados.</p>
+        <a href="{% url 'admin:activos_documentoaltabaja_add' %}" target="_parent" class="btn-view" style="display: inline-flex;">
+            <i class="fas fa-plus"></i> Crear Documento
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

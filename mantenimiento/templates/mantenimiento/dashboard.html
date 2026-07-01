@@ -802,7 +802,7 @@
                     <div class="aviso-desc">{{ aviso.descripcion|truncatechars:80 }}</div>
                     <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--sapTextMuted);padding-left:8px;">
                         <span><i class="fas fa-location-arrow"></i> {{ aviso.ubicacion.nombre }}</span>
-                        <a href="{% url 'admin:mantenimiento_aviso_change' aviso.id %}" style="color:var(--sapBlue);">{% trans "Gestionar" %}</a>
+                        <a href="#" class="aviso-gestionar-link" data-aviso-id="{{ aviso.id }}" style="color:var(--sapBlue);">{% trans "Gestionar" %}</a>
                     </div>
                 </div>
                 {% endfor %}
@@ -2172,6 +2172,60 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.target === this) closeTicketModal();
         });
     }
+});
+</script>
+
+<!-- ===================== Aviso Fiori Modal ===================== -->
+<div id="aviso-fiori-modal" style="display:none;position:fixed;inset:0;background:rgba(10,15,30,0.55);z-index:10000;justify-content:center;align-items:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:1rem;">
+    <div id="aviso-fiori-inner" style="background:#fff;width:100%;max-width:1200px;max-height:95vh;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.22);transform:scale(0.97);transition:transform 0.22s cubic-bezier(0.16,1,0.3,1);">
+        <iframe id="aviso-fiori-frame" style="width:100%;height:95vh;border:none;border-radius:12px;"></iframe>
+    </div>
+</div>
+
+<script>
+var avisoFioriModalOpen = false;
+
+function openAvisoFioriModal(avisoId) {
+    var modal = document.getElementById('aviso-fiori-modal');
+    var inner = document.getElementById('aviso-fiori-inner');
+    var frame = document.getElementById('aviso-fiori-frame');
+    if (!modal || !inner || !frame) return;
+    frame.src = '/mantenimiento/fiori/aviso/' + avisoId + '/';
+    modal.style.display = 'flex';
+    avisoFioriModalOpen = true;
+    requestAnimationFrame(function() {
+        inner.style.transform = 'scale(1)';
+    });
+}
+
+function closeAvisoFioriModal() {
+    var modal = document.getElementById('aviso-fiori-modal');
+    var inner = document.getElementById('aviso-fiori-inner');
+    var frame = document.getElementById('aviso-fiori-frame');
+    if (!modal || !inner || !frame) return;
+    inner.style.transform = 'scale(0.97)';
+    avisoFioriModalOpen = false;
+    setTimeout(function() {
+        modal.style.display = 'none';
+        frame.src = '';
+    }, 200);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('aviso-fiori-modal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) closeAvisoFioriModal();
+        });
+    }
+    // Intercept Gestionar links
+    document.querySelectorAll('.aviso-gestionar-link').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            var avisoId = this.getAttribute('data-aviso-id');
+            if (avisoId) openAvisoFioriModal(avisoId);
+        });
+    });
 });
 </script>
 

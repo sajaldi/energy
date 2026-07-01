@@ -4,8 +4,417 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SoftCoM-CCG | Visor Interactivo - {{ visor.nombre }}</title>
-    {% include 'core/pwa_tags.html' %}
+    <title>SoftCoM-CCG | Visor Interactivo - Visor: M-101-C</title>
+    
+<!-- PWA Meta Tags -->
+
+  
+  <script src="/webpush/jsi18n/"></script>
+  <script id="webpush-js" type="text/javascript" src="/static/webpush/webpush.js"></script>
+  
+  <meta name="service-worker-js" content="/webpush/service-worker.js">
+  <meta name="django-webpush-vapid-key" content="BBjNVFg9HiiToaOsEDKzXXAdWa7vaWd-su_A9zVm5MwVeisPRkOVUO7FFMIn58fIt4CtDzRxyj14PDYitSGutkE">
+
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#007bff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SoftCoM">
+<link rel="apple-touch-icon" href="/static/core/img/icon-512.png">
+
+<!-- PWA Registration Script -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registrado', reg))
+                .catch(err => console.error('Error al registrar Service Worker', err));
+        });
+    }
+
+    // iOS Install Prompt Helper
+    window.addEventListener('load', () => {
+        const isIos = () => {
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            return /iphone|ipad|ipod/.test(userAgent);
+        };
+        const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+        if (isIos() && !isInStandaloneMode()) {
+            // Check if we already dismissed it
+            if (!localStorage.getItem('ios_install_dismissed')) {
+                const iosPrompt = document.createElement('div');
+                iosPrompt.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:90%; background:#fff; border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.2); padding:16px; z-index:99999; text-align:center; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; border:2px solid #007bff;';
+                iosPrompt.innerHTML = `
+                    <div style="font-weight:bold; color:#333; margin-bottom:8px;">📱 Instalar SoftCoM App</div>
+                    <div style="font-size:13px; color:#555; line-height:1.4;">
+                        Para instalar, pulsa el botón <b>Compartir</b> <svg width="14" height="18" viewBox="0 0 14 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle"><path d="M7 0V11M7 0L3 4M7 0L11 4M1 17H13" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> en la barra inferior y selecciona <b>Añadir a la pantalla de inicio</b>.
+                    </div>
+                    <button id="close-ios-prompt" style="margin-top:12px; border:none; background:#f0f0f0; padding:6px 20px; border-radius:20px; color:#333; font-weight:bold; cursor:pointer;">Entendido</button>
+                `;
+                document.body.appendChild(iosPrompt);
+
+                document.getElementById('close-ios-prompt').addEventListener('click', () => {
+                    localStorage.setItem('ios_install_dismissed', 'true');
+                    iosPrompt.style.display = 'none';
+                });
+            }
+        }
+    });
+
+    // Global Web Push Subscription Prompt
+    window.addEventListener('load', () => {
+        // Solo actuar si el usuario está autenticado (evitar errores en login)
+        const isAuthenticated = "True" === "True";
+        if (!isAuthenticated) return;
+
+        setTimeout(async () => {
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.getSubscription();
+                
+                // Si no hay suscripción activa y no hemos preguntado hoy
+                if (!subscription && !localStorage.getItem('webpush_prompt_dismissed')) {
+                    if (window.Swal) {
+                        const result = await Swal.fire({
+                            title: '🔔 ¿Activar Notificaciones?',
+                            text: 'Recibe alertas instantáneas de nuevas tareas y aprobaciones en tu dispositivo.',
+                            icon: 'info',
+                            showCancelButton: true,
+                            confirmButtonColor: '#3b82f6',
+                            cancelButtonColor: '#64748b',
+                            confirmButtonText: 'SÍ, ACTIVAR',
+                            cancelButtonText: 'LUEGO',
+                            footer: '<small>Puedes desactivarlas cuando quieras desde el navegador.</small>'
+                        });
+
+                        if (result.isConfirmed) {
+                            // Buscar el botón de suscripción oculto o disparar el evento de webpush
+                            // django-webpush busca botones con la clase 'webpush-button'
+                            const webpushBtn = document.querySelector('.webpush-button');
+                            if (webpushBtn) {
+                                webpushBtn.click();
+                            } else {
+                                // Si no hay botón en el DOM, forzar registro manual si es necesario
+                                console.log("Suscripción confirmada por el usuario.");
+                                // Nota: webpush_header inyecta la función necesaria
+                            }
+                        } else {
+                            // Guardar que lo rechazó para no molestar en cada recarga
+                            localStorage.setItem('webpush_prompt_dismissed', Date.now());
+                        }
+                    }
+                }
+            }
+        }, 3000); // Esperar 3 segundos para no ser tan invasivo al cargar
+    });
+
+    // Global Home Button Injector
+    window.addEventListener('load', () => {
+        const path = window.location.pathname;
+        if (path === '/app/' || path === '/portal/' || path.includes('/admin/')) return;
+
+        const header = document.querySelector('header');
+        if (header && !document.getElementById('global-home-btn')) {
+            const homeBtn = document.createElement('a');
+            homeBtn.id = 'global-home-btn';
+            homeBtn.href = '/app/';
+            // Estilo consistente con SAP Fiori / Outfit
+            homeBtn.style.cssText = 'color: #2563eb; font-size: 24px; display: flex; align-items: center; text-decoration: none; padding: 5px; margin-left: 5px; order: -1;';
+            homeBtn.innerHTML = '<ion-icon name="home-outline"></ion-icon>';
+            
+            // Si hay un contenedor de título o botones, lo insertamos ahí
+            const titleContainer = header.querySelector('.header-title') || header.querySelector('.back-btn')?.parentElement;
+            if (titleContainer) {
+                titleContainer.prepend(homeBtn);
+            } else {
+                header.prepend(homeBtn);
+            }
+        }
+    });
+    // Global OT Deletion Controller
+    (function() {
+        // Load SweetAlert2 if not already present
+        if (!window.Swal) {
+            const script = document.createElement('script');
+            script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
+            document.head.appendChild(script);
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        let pressTimer;
+        
+        function initLongPress() {
+            // Buscamos cualquier elemento con data-ot-id que no haya sido inicializado
+            const otElements = document.querySelectorAll('[data-ot-id]:not([data-lp-ready])');
+            
+            otElements.forEach(el => {
+                el.setAttribute('data-lp-ready', 'true');
+                
+                const startPress = (e) => {
+                    if (e.type === 'mousedown' && e.button !== 0) return;
+                    pressTimer = window.setTimeout(() => {
+                        triggerDelete(el);
+                    }, 800);
+                };
+
+                const cancelPress = () => {
+                    clearTimeout(pressTimer);
+                };
+
+                el.addEventListener('mousedown', startPress);
+                el.addEventListener('touchstart', startPress, {passive: true});
+                el.addEventListener('mouseup', cancelPress);
+                el.addEventListener('mouseleave', cancelPress);
+                el.addEventListener('touchend', cancelPress);
+                el.addEventListener('touchcancel', cancelPress);
+                
+                // Prevenir navegación accidental si se activó el borrado
+                el.addEventListener('click', (e) => {
+                    if (el.dataset.longPressed === 'true') {
+                        e.preventDefault();
+                        el.dataset.longPressed = 'false';
+                    }
+                });
+            });
+        }
+
+        async function triggerDelete(el) {
+            el.dataset.longPressed = 'true';
+            // Sanitizar ID: eliminar cualquier coma o punto de formato decimal/miles
+            let otId = el.getAttribute('data-ot-id');
+            if (otId) otId = otId.toString().replace(/[,.]/g, '');
+            
+            const otCode = el.getAttribute('data-ot-codigo') || 'esta orden';
+            const estado = el.getAttribute('data-ot-estado');
+
+            // Validar estados permitidos (ESPERA, PROGRAMADA, EJECUCION)
+            const allowedStates = ['ESPERA', 'PROGRAMADA', 'EJECUCION'];
+            if (!allowedStates.includes(estado)) {
+                // Opcional: Feedback de que este estado no se puede borrar
+                return;
+            }
+
+            if (!window.Swal) return;
+
+            const result = await Swal.fire({
+                title: '¿Eliminar Orden?',
+                text: `¿Eliminar la orden ${otCode}? Esta acción no se puede deshacer.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#bb0000',
+                cancelButtonColor: '#6a6d70',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            });
+
+            if (result.isConfirmed) {
+                Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                try {
+                    const response = await fetch('/mantenimiento/api/delete-ots/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ ot_ids: [otId] })
+                    });
+
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        el.style.transition = 'all 0.3s ease';
+                        el.style.opacity = '0';
+                        el.style.transform = 'scale(0.8)';
+                        setTimeout(() => {
+                            el.remove();
+                            // Intentar actualizar cualquier contador de insignias (.count-badge)
+                            const badge = document.querySelector('.count-badge');
+                            if (badge) badge.innerText = Math.max(0, parseInt(badge.innerText) - 1);
+                        }, 300);
+                        Swal.fire({ icon: 'success', title: 'Eliminada', timer: 1500, showConfirmButton: false });
+                    } else {
+                        Swal.fire('Error', data.message || 'No se pudo eliminar.', 'error');
+                    }
+                } catch (error) {
+                    Swal.fire('Error', 'Error de conexión.', 'error');
+                }
+            }
+        }
+
+        // Inicializar y observar cambios en el DOM
+        window.addEventListener('load', () => {
+            initLongPress();
+            const observer = new MutationObserver(initLongPress);
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+    })();
+    // Inyectar botón de suscripción oculto si no existe
+    window.addEventListener('load', () => {
+        if (!document.querySelector('.webpush-button')) {
+            const container = document.createElement('div');
+            container.style.display = 'none';
+            container.id = 'global-webpush-container';
+            container.innerHTML = '
+  <button id="webpush-subscribe-button"   data-url="/webpush/save_information">
+    Subscribe to Push Messaging
+  </button>
+  <div id="webpush-message" hidden></div>
+
+';
+            document.body.appendChild(container);
+        }
+    });
+</script>
+
+<!-- Offline Sync Script -->
+<script>
+    (function() {
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function dataURItoBlob(dataURI) {
+            const parts = dataURI.split(',');
+            const byteString = atob(parts[1]);
+            const mimeString = parts[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], {type: mimeString});
+        }
+
+        async function syncOfflineAvisos() {
+            if (!navigator.onLine) return;
+
+            const dbRequest = indexedDB.open('SoftcomOfflineDB', 1);
+            
+            dbRequest.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('offlineAvisos')) {
+                    db.createObjectStore('offlineAvisos', { keyPath: 'id' });
+                }
+            };
+
+            dbRequest.onsuccess = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('offlineAvisos')) return;
+
+                const tx = db.transaction('offlineAvisos', 'readonly');
+                const store = tx.objectStore('offlineAvisos');
+                const getAllReq = store.getAll();
+
+                getAllReq.onsuccess = async () => {
+                    const avisos = getAllReq.result;
+                    if (!avisos || avisos.length === 0) return;
+
+                    console.log(`[Offline Sync] Encontrados ${avisos.length} avisos offline para sincronizar.`);
+
+                    // Asegurar que SweetAlert est cargado
+                    if (!window.Swal && document.head) {
+                        const script = document.createElement('script');
+                        script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
+                        document.head.appendChild(script);
+                    }
+
+                    for (const aviso of avisos) {
+                        try {
+                            const formData = new FormData();
+                            
+                            // Aadir campos de texto
+                            for (const [key, value] of Object.entries(aviso.fields)) {
+                                if (Array.isArray(value)) {
+                                    value.forEach(v => formData.append(key, v));
+                                } else {
+                                    formData.append(key, value);
+                                }
+                            }
+
+                            // Asegurar token CSRF si no est en los campos
+                            if (!formData.has('csrfmiddlewaretoken')) {
+                                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+                            }
+
+                            // Aadir archivos decodificados
+                            if (aviso.files && aviso.files.length > 0) {
+                                for (const fileObj of aviso.files) {
+                                    const blob = dataURItoBlob(fileObj.data);
+                                    formData.append(fileObj.fieldName, blob, fileObj.name);
+                                }
+                            }
+
+                            // Enviar
+                            const response = await fetch('/mantenimiento/app/aviso/crear/', {
+                                method: 'POST',
+                                body: formData,
+                                headers: {
+                                    'X-CSRFToken': getCookie('csrftoken')
+                                }
+                            });
+
+                            if (response.ok || response.redirected) {
+                                // Eliminar de IndexedDB local
+                                const delTx = db.transaction('offlineAvisos', 'readwrite');
+                                delTx.objectStore('offlineAvisos').delete(aviso.id);
+                                
+                                console.log(`[Offline Sync] Aviso ${aviso.id} sincronizado.`);
+                                
+                                setTimeout(() => {
+                                    if (window.Swal) {
+                                        Swal.fire({
+                                            toast: true,
+                                            position: 'top-end',
+                                            icon: 'success',
+                                            title: 'Aviso offline sincronizado con éxito',
+                                            showConfirmButton: false,
+                                            timer: 4000
+                                        });
+                                    }
+                                }, 1000);
+                            } else {
+                                console.error('[Offline Sync] Error al sincronizar aviso', aviso.id, response.statusText);
+                            }
+                        } catch (err) {
+                            console.error('[Offline Sync] Error procesando aviso offline', aviso.id, err);
+                        }
+                    }
+                };
+            };
+        }
+
+        window.addEventListener('online', syncOfflineAvisos);
+        window.addEventListener('load', syncOfflineAvisos);
+    })();
+</script>
 
     <!-- Design Foundation -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -361,13 +770,6 @@
             border-radius: 2px;
             width: auto;
             height: auto;
-        }
-
-        #plano-embed {
-            width: 100%;
-            height: 100%;
-            border: none;
-            transform-origin: center center;
         }
 
         /* Pines Style */
@@ -1100,8 +1502,8 @@
         </div>
 
         <div class="visor-info">
-            <h2>{{ visor.nombre }}</h2>
-            <p>{{ visor.plano.nombre }} - {{ visor.plano.ubicacion.nombre }}</p>
+            <h2>Visor: M-101-C</h2>
+            <p>M-101-C - </p>
         </div>
 
         <div class="controls">
@@ -1135,86 +1537,21 @@
 
         <main id="main-canvas">
             <div id="zoom-container">
-                {% if visor.plano.archivo_actual %}
-                {% with plano_url=visor.plano.archivo_actual.url %}
-                {% if '.pdf' in plano_url|lower %}
-                <embed id="plano-embed" src="{% url 'activos:plano_documento_proxy' visor.plano.id %}" type="application/pdf">
-                <canvas id="plano-canvas" style="display:none;"></canvas>
-                {% else %}
-                <img src="{% url 'activos:plano_documento_proxy' visor.plano.id %}" id="plano-img" alt="Plano">
-                {% endif %}
-                {% endwith %}
-                {% endif %}
+                
+                
+                
+                <canvas id="plano-canvas"></canvas>
+                
+                
+                
 
                 <!-- Los pines se cargarán aquí dinámicamente -->
                 <div id="pines-layer"
                     style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none;">
-                    {% load l10n %}
-                    {% localize off %}
-                    {% for pin in visor_pins %}
-                    <div class="pin {% if pin.ancho > 0 %}pin-area{% endif %}" id="pin-{{ pin.id }}"
-                        data-id="{{ pin.id }}" data-activo="{{ pin.activo.id|default:'' }}"
-                        data-aviso="{{ pin.aviso.id|default:'' }}" data-actividad="{{ pin.actividad.id|default:'' }}"
-                        data-ubicacion="{{ pin.ubicacion.id|default:'' }}"
-                        data-pin-type="{% if pin.ancho > 0 %}ubicacion{% elif pin.actividad %}actividad{% elif pin.aviso %}aviso{% elif pin.activo %}activo{% else %}libre{% endif %}"
-                        data-label="{% if pin.ancho > 0 %}{{ pin.ubicacion.nombre|default:'Nueva Zona' }}{% elif pin.actividad %}{{ pin.actividad.nombre }}{% elif pin.activo %}{{ pin.activo.nombre }}{% elif pin.aviso %}AV-{{ pin.aviso.id }}{% else %}[NOTA]{% endif %}"
-                        data-color="{{ pin.color }}" data-nota="{{ pin.nota|default:'' }}" data-x="{{ pin.x }}"
-                        data-y="{{ pin.y }}" data-ancho="{{ pin.ancho|default:0 }}" data-alto="{{ pin.alto|default:0 }}"
-                        data-icon="{% if pin.ancho > 0 %}scan-outline{% elif pin.actividad %}construct{% elif pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"
-                        data-aviso-meta='{% if pin.aviso %}{"prioridad":"{{ pin.aviso.get_prioridad_display }}","estado":"{{ pin.aviso.get_estado_display }}","solicitante":"{{ pin.aviso.solicitante.username|default:"Anónimo" }}","descripcion":"{{ pin.aviso.descripcion|escapejs }}"}{% else %}{}{% endif %}'
-                        data-fotos='[{% for foto in pin.fotos.all %}"{{ foto.imagen.url }}"{% if not forloop.last %},{% endif %}{% endfor %}]'
-                        style="left: {{ pin.x }}px; top: {{ pin.y }}px; color: {{ pin.color }}; pointer-events: auto; {% if pin.ancho > 0 %}width: {{ pin.ancho }}px; height: {{ pin.alto }}px; border: 2px solid {{ pin.color }}; background-color: {{ pin.color }}33;{% endif %}">
-
-                        {% if not pin.ancho %}
-                        <ion-icon
-                            name="{% if pin.actividad %}construct{% elif pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"></ion-icon>
-                        {% endif %}
-
-                        {% if pin.ancho > 0 %}
-                        <span class="pin-area-label"
-                            style="position: absolute; top: 0; left: 0; background: {{ pin.color }}; color: white; padding: 2px 4px; font-size: 10px;">{{
-                            pin.ubicacion.nombre|default:"Nueva Zona" }}</span>
-                        {% else %}
-                        <div class="pin-label-permanent">
-                            <div style="margin-bottom: 4px;">
-                                {% if pin.actividad %}
-                                <span style="color: var(--primary); font-weight: 800;">[TAREA]</span> <span
-                                    class="label-text">{{ pin.actividad.nombre|default:"Nueva Tarea" }}</span>
-                                {% elif pin.activo %}
-                                <span style="color: #28a745; font-weight: 800;">[ACTIVO]</span> <span
-                                    class="label-text">{{ pin.activo.nombre|default:"Activo sin nombre" }}</span>
-                                {% elif pin.aviso %}
-                                <span style="color: #dc3545; font-weight: 800;">[AVISO]</span> <span
-                                    class="label-text">AV-{{ pin.aviso.id }}</span>
-                                {% else %}
-                                <div style="margin-bottom: 2px;">
-                                    <span style="color: #6366f1; font-weight: 800;">[NOTA]</span>
-                                </div>
-                                {% endif %}
-                            </div>
-
-                            {% if pin.nota %}
-                            <div
-                                style="font-size: 0.9em; color: #666; margin-bottom: 4px; font-style: italic; font-weight: 400;">
-                                {{ pin.nota }}
-                            </div>
-                            {% endif %}
-
-                            {% if pin.fotos.exists %}
-                            <div
-                                style="display: flex; gap: 4px; overflow-x: auto; max-width: 200px; padding-top: 4px; border-top: 1px solid #eee;">
-                                {% for foto in pin.fotos.all %}
-                                <img src="{{ foto.imagen.url }}"
-                                    style="height: 80px; width: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;"
-                                    draggable="false">
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                    {% endlocalize %}
+                    
+                    
+                    
+                    
                 </div>
             </div>
 
@@ -1322,17 +1659,569 @@
                             style="padding: 6px; font-size: 0.75rem; border: 1px solid var(--border); border-radius: 4px;"
                             onchange="filterAssetSelect()">
                             <option value="">Todas las Categorías</option>
-                            {% for cat in categorias %}
-                            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
-                            {% endfor %}
+                            
+                            <option value="248">ALMACENAMIENTO</option>
+                            
+                            <option value="249">BATERIAS UPS</option>
+                            
+                            <option value="253">BOMBEO DE FLUJO PTAR</option>
+                            
+                            <option value="2">CAJERO</option>
+                            
+                            <option value="192">CENTRO DE CONJUNTO DE COLADERAS</option>
+                            
+                            <option value="209">CENTROS DE CARGA</option>
+                            
+                            <option value="225">CONTROLADORA DE AIRES ACONDICIONADOS</option>
+                            
+                            <option value="222">CONTROLADORA PRINCIPAL MACH-PRO COM</option>
+                            
+                            <option value="227">CONTROLADOR UC-600 TRANE</option>
+                            
+                            <option value="229">CRAH</option>
+                            
+                            <option value="189">CUARTO HIDROSANITARIO</option>
+                            
+                            <option value="190">DISPENSADOR DE PAPEL TOALLA</option>
+                            
+                            <option value="220">DISPOSITIVO DE PROTECCION CONTRA TRANSIENTE</option>
+                            
+                            <option value="214">DISYUNTOR DE CAJA MOLDEADA DE BAJO VOLTAJE</option>
+                            
+                            <option value="245">DRYCOOLER</option>
+                            
+                            <option value="241">ELECTRICIDAD</option>
+                            
+                            <option value="233">ELEVADORES</option>
+                            
+                            <option value="261">EQUIPOS PTAR</option>
+                            
+                            <option value="196">ESTACION DE CONTROL DE ZONA</option>
+                            
+                            <option value="197">ESTACION DE MANGUERAS CLASE II</option>
+                            
+                            <option value="234">EVAPORADORAS</option>
+                            
+                            <option value="4">EVAPORADORA TIPO CASSETTE</option>
+                            
+                            <option value="200">EXTINTOR ABC 10 LB</option>
+                            
+                            <option value="201">EXTINTOR CO2 15 LB</option>
+                            
+                            <option value="11">EXTRACTOR CENTRIFUGO DE ALABES CURVOS</option>
+                            
+                            <option value="10">EXTRACTOR CENTRIFUGO EN LINEA</option>
+                            
+                            <option value="262">FILTROS DE ARENA PTAR</option>
+                            
+                            <option value="259">FLUJOMETRO</option>
+                            
+                            <option value="181">FLUXOMETRO DE PEDAL</option>
+                            
+                            <option value="182">FLUXOMETRO DE SENSOR</option>
+                            
+                            <option value="231">GENERADORES</option>
+                            
+                            <option value="1">HVAC</option>
+                            
+                            <option value="243">IHS</option>
+                            
+                            <option value="188">INODORO DE TANQUE ECOLOGICO</option>
+                            
+                            <option value="226">INTERRUPTOR DE CORRIENTE</option>
+                            
+                            <option value="219">INTERRUPTOR DE SEGURIDAD</option>
+                            
+                            <option value="12">INYECTOR CENTRIFUGO DE ALABES CURVOS</option>
+                            
+                            <option value="183">LLAVE DE CIERRE AUTOMATICO</option>
+                            
+                            <option value="187">LLAVE DE CIERRE MANUAL</option>
+                            
+                            <option value="186">LLAVE DE FREGADERO SIN ESCURRIDOR</option>
+                            
+                            <option value="185">LLAVE DE LAVATRASTOS CON ESCURRIDOR</option>
+                            
+                            <option value="194">LLAVES DE PASO</option>
+                            
+                            <option value="251">LUMINARIAS</option>
+                            
+                            <option value="223">MACH-PRO ZONE</option>
+                            
+                            <option value="19">MEDICION DE CALIDAD DE AIRE</option>
+                            
+                            <option value="22">MEDICION DE NIVEL DE RUIDO</option>
+                            
+                            <option value="21">MEDICION DE TEMPERATURA Y HUMEDAD RELATIVA</option>
+                            
+                            <option value="23">MEDICION DE VIBRACIONES</option>
+                            
+                            <option value="216">MEDICIONES LUMINICAS</option>
+                            
+                            <option value="235">MEDIDOR DE FLUJO</option>
+                            
+                            <option value="237">MEDIDOR DE OXIGENO</option>
+                            
+                            <option value="236">MEDIDOR DE PH</option>
+                            
+                            <option value="258">MEMBRANAS DIFUROSAS REACTOR PTAR</option>
+                            
+                            <option value="184">MINGITORIO SECO OVALADO</option>
+                            
+                            <option value="244">MOBILIARIO</option>
+                            
+                            <option value="240">OFICINA PRIVADA</option>
+                            
+                            <option value="207">PANEL DE CARGA / PANELBOARD</option>
+                            
+                            <option value="204">PANEL DE CONTROL DE ILUMINACION &quot;MAESTRO&quot; / LIGHTNING CONTROL PANEL</option>
+                            
+                            <option value="208">PANEL DE DERIVACION / BY PASS</option>
+                            
+                            <option value="205">PANEL DE ILUMINACION &quot;ESCLAVO&quot; / POWER PANELBOARD</option>
+                            
+                            <option value="206">PANELES DE PROTECCION Y DISTRIBUCION</option>
+                            
+                            <option value="256">Pantarei</option>
+                            
+                            <option value="242">PCI</option>
+                            
+                            <option value="215">PUESTA A TIERRA Y PARARRAYO</option>
+                            
+                            <option value="218">SECADOR DE MANOS</option>
+                            
+                            <option value="224">SENSOR DE PRESION DIFERENCIAL</option>
+                            
+                            <option value="239">SILLAS</option>
+                            
+                            <option value="221">SISTEMA BMS</option>
+                            
+                            <option value="255">SISTEMA DE FILTRACIÓN</option>
+                            
+                            <option value="211">SISTEMA DE ILUMINACION</option>
+                            
+                            <option value="198">SISTEMA DE ROCIADORES AUTOMATICOS K5.6</option>
+                            
+                            <option value="212">SISTEMA DE TOMACORRIENTES</option>
+                            
+                            <option value="199">SISTEMA DE TUBERIA HN SPCI</option>
+                            
+                            <option value="202">SISTEMA ELECTRICO</option>
+                            
+                            <option value="213">SISTEMA FOTOVOLTAICO</option>
+                            
+                            <option value="179">SISTEMA HIDROSANITARIO</option>
+                            
+                            <option value="195">SISTEMA PCI</option>
+                            
+                            <option value="254">SOPLADORES INYECTOR DE OXIGENO REACTOR</option>
+                            
+                            <option value="217">TERMOGRAFIAS</option>
+                            
+                            <option value="180">TRAMPA DE GRASAS</option>
+                            
+                            <option value="252">TRANSFERENCIA AUTOMATICA ATS</option>
+                            
+                            <option value="203">TRANSFORMADOR DE TIPO SECO DE BAJO VOLTAJE</option>
+                            
+                            <option value="193">TUBERIA SISTEMA HIDROSANITARIO</option>
+                            
+                            <option value="20">UNIDAD CONDENSADORA DE LA UMA</option>
+                            
+                            <option value="5">UNIDAD CONDENSADORA VRF</option>
+                            
+                            <option value="247">UNIDADES DE INYECCION Y EXTRACCION DE AIRE TIPO CENTRIFUGA</option>
+                            
+                            <option value="3">UNIDADES EVAPORADORAS FANS COIL</option>
+                            
+                            <option value="13">UNIDADES MANEJADORAS DE AIRE</option>
+                            
+                            <option value="210">UPS / SISTEMA DE ENERGIA ININTERRUMPIDA</option>
+                            
+                            <option value="191">VALVULA DE ACOPLE RAPIDO</option>
+                            
+                            <option value="228">VARIADOR DE FRECUENCIA</option>
+                            
+                            <option value="246">VENTILADORA DE ENFRIAMIENTO</option>
+                            
                         </select>
                         <select id="asset-filter-loc"
                             style="padding: 6px; font-size: 0.75rem; border: 1px solid var(--border); border-radius: 4px;"
                             onchange="filterAssetSelect()">
                             <option value="">Todas las Ubicaciones</option>
-                            {% for loc in ubicaciones %}
-                            <option value="{{ loc.id }}">{{ loc.nombre }}</option>
-                            {% endfor %}
+                            
+                            <option value="784">Área de Drycooler</option>
+                            
+                            <option value="781">Azotea</option>
+                            
+                            <option value="779">Azotea</option>
+                            
+                            <option value="718">BODEGA</option>
+                            
+                            <option value="651">Bodega de Infra</option>
+                            
+                            <option value="650">Bodega de Instalaciones</option>
+                            
+                            <option value="652">Bodega de IT</option>
+                            
+                            <option value="123">BODEGAS</option>
+                            
+                            <option value="687">CLINICA</option>
+                            
+                            <option value="700">Conjunto</option>
+                            
+                            <option value="125">Conjunto</option>
+                            
+                            <option value="712">Conjunto </option>
+                            
+                            <option value="767">Cuarto de basura</option>
+                            
+                            <option value="786">Cuarto de Proveedores</option>
+                            
+                            <option value="381">Cuerpo Bajo A</option>
+                            
+                            <option value="380">Cuerpo Bajo B</option>
+                            
+                            <option value="382">Cuerpo Bajo C</option>
+                            
+                            <option value="676">Cuerpo Bajo D</option>
+                            
+                            <option value="126">Data Center</option>
+                            
+                            <option value="708">Estacionamiento 0</option>
+                            
+                            <option value="756">Estacionamiento 0</option>
+                            
+                            <option value="707">Estacionamiento 0</option>
+                            
+                            <option value="755">Estacionamiento 1</option>
+                            
+                            <option value="780">Estacionamiento 1</option>
+                            
+                            <option value="713">Estacionamiento 1</option>
+                            
+                            <option value="706">Estacionamiento 1</option>
+                            
+                            <option value="769">Estacionamiento 2</option>
+                            
+                            <option value="709">Estacionamiento 2</option>
+                            
+                            <option value="758">Estacionamiento 3</option>
+                            
+                            <option value="711">Estacionamiento 4</option>
+                            
+                            <option value="770">Estacionamiento 4</option>
+                            
+                            <option value="128">Fuera del Proyecto</option>
+                            
+                            <option value="649">LOCAL COMERCIAL T2-01</option>
+                            
+                            <option value="655">NAZ</option>
+                            
+                            <option value="574">NAZ</option>
+                            
+                            <option value="657">NAZ</option>
+                            
+                            <option value="648">NAZ</option>
+                            
+                            <option value="654">NAZ</option>
+                            
+                            <option value="567">Nivel 1</option>
+                            
+                            <option value="632">Nivel 1</option>
+                            
+                            <option value="777">Nivel 1</option>
+                            
+                            <option value="122">Nivel 1</option>
+                            
+                            <option value="641">Nivel 1</option>
+                            
+                            <option value="625">Nivel 1</option>
+                            
+                            <option value="616">Nivel 10</option>
+                            
+                            <option value="366">Nivel 10</option>
+                            
+                            <option value="367">Nivel 11</option>
+                            
+                            <option value="615">Nivel 11</option>
+                            
+                            <option value="614">Nivel 12</option>
+                            
+                            <option value="368">Nivel 12</option>
+                            
+                            <option value="369">Nivel 13</option>
+                            
+                            <option value="613">Nivel 13</option>
+                            
+                            <option value="612">Nivel 14</option>
+                            
+                            <option value="370">Nivel 14</option>
+                            
+                            <option value="611">Nivel 15</option>
+                            
+                            <option value="371">Nivel 15</option>
+                            
+                            <option value="610">Nivel 16</option>
+                            
+                            <option value="372">Nivel 16</option>
+                            
+                            <option value="609">Nivel 17</option>
+                            
+                            <option value="373">Nivel 17</option>
+                            
+                            <option value="374">Nivel 18</option>
+                            
+                            <option value="608">Nivel 18</option>
+                            
+                            <option value="607">Nivel 19</option>
+                            
+                            <option value="375">Nivel 19</option>
+                            
+                            <option value="642">Nivel 2</option>
+                            
+                            <option value="624">Nivel 2</option>
+                            
+                            <option value="568">Nivel 2</option>
+                            
+                            <option value="358">Nivel 2</option>
+                            
+                            <option value="633">Nivel 2</option>
+                            
+                            <option value="376">Nivel 20</option>
+                            
+                            <option value="606">Nivel 20</option>
+                            
+                            <option value="377">Nivel 21</option>
+                            
+                            <option value="605">Nivel 21</option>
+                            
+                            <option value="604">Nivel 22</option>
+                            
+                            <option value="378">Nivel 22</option>
+                            
+                            <option value="379">Nivel 23</option>
+                            
+                            <option value="603">Nivel 23</option>
+                            
+                            <option value="602">Nivel 24</option>
+                            
+                            <option value="359">Nivel 3</option>
+                            
+                            <option value="569">Nivel 3</option>
+                            
+                            <option value="643">Nivel 3</option>
+                            
+                            <option value="634">Nivel 3</option>
+                            
+                            <option value="623">Nivel 3</option>
+                            
+                            <option value="570">Nivel 4</option>
+                            
+                            <option value="644">Nivel 4</option>
+                            
+                            <option value="360">Nivel 4</option>
+                            
+                            <option value="622">Nivel 4</option>
+                            
+                            <option value="635">Nivel 4</option>
+                            
+                            <option value="645">Nivel 5</option>
+                            
+                            <option value="636">Nivel 5</option>
+                            
+                            <option value="361">Nivel 5</option>
+                            
+                            <option value="571">Nivel 5</option>
+                            
+                            <option value="621">Nivel 5</option>
+                            
+                            <option value="620">Nivel 6</option>
+                            
+                            <option value="637">Nivel 6</option>
+                            
+                            <option value="646">Nivel 6</option>
+                            
+                            <option value="572">Nivel 6</option>
+                            
+                            <option value="362">Nivel 6</option>
+                            
+                            <option value="619">Nivel 7</option>
+                            
+                            <option value="363">Nivel 7</option>
+                            
+                            <option value="638">Nivel 7</option>
+                            
+                            <option value="647">Nivel 7</option>
+                            
+                            <option value="573">Nivel 7</option>
+                            
+                            <option value="364">Nivel 8</option>
+                            
+                            <option value="618">Nivel 8</option>
+                            
+                            <option value="775">Nivel  -8.10 Exteriores</option>
+                            
+                            <option value="365">Nivel 9</option>
+                            
+                            <option value="617">Nivel 9</option>
+                            
+                            <option value="694">Nivel PB</option>
+                            
+                            <option value="717">Nivel PB</option>
+                            
+                            <option value="640">Nivel PB</option>
+                            
+                            <option value="575">Nivel PB</option>
+                            
+                            <option value="692">Nivel PB</option>
+                            
+                            <option value="783">NPT -3.80</option>
+                            
+                            <option value="705">NPT -4.05</option>
+                            
+                            <option value="762">Oficina 1</option>
+                            
+                            <option value="761">Oficina 1</option>
+                            
+                            <option value="763">Oficina 3</option>
+                            
+                            <option value="787">Oficina de Direccion</option>
+                            
+                            <option value="788">Oficina de Ministro Puerta 10</option>
+                            
+                            <option value="764">Oficina Dirección</option>
+                            
+                            <option value="768">Oficina Gerencia Mantenimiento</option>
+                            
+                            <option value="630">Operadora</option>
+                            
+                            <option value="677">Otras Ubicaciones</option>
+                            
+                            <option value="663">PB01</option>
+                            
+                            <option value="660">PB01</option>
+                            
+                            <option value="659">PB02</option>
+                            
+                            <option value="664">PB02</option>
+                            
+                            <option value="670">PB02</option>
+                            
+                            <option value="719">Planta Baja</option>
+                            
+                            <option value="695">Planta Baja</option>
+                            
+                            <option value="696">Planta Baja</option>
+                            
+                            <option value="697">Planta Baja</option>
+                            
+                            <option value="757">Planta Baja</option>
+                            
+                            <option value="639">Planta baja 1</option>
+                            
+                            <option value="601">Planta baja 1</option>
+                            
+                            <option value="409">Planta baja 1</option>
+                            
+                            <option value="665">Planta baja 1</option>
+                            
+                            <option value="716">Planta Baja 1</option>
+                            
+                            <option value="631">Planta Baja 1</option>
+                            
+                            <option value="699">Planta Baja 2</option>
+                            
+                            <option value="693">Planta Baja 2.1</option>
+                            
+                            <option value="703">Plaza de las 9 Etnias</option>
+                            
+                            <option value="714">Plaza de las 9 Etnias </option>
+                            
+                            <option value="701">Plaza la Democracia</option>
+                            
+                            <option value="666">PLAZA LAS ETNIAS</option>
+                            
+                            <option value="688">Plazas</option>
+                            
+                            <option value="132">Plazas</option>
+                            
+                            <option value="133">PTAR</option>
+                            
+                            <option value="785">RACK SEGURIDAD</option>
+                            
+                            <option value="765">Recepción</option>
+                            
+                            <option value="766">Sala de Juntas</option>
+                            
+                            <option value="789">Sala de Juntas 08</option>
+                            
+                            <option value="772">Sala de Juntas 4 Personas ( 1-23-11)</option>
+                            
+                            <option value="771">Sala de Juntas Tipo 1 (1-23-12)</option>
+                            
+                            <option value="678">SOTANO 0</option>
+                            
+                            <option value="658">SOTANO 0</option>
+                            
+                            <option value="661">SOTANO 0</option>
+                            
+                            <option value="675">SOTANO 0</option>
+                            
+                            <option value="689">SOTANO 00</option>
+                            
+                            <option value="653">Sotano 1</option>
+                            
+                            <option value="134">SOTANO 1</option>
+                            
+                            <option value="662">SOTANO 1</option>
+                            
+                            <option value="704">SOTANO 1</option>
+                            
+                            <option value="668">SOTANO 1</option>
+                            
+                            <option value="760">Sótano 1</option>
+                            
+                            <option value="776">Sótano 1</option>
+                            
+                            <option value="681">SOTANO 2</option>
+                            
+                            <option value="710">SOTANO 2</option>
+                            
+                            <option value="774">Sótano 2</option>
+                            
+                            <option value="679">SOTANO 3</option>
+                            
+                            <option value="778">Sótano 3</option>
+                            
+                            <option value="669">SOTANO 4</option>
+                            
+                            <option value="680">SOTANO 4</option>
+                            
+                            <option value="782">Sótano 4</option>
+                            
+                            <option value="135">SOTANOS</option>
+                            
+                            <option value="754">Sótanos</option>
+                            
+                            <option value="682">SUBESTACION_CBA</option>
+                            
+                            <option value="685">SUBESTACION_CBB</option>
+                            
+                            <option value="686">SUBESTACION_CBC</option>
+                            
+                            <option value="759">Subestación Receptora</option>
+                            
+                            <option value="683">SUBESTACION_T1</option>
+                            
+                            <option value="684">SUBESTACION_T2</option>
+                            
+                            <option value="88">Torre 1</option>
+                            
+                            <option value="137">Torre 2</option>
+                            
+                            <option value="773">Ubicación Prueba</option>
+                            
                         </select>
                     </div>
                 </div>
@@ -1357,9 +2246,379 @@
                 </div>
                 <select id="pin-ubicacion">
                     <option value="">Seleccione ubicación...</option>
-                    {% for u in ubicaciones %}
-                    <option value="{{ u.id }}">{{ u.nombre_completo|default:u.nombre }}</option>
-                    {% endfor %}
+                    
+                    <option value="784">Área de Drycooler</option>
+                    
+                    <option value="781">Azotea</option>
+                    
+                    <option value="779">Azotea</option>
+                    
+                    <option value="718">BODEGA</option>
+                    
+                    <option value="651">Bodega de Infra</option>
+                    
+                    <option value="650">Bodega de Instalaciones</option>
+                    
+                    <option value="652">Bodega de IT</option>
+                    
+                    <option value="123">BODEGAS</option>
+                    
+                    <option value="687">CLINICA</option>
+                    
+                    <option value="700">Conjunto</option>
+                    
+                    <option value="125">Conjunto</option>
+                    
+                    <option value="712">Conjunto </option>
+                    
+                    <option value="767">Cuarto de basura</option>
+                    
+                    <option value="786">Cuarto de Proveedores</option>
+                    
+                    <option value="381">Cuerpo Bajo A</option>
+                    
+                    <option value="380">Cuerpo Bajo B</option>
+                    
+                    <option value="382">Cuerpo Bajo C</option>
+                    
+                    <option value="676">Cuerpo Bajo D</option>
+                    
+                    <option value="126">Data Center</option>
+                    
+                    <option value="708">Estacionamiento 0</option>
+                    
+                    <option value="756">Estacionamiento 0</option>
+                    
+                    <option value="707">Estacionamiento 0</option>
+                    
+                    <option value="755">Estacionamiento 1</option>
+                    
+                    <option value="780">Estacionamiento 1</option>
+                    
+                    <option value="713">Estacionamiento 1</option>
+                    
+                    <option value="706">Estacionamiento 1</option>
+                    
+                    <option value="769">Estacionamiento 2</option>
+                    
+                    <option value="709">Estacionamiento 2</option>
+                    
+                    <option value="758">Estacionamiento 3</option>
+                    
+                    <option value="711">Estacionamiento 4</option>
+                    
+                    <option value="770">Estacionamiento 4</option>
+                    
+                    <option value="128">Fuera del Proyecto</option>
+                    
+                    <option value="649">LOCAL COMERCIAL T2-01</option>
+                    
+                    <option value="655">NAZ</option>
+                    
+                    <option value="574">NAZ</option>
+                    
+                    <option value="657">NAZ</option>
+                    
+                    <option value="648">NAZ</option>
+                    
+                    <option value="654">NAZ</option>
+                    
+                    <option value="567">Nivel 1</option>
+                    
+                    <option value="632">Nivel 1</option>
+                    
+                    <option value="777">Nivel 1</option>
+                    
+                    <option value="122">Nivel 1</option>
+                    
+                    <option value="641">Nivel 1</option>
+                    
+                    <option value="625">Nivel 1</option>
+                    
+                    <option value="616">Nivel 10</option>
+                    
+                    <option value="366">Nivel 10</option>
+                    
+                    <option value="367">Nivel 11</option>
+                    
+                    <option value="615">Nivel 11</option>
+                    
+                    <option value="614">Nivel 12</option>
+                    
+                    <option value="368">Nivel 12</option>
+                    
+                    <option value="369">Nivel 13</option>
+                    
+                    <option value="613">Nivel 13</option>
+                    
+                    <option value="612">Nivel 14</option>
+                    
+                    <option value="370">Nivel 14</option>
+                    
+                    <option value="611">Nivel 15</option>
+                    
+                    <option value="371">Nivel 15</option>
+                    
+                    <option value="610">Nivel 16</option>
+                    
+                    <option value="372">Nivel 16</option>
+                    
+                    <option value="609">Nivel 17</option>
+                    
+                    <option value="373">Nivel 17</option>
+                    
+                    <option value="374">Nivel 18</option>
+                    
+                    <option value="608">Nivel 18</option>
+                    
+                    <option value="607">Nivel 19</option>
+                    
+                    <option value="375">Nivel 19</option>
+                    
+                    <option value="642">Nivel 2</option>
+                    
+                    <option value="624">Nivel 2</option>
+                    
+                    <option value="568">Nivel 2</option>
+                    
+                    <option value="358">Nivel 2</option>
+                    
+                    <option value="633">Nivel 2</option>
+                    
+                    <option value="376">Nivel 20</option>
+                    
+                    <option value="606">Nivel 20</option>
+                    
+                    <option value="377">Nivel 21</option>
+                    
+                    <option value="605">Nivel 21</option>
+                    
+                    <option value="604">Nivel 22</option>
+                    
+                    <option value="378">Nivel 22</option>
+                    
+                    <option value="379">Nivel 23</option>
+                    
+                    <option value="603">Nivel 23</option>
+                    
+                    <option value="602">Nivel 24</option>
+                    
+                    <option value="359">Nivel 3</option>
+                    
+                    <option value="569">Nivel 3</option>
+                    
+                    <option value="643">Nivel 3</option>
+                    
+                    <option value="634">Nivel 3</option>
+                    
+                    <option value="623">Nivel 3</option>
+                    
+                    <option value="570">Nivel 4</option>
+                    
+                    <option value="644">Nivel 4</option>
+                    
+                    <option value="360">Nivel 4</option>
+                    
+                    <option value="622">Nivel 4</option>
+                    
+                    <option value="635">Nivel 4</option>
+                    
+                    <option value="645">Nivel 5</option>
+                    
+                    <option value="636">Nivel 5</option>
+                    
+                    <option value="361">Nivel 5</option>
+                    
+                    <option value="571">Nivel 5</option>
+                    
+                    <option value="621">Nivel 5</option>
+                    
+                    <option value="620">Nivel 6</option>
+                    
+                    <option value="637">Nivel 6</option>
+                    
+                    <option value="646">Nivel 6</option>
+                    
+                    <option value="572">Nivel 6</option>
+                    
+                    <option value="362">Nivel 6</option>
+                    
+                    <option value="619">Nivel 7</option>
+                    
+                    <option value="363">Nivel 7</option>
+                    
+                    <option value="638">Nivel 7</option>
+                    
+                    <option value="647">Nivel 7</option>
+                    
+                    <option value="573">Nivel 7</option>
+                    
+                    <option value="364">Nivel 8</option>
+                    
+                    <option value="618">Nivel 8</option>
+                    
+                    <option value="775">Nivel  -8.10 Exteriores</option>
+                    
+                    <option value="365">Nivel 9</option>
+                    
+                    <option value="617">Nivel 9</option>
+                    
+                    <option value="694">Nivel PB</option>
+                    
+                    <option value="717">Nivel PB</option>
+                    
+                    <option value="640">Nivel PB</option>
+                    
+                    <option value="575">Nivel PB</option>
+                    
+                    <option value="692">Nivel PB</option>
+                    
+                    <option value="783">NPT -3.80</option>
+                    
+                    <option value="705">NPT -4.05</option>
+                    
+                    <option value="762">Oficina 1</option>
+                    
+                    <option value="761">Oficina 1</option>
+                    
+                    <option value="763">Oficina 3</option>
+                    
+                    <option value="787">Oficina de Direccion</option>
+                    
+                    <option value="788">Oficina de Ministro Puerta 10</option>
+                    
+                    <option value="764">Oficina Dirección</option>
+                    
+                    <option value="768">Oficina Gerencia Mantenimiento</option>
+                    
+                    <option value="630">Operadora</option>
+                    
+                    <option value="677">Otras Ubicaciones</option>
+                    
+                    <option value="663">PB01</option>
+                    
+                    <option value="660">PB01</option>
+                    
+                    <option value="659">PB02</option>
+                    
+                    <option value="664">PB02</option>
+                    
+                    <option value="670">PB02</option>
+                    
+                    <option value="719">Planta Baja</option>
+                    
+                    <option value="695">Planta Baja</option>
+                    
+                    <option value="696">Planta Baja</option>
+                    
+                    <option value="697">Planta Baja</option>
+                    
+                    <option value="757">Planta Baja</option>
+                    
+                    <option value="639">Planta baja 1</option>
+                    
+                    <option value="601">Planta baja 1</option>
+                    
+                    <option value="409">Planta baja 1</option>
+                    
+                    <option value="665">Planta baja 1</option>
+                    
+                    <option value="716">Planta Baja 1</option>
+                    
+                    <option value="631">Planta Baja 1</option>
+                    
+                    <option value="699">Planta Baja 2</option>
+                    
+                    <option value="693">Planta Baja 2.1</option>
+                    
+                    <option value="703">Plaza de las 9 Etnias</option>
+                    
+                    <option value="714">Plaza de las 9 Etnias </option>
+                    
+                    <option value="701">Plaza la Democracia</option>
+                    
+                    <option value="666">PLAZA LAS ETNIAS</option>
+                    
+                    <option value="688">Plazas</option>
+                    
+                    <option value="132">Plazas</option>
+                    
+                    <option value="133">PTAR</option>
+                    
+                    <option value="785">RACK SEGURIDAD</option>
+                    
+                    <option value="765">Recepción</option>
+                    
+                    <option value="766">Sala de Juntas</option>
+                    
+                    <option value="789">Sala de Juntas 08</option>
+                    
+                    <option value="772">Sala de Juntas 4 Personas ( 1-23-11)</option>
+                    
+                    <option value="771">Sala de Juntas Tipo 1 (1-23-12)</option>
+                    
+                    <option value="678">SOTANO 0</option>
+                    
+                    <option value="658">SOTANO 0</option>
+                    
+                    <option value="661">SOTANO 0</option>
+                    
+                    <option value="675">SOTANO 0</option>
+                    
+                    <option value="689">SOTANO 00</option>
+                    
+                    <option value="653">Sotano 1</option>
+                    
+                    <option value="134">SOTANO 1</option>
+                    
+                    <option value="662">SOTANO 1</option>
+                    
+                    <option value="704">SOTANO 1</option>
+                    
+                    <option value="668">SOTANO 1</option>
+                    
+                    <option value="760">Sótano 1</option>
+                    
+                    <option value="776">Sótano 1</option>
+                    
+                    <option value="681">SOTANO 2</option>
+                    
+                    <option value="710">SOTANO 2</option>
+                    
+                    <option value="774">Sótano 2</option>
+                    
+                    <option value="679">SOTANO 3</option>
+                    
+                    <option value="778">Sótano 3</option>
+                    
+                    <option value="669">SOTANO 4</option>
+                    
+                    <option value="680">SOTANO 4</option>
+                    
+                    <option value="782">Sótano 4</option>
+                    
+                    <option value="135">SOTANOS</option>
+                    
+                    <option value="754">Sótanos</option>
+                    
+                    <option value="682">SUBESTACION_CBA</option>
+                    
+                    <option value="685">SUBESTACION_CBB</option>
+                    
+                    <option value="686">SUBESTACION_CBC</option>
+                    
+                    <option value="759">Subestación Receptora</option>
+                    
+                    <option value="683">SUBESTACION_T1</option>
+                    
+                    <option value="684">SUBESTACION_T2</option>
+                    
+                    <option value="88">Torre 1</option>
+                    
+                    <option value="137">Torre 2</option>
+                    
+                    <option value="773">Ubicación Prueba</option>
+                    
                 </select>
             </div>
 
@@ -1384,10 +2643,82 @@
                 <label>Aviso de Mantenimiento</label>
                 <select id="pin-aviso">
                     <option value="">Ningún aviso vinculado...</option>
-                    {% for aviso in avisos %}
-                    <option value="{{ aviso.id }}">AV-{{ aviso.id }}: {{ aviso.descripcion|truncatechars:50 }} ({{
+                    
+                    <option value="32">AV-32: Panel de variadores de frecuencia en mal estado ({{
                         aviso.prioridad }})</option>
-                    {% endfor %}
+                    
+                    <option value="31">AV-31: Tubería de Línea de tierra desprendida ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="30">AV-30: Lámparas del cubo de gradas están fallando  ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="29">AV-29: Prueba ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="28">AV-28: En CBB NIVEL 1, electrodomésticos de cocina fuera… ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="24">AV-24: Pasamanos flojo ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="23">AV-23: Lámpara en mal estado ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="22">AV-22: Desorden en oficinas  ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="21">AV-21: Isdidid ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="20">AV-20: Acumulación de Papel ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="19">AV-19: 9 am se detecta fuga en tuberías de agua potable … ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="18">AV-18: pH bajo en celdas de agua potable ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="16">AV-16: pRUEba ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="15">AV-15: Aire acondicionado de sala de juntas 1 fallando ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="14">AV-14: Prueba 2333 ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="13">AV-13: Prueba ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="12">AV-12: Prueba ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="11">AV-11: Esta es una prueba de avance de proyecto ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="10">AV-10: Pruebas  ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="8">AV-8: 5 ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="7">AV-7: Prueba ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="6">AV-6: Esta es una prueba de funcionamiento ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="4">AV-4: Elevador est?? funcionado trabado ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="3">AV-3: Este es un aviso de mantenimiento sobre una fuga … ({{
+                        aviso.prioridad }})</option>
+                    
+                    <option value="2">AV-2: Prueba de Avisos ({{
+                        aviso.prioridad }})</option>
+                    
                 </select>
             </div>
         </div>
@@ -1399,12 +2730,52 @@
                 <div style="display: flex; gap: 8px;">
                     <select id="pin-actividad" style="flex: 1;">
                         <option value="">Ninguna actividad...</option>
-                        {% for act in actividades %}
-                        <option value="{{ act.id }}" data-color="{{ act.color }}"
-                            data-proyecto="{{ act.proyecto.codigo }}">
-                            {{ act.proyecto.codigo }}: {{ act.nombre }} ({{ act.get_estado_display }})
+                        
+                        <option value="12" data-color="#3B82F6"
+                            data-proyecto="INST_MUNDIAL">
+                            INST_MUNDIAL: Pruebas de funcionamiento (Pendiente)
                         </option>
-                        {% endfor %}
+                        
+                        <option value="11" data-color="#3B82F6"
+                            data-proyecto="INST_MUNDIAL">
+                            INST_MUNDIAL: Instalación de tubería y circuitos (En Progreso)
+                        </option>
+                        
+                        <option value="13" data-color="#3B82F6"
+                            data-proyecto="INST_MUNDIAL">
+                            INST_MUNDIAL: Abrir Pasantes (Pendiente)
+                        </option>
+                        
+                        <option value="1" data-color="#f53b3b"
+                            data-proyecto="LC-A-CITYNET">
+                            LC-A-CITYNET: Dar detalles de esta instalación (Pendiente)
+                        </option>
+                        
+                        <option value="5" data-color="#3B82F6"
+                            data-proyecto="REM_OCC_01">
+                            REM_OCC_01: Recalculación de Aire Acondicionado (Pendiente)
+                        </option>
+                        
+                        <option value="6" data-color="#3B82F6"
+                            data-proyecto="SEFIN_2026_01">
+                            SEFIN_2026_01: Instalación mecánica de Aire acondicionado (Pendiente)
+                        </option>
+                        
+                        <option value="8" data-color="#3B82F6"
+                            data-proyecto="SEFIN_2026_01">
+                            SEFIN_2026_01: Compra de Aire acondicionado (Pendiente)
+                        </option>
+                        
+                        <option value="9" data-color="#3B82F6"
+                            data-proyecto="SEFIN_2026_01">
+                            SEFIN_2026_01: Luminarias Flat Panel (Pendiente)
+                        </option>
+                        
+                        <option value="10" data-color="#3B82F6"
+                            data-proyecto="SEFIN_2026_01">
+                            SEFIN_2026_01: Instalación del cielo (Pendiente)
+                        </option>
+                        
                     </select>
                     <button class="btn" onclick="toggleCreateActivityMode()"
                         style="background: var(--primary); width: 40px; padding: 0; display: flex; align-items: center; justify-content: center; border:none; cursor: pointer;">
@@ -1423,12 +2794,10 @@
 
                     <select id="new-activity-project"
                         style="width: 100%; padding: 6px; margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.8rem;">
-                        {% if not proyectos %}
+                        
                         <option value="">No hay proyectos vinculados</option>
-                        {% endif %}
-                        {% for proj in proyectos %}
-                        <option value="{{ proj.id }}">{{ proj.codigo }}: {{ proj.nombre }}</option>
-                        {% endfor %}
+                        
+                        
                     </select>
 
                     <div style="display: flex; gap: 5px;">
@@ -1542,7 +2911,7 @@
 
 
         <script>
-            const VISOR_ID = Number("{{ visor.id }}");
+            const VISOR_ID = Number("None");
             const mainView = document.getElementById('main-canvas');
             const zoomContainer = document.getElementById('zoom-container');
             const pinesLayer = document.getElementById('pines-layer');
@@ -1576,11 +2945,9 @@
             let isPZInitialized = false;
 
             // PDF JS Config
-            const origUrl = "{% if visor.plano.archivo_actual %}{{ visor.plano.archivo_actual.url }}{% endif %}";
+            const origUrl = "http://localhost:9000/energia-media/docs/2026/6/M-101-C/M-101-C_-_PLANTA_DE_AIRE_ACONDICIONADO_N1.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=rootminio%2F20260630%2Fus-east-1%2Fs3%2Faws4_request&amp;X-Amz-Date=20260630T023041Z&amp;X-Amz-Expires=604800&amp;X-Amz-SignedHeaders=host&amp;X-Amz-Signature=a66e15a4369ab3c5edb202b1959cf641a74b3194c4640b95fa6d5afba75a3947";
             const isPdf = origUrl.toLowerCase().endsWith('.pdf');
-            const pdfUrl = "{% if visor.plano.archivo_actual %}{% url 'activos:plano_documento_proxy' visor.plano.id %}{% endif %}";
-
-            var pdfjsLib = null;
+            const pdfUrl = "/activos/plano-proxy/6076/";
 
             window.addEventListener('load', async () => {
                 try {
@@ -1620,23 +2987,13 @@
 
             async function initPdf() {
                 try {
-                    if (!pdfjsLib) {
-                        pdfjsLib = window['pdfjs-dist/build/pdf'];
-                        if (!pdfjsLib) {
-                            throw new Error("pdfjsLib not found on window object. Script might not be loaded yet.");
-                        }
-                        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-                    }
-
-                    const canvas = document.getElementById('plano-canvas');
-                    const embed = document.getElementById('plano-embed');
-
                     const loadingTask = pdfjsLib.getDocument(pdfUrl);
                     const pdf = await loadingTask.promise;
                     const page = await pdf.getPage(1);
 
                     const scale = 4.0;
                     const viewport = page.getViewport({ scale: scale });
+                    const canvas = document.getElementById('plano-canvas');
                     if (!canvas) return;
 
                     canvas.height = viewport.height;
@@ -1644,12 +3001,6 @@
 
                     const context = canvas.getContext('2d');
                     await page.render({ canvasContext: context, viewport: viewport }).promise;
-
-                    // Show canvas and hide fallback embed
-                    canvas.style.display = 'block';
-                    if (embed) {
-                        embed.style.display = 'none';
-                    }
 
                     zoomContainer.style.width = viewport.width + 'px';
                     zoomContainer.style.height = viewport.height + 'px';
@@ -1659,18 +3010,7 @@
                     setTimeout(centerView, 200);
                 } catch (err) {
                     console.error("PDF Load Error:", err);
-                    // Fallback to embed: hide canvas, show embed
-                    const canvas = document.getElementById('plano-canvas');
-                    const embed = document.getElementById('plano-embed');
-                    if (canvas) canvas.style.display = 'none';
-                    if (embed) embed.style.display = 'block';
-
-                    try { 
-                        initPanzoom(); 
-                        renderSidebarList();
-                    } catch(e) { 
-                        console.error("Panzoom/Sidebar recovery error:", e); 
-                    }
+                    try { initPanzoom(); } catch(e) { console.error("Panzoom error:", e); }
                 }
             }
 
@@ -2458,7 +3798,7 @@
                     // Determine name from label or fallback
                     let assetName = pin.dataset.label;
                     // Clean up label if it has prefixes like [ACTIVO] (though data-label usually is just the name based on template)
-                    // In template: data-label="{{ pin.activo.nombre }}"
+                    // In template: data-label=""
 
                     const opt = document.createElement('option');
                     opt.value = activoId;
@@ -2823,31 +4163,9 @@
                 if (window.innerWidth < 768) toggleSidebar();
             }
 
-            function resetZoom() {
-                if (pz) { pz.reset(); return; }
-                const el = document.getElementById('plano-embed') || document.getElementById('plano-img');
-                if (el) { el.style.transform = 'scale(1) translate(0,0)'; }
-            }
-            function zoomIn() {
-                if (pz) { pz.zoomIn(); return; }
-                const el = document.getElementById('plano-embed') || document.getElementById('plano-img');
-                if (el) {
-                    const cur = parseFloat(el.dataset.zoom || '1');
-                    const newZoom = Math.min(cur + 0.25, 5);
-                    el.dataset.zoom = newZoom;
-                    el.style.transform = 'scale(' + newZoom + ') translate(0,0)';
-                }
-            }
-            function zoomOut() {
-                if (pz) { pz.zoomOut(); return; }
-                const el = document.getElementById('plano-embed') || document.getElementById('plano-img');
-                if (el) {
-                    const cur = parseFloat(el.dataset.zoom || '1');
-                    const newZoom = Math.max(cur - 0.25, 0.25);
-                    el.dataset.zoom = newZoom;
-                    el.style.transform = 'scale(' + newZoom + ') translate(0,0)';
-                }
-            }
+            function resetZoom() { pz.reset(); }
+            function zoomIn() { pz.zoomIn(); }
+            function zoomOut() { pz.zoomOut(); }
 
             let searchTimeout = null;
             async function filterAssetSelect() {

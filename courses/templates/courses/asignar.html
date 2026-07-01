@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asignar: {{ curso.titulo }}</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+
+        .header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 16px 32px; display: flex; align-items: center; gap: 16px; }
+        .header h1 { font-size: 1.1rem; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .header .back { color: rgba(255,255,255,0.75); font-size: 0.85rem; padding: 6px 12px; border-radius: 4px; white-space: nowrap; }
+        .header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+
+        .container { max-width: 960px; margin: 0 auto; padding: 24px 16px 40px; }
+
+        .messages { margin-bottom: 16px; }
+        .msg { padding: 12px 16px; border-radius: 4px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .msg.success { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .msg.error { background: var(--sap-error-bg); color: var(--sap-error); border: 1px solid var(--sap-error); }
+
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); border-radius: 6px; box-shadow: var(--sap-card-shadow); margin-bottom: 20px; overflow: hidden; }
+        .card-header { padding: 14px 20px; background: var(--sap-group-bg); border-bottom: 1px solid var(--sap-border-color); font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+        .card-body { padding: 20px; }
+
+        .field-group { margin-bottom: 16px; }
+        .field-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; }
+        .field-group select { width: 100%; padding: 9px 10px; border: 1px solid var(--sap-border-color); border-radius: 4px; font-family: var(--sap-font-family); font-size: 0.9rem; background: #fff; }
+        .field-group select:focus { outline: none; border-color: var(--sap-brand-color); box-shadow: 0 0 0 2px rgba(0,112,242,0.15); }
+
+        .or-divider { text-align: center; color: var(--sap-text-muted); font-size: 0.82rem; padding: 4px 0; position: relative; }
+        .or-divider::before, .or-divider::after { content: ''; position: absolute; top: 50%; width: 40%; height: 1px; background: var(--sap-border-color); }
+        .or-divider::before { left: 0; }
+        .or-divider::after { right: 0; }
+
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 4px; font-family: var(--sap-font-family); font-size: 0.88rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; }
+        .btn-primary:hover { background: var(--sap-highlight-color); }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+        .btn-danger { background: var(--sap-error-bg); color: var(--sap-error); }
+        .btn-danger:hover { background: #f5d0d0; }
+        .btn-secondary { background: var(--sap-neutral-bg); color: var(--sap-text-color); }
+        .btn-secondary:hover { background: #e4e4e4; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 16px; font-size: 0.78rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.5px; background: var(--sap-bg-color); border-bottom: 1px solid var(--sap-border-color); }
+        td { padding: 12px 16px; font-size: 0.88rem; border-bottom: 1px solid var(--sap-border-color); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8f9fa; }
+
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .badge-user { background: #dbeafe; color: #2563eb; }
+        .badge-group { background: #fef3c7; color: #d97706; }
+        .badge-done { background: var(--sap-success-bg); color: var(--sap-success); }
+
+        .empty { text-align: center; padding: 32px; color: var(--sap-text-muted); }
+
+        .inline-form { display: inline; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{% url 'courses:lista_admin' %}" class="back">← Gestión</a>
+        <h1>Asignar: {{ curso.titulo }}</h1>
+        <span style="font-size:0.78rem;background:rgba(255,255,255,0.12);padding:3px 10px;border-radius:10px;">{{ asignaciones.count }} asignada(s)</span>
+    </div>
+
+    <div class="container">
+        {% if messages %}
+        <div class="messages">
+            {% for msg in messages %}
+            <div class="msg {{ msg.tags }}">{{ msg }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- ── Nueva Asignación ── -->
+        <div class="card">
+            <div class="card-header">+ Nueva Asignación</div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="field-group">
+                        <label>Asignar a Usuario</label>
+                        <select name="usuario">
+                            <option value="">— Seleccionar usuario —</option>
+                            {% for u in usuarios %}
+                            <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="or-divider">ó</div>
+
+                    <div class="field-group">
+                        <label>Asignar a Grupo</label>
+                        <select name="grupo">
+                            <option value="">— Seleccionar grupo —</option>
+                            {% for g in grupos %}
+                            <option value="{{ g.id }}">{{ g.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="field-group" style="margin-top:8px;">
+                        <label>Fecha límite (opcional)</label>
+                        <input type="date" name="fecha_vencimiento">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="margin-top:8px;">+ Asignar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ── Asignaciones Actuales ── -->
+        <div class="card">
+            <div class="card-header">Asignaciones Actuales</div>
+            <div class="card-body" style="padding:0;">
+                {% if asignaciones %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Asignado a</th>
+                            <th>Tipo</th>
+                            <th>Progreso</th>
+                            <th>Asignado</th>
+                            <th>Vence</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in asignaciones %}
+                        <tr>
+                            <td>
+                                {% if a.usuario %}
+                                {{ a.usuario.get_full_name|default:a.usuario.username }}
+                                {% elif a.grupo %}
+                                {{ a.grupo.name }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if a.usuario %}
+                                <span class="badge badge-user">Usuario</span>
+                                {% elif a.grupo %}
+                                <span class="badge badge-group">Grupo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if a.completado %}
+                                <span class="badge badge-done">✅ Completado</span>
+                                {% else %}
+                                <span style="color:var(--sap-text-muted);font-size:0.82rem;">En progreso</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:0.82rem;color:var(--sap-text-muted);">{{ a.fecha_asignacion|date:'d/m/Y' }}</td>
+                            <td style="font-size:0.82rem;">
+                                {% if a.fecha_vencimiento %}
+                                <span style="color:{% if a.fecha_vencimiento < now and not a.completado %}var(--sap-error){% else %}var(--sap-text-muted){% endif %};">
+                                    {{ a.fecha_vencimiento|date:'d/m/Y' }}
+                                    {% if a.fecha_vencimiento < now and not a.completado %}⚠️{% endif %}
+                                </span>
+                                {% else %}
+                                <span style="color:var(--sap-text-muted);">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="post" action="{% url 'courses:desasignar_curso' curso.id a.id %}" class="inline-form" onsubmit="return confirm('¿Eliminar esta asignación?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-danger">✕</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty">
+                    <p>Sin asignaciones aún.</p>
+                    <p style="font-size:0.82rem;margin-top:4px;">Usa el formulario de arriba para asignar este curso.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <a href="{% url 'courses:lista_admin' %}" class="btn btn-secondary">← Volver a Gestión</a>
+    </div>
+</body>
+</html>

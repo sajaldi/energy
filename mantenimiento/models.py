@@ -945,6 +945,9 @@ class Aviso(models.Model):
     fecha_inicio_parada = models.DateTimeField(null=True, blank=True, verbose_name="Inicio de Parada")
     fecha_fin_parada = models.DateTimeField(null=True, blank=True, verbose_name="Fin de Parada")
 
+    diagnostico = models.TextField(blank=True, null=True, verbose_name="Diagnóstico")
+    acciones = models.TextField(blank=True, null=True, verbose_name="Acciones Realizadas")
+    cerrado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='avisos_cerrados', verbose_name="Cerrado Por")
 
     def save(self, *args, **kwargs):
         responsable_cambiado = False
@@ -1027,9 +1030,14 @@ class Aviso(models.Model):
         ordering = ['-creado_en']
 
 class FotoAviso(models.Model):
+    TIPO_FOTO_CHOICES = [
+        ('APERTURA', 'Apertura'),
+        ('CIERRE', 'Cierre'),
+    ]
     aviso = models.ForeignKey(Aviso, on_delete=models.CASCADE, related_name='fotos')
     foto = models.ImageField(upload_to='avisos/fotos/')
     descripcion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Descripción")
+    tipo = models.CharField(max_length=10, choices=TIPO_FOTO_CHOICES, default='APERTURA', verbose_name="Tipo")
     creado_en = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):

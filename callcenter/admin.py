@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SolicitudTicket, GrupoTicket, Institucion, Enlace, TiempoAcordado, TiempoAcordadoTarea, FallaTicket
+from .models import SolicitudTicket, GrupoTicket, Institucion, Enlace, TiempoAcordado, TiempoAcordadoTarea, FallaTicket, HistorialTicket
 
 from django.urls import path
 from .views import trigger_sync_tickets, trigger_sync_tickets_automatico
@@ -257,6 +257,20 @@ class EvidenciasInline(admin.TabularInline):
         return "-"
     ver_archivo.short_description = "Vista Previa"
 
+class HistorialTicketInline(admin.TabularInline):
+    model = HistorialTicket
+    extra = 0
+    fields = ('accion', 'usuario', 'descripcion', 'creado_en')
+    readonly_fields = ('accion', 'usuario', 'descripcion', 'creado_en')
+    can_delete = False
+    max_num = 0
+    verbose_name = "Evento de Historial"
+    verbose_name_plural = "Línea de Tiempo"
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(SolicitudTicket)
 class SolicitudTicketAdmin(admin.ModelAdmin):
     list_display = ('folio', 'falla_catalogo', 'ubicacion_jerarquica', 'servicio', 'deductiva', 'descripcion', 'fecha_solicitud')
@@ -265,6 +279,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
     readonly_fields = ('creado_en', 'actualizado_en', 'robot_estatus', 'robot_log')
+    inlines = [HistorialTicketInline]
     actions = ['analizar_con_ia', 'exportar_a_excel']
 
     @admin.display(description='Falla del Catálogo', ordering='falla_reportada')

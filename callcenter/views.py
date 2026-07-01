@@ -18,7 +18,7 @@ from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from playwright.sync_api import sync_playwright
-from .models import SolicitudTicket, EvidenciaTicket, CronogramaPredefinido, CronogramaItemPredefinido, RestriccionAcceso, GrupoTicket, FallaTicket
+from .models import SolicitudTicket, EvidenciaTicket, CronogramaPredefinido, CronogramaItemPredefinido, RestriccionAcceso, GrupoTicket, FallaTicket, HistorialTicket
 from .utils import resolve_ticket_ubicacion
 import requests
 from core.models import PerfilUsuario, Departamento
@@ -108,6 +108,16 @@ def save_ticket_pdf_helper(ticket, request=None):
     if request:
         return request.build_absolute_uri(evidencia.archivo.url)
     return evidencia.archivo.url
+
+
+def add_historial(ticket, accion, usuario=None, descripcion=''):
+    HistorialTicket.objects.create(
+        ticket=ticket,
+        accion=accion,
+        usuario=usuario,
+        descripcion=descripcion
+    )
+
 
 @staff_member_required
 def trigger_sync_tickets(request):
@@ -582,6 +592,7 @@ def ticket_cierre_visual_view(request, ticket_id):
         ticket.solicitud_adicional = request.POST.get('solicitud_adicional') == 'on'
             
         ticket.save()
+        add_historial(ticket, 'CIERRE_VISUAL', usuario=request.user, descripcion="Cierre visual realizado")
         return JsonResponse({'success': True})
 
     evidences = EvidenciaTicket.objects.filter(ticket=ticket).order_by('-id')
@@ -2625,6 +2636,16 @@ def ticket_detail_ajax(request, ticket_id):
         'restriccion': restriccion_data,
         'evidencias': evidencias,
         'num_evidencias': ticket.evidencias.count(),
+
+        # URLs de acción rápida
+        # Historial
+        'historial': [{
+            'accion': h.accion,
+            'accion_display': h.get_accion_display(),
+            'usuario': h.usuario.get_full_name() or h.usuario.username if h.usuario else '—',
+            'descripcion': h.descripcion,
+            'creado_en': fmt(h.creado_en),
+        } for h in ticket.historial.all().order_by('-creado_en')[:50]],
 
         # URLs de acción rápida
         'url_admin': f'/admin/callcenter/solicitudticket/{ticket.id}/change/',

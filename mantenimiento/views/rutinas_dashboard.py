@@ -114,7 +114,7 @@ def rutinas_dashboard(request):
             curr = p_obj.padre_id
         cat_paths[c.id] = " → ".join(reversed(path)).lower()
 
-    all_rutinas_qs = Rutina.objects.all().select_related('frecuencia', 'puesto_trabajo', 'tipo').prefetch_related('kpis')
+    all_rutinas_qs = Rutina.objects.all().select_related('frecuencia', 'puesto_trabajo', 'tipo', 'categoria_activo').prefetch_related('kpis')
     
     if frecuencia_int:
         all_rutinas_qs = all_rutinas_qs.filter(frecuencia_id=frecuencia_int)

@@ -1,0 +1,17 @@
+{% for p in paginas %}
+<div class="pagina-item" data-pagina-id="{{ p.id }}">
+  <div class="pagina-head" onclick="togglePagina(this)">
+    <span class="pagina-order">{{ p.orden }}</span>
+    <span class="pagina-title">{{ p.titulo }}</span>
+    <span class="pagina-badge {% if p.obligatorio %}obligatorio{% else %}opcional{% endif %}">{{ p.obligatorio|yesno:"Obligatorio,Opcional" }}</span>
+    <span class="pagina-dur">⏱ {{ p.duracion_minutos }}min</span>
+    <button type="button" class="pagina-btn editar" onclick="event.stopPropagation();editarPagina({{ p.id }},{{ p.seccion_id }})" title="Editar">✎</button>
+    <button type="button" class="pagina-btn eliminar" onclick="event.stopPropagation();eliminarPagina({{ p.id }},{{ p.seccion_id }})" title="Eliminar">✕</button>
+  </div>
+  <div class="pagina-body">
+    <div class="pagina-content">{{ p.contenido_html|safe }}</div>
+  </div>
+</div>
+{% empty %}
+<div class="paginas-empty">Esta secci&oacute;n no tiene p&aacute;ginas.</div>
+{% endfor %}

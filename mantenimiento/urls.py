@@ -49,6 +49,7 @@ urlpatterns = [
     path('app/ot/<int:pk>/send-whatsapp/', views.mobile_ot_whatsapp_webhook, name='mobile_ot_whatsapp_webhook'),
     path('app/aviso/crear/', views.mobile_crear_aviso, name='mobile_crear_aviso'),
     path('app/aviso/<int:pk>/editar/', views.mobile_aviso_editar, name='mobile_aviso_editar'),
+    path('fiori/aviso/<int:pk>/', views.aviso_fiori_view, name='aviso_fiori'),
     path('app/aviso/<int:pk>/', views.mobile_aviso_detalle, name='mobile_aviso_detalle'),
     path('app/avisos/', views.mobile_mis_avisos, name='mobile_mis_avisos'),
     path('app/ordenes/', views.mobile_mis_ordenes, name='mobile_mis_ordenes'),

@@ -137,6 +137,11 @@ def handle_cierre_ot_status(sender, instance, **kwargs):
     if ot.aviso and ot.aviso.estado != 'CERRADO':
         ot.aviso.estado = 'CERRADO'
         ot.aviso.fecha_cierre = instance.fecha_fin_real
+        ot.aviso.cerrado_por = instance.tecnico
+        if instance.comentarios and not ot.aviso.diagnostico:
+            ot.aviso.diagnostico = instance.comentarios
+        if instance.materiales_utilizados and not ot.aviso.acciones:
+            ot.aviso.acciones = instance.materiales_utilizados
         if ot.aviso.equipo_parado and not ot.aviso.fecha_fin_parada:
             ot.aviso.fecha_fin_parada = instance.fecha_fin_real
         ot.aviso.save()
