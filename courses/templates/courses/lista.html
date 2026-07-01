@@ -46,6 +46,17 @@
         .time-table td { padding: 10px 14px; font-size: 0.85rem; border-top: 1px solid #f1f5f9; }
         .time-table tr:hover td { background: #f8fafc; }
 
+        .search-container { margin-bottom: 20px; }
+        .search-container input { width: 100%; max-width: 500px; padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.9rem; font-family: inherit; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.06); transition: border-color 0.15s; }
+        .search-container input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+
+        .section-header { display: flex; align-items: center; gap: 12px; margin: 32px 0 16px; flex-wrap: wrap; }
+        .section-header .section-title { margin: 0 !important; }
+        .section-count { font-size: 0.78rem; color: #94a3b8; font-weight: 600; }
+
+        .card.hidden { display: none; }
+        .section-title.hidden { display: none; }
+
         @media (max-width: 640px) {
             .header { padding: 20px 16px; }
             .grid { grid-template-columns: 1fr; }
@@ -81,8 +92,15 @@
 
     <div class="container">
 
+        <div class="search-container">
+            <input type="text" id="search-student" placeholder="🔍 Buscar curso por título o descripción..." oninput="filtrarCursosEstudiante()">
+        </div>
+
         {% if en_curso %}
-        <div class="section-title">▶ En progreso</div>
+        <div class="section-header">
+            <div class="section-title">▶ En progreso</div>
+            <span class="section-count" id="count-en-curso">{{ en_curso|length }}</span>
+        </div>
         <div class="grid">
             {% for item in en_curso %}
             <div class="card">
@@ -111,7 +129,10 @@
         {% endif %}
 
         {% if completados %}
-        <div class="section-title">✅ Completados</div>
+        <div class="section-header">
+            <div class="section-title">✅ Completados</div>
+            <span class="section-count" id="count-completados">{{ completados|length }}</span>
+        </div>
         <div class="grid">
             {% for item in completados %}
             <div class="card">
@@ -141,7 +162,10 @@
         {% endif %}
 
         {% if disponibles %}
-        <div class="section-title">🌐 Disponibles para todos</div>
+        <div class="section-header">
+            <div class="section-title">🌐 Disponibles para todos</div>
+            <span class="section-count" id="count-disponibles">{{ disponibles|length }}</span>
+        </div>
         <div class="grid">
             {% for curso in disponibles %}
             <div class="card">
@@ -193,5 +217,32 @@
         {% endif %}
 
     </div>
+
+    <script>
+        function filtrarCursosEstudiante() {
+            const q = document.getElementById('search-student').value.toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const headers = document.querySelectorAll('.section-header');
+            headers.forEach(function(header) {
+                let grid = header.nextElementSibling;
+                while (grid && !grid.classList.contains('grid')) grid = grid.nextElementSibling;
+                if (!grid) return;
+                const cards = grid.querySelectorAll('.card');
+                let visible = 0;
+                cards.forEach(function(card) {
+                    const text = card.textContent.toLowerCase()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const match = !q || text.includes(q);
+                    card.classList.toggle('hidden', !match);
+                    if (match) visible++;
+                });
+                const show = visible > 0 || !q;
+                header.classList.toggle('hidden', !show);
+                grid.classList.toggle('hidden', !show);
+                const cnt = header.querySelector('.section-count');
+                if (cnt) { cnt.textContent = visible; }
+            });
+        }
+    </script>
 </body>
 </html>
