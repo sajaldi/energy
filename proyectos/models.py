@@ -138,6 +138,48 @@ class DocumentoProyecto(models.Model):
         unique_together = ('proyecto', 'documento')
 
 
+class ObservacionProyecto(models.Model):
+    ESTADOS = (
+        ('ABIERTA', 'Abierta'),
+        ('EN_PROCESO', 'En Proceso'),
+        ('RESUELTA', 'Resuelta'),
+        ('CERRADA', 'Cerrada'),
+    )
+
+    proyecto = models.ForeignKey(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name='observaciones',
+        verbose_name="Proyecto"
+    )
+    documento_proyecto = models.ForeignKey(
+        DocumentoProyecto,
+        on_delete=models.CASCADE,
+        related_name='observaciones',
+        verbose_name="Documento del proyecto"
+    )
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='observaciones_proyecto',
+        verbose_name="Creado por"
+    )
+    observacion = models.TextField(verbose_name="Observación")
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='ABIERTA', verbose_name="Estado")
+    fecha_observacion = models.DateField(verbose_name="Fecha de observación")
+    fecha_resolucion = models.DateField(null=True, blank=True, verbose_name="Fecha de resolución")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Observación de Proyecto"
+        verbose_name_plural = "Observaciones de Proyecto"
+        ordering = ['-fecha_observacion']
+
+    def __str__(self):
+        return f"[{self.get_estado_display()}] {self.documento_proyecto.documento.codigo} - {self.observacion[:60]}"
+
+
 class Actividad(models.Model):
     """
     Actividad dentro de un proyecto.

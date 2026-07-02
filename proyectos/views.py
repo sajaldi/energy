@@ -1,8 +1,10 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
-from .models import Actividad, Proyecto, DocumentoProyecto
+from django.contrib import messages
+from django import forms
+from .models import Actividad, Proyecto, DocumentoProyecto, ObservacionProyecto
 from documentos.models import Carpeta, Documento, Revision, TipoDocumento, Disciplina
 import json
 import os
@@ -234,6 +236,38 @@ def repositorio_documentos(request, proyecto_id):
         'estados': Documento.ESTADOS,
     }
     return render(request, 'proyectos/repositorio_documentos.html', context)
+
+@staff_member_required
+def crear_proyecto(request):
+    from activos.models import Ubicacion
+    from django.contrib.auth.models import User
+
+    class ProyectoForm(forms.ModelForm):
+        class Meta:
+            model = Proyecto
+            fields = ['codigo', 'nombre', 'descripcion', 'estado', 'fecha_inicio', 'fecha_fin_estimada', 'responsable', 'ubicacion', 'nota']
+            widgets = {
+                'descripcion': forms.Textarea(attrs={'rows': 3}),
+                'nota': forms.Textarea(attrs={'rows': 3}),
+                'fecha_inicio': forms.DateInput(attrs={'type': 'date'}),
+                'fecha_fin_estimada': forms.DateInput(attrs={'type': 'date'}),
+            }
+
+    if request.method == 'POST':
+        form = ProyectoForm(request.POST)
+        if form.is_valid():
+            proyecto = form.save()
+            messages.success(request, f'Proyecto {proyecto.codigo} creado exitosamente.')
+            return redirect('proyectos:detalle_fiori', pk=proyecto.pk)
+    else:
+        form = ProyectoForm(initial={'estado': 'PLANIFICACION'})
+
+    return render(request, 'proyectos/proyecto_form.html', {
+        'form': form,
+        'titulo': 'Nuevo Proyecto',
+        'accion': 'Crear',
+    })
+
 @staff_member_required
 def dashboard_proyectos_fiori(request):
     """
@@ -291,6 +325,12 @@ def proyecto_detalle_fiori(request, pk):
             'custom_class': f'gantt-item-{act.prioridad.lower()}'
         })
 
+    from .models import ObservacionProyecto
+    observaciones = ObservacionProyecto.objects.filter(proyecto=proyecto).select_related(
+        'usuario', 'documento_proyecto__documento'
+    ).order_by('-fecha_observacion')
+    estados_obs = ObservacionProyecto.ESTADOS
+
     context = {
         'proyecto': proyecto,
         'actividades': actividades,
@@ -302,6 +342,8 @@ def proyecto_detalle_fiori(request, pk):
         'prioridades': Actividad.PRIORIDADES,
         'estados_actividad': Actividad.ESTADOS,
         'tasks_json': json.dumps(tasks),
+        'observaciones': observaciones,
+        'estados_obs': estados_obs,
     }
     return render(request, 'proyectos/proyecto_detalle_fiori.html', context)
 
@@ -616,3 +658,91 @@ def reporte_proyecto(request, pk):
         'gantt_markers': gantt_markers,
     }
     return render(request, 'proyectos/reporte_proyecto.html', context)
+
+
+@staff_member_required
+def reporte_observaciones(request, pk):
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    observaciones = ObservacionProyecto.objects.filter(proyecto=proyecto).select_related(
+        'usuario', 'documento_proyecto__documento'
+    ).order_by('-fecha_observacion')
+    return render(request, 'proyectos/reporte_observaciones.html', {
+        'proyecto': proyecto,
+        'observaciones': observaciones,
+    })
+
+
+@csrf_exempt
+@staff_member_required
+def crear_observacion_api(request, proyecto_pk):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    try:
+        data = json.loads(request.body)
+        proyecto = get_object_or_404(Proyecto, pk=proyecto_pk)
+        doc_proy = get_object_or_404(DocumentoProyecto, pk=data['documento_proyecto_id'], proyecto=proyecto)
+        obs = ObservacionProyecto.objects.create(
+            proyecto=proyecto,
+            documento_proyecto=doc_proy,
+            usuario=request.user,
+            observacion=data['observacion'],
+            estado=data.get('estado', 'ABIERTA'),
+            fecha_observacion=datetime.strptime(data['fecha_observacion'], '%Y-%m-%d').date(),
+            fecha_resolucion=datetime.strptime(data['fecha_resolucion'], '%Y-%m-%d').date() if data.get('fecha_resolucion') else None,
+        )
+        return JsonResponse({'status': 'success', 'id': obs.id})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def actualizar_observacion_api(request, proyecto_pk, obs_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    try:
+        data = json.loads(request.body)
+        obs = get_object_or_404(ObservacionProyecto, pk=obs_id, proyecto_id=proyecto_pk)
+        if 'observacion' in data:
+            obs.observacion = data['observacion']
+        if 'estado' in data:
+            obs.estado = data['estado']
+        if 'fecha_observacion' in data:
+            obs.fecha_observacion = datetime.strptime(data['fecha_observacion'], '%Y-%m-%d').date()
+        if 'fecha_resolucion' in data:
+            obs.fecha_resolucion = datetime.strptime(data['fecha_resolucion'], '%Y-%m-%d').date() if data['fecha_resolucion'] else None
+        if 'documento_proyecto_id' in data:
+            obs.documento_proyecto = get_object_or_404(DocumentoProyecto, pk=data['documento_proyecto_id'], proyecto_id=proyecto_pk)
+        obs.save()
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@staff_member_required
+def detalle_observacion_api(request, proyecto_pk, obs_id):
+    obs = get_object_or_404(ObservacionProyecto, pk=obs_id, proyecto_id=proyecto_pk)
+    return JsonResponse({
+        'id': obs.id,
+        'documento_proyecto_id': obs.documento_proyecto_id,
+        'documento_codigo': obs.documento_proyecto.documento.codigo,
+        'documento_titulo': obs.documento_proyecto.documento.titulo,
+        'observacion': obs.observacion,
+        'estado': obs.estado,
+        'fecha_observacion': obs.fecha_observacion.isoformat(),
+        'fecha_resolucion': obs.fecha_resolucion.isoformat() if obs.fecha_resolucion else None,
+        'usuario': obs.usuario.get_full_name() or obs.usuario.username,
+    })
+
+
+@csrf_exempt
+@staff_member_required
+def eliminar_observacion_api(request, proyecto_pk, obs_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    try:
+        obs = get_object_or_404(ObservacionProyecto, pk=obs_id, proyecto_id=proyecto_pk)
+        obs.delete()
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)

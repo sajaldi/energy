@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titulo }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; padding: 20px 32px; display: flex; align-items: center; gap: 16px; }
+        .header h1 { font-size: 1.25rem; font-weight: 700; flex: 1; }
+        .header a { color: rgba(255,255,255,0.75); font-size: 0.85rem; text-decoration: none; }
+        .header a:hover { color: #fff; }
+
+        .container { max-width: 800px; margin: 0 auto; padding: 24px 16px 40px; }
+
+        .messages { margin-bottom: 16px; }
+        .msg { padding: 12px 16px; border-radius: 6px; font-size: 0.9rem; }
+        .msg.success { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+        .msg.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+
+        .card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
+        .card-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-weight: 700; font-size: 1rem; background: #f8fafc; }
+        .card-body { padding: 24px; }
+
+        .field-group { margin-bottom: 18px; }
+        .field-group:last-child { margin-bottom: 0; }
+        .field-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; color: #334155; }
+        .field-group .help { font-size: 0.75rem; color: #94a3b8; margin-top: 3px; }
+        .field-group input, .field-group textarea, .field-group select {
+            width: 100%; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 6px;
+            font-family: inherit; font-size: 0.9rem; transition: border-color 0.15s; background: #fff;
+        }
+        .field-group input:focus, .field-group textarea:focus, .field-group select:focus {
+            outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+        }
+        .field-group .errorlist { color: #dc2626; font-size: 0.78rem; list-style: none; margin-top: 3px; }
+        .field-row { display: flex; gap: 16px; }
+        .field-row .field-group { flex: 1; }
+
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 24px; border-radius: 6px; font-family: inherit; font-size: 0.9rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary { background: #e2e8f0; color: #475569; }
+        .btn-secondary:hover { background: #cbd5e1; }
+
+        .form-actions { display: flex; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+
+        @media (max-width: 640px) {
+            .header { padding: 16px; }
+            .card-body { padding: 16px; }
+            .field-row { flex-direction: column; gap: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{% url 'proyectos:dashboard' %}">← Dashboard</a>
+        <h1>{{ titulo }}</h1>
+    </div>
+
+    <div class="container">
+        {% if messages %}
+        <div class="messages">
+            {% for msg in messages %}
+            <div class="msg {{ msg.tags }}">{{ msg }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="card">
+                <div class="card-header">📋 {{ titulo }}</div>
+                <div class="card-body">
+                    {% for field in form %}
+                    <div class="field-group">
+                        <label>{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+                        {% if field.errors %}<div class="errorlist">{{ field.errors }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'proyectos:dashboard' %}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary">{{ accion }} Proyecto</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

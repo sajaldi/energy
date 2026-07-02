@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Observaciones - {{ proyecto.nombre }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; padding: 20px; }
+    .page { max-width: 100%; margin: 0 auto; }
+    @media print { body { padding: 0; } .no-print { display: none !important; } }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    h2 { font-size: 14px; margin: 20px 0 10px; border-bottom: 2px solid #0070f2; padding-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+    th, td { text-align: left; padding: 6px 8px; border: 1px solid #d0d0d0; font-size: 10px; vertical-align: top; }
+    th { background: #f0f4f8; font-weight: 600; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+    .header-info p { font-size: 11px; color: #555; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: 600; }
+    .badge-ABIERTA { background: #fef3c7; color: #92400e; }
+    .badge-EN_PROCESO { background: #dbeafe; color: #1e40af; }
+    .badge-RESUELTA { background: #dcfce7; color: #166534; }
+    .badge-CERRADA { background: #f1f5f9; color: #475569; }
+    .footer { margin-top: 30px; font-size: 9px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+    .btn-print { display: inline-block; margin-bottom: 16px; padding: 8px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 12px; }
+    .summary { display: flex; gap: 16px; margin: 12px 0; flex-wrap: wrap; }
+    .summary-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 16px; min-width: 100px; }
+    .summary-item .val { font-size: 18px; font-weight: 700; }
+    .summary-item .lbl { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+<div class="page">
+    <button class="btn-print no-print" onclick="window.print()">🖨️ Imprimir / PDF</button>
+    <a href="{% url 'proyectos:detalle_fiori' proyecto.id %}" class="no-print" style="display:inline-block;margin-left:8px;padding:8px 20px;background:#e2e8f0;color:#475569;border-radius:6px;font-weight:600;text-decoration:none;font-size:12px;">← Volver</a>
+
+    <div class="header">
+        <div>
+            <h1>Reporte de Observaciones</h1>
+            <p style="font-size:12px;color:#333;margin-top:4px;"><strong>{{ proyecto.codigo }}</strong> — {{ proyecto.nombre }}</p>
+        </div>
+        <div class="header-info">
+            <p>Generado: {% now "d/m/Y H:i" %}</p>
+        </div>
+    </div>
+
+    <div class="summary">
+        <div class="summary-item">
+            <div class="val">{{ observaciones|length }}</div>
+            <div class="lbl">Total</div>
+        </div>
+        {% with abiertas=observaciones|dictsortreversed:"fecha_observacion" %}
+        {% with total=observaciones|length %}
+        {% with resueltas=0 %}
+        {% for o in observaciones %}{% if o.estado == 'RESUELTA' or o.estado == 'CERRADA' %}{% with resueltas=resueltas|add:1 %}{% endwith %}{% endif %}{% endfor %}
+        {% endwith %}
+        {% endwith %}
+        {% endwith %}
+    </div>
+
+    {% if observaciones %}
+    <table>
+        <thead>
+            <tr>
+                <th style="width:30px;">#</th>
+                <th>Documento</th>
+                <th>Observación</th>
+                <th style="width:90px;">Estado</th>
+                <th style="width:85px;">Fecha Obs.</th>
+                <th style="width:85px;">Fecha Res.</th>
+                <th>Creado por</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for obs in observaciones %}
+            <tr>
+                <td style="text-align:center;">{{ forloop.counter }}</td>
+                <td><strong>{{ obs.documento_proyecto.documento.codigo }}</strong><br><span style="font-size:9px;color:#64748b;">{{ obs.documento_proyecto.documento.titulo|truncatechars:40 }}</span></td>
+                <td>{{ obs.observacion|linebreaksbr }}</td>
+                <td><span class="badge badge-{{ obs.estado }}">{{ obs.get_estado_display }}</span></td>
+                <td>{{ obs.fecha_observacion|date:'d/m/Y' }}</td>
+                <td>{{ obs.fecha_resolucion|date:'d/m/Y'|default:'—' }}</td>
+                <td>{{ obs.usuario.get_full_name|default:obs.usuario.username }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="padding:40px;text-align:center;color:#94a3b8;">No hay observaciones registradas para este proyecto.</p>
+    {% endif %}
+
+    <div class="footer">
+        <p>Reporte generado desde el sistema de Gestión de Proyectos</p>
+    </div>
+</div>
+</body>
+</html>

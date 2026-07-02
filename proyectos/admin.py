@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from .models import Proyecto, Actividad, DocumentoProyecto
+from .models import Proyecto, Actividad, DocumentoProyecto, ObservacionProyecto
 import json
 from datetime import timedelta
 
@@ -660,3 +660,21 @@ class ActividadAdmin(admin.ModelAdmin):
             color, obj.get_prioridad_display()
         )
     prioridad_badge.short_description = 'Prioridad'
+
+
+@admin.register(ObservacionProyecto)
+class ObservacionProyectoAdmin(admin.ModelAdmin):
+    list_display = ('proyecto', 'documento_proyecto', 'estado_badge', 'fecha_observacion', 'fecha_resolucion', 'usuario')
+    list_filter = ('estado', 'proyecto')
+    search_fields = ('observacion', 'proyecto__nombre', 'proyecto__codigo')
+    autocomplete_fields = ('proyecto', 'usuario')
+
+    def estado_badge(self, obj):
+        colores = {'ABIERTA': '#f59e0b', 'EN_PROCESO': '#3b82f6', 'RESUELTA': '#10b981', 'CERRADA': '#64748b'}
+        color = colores.get(obj.estado, '#64748b')
+        return format_html(
+            '<span style="background: {}20; color: {}; padding: 3px 8px; border-radius: 12px; '
+            'font-size: 0.75rem; font-weight: 600;">{}</span>',
+            color, color, obj.get_estado_display()
+        )
+    estado_badge.short_description = 'Estado'

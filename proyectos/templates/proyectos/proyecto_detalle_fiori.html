@@ -296,6 +296,7 @@
         <div class="sap-tab" data-target="documentos">Documentos vinculados</div>
         <div class="sap-tab" data-target="visor">Órdenes de Trabajo</div>
         <div class="sap-tab" data-target="financiero">Requisiciones</div>
+        <div class="sap-tab" data-target="observaciones">Observaciones</div>
     </nav>
 
     <!-- SECTION: GENERAL -->
@@ -707,6 +708,117 @@
             </div>
             {% endif %}
             {% endwith %}
+        </div>
+    </section>
+
+    <!-- SECTION: OBSERVACIONES -->
+    <section id="observaciones" class="sap-section">
+        <div class="sap-card">
+            <div class="sap-card-title">📋 Observaciones del Proyecto</div>
+            <div class="sap-card-body">
+                <div style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <input type="text" id="obs-search" placeholder="🔍 Buscar observación..." oninput="filtrarObservaciones()" style="flex:1;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-family:inherit;font-size:0.85rem;">
+                    <button onclick="mostrarFormObservacion()" style="padding:8px 18px;background:#3b82f6;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;white-space:nowrap;">+ Nueva Observación</button>
+                    <a href="{% url 'proyectos:reporte_observaciones' proyecto.id %}" target="_blank" style="padding:8px 18px;background:#10b981;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;">📄 Reporte</a>
+                </div>
+
+                <!-- Create/Edit Form -->
+                <div id="obs-form" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+                    <div style="font-weight:700;margin-bottom:12px;font-size:0.9rem;" id="obs-form-title">Nueva Observación</div>
+                    <input type="hidden" id="obs-edit-id" value="">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div>
+                            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:3px;">Documento *</label>
+                            <select id="obs-documento" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:4px;font-family:inherit;font-size:0.85rem;">
+                                <option value="">— Seleccionar documento —</option>
+                                {% for doc in documentos %}
+                                <option value="{{ doc.id }}">{{ doc.documento.codigo }} — {{ doc.documento.titulo|truncatechars:60 }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:3px;">Estado</label>
+                            <select id="obs-estado" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:4px;font-family:inherit;font-size:0.85rem;">
+                                {% for k,v in estados_obs %}
+                                <option value="{{ k }}" {% if k == 'ABIERTA' %}selected{% endif %}>{{ v }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:3px;">Fecha de observación *</label>
+                            <input type="date" id="obs-fecha" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:4px;font-family:inherit;font-size:0.85rem;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:3px;">Fecha de resolución</label>
+                            <input type="date" id="obs-fecha-resolucion" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:4px;font-family:inherit;font-size:0.85rem;">
+                        </div>
+                    </div>
+                    <div style="margin-top:12px;">
+                        <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:3px;">Observación *</label>
+                        <textarea id="obs-texto" rows="3" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:4px;font-family:inherit;font-size:0.85rem;resize:vertical;" placeholder="Describa la observación..."></textarea>
+                    </div>
+                    <div style="margin-top:12px;display:flex;gap:8px;">
+                        <button onclick="guardarObservacion()" style="padding:8px 20px;background:#3b82f6;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Guardar</button>
+                        <button onclick="cancelarFormObservacion()" style="padding:8px 20px;background:#e2e8f0;color:#475569;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Cancelar</button>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                {% with obs_list=observaciones %}
+                {% if obs_list %}
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr style="background:#f8fafc;">
+                                <th style="text-align:left;padding:10px 12px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;">Documento</th>
+                                <th style="text-align:left;padding:10px 12px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;">Observación</th>
+                                <th style="text-align:left;padding:10px 12px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;">Estado</th>
+                                <th style="text-align:left;padding:10px 12px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;">Fecha Obs.</th>
+                                <th style="text-align:left;padding:10px 12px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;">Fecha Res.</th>
+                                <th style="text-align:left;padding:10px 12px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;">Creado por</th>
+                                <th style="width:80px;border-bottom:1px solid #e2e8f0;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="obs-table-body">
+                            {% for obs in obs_list %}
+                            <tr class="obs-row" data-search="{{ obs.observacion|lower }} {{ obs.documento_proyecto.documento.codigo|lower }} {{ obs.documento_proyecto.documento.titulo|lower }}" style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:10px 12px;font-size:0.85rem;">
+                                    <strong>{{ obs.documento_proyecto.documento.codigo }}</strong>
+                                    <div style="font-size:0.75rem;color:#94a3b8;">{{ obs.documento_proyecto.documento.titulo|truncatechars:40 }}</div>
+                                </td>
+                                <td style="padding:10px 12px;font-size:0.85rem;max-width:300px;">
+                                    <div style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ obs.observacion }}</div>
+                                </td>
+                                <td style="padding:10px 12px;">
+                                    <span class="obs-estado-badge" data-estado="{{ obs.estado }}" style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:0.72rem;font-weight:600;
+                                        {% if obs.estado == 'ABIERTA' %}background:#fef3c7;color:#d97706;
+                                        {% elif obs.estado == 'EN_PROCESO' %}background:#dbeafe;color:#2563eb;
+                                        {% elif obs.estado == 'RESUELTA' %}background:#dcfce7;color:#16a34a;
+                                        {% elif obs.estado == 'CERRADA' %}background:#f1f5f9;color:#64748b;
+                                        {% endif %}">{{ obs.get_estado_display }}</span>
+                                </td>
+                                <td style="padding:10px 12px;font-size:0.82rem;color:#64748b;">{{ obs.fecha_observacion|date:'d/m/Y' }}</td>
+                                <td style="padding:10px 12px;font-size:0.82rem;color:#64748b;">{{ obs.fecha_resolucion|date:'d/m/Y'|default:'—' }}</td>
+                                <td style="padding:10px 12px;font-size:0.82rem;color:#64748b;">{{ obs.usuario.get_full_name|default:obs.usuario.username }}</td>
+                                <td style="padding:10px 12px;">
+                                    <div style="display:flex;gap:4px;">
+                                        <button onclick="editarObservacion({{ obs.id }})" style="background:none;border:none;cursor:pointer;color:#3b82f6;font-size:0.85rem;padding:2px 6px;" title="Editar">✏️</button>
+                                        <button onclick="eliminarObservacion({{ obs.id }})" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:0.85rem;padding:2px 6px;" title="Eliminar">🗑️</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div style="padding:40px;background:#f8fafc;border:2px dashed #e2e8f0;border-radius:8px;text-align:center;color:#94a3b8;">
+                    <span style="font-size:2rem;display:block;margin-bottom:10px;">📝</span>
+                    No hay observaciones para este proyecto.
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
         </div>
     </section>
 
@@ -1769,6 +1881,144 @@
             } catch (err) {
                 Swal.fire('Error', 'No se pudo vincular la requisición', 'error');
             }
+        }
+
+        // ── Observaciones CRUD ──
+        function mostrarFormObservacion(data) {
+            const form = document.getElementById('obs-form');
+            form.style.display = 'block';
+            if (data) {
+                document.getElementById('obs-form-title').textContent = 'Editar Observación';
+                document.getElementById('obs-edit-id').value = data.id;
+                document.getElementById('obs-documento').value = data.documento_proyecto_id;
+                document.getElementById('obs-estado').value = data.estado;
+                document.getElementById('obs-fecha').value = data.fecha_observacion;
+                document.getElementById('obs-fecha-resolucion').value = data.fecha_resolucion || '';
+                document.getElementById('obs-texto').value = data.observacion;
+            } else {
+                document.getElementById('obs-form-title').textContent = 'Nueva Observación';
+                document.getElementById('obs-edit-id').value = '';
+                document.getElementById('obs-documento').value = '';
+                document.getElementById('obs-estado').value = 'ABIERTA';
+                document.getElementById('obs-fecha').value = new Date().toISOString().split('T')[0];
+                document.getElementById('obs-fecha-resolucion').value = '';
+                document.getElementById('obs-texto').value = '';
+            }
+            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function cancelarFormObservacion() {
+            document.getElementById('obs-form').style.display = 'none';
+        }
+
+        function guardarObservacion() {
+            const id = document.getElementById('obs-edit-id').value;
+            const docId = document.getElementById('obs-documento').value;
+            const estado = document.getElementById('obs-estado').value;
+            const fecha = document.getElementById('obs-fecha').value;
+            const fechaRes = document.getElementById('obs-fecha-resolucion').value;
+            const texto = document.getElementById('obs-texto').value.trim();
+
+            if (!docId) { alert('Seleccione un documento'); return; }
+            if (!fecha) { alert('Ingrese la fecha de observación'); return; }
+            if (!texto) { alert('Ingrese el texto de la observación'); return; }
+
+            const body = JSON.stringify({
+                documento_proyecto_id: parseInt(docId),
+                estado: estado,
+                fecha_observacion: fecha,
+                fecha_resolucion: fechaRes || null,
+                observacion: texto,
+            });
+
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            const token = csrf ? csrf.value : '{{ csrf_token }}';
+
+            const actualUrl = id
+                ? `/proyectos/proyecto/{{ proyecto.id }}/observaciones/${id}/actualizar/`
+                : `/proyectos/proyecto/{{ proyecto.id }}/observaciones/crear/`;
+
+            fetch(actualUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
+                body: body,
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    cancelarFormObservacion();
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || data.message));
+                }
+            })
+            .catch(e => alert('Error de red: ' + e.message));
+        }
+
+        function editarObservacion(obsId) {
+            // Find the row data from the DOM
+            const row = document.querySelector(`#obs-table-body tr:nth-child(${obsId})`);
+            if (!row) return;
+
+            // We need to fetch the data via API since it's not stored in DOM
+            // For simplicity, we'll use a data attribute approach
+            // Actually, let's just get the data from the Django context via a simple API call
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            const token = csrf ? csrf.value : '{{ csrf_token }}';
+            
+            fetch(`/proyectos/proyecto/{{ proyecto.id }}/observaciones/${obsId}/detalle/`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.id) {
+                    mostrarFormObservacion(data);
+                }
+            })
+            .catch(() => {
+                // Fallback: populate from row data
+                const cells = row.querySelectorAll('td');
+                const docText = cells[0]?.textContent?.trim() || '';
+                const obsText = cells[1]?.textContent?.trim() || '';
+                const estadoEl = row.querySelector('.obs-estado-badge');
+                const estado = estadoEl?.dataset?.estado || 'ABIERTA';
+                const fechaText = cells[3]?.textContent?.trim() || '';
+                const fechaResText = cells[4]?.textContent?.trim() || '';
+
+                mostrarFormObservacion({
+                    id: obsId,
+                    documento_proyecto_id: '',
+                    estado: estado,
+                    fecha_observacion: fechaText.split('/').reverse().join('-'),
+                    fecha_resolucion: fechaResText !== '—' ? fechaResText.split('/').reverse().join('-') : '',
+                    observacion: obsText,
+                });
+            });
+        }
+
+        function eliminarObservacion(obsId) {
+            if (!confirm('¿Eliminar esta observación?')) return;
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            const token = csrf ? csrf.value : '{{ csrf_token }}';
+            fetch(`/proyectos/proyecto/{{ proyecto.id }}/observaciones/${obsId}/eliminar/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': token },
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || data.message));
+                }
+            })
+            .catch(e => alert('Error de red: ' + e.message));
+        }
+
+        function filtrarObservaciones() {
+            const q = document.getElementById('obs-search').value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            document.querySelectorAll('.obs-row').forEach(row => {
+                const text = (row.dataset.search || row.textContent).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                row.style.display = !q || text.includes(q) ? '' : 'none';
+            });
         }
     </script>
 </body>

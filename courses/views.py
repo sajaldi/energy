@@ -1,12 +1,21 @@
+import os
+import re
+import zipfile
+import xml.etree.ElementTree as ET
+from io import BytesIO
+from pathlib import Path
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.models import User, Group
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from django.db import models
 from django.utils import timezone
 from django.contrib import messages
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 from .models import Curso, AsignacionCurso, ProgresoSeccion, Seccion, Pagina, RegistroTiempo
 from .forms import CursoForm, SeccionFormSet
 
@@ -620,3 +629,218 @@ def estadisticas_curso(request, pk):
         'progreso_promedio': progreso_promedio,
         'total_asignaciones': asignaciones.count(),
     })
+
+
+@staff_member_required
+@require_POST
+def importar_scorm(request, pk):
+    curso = get_object_or_404(Curso, pk=pk)
+    archivo = request.FILES.get('file')
+    if not archivo or not archivo.name.lower().endswith('.zip'):
+        return JsonResponse({'error': 'Debe subir un archivo ZIP de SCORM'}, status=400)
+
+    try:
+        with zipfile.ZipFile(archivo, 'r') as zf:
+            names = zf.namelist()
+
+            if 'imsmanifest.xml' not in names:
+                return JsonResponse({'error': 'El ZIP no contiene imsmanifest.xml'}, status=400)
+
+            # Parse manifest
+            manifest_xml = zf.read('imsmanifest.xml')
+            root = ET.fromstring(manifest_xml)
+            ns = {
+                'adlcp': 'http://www.adlnet.org/xsd/adlcp_rootv1p2',
+                'imscp': 'http://www.imsproject.org/xsd/imscp_rootv1p1p2',
+                'imsmd': 'http://www.imsglobal.org/xsd/imsmd_rootv1p2p1',
+            }
+            # Try to detect namespaces from the XML
+            ns_map = {}
+            for event, elem in ET.iterparse(BytesIO(manifest_xml), events=('start-ns',)):
+                prefix, uri = elem
+                if prefix:
+                    ns_map[uri] = prefix
+
+            def ns_tag(tag):
+                for uri, prefix in ns_map.items():
+                    if tag.startswith('{'):
+                        return tag
+                return tag
+
+            # Extract organization title
+            orgs = root.findall('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}organization')
+            if not orgs:
+                orgs = root.findall('.//organization')
+            if not orgs:
+                # Try any namespace
+                for el in root.iter():
+                    if el.tag.endswith('organization'):
+                        orgs = [el]
+                        break
+
+            # Extract items recursively
+            def extract_items(parent_elem, parent_section=None):
+                items = []
+                for child in parent_elem:
+                    tag = child.tag
+                    if tag.endswith('}item') or tag == 'item':
+                        title_el = child.find('{http://www.imsproject.org/xsd/imscp_rootv1p1p2}title')
+                        if title_el is None:
+                            title_el = child.find('title')
+                        title = title_el.text.strip() if title_el is not None and title_el.text else 'Sin título'
+                        idref = child.get('identifierref', '')
+                        identifier = child.get('identifier', '')
+                        sub_items = extract_items(child, parent_section)
+                        if sub_items:
+                            items.append({
+                                'title': title,
+                                'idref': '',
+                                'identifier': identifier,
+                                'children': sub_items,
+                                'is_section': True,
+                            })
+                        else:
+                            items.append({
+                                'title': title,
+                                'idref': idref,
+                                'identifier': identifier,
+                                'children': [],
+                                'is_section': False,
+                            })
+                return items
+
+            org_title = ''
+            items = []
+            for org in orgs:
+                title_el = org.find('{http://www.imsproject.org/xsd/imscp_rootv1p1p2}title')
+                if title_el is None:
+                    title_el = org.find('title')
+                if title_el is not None and title_el.text:
+                    org_title = title_el.text.strip()
+                items = extract_items(org)
+
+            if not items:
+                return JsonResponse({'error': 'No se encontraron ítems en el manifiesto SCORM'}, status=400)
+
+            # Build resource map: identifier -> href
+            resources = root.findall('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resource')
+            if not resources:
+                resources = root.findall('.//resource')
+            if not resources:
+                for el in root.iter():
+                    if el.tag.endswith('resource'):
+                        resources = [el]
+                        break
+            resource_map = {}
+            for res in resources:
+                rid = res.get('identifier', '')
+                href = res.get('href', '')
+                resource_map[rid] = href
+
+            # Extract ZIP to storage
+            base_path = f'scorm/course_{curso.pk}/'
+            for name in names:
+                if name.endswith('/'):
+                    continue
+                content = zf.read(name)
+                dest_path = base_path + name.replace('\\', '/')
+                if default_storage.exists(dest_path):
+                    default_storage.delete(dest_path)
+                default_storage.save(dest_path, ContentFile(content))
+
+            scorm_base_url = default_storage.url(base_path)
+
+            # Create sections and pages
+            sec_orden = 0
+            total_creados = 0
+
+            # Flatten items: top-level items become sections, children become pages
+            def create_content(items_list, parent_section=None):
+                nonlocal sec_orden, total_creados
+                for item_data in items_list:
+                    if item_data['is_section'] or parent_section is None:
+                        sec_orden += 1
+                        section = Seccion.objects.create(
+                            curso=curso,
+                            titulo=item_data['title'],
+                            orden=sec_orden,
+                            contenido_html='',
+                            duracion_minutos=0,
+                            obligatorio=True,
+                        )
+                        if item_data['children']:
+                            create_content(item_data['children'], section)
+                    else:
+                        if parent_section:
+                            href = resource_map.get(item_data['idref'], '')
+                            pag_orden = parent_section.paginas.count() + 1
+                            if href:
+                                scorm_url = default_storage.url(base_path + href.replace('\\', '/'))
+                                contenido = (
+                                    f'<div style="width:100%;height:600px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">'
+                                    f'<iframe src="{scorm_url}" style="width:100%;height:100%;border:none;" allowfullscreen></iframe>'
+                                    f'</div>'
+                                )
+                            else:
+                                contenido = ''
+                            Pagina.objects.create(
+                                seccion=parent_section,
+                                titulo=item_data['title'],
+                                orden=pag_orden,
+                                contenido_html=contenido,
+                                duracion_minutos=0,
+                                obligatorio=True,
+                            )
+                            total_creados += 1
+
+            create_content(items)
+
+            return JsonResponse({
+                'success': True,
+                'message': f'SCORM importado: {sec_orden} sección(es), {total_creados} página(s) creadas.',
+                'secciones': sec_orden,
+                'paginas': total_creados,
+            })
+
+    except zipfile.BadZipFile:
+        return JsonResponse({'error': 'El archivo no es un ZIP válido'}, status=400)
+    except ET.ParseError as e:
+        return JsonResponse({'error': f'Error al leer imsmanifest.xml: {e}'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Error al importar SCORM: {str(e)}'}, status=400)
+
+
+@staff_member_required
+def servir_scorm(request, pk, subpath):
+    curso = get_object_or_404(Curso, pk=pk)
+    file_path = f'scorm/course_{curso.pk}/{subpath}'
+    if not default_storage.exists(file_path):
+        return HttpResponse('Archivo no encontrado', status=404)
+    f = default_storage.open(file_path, 'rb')
+    content = f.read()
+    f.close()
+
+    ext = os.path.splitext(subpath)[1].lower()
+    mime_map = {
+        '.html': 'text/html',
+        '.htm': 'text/html',
+        '.js': 'application/javascript',
+        '.css': 'text/css',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+        '.json': 'application/json',
+        '.xml': 'application/xml',
+        '.pdf': 'application/pdf',
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+        '.mp3': 'audio/mpeg',
+        '.woff': 'font/woff',
+        '.woff2': 'font/woff2',
+        '.ttf': 'font/ttf',
+        '.eot': 'application/vnd.ms-fontobject',
+    }
+    content_type = mime_map.get(ext, 'application/octet-stream')
+    return HttpResponse(content, content_type=content_type)
