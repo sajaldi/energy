@@ -667,7 +667,7 @@ def update_evidencia_descripcion_ajax(request, evidence_id):
 
 def get_filtered_ticket_qs(request):
     """Helper para obtener el queryset de tickets filtrado por fecha."""
-    from datetime import datetime
+    from datetime import datetime, timedelta
     fecha_inicio_str = request.GET.get('fecha_inicio')
     fecha_fin_str = request.GET.get('fecha_fin')
     
@@ -678,6 +678,10 @@ def get_filtered_ticket_qs(request):
             f_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
             qs = qs.filter(fecha_solicitud__gte=f_inicio)
         except ValueError: pass
+    else:
+        # Default: últimos 30 días
+        f_inicio = datetime.now() - timedelta(days=30)
+        qs = qs.filter(fecha_solicitud__gte=f_inicio)
         
     if fecha_fin_str:
         try:
@@ -723,6 +727,9 @@ def ticket_dashboard_view(request):
     if cached_data:
         grupos_por_depto = cached_data['grupos_por_depto']
         flat_nodes = cached_data['flat_nodes']
+        cat_labels = cached_data.get('cat_labels', [])
+        cat_data = cached_data.get('cat_data', [])
+        falla_diagnosticos_json_map = cached_data.get('falla_diagnosticos_json_map', {})
     else:
         # 2. Cargar Catálogos (Necesarios para clusters y árbol)
         deptos = {d.id: d for d in Departamento.objects.all()}
@@ -868,55 +875,56 @@ def ticket_dashboard_view(request):
         flat_nodes = []
         flatten_tree(temp_tree, flat_nodes)
         
-        # Guardar en cache por 5 minutos
-        cache.set(cache_key, {'grupos_por_depto': grupos_por_depto, 'flat_nodes': flat_nodes}, 300)
+        # Gráficas - cached junto con el resto
+        cat_stats = ticket_qs.filter(ubicacion__categoria__isnull=False).values('ubicacion__categoria__nombre').annotate(
+            total=Count('id')
+        ).order_by('-total')[:10]
+        cat_labels = [c['ubicacion__categoria__nombre'] for c in cat_stats]
+        cat_data = [c['total'] for c in cat_stats]
 
-    # Gráficas (Optimizado: Agrupar desde tickets)
-    cat_stats = ticket_qs.filter(ubicacion__categoria__isnull=False).values('ubicacion__categoria__nombre').annotate(
-        total=Count('id')
-    ).order_by('-total')[:10]
-    cat_labels = [c['ubicacion__categoria__nombre'] for c in cat_stats]
-    cat_data = [c['total'] for c in cat_stats]
+        from callcenter.models import DiagnosticoTicket
+        catalog_diags = DiagnosticoTicket.objects.select_related('falla').all()
+        
+        falla_diagnosticos_map = {}
+        for diag in catalog_diags:
+            falla_nombre = diag.falla.nombre
+            if falla_nombre not in falla_diagnosticos_map:
+                falla_diagnosticos_map[falla_nombre] = {}
+            falla_diagnosticos_map[falla_nombre][diag.nombre] = 0
+            
+        diag_stats = ticket_qs.filter(
+            falla_reportada__isnull=False,
+            diagnostico_reportado__isnull=False
+        ).values(
+            'falla_reportada__nombre',
+            'diagnostico_reportado__nombre'
+        ).annotate(
+            total=Count('id')
+        )
+        
+        for item in diag_stats:
+            falla_nombre = item['falla_reportada__nombre']
+            diag_nombre = item['diagnostico_reportado__nombre']
+            total = item['total']
+            
+            if falla_nombre not in falla_diagnosticos_map:
+                falla_diagnosticos_map[falla_nombre] = {}
+            falla_diagnosticos_map[falla_nombre][diag_nombre] = total
+            
+        falla_diagnosticos_json_map = {}
+        for falla_nombre, diags_dict in falla_diagnosticos_map.items():
+            sorted_diags = sorted(diags_dict.items(), key=lambda x: x[1], reverse=True)
+            falla_diagnosticos_json_map[falla_nombre] = [
+                {'name': name, 'value': value} for name, value in sorted_diags
+            ]
 
-    # --- AGREGACIÓN DE DIAGNÓSTICOS POR TIPO DE FALLA (NUEVO) ---
-    from callcenter.models import DiagnosticoTicket
-    catalog_diags = DiagnosticoTicket.objects.select_related('falla').all()
-    
-    falla_diagnosticos_map = {}
-    # Inicializar el mapa con todos los diagnósticos del catálogo con valor 0
-    for diag in catalog_diags:
-        falla_nombre = diag.falla.nombre
-        if falla_nombre not in falla_diagnosticos_map:
-            falla_diagnosticos_map[falla_nombre] = {}
-        falla_diagnosticos_map[falla_nombre][diag.nombre] = 0
-        
-    # Obtener los conteos reales de los tickets filtrados
-    diag_stats = ticket_qs.filter(
-        falla_reportada__isnull=False,
-        diagnostico_reportado__isnull=False
-    ).values(
-        'falla_reportada__nombre',
-        'diagnostico_reportado__nombre'
-    ).annotate(
-        total=Count('id')
-    )
-    
-    for item in diag_stats:
-        falla_nombre = item['falla_reportada__nombre']
-        diag_nombre = item['diagnostico_reportado__nombre']
-        total = item['total']
-        
-        if falla_nombre not in falla_diagnosticos_map:
-            falla_diagnosticos_map[falla_nombre] = {}
-        falla_diagnosticos_map[falla_nombre][diag_nombre] = total
-        
-    # Convertir a estructura de lista ordenada para fácil uso en Chart.js
-    falla_diagnosticos_json_map = {}
-    for falla_nombre, diags_dict in falla_diagnosticos_map.items():
-        sorted_diags = sorted(diags_dict.items(), key=lambda x: x[1], reverse=True)
-        falla_diagnosticos_json_map[falla_nombre] = [
-            {'name': name, 'value': value} for name, value in sorted_diags
-        ]
+        cache.set(cache_key, {
+            'grupos_por_depto': grupos_por_depto,
+            'flat_nodes': flat_nodes,
+            'cat_labels': cat_labels,
+            'cat_data': cat_data,
+            'falla_diagnosticos_json_map': falla_diagnosticos_json_map,
+        }, 300)
 
     departamentos_qs = Departamento.objects.all().order_by('nombre')
 

@@ -934,6 +934,7 @@
             fd.append('file', file);
             fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
 
+            {% if curso %}
             fetch('{% url "courses:importar_scorm" curso.id %}', {
                 method: 'POST',
                 body: fd,
@@ -953,6 +954,7 @@
                 btn.disabled = false;
                 input.value = '';
             });
+            {% endif %}
         }
 
         // ── Init ──
