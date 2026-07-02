@@ -8,12 +8,21 @@ class SeccionInline(admin.StackedInline):
     fields = ('orden', 'titulo', 'contenido_html', 'duracion_minutos', 'obligatorio')
 
 
+class HijoCursoInline(admin.StackedInline):
+    model = Curso
+    fk_name = 'padre'
+    extra = 1
+    fields = ('titulo', 'orden', 'activo')
+    verbose_name = "Curso hijo"
+    verbose_name_plural = "Cursos hijos (pensum)"
+
+
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'total_secciones', 'disponible_para_todos', 'activo', 'creado_en')
+    list_display = ('titulo', 'padre', 'total_secciones', 'disponible_para_todos', 'activo', 'creado_en')
     list_filter = ('activo', 'disponible_para_todos')
     search_fields = ('titulo', 'descripcion')
-    inlines = [SeccionInline]
+    inlines = [HijoCursoInline, SeccionInline]
 
 
 @admin.register(Seccion)

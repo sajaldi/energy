@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ curso.titulo }} - Pensum</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        .header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 16px 32px; display: flex; align-items: center; gap: 16px; }
+        .header h1 { font-size: 1.15rem; font-weight: 600; flex: 1; }
+        .header .back { color: rgba(255,255,255,0.75); font-size: 0.85rem; padding: 6px 12px; border-radius: 4px; white-space: nowrap; }
+        .header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+        .header-actions { display: flex; gap: 8px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); border-radius: 6px; box-shadow: var(--sap-card-shadow); margin-bottom: 20px; overflow: hidden; }
+        .card-header { padding: 14px 20px; background: var(--sap-group-bg); border-bottom: 1px solid var(--sap-border-color); font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+        .card-body { padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+        .hijo-card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); border-radius: 6px; overflow: hidden; transition: box-shadow 0.15s; }
+        .hijo-card:hover { box-shadow: var(--sap-card-shadow); }
+        .hijo-card .img { width: 100%; height: 120px; object-fit: cover; background: linear-gradient(135deg, #e0e7ff, #c7d2fe); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #4f46e5; }
+        .hijo-card .body { padding: 14px; }
+        .hijo-card .body h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+        .hijo-card .body p { font-size: 0.8rem; color: var(--sap-text-muted); line-height: 1.5; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+        .badge-pendiente { background: #fef3c7; color: #d97706; }
+        .badge-completado { background: var(--sap-success-bg); color: var(--sap-success); }
+        .progress-section { margin: 16px 0; }
+        .progress-bar { height: 8px; background: var(--sap-border-color); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #4f46e5); border-radius: 4px; transition: width 0.5s ease; }
+        .meta { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--sap-text-muted); margin-top: 4px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 4px; font-family: var(--sap-font-family); font-size: 0.82rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; }
+        .btn-primary:hover { background: var(--sap-highlight-color); text-decoration: none; }
+        .btn-outline { background: transparent; color: var(--sap-brand-color); border: 2px solid var(--sap-brand-color); }
+        .btn-outline:hover { background: rgba(0,112,242,0.06); }
+        .empty { text-align: center; padding: 40px; color: var(--sap-text-muted); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{% url 'courses:lista_admin' %}" class="back">← Gestión</a>
+        <h1>📦 {{ curso.titulo }}</h1>
+        <div class="header-actions">
+            <a href="{% url 'courses:editar_curso' curso.id %}" class="back" style="border:1px solid rgba(255,255,255,0.2);">✏️ Editar</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">📊 Progreso del Pensum</div>
+            <div class="card-body">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ pct_pensum }}%"></div>
+                </div>
+                <div class="meta">
+                    <span>{{ completados_hijos }} de {{ total_hijos }} cursos completados</span>
+                    <span>{{ pct_pensum }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">📚 Cursos del Pensum ({{ total_hijos }})</div>
+            <div class="card-body">
+                {% if hijos %}
+                <div class="grid">
+                    {% for item in hijos %}
+                    <div class="hijo-card">
+                        {% if item.curso.imagen %}
+                        <img class="img" src="{{ item.curso.imagen.url }}" alt="{{ item.curso.titulo }}">
+                        {% else %}
+                        <div class="img">📖</div>
+                        {% endif %}
+                        <div class="body">
+                            <h3>{{ item.curso.titulo }}</h3>
+                            <p>{{ item.curso.descripcion|truncatechars:80 }}</p>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+                                {% if item.asignacion.completado %}
+                                <span class="badge badge-completado">✅ Completado</span>
+                                {% else %}
+                                <span class="badge badge-pendiente">⏳ En progreso</span>
+                                {% endif %}
+                                <a href="{% url 'courses:visualizar' item.curso.id %}" class="btn btn-outline" style="font-size:0.75rem;padding:4px 12px;">Ver</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty">
+                    <p>No hay cursos hijos en este pensum.</p>
+                    <p style="font-size:0.85rem;margin-top:4px;">Edita el pensum y agrega cursos asignándolos como hijos.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <a href="{% url 'courses:lista_admin' %}" class="btn btn-primary">← Volver a Gestión</a>
+    </div>
+</body>
+</html>

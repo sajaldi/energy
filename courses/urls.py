@@ -15,6 +15,7 @@ urlpatterns = [
     path('admin/<int:pk>/vista-previa/', views.visualizar_curso, name='visualizar'),
     path('admin/<int:pk>/asignar/', views.asignar_curso, name='asignar_curso'),
     path('admin/<int:pk>/asignar/<int:asignacion_id>/eliminar/', views.desasignar_curso, name='desasignar_curso'),
+    path('admin/<int:pk>/estadisticas/', views.estadisticas_curso, name='estadisticas'),
     path('<int:pk>/', views.detalle_curso, name='detalle'),
     path('<int:pk>/certificado/', views.certificado_curso, name='certificado'),
     path('<int:pk>/heartbeat/', views.heartbeat_curso, name='heartbeat'),

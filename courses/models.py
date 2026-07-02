@@ -7,6 +7,9 @@ class Curso(models.Model):
     titulo = models.CharField(max_length=255, verbose_name="Título")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     imagen = models.ImageField(upload_to='cursos/', null=True, blank=True, verbose_name="Imagen de portada")
+    padre = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='hijos', verbose_name="Curso padre (pensum)")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden dentro del pensum")
     activo = models.BooleanField(default=True, verbose_name="Activo")
     disponible_para_todos = models.BooleanField(default=False, verbose_name="Disponible para todos",
         help_text="Cualquier usuario puede acceder sin necesidad de asignación")
@@ -21,10 +24,18 @@ class Curso(models.Model):
     def __str__(self):
         return self.titulo
 
+    def es_pensum(self):
+        return self.hijos.exists()
+
     def total_secciones(self):
         return self.secciones.count()
 
     def duracion_estimada(self):
+        if self.es_pensum():
+            total = 0
+            for hijo in self.hijos.all():
+                total += hijo.duracion_estimada()
+            return total
         secs = self.secciones.aggregate(total=models.Sum('duracion_minutos'))['total'] or 0
         pags = Pagina.objects.filter(seccion__curso=self).aggregate(total=models.Sum('duracion_minutos'))['total'] or 0
         return secs + pags

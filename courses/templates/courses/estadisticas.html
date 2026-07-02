@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas: {{ curso.titulo }}</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 16px 32px; display: flex; align-items: center; gap: 16px; }
+        .header h1 { font-size: 1.15rem; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .header .back { color: rgba(255,255,255,0.75); font-size: 0.85rem; padding: 6px 12px; border-radius: 4px; white-space: nowrap; }
+        .header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px 40px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); border-radius: 8px; padding: 20px; box-shadow: var(--sap-card-shadow); }
+        .stat-card .label { font-size: 0.78rem; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+        .stat-card .value { font-size: 1.5rem; font-weight: 800; margin-top: 6px; color: var(--sap-text-color); }
+        .stat-card .value.purple { color: #7c3aed; }
+        .stat-card .value.green { color: var(--sap-success); }
+        .stat-card .value.blue { color: var(--sap-brand-color); }
+        .stat-card .value.orange { color: #d97706; }
+
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); border-radius: 6px; box-shadow: var(--sap-card-shadow); margin-bottom: 20px; overflow: hidden; }
+        .card-header { padding: 14px 20px; background: var(--sap-group-bg); border-bottom: 1px solid var(--sap-border-color); font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+        .card-body { padding: 20px; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 16px; font-size: 0.78rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.5px; background: var(--sap-bg-color); border-bottom: 1px solid var(--sap-border-color); }
+        td { padding: 10px 16px; font-size: 0.88rem; border-bottom: 1px solid var(--sap-border-color); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8f9fa; }
+
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .badge-completed { background: var(--sap-success-bg); color: var(--sap-success); }
+        .badge-pending { background: #fef3c7; color: #d97706; }
+        .badge-inscrito { background: #dbeafe; color: #2563eb; }
+
+        .empty { text-align: center; padding: 32px; color: var(--sap-text-muted); }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 4px; font-family: var(--sap-font-family); font-size: 0.88rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+        .btn-secondary { background: var(--sap-neutral-bg); color: var(--sap-text-color); }
+        .btn-secondary:hover { background: #e4e4e4; text-decoration: none; }
+
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--sap-brand-color); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; margin-right: 8px; flex-shrink: 0; }
+        .user-row { display: flex; align-items: center; gap: 4px; }
+
+        @media (max-width: 640px) {
+            .header { padding: 14px 16px; }
+            .container { padding: 16px 12px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{% url 'courses:lista_admin' %}" class="back">← Gestión</a>
+        <h1>📊 Estadísticas: {{ curso.titulo }}</h1>
+    </div>
+
+    <div class="container">
+        <!-- ── Summary Stats ── -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">Inscritos</div>
+                <div class="value blue">{{ total_inscritos }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Completados</div>
+                <div class="value green">{{ total_completados }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Progreso promedio</div>
+                <div class="value purple">{{ progreso_promedio }}%</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Tiempo promedio finalización</div>
+                <div class="value orange">{{ tiempo_promedio }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Tiempo total de estudio</div>
+                <div class="value blue">{{ tiempo_total }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Asignaciones</div>
+                <div class="value">{{ total_asignaciones }}</div>
+            </div>
+        </div>
+
+        <!-- ── Inscritos ── -->
+        <div class="card">
+            <div class="card-header">👥 Inscritos ({{ total_inscritos }})</div>
+            <div class="card-body" style="padding:0;">
+                {% if usuarios_inscritos %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Email</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios_inscritos %}
+                        <tr>
+                            <td>
+                                <div class="user-row">
+                                    <span class="user-avatar">{{ u.get_full_name|default:u.username|first|upper }}</span>
+                                    {{ u.get_full_name|default:u.username }}
+                                </div>
+                            </td>
+                            <td style="color:var(--sap-text-muted);font-size:0.82rem;">{{ u.email|default:'—' }}</td>
+                            <td>
+                                {% if u in usuarios_completaron %}
+                                <span class="badge badge-completed">✅ Completado</span>
+                                {% else %}
+                                <span class="badge badge-pending">⏳ En progreso</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty">No hay usuarios inscritos en este curso.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ── Completados ── -->
+        <div class="card">
+            <div class="card-header">🎓 Completaron el curso ({{ total_completados }})</div>
+            <div class="card-body" style="padding:0;">
+                {% if usuarios_completaron %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Email</th>
+                            <th>Fecha de finalización</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios_completaron %}
+                        {% with asignacion=u.cursos_asignados.all|dictsortreversed:"fecha_completado"|first %}
+                        <tr>
+                            <td>
+                                <div class="user-row">
+                                    <span class="user-avatar">{{ u.get_full_name|default:u.username|first|upper }}</span>
+                                    {{ u.get_full_name|default:u.username }}
+                                </div>
+                            </td>
+                            <td style="color:var(--sap-text-muted);font-size:0.82rem;">{{ u.email|default:'—' }}</td>
+                            <td>{{ asignacion.fecha_completado|date:'d/m/Y H:i'|default:'—' }}</td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty">Nadie ha completado este curso aún.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <a href="{% url 'courses:lista_admin' %}" class="btn btn-secondary">← Volver a Gestión</a>
+    </div>
+</body>
+</html>

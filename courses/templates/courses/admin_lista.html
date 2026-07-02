@@ -86,10 +86,20 @@
                         {% for item in cursos %}
                         <tr>
                             <td>
-                                <strong>{{ item.curso.titulo }}</strong>
-                                {% if item.curso.descripcion %}
-                                <div style="font-size:0.78rem;color:var(--sap-text-muted);margin-top:2px;">{{ item.curso.descripcion|truncatechars:80 }}</div>
-                                {% endif %}
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    {% if item.depth == 1 %}
+                                    <span style="color:var(--sap-text-muted);font-size:0.75rem;">└─</span>
+                                    {% endif %}
+                                    <div>
+                                        <strong>{{ item.curso.titulo }}</strong>
+                                        {% if item.depth == 0 and item.curso.es_pensum %}
+                                        <span class="badge badge-activo" style="font-size:0.65rem;vertical-align:middle;">Pensum</span>
+                                        {% endif %}
+                                        {% if item.curso.descripcion %}
+                                        <div style="font-size:0.78rem;color:var(--sap-text-muted);margin-top:2px;">{{ item.curso.descripcion|truncatechars:80 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </td>
                             <td>{{ item.secciones }}</td>
                             <td>{{ item.asignados }}</td>
@@ -98,6 +108,7 @@
                                 <div class="actions">
                                     <a href="{% url 'courses:visualizar' item.curso.id %}" class="btn btn-sm btn-secondary" target="_blank">Ver</a>
                                     <a href="{% url 'courses:asignar_curso' item.curso.id %}" class="btn btn-sm" style="background:#e8f0f8;color:#0a6ed1;">Asignar</a>
+                                    <a href="{% url 'courses:estadisticas' item.curso.id %}" class="btn btn-sm" style="background:#f3e8ff;color:#7c3aed;">📊 Stats</a>
                                     <a href="{% url 'courses:editar_curso' item.curso.id %}" class="btn btn-sm btn-primary">Editar</a>
                                 </div>
                             </td>

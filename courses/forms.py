@@ -5,10 +5,23 @@ from .models import Curso, Seccion
 class CursoForm(forms.ModelForm):
     class Meta:
         model = Curso
-        fields = ['titulo', 'descripcion', 'imagen', 'activo']
+        fields = ['titulo', 'descripcion', 'imagen', 'padre', 'orden', 'activo']
         widgets = {
             'descripcion': forms.Textarea(attrs={'rows': 3}),
+            'orden': forms.NumberInput(attrs={'size': 3}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = kwargs.get('instance')
+        qs = Curso.objects.all()
+        if instance:
+            qs = qs.exclude(pk=instance.pk)
+        self.fields['padre'].queryset = qs
+        self.fields['padre'].label = "Curso padre (pensum)"
+        self.fields['padre'].empty_label = "— Curso independiente —"
+        self.fields['orden'].label = "Orden dentro del pensum"
+        self.fields['orden'].help_text = "Posición del curso dentro del pensum padre"
 
 
 class SeccionForm(forms.ModelForm):

@@ -25,6 +25,7 @@ def lista_cursos(request):
 
     completados = []
     en_curso = []
+    pensum_data = {}
     for a in asignaciones:
         total = a.curso.total_secciones()
         completadas = ProgresoSeccion.objects.filter(
@@ -37,17 +38,55 @@ def lista_cursos(request):
             'completadas': completadas,
             'total': total,
         }
-        if a.completado:
-            completados.append(item)
+        padre = a.curso.padre
+        if padre:
+            if padre.pk not in pensum_data:
+                pensum_data[padre.pk] = {
+                    'curso': padre,
+                    'hijos_en_curso': [],
+                    'hijos_completados': [],
+                    'hijos_disponibles': [],
+                }
+            if a.completado:
+                pensum_data[padre.pk]['hijos_completados'].append(item)
+            else:
+                pensum_data[padre.pk]['hijos_en_curso'].append(item)
         else:
-            en_curso.append(item)
+            if a.completado:
+                completados.append(item)
+            else:
+                en_curso.append(item)
 
     # Cursos disponibles para todos (sin asignación)
-    disponibles = Curso.objects.filter(
+    disponibles_qs = Curso.objects.filter(
         activo=True, disponible_para_todos=True
     ).exclude(
         pk__in=[a.curso_id for a in asignaciones]
     )
+    disponibles = []
+    pensum_disponibles = {}
+    for c in disponibles_qs:
+        item = c
+        padre = c.padre
+        if padre:
+            if padre.pk not in pensum_disponibles:
+                pensum_disponibles[padre.pk] = {
+                    'curso': padre,
+                    'hijos': [],
+                }
+            pensum_disponibles[padre.pk]['hijos'].append(item)
+        else:
+            disponibles.append(item)
+
+    # Merge pensum data
+    todos_pensum = {}
+    for pk, data in pensum_data.items():
+        todos_pensum[pk] = data
+    for pk, data in pensum_disponibles.items():
+        if pk in todos_pensum:
+            todos_pensum[pk].setdefault('hijos_disponibles', []).extend(data['hijos'])
+        else:
+            todos_pensum[pk] = data
 
     # Calcular estadísticas de tiempo
     tiempos = RegistroTiempo.objects.filter(usuario=request.user)
@@ -73,12 +112,16 @@ def lista_cursos(request):
         }
 
     total_formateado = fmt_seg(tiempo_total_segundos)
-    total_asignados = len(completados) + len(en_curso)
+    total_asignados = len(completados) + len(en_curso) + sum(
+        len(d.get('hijos_en_curso', []) + d.get('hijos_completados', []))
+        for d in todos_pensum.values()
+    )
 
     return render(request, 'courses/lista.html', {
         'en_curso': en_curso,
         'completados': completados,
         'disponibles': disponibles,
+        'pensums': todos_pensum.values(),
         'tiempo_total_segundos': tiempo_total_segundos,
         'tiempo_total_formateado': total_formateado,
         'total_asignados': total_asignados,
@@ -89,6 +132,34 @@ def lista_cursos(request):
 @login_required
 def detalle_curso(request, pk):
     curso = get_object_or_404(Curso, pk=pk, activo=True)
+
+    # Si es un pensum, mostrar los cursos hijos
+    hijos = curso.hijos.filter(activo=True).order_by('orden')
+    if hijos.exists():
+        hijos_con_asignacion = []
+        total_hijos = hijos.count()
+        completados_hijos = 0
+        for h in hijos:
+            asig = AsignacionCurso.objects.filter(
+                models.Q(usuario=request.user) | models.Q(grupo__user=request.user),
+                curso=h
+            ).first()
+            if not asig and h.disponible_para_todos:
+                asig = AsignacionCurso.objects.create(curso=h, usuario=request.user)
+            if asig and asig.completado:
+                completados_hijos += 1
+            hijos_con_asignacion.append({'curso': h, 'asignacion': asig})
+
+        pct_pensum = int((completados_hijos / total_hijos * 100)) if total_hijos else 0
+
+        return render(request, 'courses/detalle_pensum.html', {
+            'curso': curso,
+            'hijos': hijos_con_asignacion,
+            'total_hijos': total_hijos,
+            'completados_hijos': completados_hijos,
+            'pct_pensum': pct_pensum,
+        })
+
     asignacion = AsignacionCurso.objects.filter(
         models.Q(usuario=request.user) | models.Q(grupo__user=request.user),
         curso=curso
@@ -179,14 +250,23 @@ def marcar_completada(request, pk, seccion_id):
 
 @staff_member_required
 def lista_admin(request):
-    cursos = Curso.objects.all().order_by('-creado_en')
+    padres = Curso.objects.filter(padre=None).order_by('-creado_en')
     data = []
-    for c in cursos:
-        data.append({
-            'curso': c,
-            'secciones': c.total_secciones(),
-            'asignados': c.asignaciones.count(),
-        })
+    for p in padres:
+        item = {
+            'curso': p,
+            'secciones': p.total_secciones(),
+            'asignados': p.asignaciones.count(),
+            'depth': 0,
+        }
+        data.append(item)
+        for h in p.hijos.all().order_by('orden'):
+            data.append({
+                'curso': h,
+                'secciones': h.total_secciones(),
+                'asignados': h.asignaciones.count(),
+                'depth': 1,
+            })
     return render(request, 'courses/admin_lista.html', {
         'cursos': data,
     })
@@ -307,6 +387,30 @@ def editar_curso(request, pk=None):
 @staff_member_required
 def visualizar_curso(request, pk):
     curso = get_object_or_404(Curso, pk=pk)
+
+    # Si es pensum, mostrar hijos
+    hijos = curso.hijos.filter(activo=True).order_by('orden')
+    if hijos.exists():
+        hijos_data = []
+        total_hijos = hijos.count()
+        completados_hijos = 0
+        for h in hijos:
+            asig, _ = AsignacionCurso.objects.get_or_create(
+                curso=h, usuario=request.user,
+                defaults={'asignado_por': request.user}
+            )
+            if asig.completado:
+                completados_hijos += 1
+            hijos_data.append({'curso': h, 'asignacion': asig})
+        pct_pensum = int((completados_hijos / total_hijos * 100)) if total_hijos else 0
+        return render(request, 'courses/visualizador_pensum.html', {
+            'curso': curso,
+            'hijos': hijos_data,
+            'total_hijos': total_hijos,
+            'completados_hijos': completados_hijos,
+            'pct_pensum': pct_pensum,
+        })
+
     secciones = curso.secciones.all()
     total = secciones.count()
     duracion = curso.duracion_estimada()
@@ -447,4 +551,72 @@ def certificado_curso(request, pk):
         'fecha': asignacion.fecha_completado or timezone.now(),
         'completadas': completadas,
         'total': total,
+    })
+
+
+@staff_member_required
+def estadisticas_curso(request, pk):
+    curso = get_object_or_404(Curso, pk=pk)
+    asignaciones = AsignacionCurso.objects.filter(curso=curso).select_related('usuario', 'grupo')
+
+    # --- Inscritos ---
+    usuarios_inscritos = set()
+    for a in asignaciones:
+        for u in a.usuarios_destino():
+            usuarios_inscritos.add(u)
+    usuarios_inscritos = sorted(usuarios_inscritos, key=lambda u: u.get_full_name() or u.username)
+    total_inscritos = len(usuarios_inscritos)
+
+    # --- Completados ---
+    completados = [a for a in asignaciones if a.completado]
+    usuarios_completaron = set()
+    for a in completados:
+        for u in a.usuarios_destino():
+            usuarios_completaron.add(u)
+    usuarios_completaron = sorted(usuarios_completaron, key=lambda u: u.get_full_name() or u.username)
+    total_completados = len(usuarios_completaron)
+
+    # --- Tiempo promedio de finalización ---
+    tiempos_completacion = []
+    for a in completados:
+        if a.fecha_asignacion and a.fecha_completado:
+            delta = a.fecha_completado - a.fecha_asignacion
+            tiempos_completacion.append(delta.total_seconds())
+    if tiempos_completacion:
+        prom_segundos = sum(tiempos_completacion) / len(tiempos_completacion)
+        if prom_segundos >= 86400:
+            tiempo_promedio = f"{int(prom_segundos // 86400)}d {int((prom_segundos % 86400) // 3600)}h"
+        elif prom_segundos >= 3600:
+            tiempo_promedio = f"{int(prom_segundos // 3600)}h {int((prom_segundos % 3600) // 60)}m"
+        else:
+            tiempo_promedio = f"{int(prom_segundos // 60)}m"
+    else:
+        tiempo_promedio = "—"
+
+    # --- Tiempo total de estudio ---
+    tiempos = RegistroTiempo.objects.filter(curso=curso)
+    tiempo_total_segundos = tiempos.aggregate(total=models.Sum('duracion_segundos'))['total'] or 0
+    if tiempo_total_segundos >= 3600:
+        tiempo_total = f"{tiempo_total_segundos // 3600}h {(tiempo_total_segundos % 3600) // 60}m"
+    else:
+        tiempo_total = f"{tiempo_total_segundos // 60}m"
+
+    # --- Progreso promedio ---
+    progresos = []
+    for a in asignaciones:
+        for u in a.usuarios_destino():
+            pct = a.progreso_porcentaje(u)
+            progresos.append(pct)
+    progreso_promedio = int(sum(progresos) / len(progresos)) if progresos else 0
+
+    return render(request, 'courses/estadisticas.html', {
+        'curso': curso,
+        'total_inscritos': total_inscritos,
+        'usuarios_inscritos': usuarios_inscritos,
+        'total_completados': total_completados,
+        'usuarios_completaron': usuarios_completaron,
+        'tiempo_promedio': tiempo_promedio,
+        'tiempo_total': tiempo_total,
+        'progreso_promedio': progreso_promedio,
+        'total_asignaciones': asignaciones.count(),
     })

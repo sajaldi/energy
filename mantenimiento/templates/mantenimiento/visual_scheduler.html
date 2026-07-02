@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load i18n static %}
+{% load i18n static l10n %}
 
 {% block extrastyle %}
 {{ block.super }}
@@ -381,11 +381,11 @@
         <input type="text" class="search-input" id="searchRutina" placeholder="Buscar rutina por nombre...">
         <div class="selection-grid" id="rutinaGrid">
             {% for r in rutinas %}
-            <div class="option-card {% if rutina_preselected.id == r.id %}selected{% endif %}" data-id="{{ r.id }}"
+            <div class="option-card {% if rutina_preselected.id == r.id %}selected{% endif %}" data-id="{{ r.id|unlocalize }}"
                 data-type="rutina" data-name="{{ r.nombre }}"
-                data-horario-id="{{ r.horario_predeterminado.id|default:'' }}"
-                data-ubicacion-id="{{ r.ubicacion_predeterminada.id|default:'' }}"
-                data-asset-cat-id="{{ r.categoria_activo.id|default:'' }}">
+                data-horario-id="{{ r.horario_predeterminado.id|default:''|unlocalize }}"
+                data-ubicacion-id="{{ r.ubicacion_predeterminada.id|default:''|unlocalize }}"
+                data-asset-cat-id="{{ r.categoria_activo.id|default:''|unlocalize }}">
                 <span class="option-title">{{ r.nombre }}</span>
                 <span class="option-meta">{{ r.categoria.nombre }} | {{ r.frecuencia.nombre }}</span>
             </div>
@@ -401,7 +401,7 @@
         </div>
         <div class="selection-grid" id="horarioGrid">
             {% for h in horarios %}
-            <div class="option-card" data-id="{{ h.id }}" data-type="horario" data-name="{{ h.nombre }}">
+            <div class="option-card" data-id="{{ h.id|unlocalize }}" data-type="horario" data-name="{{ h.nombre }}">
                 <div style="width: 24px; height: 24px; background: {{ h.color }}; border-radius: 2px; float: right;">
                 </div>
                 <span class="option-title">{{ h.nombre }}</span>
@@ -538,11 +538,11 @@
     let currentStep = 1;
     const totalSteps = 5;
     const selections = {
-        rutina: "{{ rutina_preselected.id|default:'' }}",
+        rutina: "{{ rutina_preselected.id|default:''|unlocalize }}",
         horario: "", // Keep for legacy if needed
         horarios: [],
         areas: [],
-        categorias: [{% if preselected_cat_id %}"{{ preselected_cat_id }}"{% endif %}],
+        categorias: [{% if preselected_cat_id %}"{{ preselected_cat_id|unlocalize }}"{% endif %}],
     activos: [],
         fecha_inicio: "{{ today|date:'Y-m-d' }}",
             fecha_fin: ""
