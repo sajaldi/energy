@@ -425,10 +425,10 @@
                 </div>
                 <div class="form-group">
                     <label><i class="ph ph-stethoscope" style="margin-right: 4px;"></i> Diagnóstico Catálogo</label>
-                    <select name="diagnostico_reportado" class="visual-input">
+                    <select name="diagnostico_reportado" id="id_diagnostico_catalogo" class="visual-input">
                         <option value="">-- Selecciona un diagnóstico del catálogo --</option>
                         {% for diag in diagnosticos_disponibles %}
-                            <option value="{{ diag.id }}" {% if ticket.diagnostico_reportado_id == diag.id %}selected{% endif %}>{{ diag }}</option>
+                            <option value="{{ diag.id }}" data-descripcion="{{ diag.descripcion|default:'' }}" data-actividad="{{ diag.actividad|default:'' }}" {% if ticket.diagnostico_reportado_id == diag.id %}selected{% endif %}>{{ diag }}</option>
                         {% endfor %}
                     </select>
                     {% if not diagnosticos_disponibles %}
@@ -877,5 +877,34 @@
             statusDiv.innerHTML = `<div style="font-size: 9px; color: var(--sap-red); font-style: italic; text-align: center;">Error al iniciar</div>`;
         }
     }
+
+    document.getElementById('id_diagnostico_catalogo').addEventListener('change', function() {
+        var opt = this.options[this.selectedIndex];
+        if (!opt || !opt.value) return;
+        var desc = opt.getAttribute('data-descripcion') || '';
+        var act = opt.getAttribute('data-actividad') || '';
+        if (!desc && !act) return;
+        var msg = '¿Cargar datos del diagnóstico?';
+        if (desc && act) msg = '¿Cargar descripción y actividad?';
+        else if (desc) msg = '¿Cargar descripción del diagnóstico?';
+        else msg = '¿Cargar actividad predefinida?';
+        Swal.fire({
+            title: 'Cargar desde catálogo',
+            text: msg,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, cargar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0070f2'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                var diagField = document.querySelector('textarea[name="diagnostico"]');
+                var actField = document.querySelector('textarea[name="actividades"]');
+                if (diagField) diagField.value = desc || '';
+                if (actField) actField.value = act || '';
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Campos cargados', showConfirmButton: false, timer: 1500 });
+            }
+        });
+    });
 </script>
 {% endblock %}

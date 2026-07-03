@@ -738,6 +738,7 @@ class DiagnosticoTicket(models.Model):
         verbose_name="Falla Asociada"
     )
     descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción del Diagnóstico")
+    actividad = models.CharField(max_length=255, blank=True, null=True, verbose_name="Actividad Realizada")
 
     def __str__(self):
         return self.nombre

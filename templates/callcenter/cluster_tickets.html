@@ -397,9 +397,28 @@
                 <div style="padding: 1rem 1.5rem; border-bottom: 1px solid #eee; background: #fafafa;">
                     <h3 style="margin: 0; color: #444; font-size: 1.1rem;"><i class="ph ph-list-dashes"></i> Listado de Tickets Filtrados</h3>
                 </div>
+                <div id="bulk-actions-bar" style="display: none; padding: 10px 16px; background: #e8f0fe; border-bottom: 1px solid #c6dafc; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <span style="font-weight: 600; font-size: 0.85rem; color: #1a56db;"><span id="selected-count">0</span> seleccionados</span>
+                    <button class="btn-fiori" style="background: #0070f2; color: white; border: none; height: 34px; font-size: 0.8rem;" onclick="bulkAsignarDiagnostico()">
+                        <i class="ph ph-stethoscope"></i> Asignar Diagnóstico
+                    </button>
+                    <button class="btn-fiori" style="background: #e9730c; color: white; border: none; height: 34px; font-size: 0.8rem;" onclick="bulkAsignarFechaCierre()">
+                        <i class="ph ph-calendar-check"></i> Asignar Fecha Cierre
+                    </button>
+                    <button class="btn-fiori" style="background: #1e7e34; color: white; border: none; height: 34px; font-size: 0.8rem;" onclick="bulkAccion('correo_cierre')">
+                        <i class="ph ph-envelope-check"></i> Cierre por Correo
+                    </button>
+                    <button class="btn-fiori" style="background: #6c5ce7; color: white; border: none; height: 34px; font-size: 0.8rem;" onclick="bulkAccion('sync_sig')">
+                        <i class="ph ph-arrows-clockwise"></i> Sync SIG
+                    </button>
+                    <button class="btn-fiori" style="background: #6b7280; color: white; border: none; height: 34px; font-size: 0.8rem;" onclick="clearSelection()">
+                        <i class="ph ph-x"></i> Limpiar selección
+                    </button>
+                </div>
                 <table class="visual-table" id="filtered-tickets-table">
                 <thead>
                     <tr>
+                        <th style="width:36px;"><input type="checkbox" id="select-all-tickets" onchange="toggleSelectAll(this)"></th>
                         <th>Folio / ID</th>
                         <th>Solicitante</th>
                         <th>Ubicación</th>
@@ -423,6 +442,7 @@
                     {% regroup tickets by falla_reportada.parent.nombre as grouped_tickets %}
                     {% for group in grouped_tickets %}
                         <tr class="group-header" onclick="toggleGroup(this)" data-group-id="group-{{ forloop.counter }}" style="cursor: pointer; background: #f8f9fa;">
+                            <td style="width:36px; padding: 0.8rem 0.5rem; text-align: center;"><input type="checkbox" class="group-select-all" data-group="{{ forloop.counter }}" onchange="toggleGroupSelect(this, {{ forloop.counter }})" onclick="event.stopPropagation();"></td>
                             <td colspan="13" style="padding: 0.8rem 1.25rem; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; box-shadow: inset 5px 0 0 var(--sap-primary);">
                                 <div style="display: flex; align-items: center; gap: 1rem;">
                                     <i class="ph ph-caret-right caret-icon" style="transition: transform 0.3s; {% if q %}transform: rotate(90deg);{% endif %}"></i>
@@ -436,6 +456,7 @@
                             data-ticket-id="{{ t.id_unlocalized }}"
                             data-folio="{{ t.folio|default:t.id_solicitud }}"
                             style="{% if q %}display: table-row;{% else %}display: none;{% endif %}">
+                            <td style="width:36px; text-align: center;"><input type="checkbox" class="ticket-checkbox" value="{{ t.id_unlocalized }}" onchange="updateSelection()"></td>
                             <td style="font-weight: 700;">
                                 <a href="#" class="ticket-detail-link" 
                                    data-id="{{ t.id_unlocalized }}" 
@@ -532,7 +553,7 @@
                         {% endfor %}
                     {% empty %}
                         <tr id="empty-tickets-message">
-                            <td colspan="13" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
+                            <td colspan="14" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
                                 No hay tickets que coincidan con los filtros.
                             </td>
                         </tr>
@@ -1083,7 +1104,7 @@
             if (emptyMessageRow) {
                 emptyMessageRow.style.display = anyVisible ? 'none' : 'table-row';
                 if (!anyVisible) {
-                    emptyMessageRow.innerHTML = '<td colspan="13" style="text-align:center;padding:32px;color:#94a3b8;"><i class="ph ph-hash" style="font-size:2rem;display:block;margin-bottom:8px;"></i><b>Ningún folio coincide</b><br><small style="color:#94a3b8;">Verifica que los folios estén escritos exactamente como aparecen en la tabla</small></td>';
+                    emptyMessageRow.innerHTML = '<td colspan="14" style="text-align:center;padding:32px;color:#94a3b8;"><i class="ph ph-hash" style="font-size:2rem;display:block;margin-bottom:8px;"></i><b>Ningún folio coincide</b><br><small style="color:#94a3b8;">Verifica que los folios estén escritos exactamente como aparecen en la tabla</small></td>';
                 }
             }
         }
@@ -2108,6 +2129,168 @@
                     Swal.fire('Error', 'Error de red al crear ticket', 'error');
                 }
             }
+        }
+
+        var selectedTickets = new Set();
+
+        function updateSelection() {
+            selectedTickets.clear();
+            document.querySelectorAll('.ticket-checkbox:checked').forEach(function(cb) {
+                selectedTickets.add(cb.value);
+            });
+            var count = selectedTickets.size;
+            document.getElementById('selected-count').textContent = count;
+            document.getElementById('bulk-actions-bar').style.display = count > 0 ? 'flex' : 'none';
+        }
+
+        function toggleSelectAll(master) {
+            document.querySelectorAll('.ticket-checkbox').forEach(function(cb) {
+                cb.checked = master.checked;
+            });
+            updateSelection();
+        }
+
+        function toggleGroupSelect(groupCheckbox, groupNum) {
+            document.querySelectorAll('.group-' + groupNum + ' .ticket-checkbox').forEach(function(cb) {
+                cb.checked = groupCheckbox.checked;
+            });
+            updateSelection();
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.ticket-checkbox, #select-all-tickets, .group-select-all').forEach(function(cb) {
+                cb.checked = false;
+            });
+            selectedTickets.clear();
+            document.getElementById('bulk-actions-bar').style.display = 'none';
+        }
+
+        var diagnosticosData = {{ diagnosticos_json|safe }};
+
+        function buildDiagOptions() {
+            var opts = '<option value="">-- Seleccionar --</option>';
+            diagnosticosData.forEach(function(d) {
+                opts += '<option value="' + d.id + '" data-desc="' + escAttr(d.descripcion) + '" data-act="' + escAttr(d.actividad) + '">' + escHtml(d.falla) + ' - ' + escHtml(d.nombre) + '</option>';
+            });
+            return opts;
+        }
+
+        function escAttr(s) { return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'&#10;'); }
+        function escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+        function bulkAsignarDiagnostico() {
+            if (selectedTickets.size === 0) return;
+            var html = '<div style="display:flex;flex-direction:column;gap:12px;">';
+            html += '<label style="font-weight:600;font-size:0.85rem;">Selecciona el diagnóstico a asignar:</label>';
+            html += '<select id="swal-diag-select" class="swal2-input" style="height:auto;padding:8px 12px;">' + buildDiagOptions() + '</select>';
+            html += '<label style="font-weight:600;font-size:0.85rem;margin-top:8px;">¿Cargar descripción y actividad?</label>';
+            html += '<select id="swal-cargar-campos" class="swal2-input" style="height:auto;padding:8px 12px;">';
+            html += '<option value="yes">Sí, cargar descripción y actividad</option>';
+            html += '<option value="no">No, solo asignar diagnóstico</option>';
+            html += '</select>';
+            html += '</div>';
+            Swal.fire({
+                title: 'Asignar Diagnóstico',
+                html: html,
+                showCancelButton: true,
+                confirmButtonText: 'Asignar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0070f2',
+                width: 500,
+                didOpen: function() {
+                    document.getElementById('swal-diag-select').addEventListener('change', function() {
+                        var opt = this.options[this.selectedIndex];
+                        var desc = opt.getAttribute('data-desc') || '';
+                        var act = opt.getAttribute('data-act') || '';
+                        if (desc || act) {
+                            var cargarSi = document.getElementById('swal-cargar-campos');
+                            if (cargarSi) cargarSi.value = 'yes';
+                        }
+                    });
+                },
+                preConfirm: function() {
+                    var diagId = document.getElementById('swal-diag-select').value;
+                    if (!diagId) { Swal.showValidationMessage('Selecciona un diagnóstico'); return false; }
+                    return { diagnostico_id: diagId, cargar_campos: document.getElementById('swal-cargar-campos').value };
+                }
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                bulkEjecutarAsignacion(result.value);
+            });
+        }
+
+        async function bulkEjecutarAsignacion(opts) {
+            await bulkFetch({
+                diagnostico_id: opts.diagnostico_id,
+                cargar_campos: opts.cargar_campos
+            });
+        }
+
+        async function bulkFetch(extra) {
+            try {
+                var body = Object.assign({ ticket_ids: Array.from(selectedTickets) }, extra);
+                var resp = await fetch('{% url "callcenter:cluster_bulk_update" cluster.id %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify(body)
+                });
+                var data = await resp.json();
+                if (data.success) {
+                    var msg = data.updated + ' tickets actualizados';
+                    if (extra.accion === 'sync_sig') msg = 'Sincronización iniciada para ' + data.updated + ' tickets (fondo)';
+                    Swal.fire({ icon: 'success', title: 'Actualizados', text: msg, timer: 2500, showConfirmButton: false, toast: true, position: 'top-end' });
+                    clearSelection();
+                    setTimeout(function() { location.reload(); }, 2000);
+                } else {
+                    Swal.fire('Error', data.error, 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Error de red', 'error');
+            }
+        }
+
+        function bulkAccion(accion) {
+            if (selectedTickets.size === 0) return;
+            var labels = { correo_cierre: 'Marcar cierre por correo', sync_sig: 'Sincronizar SIG' };
+            var icons = { correo_cierre: 'envelope-check', sync_sig: 'arrows-clockwise' };
+            var msgs = { correo_cierre: '¿Aplicar a los ' + selectedTickets.size + ' tickets seleccionados?', sync_sig: '¿Iniciar sincronización Playwright para los ' + selectedTickets.size + ' tickets seleccionados? (se ejecutará en segundo plano)' };
+            Swal.fire({
+                title: labels[accion] || accion,
+                text: msgs[accion] || '¿Aplicar a los ' + selectedTickets.size + ' tickets seleccionados?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, aplicar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: accion === 'correo_cierre' ? '#1e7e34' : '#6c5ce7'
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                bulkFetch({ accion: accion });
+            });
+        }
+
+        function bulkAsignarFechaCierre() {
+            if (selectedTickets.size === 0) return;
+            Swal.fire({
+                title: 'Asignar Fecha de Cierre',
+                html: '<input type="datetime-local" id="swal-fecha-cierre" class="swal2-input" style="height:auto;padding:8px 12px;" value="">',
+                showCancelButton: true,
+                confirmButtonText: 'Asignar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#e9730c',
+                width: 450,
+                preConfirm: function() {
+                    var val = document.getElementById('swal-fecha-cierre').value;
+                    if (!val) { Swal.showValidationMessage('Selecciona una fecha'); return false; }
+                    return { fecha_cierre: val };
+                }
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                bulkEjecutarFechaCierre(result.value);
+            });
+        }
+
+        async function bulkEjecutarFechaCierre(opts) {
+            await bulkFetch({ fecha_cierre: opts.fecha_cierre });
         }
 
         function applySort(field) {
@@ -3552,10 +3735,10 @@
         background: #fff;
         border-radius: 4px;
         padding: 0;
-        width: 480px;
-        max-height: 70vh;
+        width: 960px;
+        max-height: 90vh;
         overflow-y: auto;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.18);
         font-family: var(--sapFontFamily, '72', '72full', Arial, Helvetica, sans-serif);
         pointer-events: none;
         opacity: 0;
@@ -3567,40 +3750,40 @@
     .desc-tooltip .dt-header {
         background: #0070f2;
         color: #fff;
-        padding: 12px 16px;
-        font-size: 0.875rem;
+        padding: 18px 24px;
+        font-size: 1.1rem;
         font-weight: 600;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         border-radius: 4px 4px 0 0;
     }
     .desc-tooltip .dt-header i {
-        font-size: 1rem;
+        font-size: 1.3rem;
     }
     .desc-tooltip .dt-body {
-        padding: 16px;
+        padding: 24px;
     }
     .desc-tooltip .dt-field {
         display: flex;
-        padding: 6px 0;
+        padding: 10px 0;
         border-bottom: 1px solid #e9ecef;
     }
     .desc-tooltip .dt-field:last-of-type {
         border-bottom: none;
     }
     .desc-tooltip .dt-label {
-        font-size: 0.75rem;
+        font-size: 0.9rem;
         font-weight: 600;
         color: #6a6c72;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        min-width: 80px;
+        min-width: 120px;
         flex-shrink: 0;
         line-height: 1.6;
     }
     .desc-tooltip .dt-value {
-        font-size: 0.875rem;
+        font-size: 1.05rem;
         color: #32363a;
         line-height: 1.6;
     }
@@ -3612,12 +3795,12 @@
         background: #f5f6f7;
         border: 1px solid #e9ecef;
         border-radius: 4px;
-        padding: 12px;
-        margin-top: 8px;
+        padding: 18px;
+        margin-top: 12px;
     }
     .desc-tooltip .dt-desc-box .dt-desc {
-        font-size: 0.8125rem;
-        line-height: 1.6;
+        font-size: 1rem;
+        line-height: 1.7;
         color: #32363a;
         white-space: pre-wrap;
         word-break: break-word;

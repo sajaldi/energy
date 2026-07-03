@@ -1,0 +1,30 @@
+<div class="tree-node" data-id="{{ node.id }}">
+    <div class="tree-item-row" data-id="{{ node.id }}" data-nombre="{{ node.nombre }}">
+        {% if node.sub_ubicaciones.all %}
+        <button type="button" class="tree-toggle" data-target="children_ubicacion_{{ node.id }}">
+            <span class="toggle-icon">▶</span>
+        </button>
+        {% else %}
+        <span style="width: 18px; display: inline-block;"></span>
+        {% endif %}
+
+        <span class="tree-label">
+            <span class="ubicacion-icon">
+            {% if node.tipo == 'EDIFICIO' %}🏢
+            {% elif node.tipo == 'NIVEL' %}📋
+            {% else %}📍{% endif %}
+            </span>
+            {{ node.nombre }}
+        </span>
+    </div>
+
+    {% if node.sub_ubicaciones.all %}
+    <div id="children_ubicacion_{{ node.id }}" class="tree-children" style="display: none;">
+        {% for child in node.sub_ubicaciones.all %}
+            {% with node=child parent_id=node.id %}
+                {% include 'proyectos/partials/tree_ubicacion_node.html' %}
+            {% endwith %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>

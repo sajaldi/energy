@@ -362,7 +362,7 @@
         <div class="sap-card">
             <div class="sap-card-title" style="display: flex; justify-content: space-between; align-items: center;">
                 <span>Lista de Actividades</span>
-                <button class="sap-btn edit-mode" style="font-size: 0.75rem; background: var(--fiori-success); color: white; border: none;" onclick="addNewActivityRow()">+ Nueva Actividad</button>
+                <button class="sap-btn" style="font-size: 0.75rem; background: var(--fiori-success); color: white; border: none;" onclick="addNewActivityRow()">+ Nueva Actividad</button>
             </div>
             <table class="sap-table" id="actividadesTable">
                 <thead>
@@ -373,6 +373,7 @@
                         <th>Predecesor</th>
                         <th>Prioridad</th>
                         <th>Responsable</th>
+                        <th>Fecha Inicio</th>
                         <th>Fecha Fin</th>
                         <th>Órdenes</th>
                     </tr>
@@ -433,6 +434,10 @@
                             </select>
                         </td>
                         <td>
+                            <span class="view-mode">{{ act.fecha_inicio|default:"-" }}</span>
+                            <input type="date" class="edit-mode" name="act_fecha_inicio" value="{{ act.fecha_inicio|date:'Y-m-d' }}">
+                        </td>
+                        <td>
                             <span class="view-mode">{{ act.fecha_fin|default:"-" }}</span>
                             <input type="date" class="edit-mode" name="act_fecha_fin" value="{{ act.fecha_fin|date:'Y-m-d' }}">
                         </td>
@@ -447,7 +452,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr id="empty-row"><td colspan="8" style="text-align: center; color: var(--fiori-text-secondary);">No hay actividades registradas.</td></tr>
+                    <tr id="empty-row"><td colspan="9" style="text-align: center; color: var(--fiori-text-secondary);">No hay actividades registradas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -519,50 +524,53 @@
     <!-- Template for New Activity Row -->
     <template id="newActivityTemplate">
         <tr class="actividad-row" data-id="">
-            <td>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <button class="sap-btn" style="padding: 0.25rem 0.5rem; color: var(--fiori-error); border-color: var(--fiori-error);" onclick="removeActivityRow(this)">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <input type="text" name="act_nombre" placeholder="Nueva actividad..." required>
-                </div>
-            </td>
-            <td>
-                <select name="act_estado">
-                    {% for code, label in estados_actividad %}
-                    <option value="{{ code }}">{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </td>
-            <td>
-                <input type="number" name="act_porcentaje_avance" value="0" min="0" max="100" style="width: 60px;">
-            </td>
-            <td>
-                <select name="act_predecesora_id">
-                    <option value="">(Ninguna)</option>
-                    {% for p_act in actividades %}
-                    <option value="{{ p_act.id }}">{{ p_act.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </td>
-            <td>
-                <select name="act_prioridad">
-                    {% for code, label in prioridades %}
-                    <option value="{{ code }}" {% if code == 'MEDIA' %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </td>
-            <td>
-                <select name="act_asignado">
-                    <option value="">Sin Asignar</option>
-                    {% for user in usuarios %}
-                    <option value="{{ user.id }}" {% if user == request.user %}selected{% endif %}>{{ user.username }}</option>
-                    {% endfor %}
-                </select>
-            </td>
-            <td>
-                <input type="date" name="act_fecha_fin">
-            </td>
+        <td>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="sap-btn" style="padding: 0.25rem 0.5rem; color: var(--fiori-error); border-color: var(--fiori-error);" onclick="removeActivityRow(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <input type="text" name="act_nombre" placeholder="Nueva actividad..." required>
+            </div>
+        </td>
+        <td>
+            <select name="act_estado">
+                {% for code, label in estados_actividad %}
+                <option value="{{ code }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input type="number" name="act_porcentaje_avance" value="0" min="0" max="100" style="width: 60px;">
+        </td>
+        <td>
+            <select name="act_predecesora_id">
+                <option value="">(Ninguna)</option>
+                {% for p_act in actividades %}
+                <option value="{{ p_act.id }}">{{ p_act.nombre }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <select name="act_prioridad">
+                {% for code, label in prioridades %}
+                <option value="{{ code }}" {% if code == 'MEDIA' %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <select name="act_asignado">
+                <option value="">Sin Asignar</option>
+                {% for user in usuarios %}
+                <option value="{{ user.id }}" {% if user == request.user %}selected{% endif %}>{{ user.username }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input type="date" name="act_fecha_inicio">
+        </td>
+        <td>
+            <input type="date" name="act_fecha_fin">
+        </td>
         </tr>
     </template>
 
@@ -1416,6 +1424,7 @@
                     predecesora_id: row.querySelector('[name="act_predecesora_id"]').value,
                     prioridad: row.querySelector('[name="act_prioridad"]').value,
                     asignado_id: row.querySelector('[name="act_asignado"]').value,
+                    fecha_inicio: row.querySelector('[name="act_fecha_inicio"]').value,
                     fecha_fin: row.querySelector('[name="act_fecha_fin"]').value
                 });
             });
@@ -1452,6 +1461,9 @@
         }
 
         function addNewActivityRow() {
+            if (!document.getElementById('pageBody').classList.contains('is-editing')) {
+                toggleEdit();
+            }
             const tbody = document.querySelector('#actividadesTable tbody');
             const template = document.getElementById('newActivityTemplate');
             const clone = template.content.cloneNode(true);

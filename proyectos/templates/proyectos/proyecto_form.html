@@ -4,50 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ titulo }}</title>
+    {% include 'core/fiori_tokens.html' %}
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
-        .header { background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; padding: 20px 32px; display: flex; align-items: center; gap: 16px; }
-        .header h1 { font-size: 1.25rem; font-weight: 700; flex: 1; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        .header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 16px 32px; display: flex; align-items: center; gap: 16px; }
+        .header h1 { font-size: 1.15rem; font-weight: 600; flex: 1; }
         .header a { color: rgba(255,255,255,0.75); font-size: 0.85rem; text-decoration: none; }
         .header a:hover { color: #fff; }
 
         .container { max-width: 800px; margin: 0 auto; padding: 24px 16px 40px; }
 
         .messages { margin-bottom: 16px; }
-        .msg { padding: 12px 16px; border-radius: 6px; font-size: 0.9rem; }
-        .msg.success { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
-        .msg.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .msg { padding: 12px 16px; font-size: 0.9rem; }
+        .msg.success { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .msg.error { background: var(--sap-error-bg); color: var(--sap-error); border: 1px solid var(--sap-error); }
 
-        .card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
-        .card-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; font-weight: 700; font-size: 1rem; background: #f8fafc; }
-        .card-body { padding: 24px; }
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: none; overflow: hidden; }
+        .card-header { padding: 14px 20px; border-bottom: 1px solid var(--sap-border-color); font-weight: 600; font-size: 0.95rem; background: var(--sap-group-bg); }
+        .card-body { padding: 20px; }
 
         .field-group { margin-bottom: 18px; }
         .field-group:last-child { margin-bottom: 0; }
-        .field-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; color: #334155; }
-        .field-group .help { font-size: 0.75rem; color: #94a3b8; margin-top: 3px; }
+        .field-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; color: var(--sap-text-color); }
+        .field-group .help { font-size: 0.75rem; color: var(--sap-text-muted); margin-top: 3px; }
         .field-group input, .field-group textarea, .field-group select {
-            width: 100%; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 6px;
-            font-family: inherit; font-size: 0.9rem; transition: border-color 0.15s; background: #fff;
+            width: 100%; padding: 8px 10px; border: 1px solid var(--sap-border-color);
+            font-family: var(--sap-font-family); font-size: 0.9rem; background: #fff;
         }
         .field-group input:focus, .field-group textarea:focus, .field-group select:focus {
-            outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+            outline: none; border-color: var(--sap-brand-color); box-shadow: 0 0 0 2px rgba(0,112,242,0.15);
         }
-        .field-group .errorlist { color: #dc2626; font-size: 0.78rem; list-style: none; margin-top: 3px; }
+        .field-group .errorlist { color: var(--sap-error); font-size: 0.78rem; list-style: none; margin-top: 3px; }
         .field-row { display: flex; gap: 16px; }
         .field-row .field-group { flex: 1; }
 
-        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 24px; border-radius: 6px; font-family: inherit; font-size: 0.9rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; text-decoration: none; }
-        .btn-primary { background: #3b82f6; color: #fff; }
-        .btn-primary:hover { background: #2563eb; }
-        .btn-secondary { background: #e2e8f0; color: #475569; }
-        .btn-secondary:hover { background: #cbd5e1; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; font-family: var(--sap-font-family); font-size: 0.88rem; font-weight: 600; border: none; cursor: pointer; text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; }
+        .btn-primary:hover { background: var(--sap-highlight-color); }
+        .btn-secondary { background: var(--sap-neutral-bg); color: var(--sap-text-color); }
+        .btn-secondary:hover { background: #e4e4e4; }
 
-        .form-actions { display: flex; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+        .form-actions { display: flex; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--sap-border-color); }
+
+        --tree-bg: #fff;
+        --tree-border: var(--sap-border-color);
+        --tree-hover: #f5f5f5;
+        --tree-selected: #e0efff;
+        .ubicacion-tree { max-height: 350px; overflow-y: auto; border: 1px solid var(--tree-border); background: #fff; padding: 8px 4px; }
+        .tree-node { margin-left: 20px; }
+        .tree-item-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 4px 6px; cursor: pointer; }
+        .tree-item-row:hover { background: var(--tree-hover); }
+        .tree-item-row.selected { background: var(--tree-selected); font-weight: 600; }
+        .tree-toggle { background: none; border: none; cursor: pointer; padding: 2px; display: flex; align-items: center; color: #6b7280; width: 18px; justify-content: center; font-size: 1rem; }
+        .tree-label { display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-size: 0.88rem; user-select: none; flex: 1; }
+        .tree-label.selected { font-weight: 600; }
+        .ubicacion-icon { color: var(--sap-brand-color); }
+        .ubicacion-selected { margin-top: 8px; padding: 8px 12px; background: var(--sap-group-bg); border: 1px solid var(--sap-border-color); font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+        .ubicacion-selected .clear-btn { background: none; border: none; color: var(--sap-error); cursor: pointer; font-size: 1rem; padding: 0 4px; }
 
         @media (max-width: 640px) {
-            .header { padding: 16px; }
+            .header { padding: 14px 16px; }
             .card-body { padding: 16px; }
             .field-row { flex-direction: column; gap: 0; }
         }
@@ -71,12 +88,18 @@
         <form method="post">
             {% csrf_token %}
             <div class="card">
-                <div class="card-header">📋 {{ titulo }}</div>
+                <div class="card-header">{{ titulo }}</div>
                 <div class="card-body">
                     {% for field in form %}
                     <div class="field-group">
-                        <label>{{ field.label }}</label>
-                        {{ field }}
+                        {% if field.name == 'ubicacion' %}
+                            {{ field }}
+                            <label>Ubicación</label>
+                            {% include 'proyectos/partials/tree_ubicacion_selector.html' %}
+                        {% else %}
+                            <label>{{ field.label }}</label>
+                            {{ field }}
+                        {% endif %}
                         {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
                         {% if field.errors %}<div class="errorlist">{{ field.errors }}</div>{% endif %}
                     </div>
@@ -90,5 +113,49 @@
             </div>
         </form>
     </div>
+
+    <script>
+        document.addEventListener('click', function(e) {
+            var toggle = e.target.closest('.tree-toggle');
+            if (toggle) {
+                var targetId = toggle.getAttribute('data-target');
+                var container = document.getElementById(targetId);
+                var icon = toggle.querySelector('.toggle-icon');
+                if (container) {
+                    var hidden = container.style.display === 'none';
+                    container.style.display = hidden ? 'block' : 'none';
+                    if (icon) icon.textContent = hidden ? '▼' : '▶';
+                }
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            var row = e.target.closest('.tree-item-row');
+            if (!row) return;
+            if (e.target.closest('.tree-toggle')) return;
+            var ubigeoId = row.getAttribute('data-id');
+            var nombre = row.getAttribute('data-nombre');
+            if (!ubigeoId) return;
+
+            document.querySelectorAll('.tree-item-row').forEach(function(r) { r.classList.remove('selected'); });
+            row.classList.add('selected');
+
+            var hiddenInput = document.getElementById('id_ubicacion');
+            if (hiddenInput) hiddenInput.value = ubigeoId;
+
+            document.getElementById('ubicacion-selected-name').textContent = nombre;
+            document.getElementById('ubicacion-selected-bar').style.display = 'flex';
+        });
+
+        document.addEventListener('click', function(e) {
+            var clearBtn = e.target.closest('.clear-ubicacion');
+            if (clearBtn) {
+                document.querySelectorAll('.tree-item-row').forEach(function(r) { r.classList.remove('selected'); });
+                var hiddenInput = document.getElementById('id_ubicacion');
+                if (hiddenInput) hiddenInput.value = '';
+                document.getElementById('ubicacion-selected-bar').style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>

@@ -649,8 +649,8 @@ class DiagnosticoTicketResource(resources.ModelResource):
 
     class Meta:
         model = DiagnosticoTicket
-        fields = ('id', 'nombre', 'falla', 'descripcion')
-        export_order = ('id', 'nombre', 'falla', 'descripcion')
+        fields = ('id', 'nombre', 'falla', 'actividad', 'descripcion')
+        export_order = ('id', 'nombre', 'falla', 'actividad', 'descripcion')
         import_id_fields = ('id',)
         skip_unchanged = True
         report_skipped = True
@@ -679,9 +679,9 @@ class DiagnosticoTicketResource(resources.ModelResource):
 @admin.register(DiagnosticoTicket)
 class DiagnosticoTicketAdmin(ImportExportModelAdmin):
     resource_class = DiagnosticoTicketResource
-    list_display = ('nombre', 'falla', 'descripcion')
+    list_display = ('nombre', 'falla', 'actividad', 'descripcion')
     list_filter = ('falla',)
-    search_fields = ('nombre', 'descripcion', 'falla__nombre')
+    search_fields = ('nombre', 'descripcion', 'falla__nombre', 'actividad')
     autocomplete_fields = ('falla',)
     
     change_list_template = "admin/callcenter/diagnosticoticket/change_list.html"

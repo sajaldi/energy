@@ -251,7 +251,15 @@ def crear_proyecto(request):
                 'nota': forms.Textarea(attrs={'rows': 3}),
                 'fecha_inicio': forms.DateInput(attrs={'type': 'date'}),
                 'fecha_fin_estimada': forms.DateInput(attrs={'type': 'date'}),
+                'ubicacion': forms.HiddenInput(),
             }
+
+    ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True).prefetch_related(
+        'sub_ubicaciones',
+        'sub_ubicaciones__sub_ubicaciones',
+        'sub_ubicaciones__sub_ubicaciones__sub_ubicaciones',
+        'sub_ubicaciones__sub_ubicaciones__sub_ubicaciones__sub_ubicaciones',
+    ).order_by('orden', 'nombre')
 
     if request.method == 'POST':
         form = ProyectoForm(request.POST)
@@ -266,6 +274,7 @@ def crear_proyecto(request):
         'form': form,
         'titulo': 'Nuevo Proyecto',
         'accion': 'Crear',
+        'ubicaciones_roots': ubicaciones_roots,
     })
 
 @staff_member_required

@@ -1154,6 +1154,15 @@ def cluster_tickets_view(request, cluster_id):
         'diagnosticos_catalog': falla_diagnosticos_catalog
     }
 
+    diags_json = []
+    for d in catalog_diags:
+        diags_json.append({
+            'id': d.id,
+            'nombre': d.nombre,
+            'falla': d.falla.nombre,
+            'descripcion': d.descripcion or '',
+            'actividad': d.actividad or '',
+        })
     context = {
         'cluster': cluster,
         'tickets': tickets,
@@ -1166,10 +1175,107 @@ def cluster_tickets_view(request, cluster_id):
         'total_deductiva_cerrados': total_deductiva_cerrados,
         'q': q,
         'title': f'Tickets en {cluster.correlativo}',
-        'chart_data_json': json.dumps(chart_data)
+        'chart_data_json': json.dumps(chart_data),
+        'diagnosticos_disponibles': catalog_diags,
+        'diagnosticos_json': json.dumps(diags_json),
     }
 
     return render(request, 'callcenter/cluster_tickets.html', context)
+
+@staff_member_required
+def bulk_update_tickets_api(request, cluster_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    import json
+    from datetime import datetime
+    from django.utils import timezone
+    from .models import GrupoTicket, DiagnosticoTicket, SolicitudTicket
+    data = json.loads(request.body)
+    ticket_ids = data.get('ticket_ids', [])
+    diagnostico_id = data.get('diagnostico_id')
+    fecha_cierre_str = data.get('fecha_cierre')
+    cargar_campos = data.get('cargar_campos', 'yes')
+    accion = data.get('accion')
+    if not ticket_ids:
+        return JsonResponse({'success': False, 'error': 'Faltan datos'}, status=400)
+    try:
+        diag = None
+        if diagnostico_id:
+            diag = DiagnosticoTicket.objects.get(pk=diagnostico_id)
+        cluster = get_object_or_404(GrupoTicket, pk=cluster_id)
+        tickets = cluster.tickets.filter(pk__in=ticket_ids)
+        fecha_cierre = None
+        if fecha_cierre_str:
+            for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+                try:
+                    dt = datetime.strptime(fecha_cierre_str, fmt)
+                    fecha_cierre = timezone.make_aware(dt) if timezone.is_naive(dt) else dt
+                    break
+                except ValueError:
+                    pass
+        updated = 0
+        for t in tickets:
+            if diag:
+                t.diagnostico_reportado = diag
+                if cargar_campos == 'yes':
+                    if diag.descripcion:
+                        t.diagnostico = diag.descripcion
+                    if diag.actividad:
+                        t.actividades = diag.actividad
+            if fecha_cierre:
+                t.fecha_cierre = fecha_cierre
+            if accion == 'correo_cierre':
+                t.correo_cierre = True
+                try:
+                    tiempo_total = 0
+                    if t.fecha_solicitud and t.fecha_cierre:
+                        diff = t.fecha_cierre - t.fecha_solicitud
+                        tiempo_total = int(diff.total_seconds() / 60)
+                    def to_local_str(dt):
+                        if not dt: return ""
+                        from django.utils import timezone
+                        local_dt = timezone.localtime(dt)
+                        return local_dt.strftime('%d/%m/%Y %H:%M:%S')
+                    pa_payload = {
+                        "folio": str(t.folio or t.id_solicitud),
+                        "solicitante": str(t.solicitante or ""),
+                        "descripcion_original": (t.solicitud_descripcion or "").replace('\n', ' '),
+                        "falla": str(t.falla_descripcion or ""),
+                        "clasificacion_falla": str(t.falla_clasificacion or ""),
+                        "servicio": str(t.servicio or ""),
+                        "ubicacion": str(t.area or ""),
+                        "grupo_torre": str(t.nivel or ""),
+                        "nivel_piso": str(t.grupo or ""),
+                        "unidad_funcional": str(t.unidad or ""),
+                        "fecha_apertura": to_local_str(t.fecha_solicitud),
+                        "fecha_cierre": to_local_str(t.fecha_cierre),
+                        "diagnostico": (t.diagnostico or "").replace('\n', ' '),
+                        "actividades": (t.actividades or "").replace('\n', ' '),
+                        "observaciones": (t.observaciones or "").replace('\n', ' '),
+                        "pdf_url": "",
+                        "tiempo_total_min": tiempo_total,
+                        "cerrado_por_nombre": str(request.user.get_full_name() or request.user.username),
+                        "telefono_usuario": "",
+                        "email_usuario": str(request.user.email or ""),
+                        "emails_departamento": "",
+                    }
+                    requests.post(
+                        "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6260ff428abe4f88b4cd96fae4614a57/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IMrCwJsG1SsgYIYDKimFGYRkvxBFlg0MYpJWURimsLk",
+                        json=pa_payload, timeout=15
+                    )
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).error(f"Error calling Power Automate for ticket {t.id}: {e}")
+            if accion == 'sync_sig':
+                from .tasks import sync_single_ticket_task
+                sync_single_ticket_task.delay(t.id)
+            t.save()
+            updated += 1
+        return JsonResponse({'success': True, 'updated': updated})
+    except DiagnosticoTicket.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Diagnóstico no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 @staff_member_required
 def get_assignable_users_ajax(request):
@@ -2058,7 +2164,7 @@ def verify_correo_cierre_ajax(request, ticket_id):
         "ubicacion": str(ticket.area or ""),
     }
 
-    url_power_automate = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/205583600db14b76903401412d892f84/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=id_YHFshTRVSbjxUeImzeLg5broSX2g2yvPjOer8gUs"
+    url_power_automate = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6260ff428abe4f88b4cd96fae4614a57/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IMrCwJsG1SsgYIYDKimFGYRkvxBFlg0MYpJWURimsLk"
 
     logger.info(f"Verificando correo de cierre para ticket {ticket.folio} via Power Automate...")
 
