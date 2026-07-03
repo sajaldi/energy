@@ -8,7 +8,8 @@ from .models import (
     PresupuestoAgrupado, Requisicion, ArticuloRequisicion, DocumentoRequisicion,
     SolicitudPago, ItemSolicitudPago,
     REPEX, REPEXItem, Moneda,
-    OrdenCompra, OrdenCompraArticulo, CentroCosto
+    OrdenCompra, OrdenCompraArticulo, CentroCosto,
+    Cotizacion, ItemCotizacion, ItemPredefinido,
 )
 from .resources import RequisicionResource
 
@@ -691,3 +692,27 @@ class REPEXItemAdmin(admin.ModelAdmin):
     list_filter = ('prioridad', 'repex')
     search_fields = ('activo__nombre', 'activo__codigo_interno', 'descripcion')
     autocomplete_fields = ['activo', 'repex']
+
+
+class ItemCotizacionInline(admin.TabularInline):
+    model = ItemCotizacion
+    extra = 1
+    fields = ('item_predefinido', 'descripcion', 'unidad_medida', 'cantidad', 'precio_unitario', 'descuento_porcentaje', 'orden')
+    autocomplete_fields = ('item_predefinido',)
+
+
+@admin.register(Cotizacion)
+class CotizacionAdmin(admin.ModelAdmin):
+    list_display = ('numero', 'proyecto', 'disciplina', 'fecha', 'estado', 'total')
+    list_filter = ('estado', 'disciplina', 'fecha')
+    search_fields = ('numero', 'proyecto__nombre', 'notas')
+    autocomplete_fields = ('proyecto', 'disciplina', 'creado_por')
+    inlines = [ItemCotizacionInline]
+
+
+@admin.register(ItemPredefinido)
+class ItemPredefinidoAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'descripcion', 'disciplina', 'unidad_medida', 'precio_unitario', 'moneda', 'activo')
+    list_filter = ('disciplina', 'moneda', 'activo')
+    search_fields = ('codigo', 'descripcion')
+    autocomplete_fields = ('disciplina', 'moneda')

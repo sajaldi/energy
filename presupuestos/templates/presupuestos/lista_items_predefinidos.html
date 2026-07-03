@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Items Predefinidos</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 16px 32px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+        .header h1 { font-size: 1.15rem; font-weight: 600; flex: 1; }
+        .header .back { color: rgba(255,255,255,0.75); font-size: 0.85rem; padding: 6px 12px; }
+        .header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: var(--sap-card-shadow); margin-bottom: 16px; overflow: hidden; }
+        .card-body { padding: 0; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 16px; font-size: 0.78rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.5px; background: var(--sap-bg-color); border-bottom: 1px solid var(--sap-border-color); }
+        td { padding: 12px 16px; font-size: 0.88rem; border-bottom: 1px solid var(--sap-border-color); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--sap-hover-bg); }
+
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; font-family: var(--sap-font-family); font-size: 0.88rem; font-weight: 600; border: 1px solid var(--sap-border-color); cursor: pointer; transition: all 0.15s; text-decoration: none; background: var(--sap-card-bg); color: var(--sap-text-color); }
+        .btn:hover { background: var(--sap-hover-bg); text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; border-color: var(--sap-brand-color); }
+        .btn-primary:hover { background: var(--sap-highlight-color); border-color: var(--sap-highlight-color); }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+
+        .badge { display: inline-block; padding: 2px 8px; font-size: 0.75rem; font-weight: 600; }
+        .badge-activo { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .badge-inactivo { background: var(--sap-neutral-bg); color: var(--sap-neutral); border: 1px solid var(--sap-neutral); }
+
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+        .filters { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+        .filters input, .filters select { padding: 8px 10px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.85rem; background: #fff; }
+        .filters input:focus, .filters select:focus { outline: none; border-color: var(--sap-brand-color); }
+        .empty { text-align: center; padding: 48px 20px; color: var(--sap-text-muted); }
+        .actions { display: flex; gap: 6px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/admin/presupuestos/" class="back">← Presupuestos</a>
+        <h1>Items Predefinidos</h1>
+        <a href="{% url 'presupuestos:crear_item_predefinido' %}" class="btn btn-primary btn-sm">+ Nuevo Item</a>
+    </div>
+    <div class="container">
+        <div class="top-bar">
+            <div class="filters">
+                <input type="text" id="search" placeholder="Buscar..." oninput="filtrar()" value="{{ request.GET.q }}">
+                <select id="filter-disciplina" onchange="filtrar()">
+                    <option value="">Todas las disciplinas</option>
+                    {% for d in disciplinas %}
+                    <option value="{{ d.id }}" {% if request.GET.disciplina == d.id|stringformat:'s' %}selected{% endif %}>{{ d.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        {% if items %}
+        <div class="card">
+            <div class="card-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th>Disciplina</th>
+                            <th>U.M.</th>
+                            <th>Precio</th>
+                            <th>Moneda</th>
+                            <th>Activo</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td><strong>{{ item.codigo|default:'—' }}</strong></td>
+                            <td>{{ item.descripcion|truncatechars:60 }}</td>
+                            <td>{{ item.disciplina.nombre }}</td>
+                            <td>{{ item.unidad_medida }}</td>
+                            <td style="font-weight:600;">$ {{ item.precio_unitario|floatformat:2 }}</td>
+                            <td>{{ item.moneda.codigo }}</td>
+                            <td><span class="badge {% if item.activo %}badge-activo{% else %}badge-inactivo{% endif %}">{% if item.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+                            <td>
+                                <div class="actions">
+                                    <a href="{% url 'presupuestos:editar_item_predefinido' item.id %}" class="btn btn-sm">Editar</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="empty">
+                <p style="font-size:1.2rem;margin-bottom:8px;">No hay items predefinidos</p>
+                <p style="font-size:0.85rem;">Crea items predefinidos por disciplina para agilizar la creación de cotizaciones.</p>
+                <a href="{% url 'presupuestos:crear_item_predefinido' %}" class="btn btn-primary" style="margin-top:16px;">+ Nuevo Item</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <script>
+        function filtrar() {
+            var params = new URLSearchParams();
+            var q = document.getElementById('search').value;
+            var d = document.getElementById('filter-disciplina').value;
+            if (q) params.set('q', q);
+            if (d) params.set('disciplina', d);
+            location.search = params.toString();
+        }
+    </script>
+</body>
+</html>

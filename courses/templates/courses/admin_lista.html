@@ -19,7 +19,6 @@
         .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
 
         .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: var(--sap-card-shadow); margin-bottom: 16px; overflow: hidden; }
-        .card-header { padding: 14px 20px; background: var(--sap-group-bg); border-bottom: 1px solid var(--sap-border-color); font-weight: 600; font-size: 0.95rem; }
         .card-body { padding: 0; }
 
         .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; font-family: var(--sap-font-family); font-size: 0.88rem; font-weight: 600; border: 1px solid var(--sap-border-color); cursor: pointer; transition: all 0.15s; text-decoration: none; background: var(--sap-card-bg); color: var(--sap-text-color); }
@@ -31,8 +30,19 @@
         table { width: 100%; border-collapse: collapse; }
         th { text-align: left; padding: 10px 16px; font-size: 0.78rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.5px; background: var(--sap-bg-color); border-bottom: 1px solid var(--sap-border-color); }
         td { padding: 12px 16px; font-size: 0.88rem; border-bottom: 1px solid var(--sap-border-color); }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: var(--sap-hover-bg); }
+        thead tr:last-child th { border-bottom: 1px solid var(--sap-border-color); }
+
+        .tr-parent td { background: var(--sap-card-bg); }
+        .tr-parent td:first-child { padding-left: 12px; }
+        .tr-parent:hover td { background: var(--sap-hover-bg); }
+        .tr-child td { background: #f8f9fa; }
+        .tr-child td:first-child { padding-left: 44px; }
+        .tr-child:hover td { background: #eef1f4; }
+        .tr-child.hidden { display: none; }
+
+        .toggle-btn { background: none; border: 1px solid var(--sap-border-color); cursor: pointer; padding: 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--sap-text-muted); transition: all 0.15s; margin-right: 8px; flex-shrink: 0; }
+        .toggle-btn:hover { background: var(--sap-hover-bg); }
+        .toggle-btn.expanded { background: var(--sap-brand-color); color: #fff; border-color: var(--sap-brand-color); }
 
         .badge { display: inline-block; padding: 2px 8px; font-size: 0.75rem; font-weight: 600; }
         .badge-activo { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
@@ -48,6 +58,8 @@
         .no-match { display: none; text-align: center; padding: 32px; color: var(--sap-text-muted); }
 
         .empty { text-align: center; padding: 48px 20px; color: var(--sap-text-muted); }
+
+        .hijos-count { font-size: 0.75rem; color: var(--sap-text-muted); margin-left: 4px; }
     </style>
 </head>
 <body>
@@ -76,6 +88,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th style="width:36px"></th>
                             <th>Curso</th>
                             <th>Secciones</th>
                             <th>Asignaciones</th>
@@ -85,16 +98,21 @@
                     </thead>
                     <tbody>
                         {% for item in cursos %}
-                        <tr>
+                        <tr class="tr-parent" data-id="{{ item.curso.id }}" onclick="clickParent(event, {{ item.curso.id }})">
+                            <td>
+                                {% if item.hijos %}
+                                <button class="toggle-btn" onclick="event.stopPropagation(); toggleHijos(this, {{ item.curso.id }})" title="Expandir">+</button>
+                                {% endif %}
+                            </td>
                             <td>
                                 <div style="display:flex;align-items:center;gap:6px;">
-                                    {% if item.depth == 1 %}
-                                    <span style="color:var(--sap-text-muted);font-size:0.75rem;">└─</span>
-                                    {% endif %}
                                     <div>
-                                        <strong>{{ item.curso.titulo }}</strong>
-                                        {% if item.depth == 0 and item.curso.es_pensum %}
+                                        <a href="{% url 'courses:editar_curso' item.curso.id %}" onclick="event.stopPropagation();" style="color:inherit;text-decoration:none;"><strong>{{ item.curso.titulo }}</strong></a>
+                                        {% if item.curso.es_pensum %}
                                         <span class="badge badge-activo" style="font-size:0.65rem;vertical-align:middle;">Pensum</span>
+                                        {% endif %}
+                                        {% if item.hijos %}
+                                        <span class="hijos-count">({{ item.hijos|length }} hijos)</span>
                                         {% endif %}
                                         {% if item.curso.descripcion %}
                                         <div style="font-size:0.78rem;color:var(--sap-text-muted);margin-top:2px;">{{ item.curso.descripcion|truncatechars:80 }}</div>
@@ -114,6 +132,33 @@
                                 </div>
                             </td>
                         </tr>
+                        {% for hijo in item.hijos %}
+                        <tr class="tr-child hijo-{{ item.curso.id }} hidden" data-parent="{{ item.curso.id }}">
+                            <td></td>
+                            <td>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <span style="color:var(--sap-text-muted);font-size:0.75rem;">└─</span>
+                                    <div>
+                                        <a href="{% url 'courses:editar_curso' hijo.curso.id %}" onclick="event.stopPropagation();" style="color:inherit;text-decoration:none;"><strong>{{ hijo.curso.titulo }}</strong></a>
+                                        {% if hijo.curso.descripcion %}
+                                        <div style="font-size:0.78rem;color:var(--sap-text-muted);margin-top:2px;">{{ hijo.curso.descripcion|truncatechars:80 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ hijo.secciones }}</td>
+                            <td>{{ hijo.asignados }}</td>
+                            <td><span class="badge {% if hijo.curso.activo %}badge-activo{% else %}badge-inactivo{% endif %}">{% if hijo.curso.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+                            <td>
+                                <div class="actions">
+                                    <a href="{% url 'courses:visualizar' hijo.curso.id %}" class="btn btn-sm" target="_blank">Ver</a>
+                                    <a href="{% url 'courses:asignar_curso' hijo.curso.id %}" class="btn btn-sm" style="background:#e8f0f8;color:#0a6ed1;border-color:#b8d4f0;">Asignar</a>
+                                    <a href="{% url 'courses:estadisticas' hijo.curso.id %}" class="btn btn-sm" style="background:#f3e8ff;color:#7c3aed;border-color:#d8c0f0;">📊 Stats</a>
+                                    <a href="{% url 'courses:editar_curso' hijo.curso.id %}" class="btn btn-sm btn-primary">Editar</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
                         {% endfor %}
                     </tbody>
                 </table>
@@ -131,20 +176,38 @@
     </div>
 
     <script>
+        function clickParent(e, parentId) {
+            if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+            var btn = document.querySelector('.tr-parent[data-id="' + parentId + '"] .toggle-btn');
+            if (btn) toggleHijos(btn, parentId);
+        }
+
+        function toggleHijos(btn, parentId) {
+            var rows = document.querySelectorAll('.hijo-' + parentId);
+            var expanded = btn.classList.toggle('expanded');
+            btn.textContent = expanded ? '−' : '+';
+            rows.forEach(function(r) { r.classList.toggle('hidden', !expanded); });
+        }
+
         function filtrarCursos() {
             const q = document.getElementById('search-input').value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             const estado = document.getElementById('filter-estado').value;
-            const rows = document.querySelectorAll('table tbody tr');
+            const parents = document.querySelectorAll('.tr-parent');
             let visible = 0;
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                const badge = row.querySelector('.badge');
-                const esActivo = badge ? badge.classList.contains('badge-activo') : true;
-                const matchEstado = !estado || (estado === 'activo' && esActivo) || (estado === 'inactivo' && !esActivo);
-                const matchSearch = !q || text.includes(q);
-                const show = matchSearch && matchEstado;
-                row.style.display = show ? '' : 'none';
-                if (show) visible++;
+            parents.forEach(function(row) {
+                var parentId = row.getAttribute('data-id');
+                var children = document.querySelectorAll('.hijo-' + parentId);
+                var text = row.textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                var esActivo = row.querySelector('.badge-activo') !== null;
+                var matchEstado = !estado || (estado === 'activo' && esActivo) || (estado === 'inactivo' && !esActivo);
+                var matchSearch = !q || text.includes(q);
+                if (matchEstado && matchSearch) {
+                    row.style.display = '';
+                    visible++;
+                } else {
+                    row.style.display = 'none';
+                    children.forEach(function(c) { c.style.display = 'none'; });
+                }
             });
             document.getElementById('no-match').style.display = visible === 0 ? 'block' : 'none';
         }

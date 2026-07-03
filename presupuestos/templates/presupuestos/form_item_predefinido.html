@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if es_nuevo %}Nuevo Item Predefinido{% else %}Editar Item: {{ item.codigo|default:item.descripcion|truncatechars:30 }}{% endif %}</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 16px 32px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+        .header h1 { font-size: 1.15rem; font-weight: 600; flex: 1; }
+        .header .back { color: rgba(255,255,255,0.75); font-size: 0.85rem; padding: 6px 12px; }
+        .header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+
+        .container { max-width: 700px; margin: 0 auto; padding: 24px 16px; }
+
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: var(--sap-card-shadow); margin-bottom: 20px; }
+        .card-header { padding: 14px 20px; background: var(--sap-group-bg); border-bottom: 1px solid var(--sap-border-color); font-weight: 600; font-size: 0.95rem; }
+        .card-body { padding: 20px; }
+
+        .field-group { margin-bottom: 16px; }
+        .field-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; color: var(--sap-text-color); }
+        .field-group input, .field-group select, .field-group textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.88rem; background: #fff; }
+        .field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline: none; border-color: var(--sap-brand-color); }
+        .field-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .field-row .field-group { flex: 1; min-width: 120px; }
+
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; font-family: var(--sap-font-family); font-size: 0.88rem; font-weight: 600; border: 1px solid var(--sap-border-color); cursor: pointer; transition: all 0.15s; text-decoration: none; background: var(--sap-card-bg); color: var(--sap-text-color); }
+        .btn:hover { background: var(--sap-hover-bg); text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; border-color: var(--sap-brand-color); }
+        .btn-primary:hover { background: var(--sap-highlight-color); border-color: var(--sap-highlight-color); }
+
+        .toggle-wrap { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+        .toggle-wrap input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--sap-brand-color); cursor: pointer; }
+
+        .msg { padding: 10px 16px; font-size: 0.85rem; margin-bottom: 12px; }
+        .msg.success { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .msg.error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{% url 'presupuestos:lista_items_predefinidos' %}" class="back">← Items Predefinidos</a>
+        <h1>{% if es_nuevo %}Nuevo Item Predefinido{% else %}Editar Item Predefinido{% endif %}</h1>
+    </div>
+    <div class="container">
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="msg {{ msg.tags }}">{{ msg }}</div>
+        {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="card">
+                <div class="card-header">Información del Item</div>
+                <div class="card-body">
+                    <div class="field-group">
+                        <label>Disciplina *</label>
+                        <select name="disciplina" required>
+                            {% for d in disciplinas %}
+                            <option value="{{ d.id }}" {% if item.disciplina_id == d.id %}selected{% endif %}>{{ d.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Código</label>
+                        <input type="text" name="codigo" value="{{ item.codigo|default:'' }}" placeholder="Ej: CTO-001">
+                    </div>
+                    <div class="field-group">
+                        <label>Descripción *</label>
+                        <textarea name="descripcion" rows="3" required>{{ item.descripcion|default:'' }}</textarea>
+                    </div>
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label>Unidad de Medida *</label>
+                            <input type="text" name="unidad_medida" value="{{ item.unidad_medida|default:'' }}" required placeholder="Ej: m, m², kg, GL, unidad">
+                        </div>
+                        <div class="field-group">
+                            <label>Moneda *</label>
+                            <select name="moneda" required>
+                                {% for m in monedas %}
+                                <option value="{{ m.id }}" {% if item.moneda_id == m.id %}selected{% endif %}>{{ m.codigo }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <label>Precio Unitario *</label>
+                        <input type="number" name="precio_unitario" step="0.01" min="0" value="{{ item.precio_unitario|default:'0' }}" required>
+                    </div>
+                    <div class="field-group">
+                        <div class="toggle-wrap">
+                            <input type="checkbox" name="activo" id="activo" {% if item.activo or es_nuevo %}checked{% endif %}>
+                            <label for="activo" style="margin:0;cursor:pointer;">Item activo</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="margin-top:8px;">
+                        {% if es_nuevo %}Crear Item{% else %}Guardar Cambios{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

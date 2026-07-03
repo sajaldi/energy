@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotización {{ cotizacion.numero }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #222; padding: 32px 40px; max-width: 900px; margin: 0 auto; font-size: 12px; }
+        .header-print { display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px; border-bottom: 2px solid #0078d4; padding-bottom: 12px; }
+        .header-print h1 { font-size: 16px; color: #0078d4; }
+        .header-print .numero { font-size: 22px; font-weight: 800; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .info-grid .label { font-size: 9px; color: #666; text-transform: uppercase; font-weight: 700; }
+        .info-grid .value { font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th { text-align: left; padding: 7px 10px; font-size: 9px; font-weight: 700; color: #666; text-transform: uppercase; background: #f5f5f5; border-bottom: 2px solid #ddd; }
+        td { padding: 7px 10px; font-size: 11px; border-bottom: 1px solid #eee; }
+        .total-row td { font-weight: 700; border-top: 2px solid #222; }
+        .notas { background: #f9f9f9; padding: 12px; margin-top: 12px; border: 1px solid #ddd; font-size: 11px; }
+        @media print { body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="header-print">
+        <div>
+            <h1>COTIZACIÓN</h1>
+            <div style="font-size:10px;color:#666;margin-top:2px;">{{ cotizacion.disciplina.nombre }}</div>
+        </div>
+        <div style="text-align:right;">
+            <div class="numero">{{ cotizacion.numero }}</div>
+            <div style="font-size:10px;color:#666;">Fecha: {{ cotizacion.fecha|date:'d/m/Y' }}</div>
+            {% if cotizacion.valida_hasta %}
+            <div style="font-size:10px;color:#666;">Válida hasta: {{ cotizacion.valida_hasta|date:'d/m/Y' }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div>
+            <div class="label">Proyecto</div>
+            <div class="value">{{ cotizacion.proyecto.nombre|default:'—' }}</div>
+        </div>
+        <div>
+            <div class="label">Elaborado por</div>
+            <div class="value">{{ cotizacion.creado_por.get_full_name|default:cotizacion.creado_por.username|default:'—' }}</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:30px;">#</th>
+                <th>Descripción</th>
+                <th style="width:50px;">U.M.</th>
+                <th style="width:60px;">Cantidad</th>
+                <th style="width:80px;">Precio Unit.</th>
+                <th style="width:50px;">Dto %</th>
+                <th style="width:80px;text-align:right;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.descripcion }}</td>
+                <td>{{ item.unidad_medida }}</td>
+                <td>{{ item.cantidad|floatformat:2 }}</td>
+                <td>$ {{ item.precio_unitario|floatformat:2 }}</td>
+                <td>{{ item.descuento_porcentaje|floatformat:1 }}%</td>
+                <td style="text-align:right;font-weight:600;">$ {{ item.total|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="6" style="text-align:right;">TOTAL</td>
+                <td style="text-align:right;font-size:14px;">$ {{ cotizacion.total|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    {% if cotizacion.notas %}
+    <div class="notas">
+        <strong style="font-size:10px;text-transform:uppercase;color:#666;">Notas</strong>
+        <div style="margin-top:4px;white-space:pre-wrap;">{{ cotizacion.notas }}</div>
+    </div>
+    {% endif %}
+</body>
+</html>

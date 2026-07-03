@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotización {{ cotizacion.numero }}</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: #fff; color: var(--sap-text-color); padding: 40px; max-width: 900px; margin: 0 auto; }
+        .header-print { display: flex; justify-content: space-between; align-items: start; margin-bottom: 32px; border-bottom: 2px solid var(--sap-brand-color); padding-bottom: 16px; }
+        .header-print h1 { font-size: 1.3rem; color: var(--sap-brand-color); }
+        .header-print .numero { font-size: 1.8rem; font-weight: 800; color: var(--sap-text-color); }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+        .info-grid .label { font-size: 0.78rem; color: var(--sap-text-muted); text-transform: uppercase; font-weight: 700; }
+        .info-grid .value { font-size: 0.95rem; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+        th { text-align: left; padding: 10px 12px; font-size: 0.78rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.5px; background: var(--sap-bg-color); border-bottom: 2px solid var(--sap-border-color); }
+        td { padding: 10px 12px; font-size: 0.88rem; border-bottom: 1px solid var(--sap-border-color); }
+        .total-row td { font-weight: 700; border-top: 2px solid var(--sap-text-color); }
+        .total-row td:last-child { font-size: 1.1rem; }
+        .badge { display: inline-block; padding: 2px 8px; font-size: 0.75rem; font-weight: 600; }
+        .badge-borrador { background: var(--sap-neutral-bg); color: var(--sap-neutral); border: 1px solid var(--sap-neutral); }
+        .badge-enviada { background: #dbeafe; color: #2563eb; border: 1px solid #bfdbfe; }
+        .badge-aprobada { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .badge-rechazada { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+        .notas { background: var(--sap-bg-color); padding: 16px; margin-top: 16px; border: 1px solid var(--sap-border-color); font-size: 0.85rem; }
+        .actions { margin-top: 24px; display: flex; gap: 8px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; font-family: var(--sap-font-family); font-size: 0.88rem; font-weight: 600; border: 1px solid var(--sap-border-color); cursor: pointer; transition: all 0.15s; text-decoration: none; background: var(--sap-card-bg); color: var(--sap-text-color); }
+        .btn:hover { background: var(--sap-hover-bg); text-decoration: none; }
+        @media print { .actions, .back-link { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="header-print">
+        <div>
+            <h1>COTIZACIÓN</h1>
+            <div style="font-size:0.85rem;color:var(--sap-text-muted);margin-top:4px;">{{ cotizacion.disciplina.nombre }}</div>
+        </div>
+        <div style="text-align:right;">
+            <div class="numero">{{ cotizacion.numero }}</div>
+            <div style="font-size:0.85rem;color:var(--sap-text-muted);">Fecha: {{ cotizacion.fecha|date:'d/m/Y' }}</div>
+            {% if cotizacion.valida_hasta %}
+            <div style="font-size:0.85rem;color:var(--sap-text-muted);">Válida hasta: {{ cotizacion.valida_hasta|date:'d/m/Y' }}</div>
+            {% endif %}
+            <div style="margin-top:4px;"><span class="badge badge-{{ cotizacion.estado|lower }}">{{ cotizacion.get_estado_display }}</span></div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div>
+            <div class="label">Proyecto</div>
+            <div class="value">{{ cotizacion.proyecto.nombre|default:'—' }}</div>
+        </div>
+        <div>
+            <div class="label">Elaborado por</div>
+            <div class="value">{{ cotizacion.creado_por.get_full_name|default:cotizacion.creado_por.username|default:'—' }}</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:40px;">#</th>
+                <th>Descripción</th>
+                <th style="width:70px;">U.M.</th>
+                <th style="width:80px;">Cantidad</th>
+                <th style="width:100px;">Precio Unit.</th>
+                <th style="width:70px;">Dto %</th>
+                <th style="width:100px;text-align:right;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.descripcion }}</td>
+                <td>{{ item.unidad_medida }}</td>
+                <td>{{ item.cantidad|floatformat:2 }}</td>
+                <td>$ {{ item.precio_unitario|floatformat:2 }}</td>
+                <td>{{ item.descuento_porcentaje|floatformat:1 }}%</td>
+                <td style="text-align:right;font-weight:600;">$ {{ item.total|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="6" style="text-align:right;font-size:0.95rem;">TOTAL</td>
+                <td style="text-align:right;font-size:1.2rem;">$ {{ cotizacion.total|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    {% if cotizacion.notas %}
+    <div class="notas">
+        <strong style="font-size:0.82rem;text-transform:uppercase;color:var(--sap-text-muted);">Notas</strong>
+        <div style="margin-top:6px;white-space:pre-wrap;">{{ cotizacion.notas }}</div>
+    </div>
+    {% endif %}
+
+    <div class="actions">
+        <button class="btn" onclick="window.print()">🖨 Imprimir</button>
+        <a href="{% url 'presupuestos:editar_cotizacion' cotizacion.id %}" class="btn">← Volver a Edición</a>
+    </div>
+</body>
+</html>

@@ -1,11 +1,13 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.db.models import Sum, Q
 from django.db import models
-from .models import PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, ItemPresupuesto, PresupuestoAgrupado
-from django.contrib.auth.decorators import login_required
+from .models import PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, ItemPresupuesto, PresupuestoAgrupado, Cotizacion, ItemCotizacion, ItemPredefinido, Moneda
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST
-from datetime import datetime
+from django.contrib import messages
+from django.utils import timezone
+from datetime import datetime, date
 
 @login_required
 def cronograma_presupuesto(request, pk=None):
@@ -2499,3 +2501,244 @@ def requisicion_documento_proxy(request, doc_id):
         return response
     except Exception as e:
         raise Http404(f"Error al acceder al archivo: {str(e)}")
+
+
+# ──────────────────────────────────────────────
+# Cotizaciones
+# ──────────────────────────────────────────────
+
+def staff_required(view):
+    return user_passes_test(lambda u: u.is_staff)(view)
+
+
+@staff_required
+def lista_cotizaciones(request):
+    cotizaciones = Cotizacion.objects.select_related('proyecto', 'disciplina', 'creado_por').all()
+    disciplina_id = request.GET.get('disciplina')
+    estado = request.GET.get('estado')
+    q = request.GET.get('q')
+    if disciplina_id:
+        cotizaciones = cotizaciones.filter(disciplina_id=disciplina_id)
+    if estado:
+        cotizaciones = cotizaciones.filter(estado=estado)
+    if q:
+        cotizaciones = cotizaciones.filter(Q(numero__icontains=q) | Q(proyecto__nombre__icontains=q) | Q(notas__icontains=q))
+    from documentos.models import Disciplina
+    return render(request, 'presupuestos/lista_cotizaciones.html', {
+        'cotizaciones': cotizaciones,
+        'disciplinas': Disciplina.objects.all(),
+        'ESTADOS': Cotizacion.ESTADOS,
+    })
+
+
+@staff_required
+def crear_cotizacion(request):
+    from documentos.models import Disciplina
+    from proyectos.models import Proyecto
+    if request.method == 'POST':
+        proyecto_id = request.POST.get('proyecto')
+        disciplina_id = request.POST.get('disciplina')
+        fecha = request.POST.get('fecha')
+        valida_hasta = request.POST.get('valida_hasta') or None
+        items_json = request.POST.get('items', '[]')
+        import json
+        items = json.loads(items_json)
+
+        if not disciplina_id or not fecha or not items:
+            messages.error(request, 'Faltan campos requeridos.')
+            return redirect('presupuestos:crear_cotizacion')
+
+        ultimo = Cotizacion.objects.aggregate(models.Max('id'))['id__max'] or 0
+        numero = f"COT-{datetime.now().year}-{ultimo + 1:04d}"
+
+        cotizacion = Cotizacion.objects.create(
+            numero=numero,
+            proyecto_id=proyecto_id or None,
+            disciplina_id=disciplina_id,
+            fecha=fecha,
+            valida_hasta=valida_hasta,
+            creado_por=request.user,
+        )
+
+        for idx, item in enumerate(items):
+            ItemCotizacion.objects.create(
+                cotizacion=cotizacion,
+                item_predefinido_id=item.get('item_predefinido_id') or None,
+                descripcion=item['descripcion'],
+                unidad_medida=item['unidad_medida'],
+                cantidad=item['cantidad'],
+                precio_unitario=item['precio_unitario'],
+                descuento_porcentaje=item.get('descuento_porcentaje', 0),
+                orden=idx,
+            )
+
+        messages.success(request, f'Cotización {numero} creada exitosamente.')
+        return redirect('presupuestos:editar_cotizacion', pk=cotizacion.pk)
+
+    disciplinas = Disciplina.objects.all()
+    proyectos = Proyecto.objects.filter(activo=True)
+    return render(request, 'presupuestos/form_cotizacion.html', {
+        'disciplinas': disciplinas,
+        'proyectos': proyectos,
+        'es_nuevo': True,
+    })
+
+
+@staff_required
+def editar_cotizacion(request, pk):
+    from documentos.models import Disciplina
+    from proyectos.models import Proyecto
+    cotizacion = get_object_or_404(Cotizacion.objects.select_related('proyecto', 'disciplina', 'creado_por'), pk=pk)
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        if accion == 'guardar_cabecera':
+            cotizacion.proyecto_id = request.POST.get('proyecto') or None
+            cotizacion.disciplina_id = request.POST.get('disciplina')
+            cotizacion.fecha = request.POST.get('fecha')
+            cotizacion.valida_hasta = request.POST.get('valida_hasta') or None
+            cotizacion.notas = request.POST.get('notas', '')
+            cotizacion.save()
+            messages.success(request, 'Cabecera actualizada.')
+        elif accion == 'cambiar_estado':
+            nuevo_estado = request.POST.get('estado')
+            if nuevo_estado in dict(Cotizacion.ESTADOS):
+                cotizacion.estado = nuevo_estado
+                cotizacion.save()
+                messages.success(request, f'Estado cambiado a {cotizacion.get_estado_display()}.')
+        elif accion == 'guardar_items':
+            items_json = request.POST.get('items', '[]')
+            import json
+            items = json.loads(items_json)
+            cotizacion.items.all().delete()
+            for idx, item in enumerate(items):
+                ItemCotizacion.objects.create(
+                    cotizacion=cotizacion,
+                    item_predefinido_id=item.get('item_predefinido_id') or None,
+                    descripcion=item['descripcion'],
+                    unidad_medida=item['unidad_medida'],
+                    cantidad=item['cantidad'],
+                    precio_unitario=item['precio_unitario'],
+                    descuento_porcentaje=item.get('descuento_porcentaje', 0),
+                    orden=idx,
+                )
+            messages.success(request, 'Items actualizados.')
+        elif accion == 'eliminar':
+            cotizacion.delete()
+            messages.success(request, 'Cotización eliminada.')
+            return redirect('presupuestos:lista_cotizaciones')
+        return redirect('presupuestos:editar_cotizacion', pk=cotizacion.pk)
+
+    disciplinas = Disciplina.objects.all()
+    proyectos = Proyecto.objects.filter(activo=True)
+    items = cotizacion.items.all().order_by('orden')
+    return render(request, 'presupuestos/form_cotizacion.html', {
+        'cotizacion': cotizacion,
+        'disciplinas': disciplinas,
+        'proyectos': proyectos,
+        'items': items,
+        'es_nuevo': False,
+        'ESTADOS': Cotizacion.ESTADOS,
+    })
+
+
+@staff_required
+def ver_cotizacion(request, pk):
+    cotizacion = get_object_or_404(Cotizacion.objects.select_related('proyecto', 'disciplina', 'creado_por'), pk=pk)
+    items = cotizacion.items.all().order_by('orden')
+    return render(request, 'presupuestos/ver_cotizacion.html', {
+        'cotizacion': cotizacion,
+        'items': items,
+    })
+
+
+@staff_required
+def cotizacion_pdf(request, pk):
+    cotizacion = get_object_or_404(Cotizacion.objects.select_related('proyecto', 'disciplina', 'creado_por'), pk=pk)
+    items = cotizacion.items.all().order_by('orden')
+    return render(request, 'presupuestos/cotizacion_pdf.html', {
+        'cotizacion': cotizacion,
+        'items': items,
+    })
+
+
+@staff_required
+def api_items_por_disciplina(request, disciplina_id):
+    items = ItemPredefinido.objects.filter(disciplina_id=disciplina_id, activo=True).select_related('moneda')
+    data = [{
+        'id': i.id,
+        'codigo': i.codigo,
+        'descripcion': i.descripcion,
+        'unidad_medida': i.unidad_medida,
+        'precio_unitario': float(i.precio_unitario),
+        'moneda': i.moneda.codigo,
+    } for i in items]
+    return JsonResponse(data, safe=False)
+
+
+# ──────────────────────────────────────────────
+# Items Predefinidos
+# ──────────────────────────────────────────────
+
+@staff_required
+def lista_items_predefinidos(request):
+    from documentos.models import Disciplina
+    items = ItemPredefinido.objects.select_related('disciplina', 'moneda').all()
+    disciplina_id = request.GET.get('disciplina')
+    q = request.GET.get('q')
+    if disciplina_id:
+        items = items.filter(disciplina_id=disciplina_id)
+    if q:
+        items = items.filter(Q(descripcion__icontains=q) | Q(codigo__icontains=q))
+    return render(request, 'presupuestos/lista_items_predefinidos.html', {
+        'items': items,
+        'disciplinas': Disciplina.objects.all(),
+        'monedas': Moneda.objects.all(),
+    })
+
+
+@staff_required
+def crear_item_predefinido(request):
+    from documentos.models import Disciplina
+    if request.method == 'POST':
+        ItemPredefinido.objects.create(
+            disciplina_id=request.POST['disciplina'],
+            codigo=request.POST.get('codigo') or None,
+            descripcion=request.POST['descripcion'],
+            unidad_medida=request.POST['unidad_medida'],
+            precio_unitario=request.POST['precio_unitario'],
+            moneda_id=request.POST['moneda'],
+            activo=request.POST.get('activo') == 'on',
+        )
+        messages.success(request, 'Item predefinido creado.')
+        return redirect('presupuestos:lista_items_predefinidos')
+
+    return render(request, 'presupuestos/form_item_predefinido.html', {
+        'disciplinas': Disciplina.objects.all(),
+        'monedas': Moneda.objects.all(),
+        'es_nuevo': True,
+    })
+
+
+@staff_required
+def editar_item_predefinido(request, pk):
+    from documentos.models import Disciplina
+    item = get_object_or_404(ItemPredefinido, pk=pk)
+    if request.method == 'POST':
+        item.disciplina_id = request.POST['disciplina']
+        item.codigo = request.POST.get('codigo') or None
+        item.descripcion = request.POST['descripcion']
+        item.unidad_medida = request.POST['unidad_medida']
+        item.precio_unitario = request.POST['precio_unitario']
+        item.moneda_id = request.POST['moneda']
+        item.activo = request.POST.get('activo') == 'on'
+        item.save()
+        messages.success(request, 'Item predefinido actualizado.')
+        return redirect('presupuestos:lista_items_predefinidos')
+
+    return render(request, 'presupuestos/form_item_predefinido.html', {
+        'item': item,
+        'disciplinas': Disciplina.objects.all(),
+        'monedas': Moneda.objects.all(),
+        'es_nuevo': False,
+    })

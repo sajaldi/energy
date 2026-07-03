@@ -79,4 +79,17 @@ urlpatterns = [
     # API Selección Presupuesto
     path('api/requisicion/budget-selection-data/', views_pagos.api_get_budget_selection_data, name='api_get_budget_selection_data'),
     path('api/requisicion/update-budget/', views_pagos.api_requisicion_update_budget, name='api_requisicion_update_budget'),
+
+    # Cotizaciones
+    path('admin/cotizaciones/', views.lista_cotizaciones, name='lista_cotizaciones'),
+    path('admin/cotizaciones/nueva/', views.crear_cotizacion, name='crear_cotizacion'),
+    path('admin/cotizaciones/<int:pk>/', views.editar_cotizacion, name='editar_cotizacion'),
+    path('admin/cotizaciones/<int:pk>/ver/', views.ver_cotizacion, name='ver_cotizacion'),
+    path('admin/cotizaciones/<int:pk>/pdf/', views.cotizacion_pdf, name='cotizacion_pdf'),
+    path('api/items-por-disciplina/<int:disciplina_id>/', views.api_items_por_disciplina, name='api_items_por_disciplina'),
+
+    # Items Predefinidos
+    path('admin/items-predefinidos/', views.lista_items_predefinidos, name='lista_items_predefinidos'),
+    path('admin/items-predefinidos/nuevo/', views.crear_item_predefinido, name='crear_item_predefinido'),
+    path('admin/items-predefinidos/<int:pk>/editar/', views.editar_item_predefinido, name='editar_item_predefinido'),
 ]

@@ -262,20 +262,19 @@ def lista_admin(request):
     padres = Curso.objects.filter(padre=None).order_by('-creado_en')
     data = []
     for p in padres:
-        item = {
-            'curso': p,
-            'secciones': p.total_secciones(),
-            'asignados': p.asignaciones.count(),
-            'depth': 0,
-        }
-        data.append(item)
+        hijos = []
         for h in p.hijos.all().order_by('orden'):
-            data.append({
+            hijos.append({
                 'curso': h,
                 'secciones': h.total_secciones(),
                 'asignados': h.asignaciones.count(),
-                'depth': 1,
             })
+        data.append({
+            'curso': p,
+            'secciones': p.total_secciones(),
+            'asignados': p.asignaciones.count(),
+            'hijos': hijos,
+        })
     return render(request, 'courses/admin_lista.html', {
         'cursos': data,
     })

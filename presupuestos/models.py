@@ -1198,3 +1198,109 @@ class OrdenCompraArticulo(models.Model):
     class Meta:
         verbose_name = "Artículo de Orden de Compra"
         verbose_name_plural = "Artículos de Órdenes de Compra"
+
+
+class ItemPredefinido(models.Model):
+    disciplina = models.ForeignKey(
+        'documentos.Disciplina', on_delete=models.CASCADE,
+        related_name='items_predefinidos', verbose_name="Disciplina"
+    )
+    codigo = models.CharField(max_length=50, blank=True, null=True, verbose_name="Código")
+    descripcion = models.TextField(verbose_name="Descripción")
+    unidad_medida = models.CharField(max_length=50, verbose_name="Unidad de Medida")
+    precio_unitario = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Precio Unitario")
+    moneda = models.ForeignKey(
+        'Moneda', on_delete=models.PROTECT,
+        related_name='items_predefinidos', verbose_name="Moneda"
+    )
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    def __str__(self):
+        return f"{self.codigo or ''} - {self.descripcion[:60]}"
+
+    class Meta:
+        verbose_name = "Item Predefinido"
+        verbose_name_plural = "Items Predefinidos"
+        ordering = ['disciplina', 'codigo']
+
+
+class Cotizacion(models.Model):
+    ESTADOS = [
+        ('BORRADOR', 'Borrador'),
+        ('ENVIADA', 'Enviada'),
+        ('APROBADA', 'Aprobada'),
+        ('RECHAZADA', 'Rechazada'),
+    ]
+    numero = models.CharField(max_length=20, unique=True, verbose_name="Número de Cotización")
+    proyecto = models.ForeignKey(
+        'proyectos.Proyecto', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='cotizaciones',
+        verbose_name="Proyecto"
+    )
+    disciplina = models.ForeignKey(
+        'documentos.Disciplina', on_delete=models.PROTECT,
+        related_name='cotizaciones', verbose_name="Disciplina"
+    )
+    fecha = models.DateField(verbose_name="Fecha")
+    valida_hasta = models.DateField(null=True, blank=True, verbose_name="Válida Hasta")
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='BORRADOR', verbose_name="Estado")
+    creado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True,
+        related_name='cotizaciones', verbose_name="Creado por"
+    )
+    notas = models.TextField(blank=True, verbose_name="Notas")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    @property
+    def subtotal(self):
+        return sum(i.total for i in self.items.all())
+
+    @property
+    def descuento_total(self):
+        return sum(i.total * (i.descuento_porcentaje / 100) for i in self.items.all())
+
+    @property
+    def total(self):
+        return self.subtotal
+
+    def __str__(self):
+        return f"{self.numero} - {self.disciplina}"
+
+    class Meta:
+        verbose_name = "Cotización"
+        verbose_name_plural = "Cotizaciones"
+        ordering = ['-creado_en']
+
+
+class ItemCotizacion(models.Model):
+    cotizacion = models.ForeignKey(
+        Cotizacion, on_delete=models.CASCADE,
+        related_name='items', verbose_name="Cotización"
+    )
+    item_predefinido = models.ForeignKey(
+        ItemPredefinido, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='items_cotizacion',
+        verbose_name="Item Predefinido"
+    )
+    descripcion = models.TextField(verbose_name="Descripción")
+    unidad_medida = models.CharField(max_length=50, verbose_name="Unidad de Medida")
+    cantidad = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Cantidad")
+    precio_unitario = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Precio Unitario")
+    descuento_porcentaje = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        verbose_name="Descuento %"
+    )
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+
+    @property
+    def total(self):
+        return self.cantidad * self.precio_unitario * (1 - self.descuento_porcentaje / 100)
+
+    def __str__(self):
+        return f"{self.descripcion[:50]} ({self.cantidad})"
+
+    class Meta:
+        verbose_name = "Item de Cotización"
+        verbose_name_plural = "Items de Cotización"
+        ordering = ['orden']
