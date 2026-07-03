@@ -264,7 +264,7 @@ admin.site.register(RangoMedicion)
 
 class MiembroDepartamentoInline(admin.TabularInline):
     model = PerfilUsuario
-    fields = ('usuario', 'telefono', 'puesto', 'responsable')
+    fields = ('usuario', 'telefono', 'responsable')
     readonly_fields = ('usuario',)
     extra = 0
     can_delete = False
