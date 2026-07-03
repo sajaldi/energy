@@ -262,11 +262,25 @@ admin.site.register(CategoriaPuntoMedicion)
 admin.site.register(DocumentoMedicion)
 admin.site.register(RangoMedicion)
 
+class MiembroDepartamentoInline(admin.TabularInline):
+    model = PerfilUsuario
+    fields = ('usuario', 'telefono', 'puesto', 'responsable')
+    readonly_fields = ('usuario',)
+    extra = 0
+    can_delete = False
+    verbose_name = "Miembro del Departamento"
+    verbose_name_plural = "Miembros del Departamento"
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
 @admin.register(Departamento)
 class DepartamentoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'codigo', 'responsable', 'aprobador', 'descripcion')
-    search_fields = ('nombre', 'codigo', 'responsable__username', 'responsable__first_name', 'responsable__last_name', 'aprobador__username', 'aprobador__first_name', 'aprobador__last_name')
+    list_display = ('nombre', 'codigo', 'correo', 'responsable', 'aprobador', 'descripcion')
+    search_fields = ('nombre', 'codigo', 'correo', 'responsable__username', 'responsable__first_name', 'responsable__last_name', 'aprobador__username', 'aprobador__first_name', 'aprobador__last_name')
     autocomplete_fields = ('responsable', 'aprobador')
+    inlines = [MiembroDepartamentoInline]
+    change_form_template = "admin/core/departamento/change_form.html"
 class ServicioResource(resources.ModelResource):
     class Meta:
         model = Servicio
