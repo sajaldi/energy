@@ -455,6 +455,7 @@
                         <tr class="ticket-row group-row group-{{ forloop.parentloop.counter }}" 
                             data-ticket-id="{{ t.id_unlocalized }}"
                             data-folio="{{ t.folio|default:t.id_solicitud }}"
+                            data-falla="{{ t.falla_reportada.nombre|default:'' }}"
                             style="{% if q %}display: table-row;{% else %}display: none;{% endif %}">
                             <td style="width:36px; text-align: center;"><input type="checkbox" class="ticket-checkbox" value="{{ t.id_unlocalized }}" onchange="updateSelection()"></td>
                             <td style="font-weight: 700;">
@@ -2167,10 +2168,38 @@
 
         var diagnosticosData = {{ diagnosticos_json|safe }};
 
+        function getSelectedFallas() {
+            var fallas = new Set();
+            selectedTickets.forEach(function(id) {
+                var row = document.querySelector('.ticket-row[data-ticket-id="' + id + '"]');
+                if (row) {
+                    var f = row.getAttribute('data-falla');
+                    if (f) fallas.add(f);
+                }
+            });
+            return fallas;
+        }
+
         function buildDiagOptions() {
+            var fallas = getSelectedFallas();
             var opts = '<option value="">-- Seleccionar --</option>';
+            var grouped = {};
             diagnosticosData.forEach(function(d) {
-                opts += '<option value="' + d.id + '" data-desc="' + escAttr(d.descripcion) + '" data-act="' + escAttr(d.actividad) + '">' + escHtml(d.falla) + ' - ' + escHtml(d.nombre) + '</option>';
+                if (fallas.size > 0 && !fallas.has(d.falla)) return;
+                if (!grouped[d.falla]) grouped[d.falla] = [];
+                grouped[d.falla].push(d);
+            });
+            var keys = Object.keys(grouped);
+            if (keys.length === 0) {
+                opts += '<option value="" disabled>Sin diagnósticos para la(s) falla(s) seleccionada(s)</option>';
+                return opts;
+            }
+            keys.forEach(function(falla) {
+                if (keys.length > 1) opts += '<optgroup label="' + escHtml(falla) + '">';
+                grouped[falla].forEach(function(d) {
+                    opts += '<option value="' + d.id + '" data-desc="' + escAttr(d.descripcion) + '" data-act="' + escAttr(d.actividad) + '">' + escHtml(d.nombre) + '</option>';
+                });
+                if (keys.length > 1) opts += '</optgroup>';
             });
             return opts;
         }
@@ -2237,10 +2266,14 @@
                 var data = await resp.json();
                 if (data.success) {
                     var msg = data.updated + ' tickets actualizados';
-                    if (extra.accion === 'sync_sig') msg = 'Sincronización iniciada para ' + data.updated + ' tickets (fondo)';
-                    Swal.fire({ icon: 'success', title: 'Actualizados', text: msg, timer: 2500, showConfirmButton: false, toast: true, position: 'top-end' });
+                    var reloadDelay = 2000;
+                    if (extra.accion === 'sync_sig') {
+                        msg = 'Sincronización Playwright iniciada para ' + data.updated + ' tickets. Los checks de SIG aparecerán al finalizar.';
+                        reloadDelay = 0;
+                    }
+                    Swal.fire({ icon: 'success', title: 'Actualizados', text: msg, timer: 3000, showConfirmButton: false, toast: true, position: 'top-end' });
                     clearSelection();
-                    setTimeout(function() { location.reload(); }, 2000);
+                    if (reloadDelay) setTimeout(function() { location.reload(); }, reloadDelay);
                 } else {
                     Swal.fire('Error', data.error, 'error');
                 }
