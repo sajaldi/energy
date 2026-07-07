@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Artículos</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .shell-header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 0 24px; display: flex; align-items: center; gap: 12px; height: 48px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+        .shell-header h1 { font-size: 1rem; font-weight: 600; flex: 1; }
+        .shell-header .back { color: rgba(255,255,255,0.7); font-size: 0.82rem; padding: 5px 10px; border: 1px solid rgba(255,255,255,0.2); }
+        .shell-header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+
+        .layout { display: flex; min-height: calc(100vh - 48px); }
+
+        /* Sidebar filtros */
+        .sidebar { width: 240px; flex-shrink: 0; background: var(--sap-card-bg); border-right: 1px solid var(--sap-border-color); padding: 16px; overflow-y: auto; }
+        .sidebar-section { margin-bottom: 20px; }
+        .sidebar-section h3 { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--sap-text-muted); margin-bottom: 8px; }
+        .filter-link { display: block; padding: 6px 10px; font-size: 0.85rem; color: var(--sap-text-color); border-radius: 2px; cursor: pointer; text-decoration: none; transition: background 0.1s; }
+        .filter-link:hover { background: var(--sap-hover-bg); text-decoration: none; color: var(--sap-text-color); }
+        .filter-link.active { background: var(--sap-brand-color); color: #fff; font-weight: 600; }
+        .filter-link .count { float: right; font-size: 0.72rem; opacity: 0.7; }
+
+        /* Main content */
+        .main { flex: 1; padding: 20px; overflow-y: auto; min-width: 0; }
+
+        /* Toolbar */
+        .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+        .search-box { flex: 1; min-width: 200px; max-width: 360px; position: relative; }
+        .search-box input { width: 100%; padding: 7px 10px 7px 32px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.85rem; background: #fff; }
+        .search-box input:focus { outline: none; border-color: var(--sap-brand-color); }
+        .search-box::before { content: '🔍'; position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; pointer-events: none; }
+
+        .btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 16px; font-family: var(--sap-font-family); font-size: 0.83rem; font-weight: 600; border: 1px solid var(--sap-border-color); cursor: pointer; transition: all 0.12s; text-decoration: none; background: var(--sap-card-bg); color: var(--sap-text-color); white-space: nowrap; }
+        .btn:hover { background: var(--sap-hover-bg); text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; border-color: var(--sap-brand-color); }
+        .btn-primary:hover { background: var(--sap-highlight-color); border-color: var(--sap-highlight-color); }
+        .btn-sm { padding: 5px 12px; font-size: 0.77rem; }
+
+        /* Table */
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: var(--sap-card-shadow); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 9px 14px; font-size: 0.72rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.4px; background: var(--sap-bg-color); border-bottom: 1px solid var(--sap-border-color); white-space: nowrap; }
+        td { padding: 10px 14px; font-size: 0.84rem; border-bottom: 1px solid var(--sap-border-color); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--sap-hover-bg); }
+
+        .badge { display: inline-block; padding: 2px 7px; font-size: 0.70rem; font-weight: 600; border-radius: 2px; }
+        .badge-disc { background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; }
+        .badge-fam { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .badge-activo { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .badge-inactivo { background: var(--sap-neutral-bg); color: var(--sap-neutral); border: 1px solid var(--sap-neutral); }
+
+        .familia-group th { background: #f0f4ff; color: #3730a3; border-left: 3px solid #6366f1; }
+
+        .empty { text-align: center; padding: 48px 20px; color: var(--sap-text-muted); }
+
+        .msg { padding: 10px 16px; font-size: 0.85rem; margin-bottom: 12px; }
+        .msg.success { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+
+        .actions-cell { display: flex; gap: 4px; }
+
+        .stat-row { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+        .stat { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); padding: 12px 16px; flex: 1; min-width: 120px; }
+        .stat .val { font-size: 1.4rem; font-weight: 700; color: var(--sap-brand-color); }
+        .stat .lbl { font-size: 0.72rem; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
+
+        .toggle-check { display: flex; align-items: center; gap: 6px; font-size: 0.83rem; cursor: pointer; margin-left: auto; }
+        .toggle-check input { width: 14px; height: 14px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="shell-header">
+    <a href="/admin/presupuestos/" class="back btn btn-sm">← Presupuestos</a>
+    <h1>🗂 Catálogo de Artículos</h1>
+    <a href="{% url 'presupuestos:lista_familias' %}" class="btn btn-sm">🏷 Familias</a>
+    <a href="{% url 'presupuestos:crear_item_predefinido' %}" class="btn btn-primary btn-sm">＋ Nuevo artículo</a>
+</div>
+
+{% include 'presupuestos/_nav.html' %}
+
+<div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <h3>Disciplina</h3>
+            <a class="filter-link {% if not disciplina_sel %}active{% endif %}" href="?{% if q %}q={{ q }}&{% endif %}{% if solo_activos == '1' %}activos=1{% endif %}">
+                Todas <span class="count">{{ items.count }}</span>
+            </a>
+            {% for d in disciplinas %}
+            <a class="filter-link {% if disciplina_sel == d.id|stringformat:'s' %}active{% endif %}"
+               href="?disciplina={{ d.id }}{% if q %}&q={{ q }}{% endif %}{% if solo_activos == '1' %}&activos=1{% endif %}">
+                {{ d.nombre }}
+            </a>
+            {% endfor %}
+        </div>
+
+        {% if disciplina_sel and familias %}
+        <div class="sidebar-section">
+            <h3>Familia</h3>
+            <a class="filter-link {% if not familia_sel %}active{% endif %}"
+               href="?disciplina={{ disciplina_sel }}{% if q %}&q={{ q }}{% endif %}{% if solo_activos == '1' %}&activos=1{% endif %}">
+                Todas las familias
+            </a>
+            {% for f in familias %}
+            <a class="filter-link {% if familia_sel == f.id|stringformat:'s' %}active{% endif %}"
+               href="?disciplina={{ disciplina_sel }}&familia={{ f.id }}{% if q %}&q={{ q }}{% endif %}{% if solo_activos == '1' %}&activos=1{% endif %}">
+                {{ f.nombre }}
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+        {% if messages %}{% for msg in messages %}<div class="msg {{ msg.tags }}">{{ msg }}</div>{% endfor %}{% endif %}
+
+        <!-- Stats -->
+        <div class="stat-row">
+            <div class="stat"><div class="val">{{ items.count }}</div><div class="lbl">Artículos{% if disciplina_sel %} en disciplina{% endif %}</div></div>
+            <div class="stat"><div class="val">{{ familias.count }}</div><div class="lbl">Familias</div></div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <form method="get" style="display:contents;" id="search-form">
+                {% if disciplina_sel %}<input type="hidden" name="disciplina" value="{{ disciplina_sel }}">{% endif %}
+                {% if familia_sel %}<input type="hidden" name="familia" value="{{ familia_sel }}">{% endif %}
+                <input type="hidden" name="activos" value="{{ solo_activos }}">
+                <div class="search-box">
+                    <input type="text" name="q" value="{{ q }}" placeholder="Buscar por descripción o código..." oninput="debounceSearch(this)">
+                </div>
+            </form>
+            <label class="toggle-check">
+                <input type="checkbox" id="toggle-activos" {% if solo_activos == '1' %}checked{% endif %} onchange="toggleActivos(this)">
+                Solo activos
+            </label>
+        </div>
+
+        {% if items %}
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:90px;">Código</th>
+                        <th>Descripción</th>
+                        <th>Disciplina</th>
+                        <th>Familia</th>
+                        <th style="width:60px;">U.M.</th>
+                        <th style="width:110px;text-align:right;">Precio Unit.</th>
+                        <th style="width:55px;">Mon.</th>
+                        <th style="width:70px;">Estado</th>
+                        <th style="width:80px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td><code style="font-size:0.78rem;color:var(--sap-text-muted);">{{ item.codigo|default:'—' }}</code></td>
+                        <td>
+                            <strong style="font-size:0.85rem;">{{ item.descripcion|truncatechars:70 }}</strong>
+                            {% if item.notas %}<br><span style="font-size:0.73rem;color:var(--sap-text-muted);">{{ item.notas|truncatechars:60 }}</span>{% endif %}
+                        </td>
+                        <td><span class="badge badge-disc">{{ item.disciplina.nombre }}</span></td>
+                        <td>{% if item.familia %}<span class="badge badge-fam">{{ item.familia.nombre }}</span>{% else %}<span style="color:var(--sap-text-muted);font-size:0.78rem;">—</span>{% endif %}</td>
+                        <td style="font-size:0.8rem;">{{ item.unidad_medida }}</td>
+                        <td style="text-align:right;font-weight:600;">$ {{ item.precio_unitario|floatformat:2 }}</td>
+                        <td style="font-size:0.78rem;color:var(--sap-text-muted);">{{ item.moneda.codigo }}</td>
+                        <td><span class="badge {% if item.activo %}badge-activo{% else %}badge-inactivo{% endif %}">{% if item.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+                        <td>
+                            <div class="actions-cell">
+                                <a href="{% url 'presupuestos:editar_item_predefinido' item.id %}" class="btn btn-sm">Editar</a>
+                                {% if item.es_compuesto %}
+                                <a href="{% url 'presupuestos:ver_bom' item.id %}" class="btn btn-sm" style="background:#fef3c7;border-color:#fde68a;color:#92400e;">⚙ BOM</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card"><div class="empty">
+            <p style="font-size:1.1rem;font-weight:600;margin-bottom:6px;">No hay artículos{% if q %} que coincidan con "{{ q }}"{% endif %}</p>
+            <p style="font-size:0.84rem;">{% if q %}Prueba con otros términos de búsqueda.{% else %}Crea el primer artículo para esta disciplina.{% endif %}</p>
+            <a href="{% url 'presupuestos:crear_item_predefinido' %}{% if disciplina_sel %}?disciplina={{ disciplina_sel }}{% endif %}" class="btn btn-primary" style="margin-top:16px;">＋ Nuevo artículo</a>
+        </div></div>
+        {% endif %}
+    </main>
+</div>
+
+<script>
+var searchTimer;
+function debounceSearch(el) {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function() { document.getElementById('search-form').submit(); }, 400);
+}
+function toggleActivos(cb) {
+    var url = new URL(window.location);
+    url.searchParams.set('activos', cb.checked ? '1' : '0');
+    window.location = url.toString();
+}
+</script>
+</body>
+</html>

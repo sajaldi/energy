@@ -55,6 +55,7 @@
         <h1>Cotizaciones</h1>
         <a href="{% url 'presupuestos:crear_cotizacion' %}" class="btn btn-primary btn-sm">+ Nueva Cotización</a>
     </div>
+    {% include 'presupuestos/_nav.html' %}
     <div class="container">
         <div class="top-bar">
             <div class="filters">
@@ -81,10 +82,11 @@
                     <thead>
                         <tr>
                             <th>Número</th>
+                            <th>Versión</th>
                             <th>Proyecto</th>
-                            <th>Disciplina</th>
+                            <th>Disciplinas</th>
                             <th>Fecha</th>
-                            <th>Items</th>
+                            <th>Ítems</th>
                             <th>Total</th>
                             <th>Estado</th>
                             <th></th>
@@ -94,8 +96,14 @@
                         {% for c in cotizaciones %}
                         <tr>
                             <td><strong>{{ c.numero }}</strong></td>
+                            <td style="color:var(--sap-text-muted);">v{{ c.version }}</td>
                             <td>{{ c.proyecto.nombre|default:'—' }}</td>
-                            <td>{{ c.disciplina.nombre }}</td>
+                            <td style="font-size:0.8rem;color:var(--sap-text-muted);">
+                                {% for disc in c.items.all|dictsortreversed:"disciplina_id" %}{% endfor %}
+                                {{ c.items.values_list|length }}
+                                {% with discs=c.items.order_by|default:'' %}{% endwith %}
+                                —
+                            </td>
                             <td>{{ c.fecha|date:'d/m/Y' }}</td>
                             <td>{{ c.items.count }}</td>
                             <td class="total-col">$ {{ c.total|floatformat:2 }}</td>

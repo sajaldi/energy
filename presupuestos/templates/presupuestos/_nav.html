@@ -1,0 +1,55 @@
+{% load static %}
+{# ─── Presupuestos Navigation Bar ─────────────────────────────────────────── #}
+<style>
+.pres-nav { background: #1e293b; border-bottom: 1px solid #0f172a; display: flex; align-items: stretch; gap: 0; overflow-x: auto; scrollbar-width: none; }
+.pres-nav::-webkit-scrollbar { display: none; }
+
+.pres-nav-group { display: flex; align-items: stretch; position: relative; }
+.pres-nav-group + .pres-nav-group::before { content: ''; width: 1px; background: rgba(255,255,255,0.08); align-self: stretch; margin: 8px 0; }
+
+.pres-nav-link { display: flex; align-items: center; gap: 7px; padding: 0 18px; height: 42px; font-family: var(--sap-font-family); font-size: 0.82rem; font-weight: 500; color: rgba(255,255,255,0.65); text-decoration: none; white-space: nowrap; transition: all 0.12s; border-bottom: 2px solid transparent; cursor: pointer; border-top: none; border-left: none; border-right: none; background: none; }
+.pres-nav-link:hover { color: #fff; background: rgba(255,255,255,0.07); text-decoration: none; }
+.pres-nav-link.active { color: #fff; border-bottom-color: #3b82f6; font-weight: 600; }
+.pres-nav-link .nav-icon { font-size: 1rem; opacity: 0.8; }
+
+.pres-nav-label { display: flex; align-items: center; padding: 0 14px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.3); white-space: nowrap; }
+
+/* Dropdown */
+.pres-nav-drop { position: relative; }
+.pres-nav-drop-btn { display: flex; align-items: center; gap: 7px; padding: 0 18px; height: 42px; font-family: var(--sap-font-family); font-size: 0.82rem; font-weight: 500; color: rgba(255,255,255,0.65); cursor: pointer; white-space: nowrap; transition: all 0.12s; border: none; background: none; border-bottom: 2px solid transparent; }
+.pres-nav-drop-btn:hover { color: #fff; background: rgba(255,255,255,0.07); }
+.pres-nav-drop-btn.active { color: #fff; border-bottom-color: #3b82f6; font-weight: 600; }
+.pres-nav-drop-btn::after { content: '▾'; font-size: 0.65rem; opacity: 0.5; margin-left: 2px; }
+.pres-nav-drop-menu { display: none; position: absolute; top: 100%; left: 0; background: #1e293b; border: 1px solid rgba(255,255,255,0.12); min-width: 200px; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.pres-nav-drop-menu a { display: flex; align-items: center; gap: 8px; padding: 10px 16px; font-size: 0.82rem; color: rgba(255,255,255,0.7); text-decoration: none; transition: background 0.1s; }
+.pres-nav-drop-menu a:hover { background: rgba(255,255,255,0.08); color: #fff; text-decoration: none; }
+.pres-nav-drop-menu a.active { color: #3b82f6; font-weight: 600; }
+.pres-nav-drop-menu .drop-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
+.pres-nav-drop:hover .pres-nav-drop-menu { display: block; }
+</style>
+
+<nav class="pres-nav">
+
+    <!-- Cotizaciones -->
+    <div class="pres-nav-group">
+        <span class="pres-nav-label">Cotizaciones</span>
+        <a href="{% url 'presupuestos:lista_cotizaciones' %}" class="pres-nav-link {% if request.resolver_match.url_name in 'lista_cotizaciones,editar_cotizacion,ver_cotizacion' %}active{% endif %}">
+            <span class="nav-icon">📋</span> Lista
+        </a>
+        <a href="{% url 'presupuestos:crear_cotizacion' %}" class="pres-nav-link {% if request.resolver_match.url_name == 'crear_cotizacion' %}active{% endif %}">
+            <span class="nav-icon">＋</span> Nueva
+        </a>
+    </div>
+
+    <!-- Catálogo -->
+    <div class="pres-nav-group">
+        <span class="pres-nav-label">Catálogo</span>
+        <a href="{% url 'presupuestos:lista_items_predefinidos' %}" class="pres-nav-link {% if request.resolver_match.url_name in 'lista_items_predefinidos,crear_item_predefinido,editar_item_predefinido' %}active{% endif %}">
+            <span class="nav-icon">🗂</span> Artículos
+        </a>
+        <a href="{% url 'presupuestos:lista_familias' %}" class="pres-nav-link {% if request.resolver_match.url_name in 'lista_familias,crear_familia,editar_familia' %}active{% endif %}">
+            <span class="nav-icon">🏷</span> Familias
+        </a>
+    </div>
+
+</nav>

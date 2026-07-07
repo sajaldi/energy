@@ -794,7 +794,10 @@ def reporte_consumos_interactivo(request):
 @staff_member_required
 def finalizar_tutorial(request):
     if request.method == 'POST':
-        perfil, created = PerfilUsuario.objects.get_or_create(usuario=request.user)
+        perfil, created = PerfilUsuario.objects.get_or_create(
+            usuario=request.user,
+            defaults={'invitation_status': 'active'}
+        )
         perfil.visto_tutorial = True
         perfil.save()
         return json_response({'status': 'ok'})

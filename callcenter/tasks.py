@@ -60,6 +60,11 @@ def sync_tickets_task(days=2, fecha_inicio=None, fecha_fin=None):
         result_msg = f"Sincronización finalizada. Nuevos: {creados}, Actualizados: {actualizados}"
         logger.info(result_msg)
         
+        # Guardar timestamp de última sincronización exitosa
+        from django.core.cache import cache
+        from django.utils import timezone
+        cache.set('callcenter_last_sig_sync', timezone.now(), timeout=None)
+        
         # El archivo queda en downloads para trazabilidad si se desea
         # if os.path.exists(file_path):
         #     os.remove(file_path)
@@ -716,6 +721,11 @@ def sync_tickets_automatico_task():
 
         result_msg = f"Sincronización automática finalizada. Nuevos: {creados}, Actualizados: {actualizados}"
         logger.info(result_msg)
+
+        # Guardar timestamp de última sincronización exitosa
+        from django.core.cache import cache
+        from django.utils import timezone
+        cache.set('callcenter_last_sig_sync', timezone.now(), timeout=None)
 
         return {"status": "success", "creados": creados, "actualizados": actualizados}
 

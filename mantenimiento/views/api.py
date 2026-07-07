@@ -385,9 +385,15 @@ def api_buscar_activos(request):
         Q(nombre__icontains=query) | 
         Q(codigo_interno__icontains=query) |
         Q(serie__icontains=query) |
-        Q(epc__icontains=query)
-    ).select_related('ubicacion').only(
-        'id', 'nombre', 'codigo_interno', 'ubicacion__id', 'ubicacion__nombre'
+        Q(epc__icontains=query) |
+        Q(descripcion__icontains=query) |
+        Q(modelo__nombre__icontains=query) |
+        Q(modelo_legacy__icontains=query)
+    ).select_related(
+        'ubicacion',
+        'modelo',
+        'modelo__marca',
+        'modelo__categoria',
     )[:30]
     
     results = []

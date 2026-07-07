@@ -36,7 +36,7 @@ def api_get_avisos(request):
     
     avisos_qs = Aviso.objects.select_related(
         'ubicacion', 'solicitante', 'responsable', 'falla', 'activo', 'departamento'
-    ).order_by('-prioridad', '-creado_en')
+    ).prefetch_related('ordenes').order_by('-prioridad', '-creado_en')
     
     if search:
         avisos_qs = avisos_qs.filter(
@@ -56,6 +56,7 @@ def api_get_avisos(request):
     }
     
     for aviso in avisos_qs:
+        ot = aviso.ordenes.first()
         item = {
             'id': aviso.id,
             'titulo': f"AV-{aviso.id}",
@@ -74,6 +75,9 @@ def api_get_avisos(request):
             'foto_url': aviso.foto.url if aviso.foto else None,
             'falla': aviso.falla.nombre if aviso.falla else "",
             'departamento_nombre': aviso.departamento.nombre if aviso.departamento else "General",
+            'tiene_ot': ot is not None,
+            'ot_id': ot.id if ot else None,
+            'ot_codigo': ot.codigo_de_orden if ot else None,
         }
         if aviso.estado in data:
             data[aviso.estado].append(item)
@@ -162,7 +166,12 @@ def api_aviso_create_ot(request, pk):
                 aviso.responsable = tecnico_user
             aviso.save()
             
-        return JsonResponse({'status': 'success', 'message': f'Orden de Trabajo {nueva_ot.codigo_de_orden} creada correctamente.', 'ot_id': nueva_ot.id})
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Orden de Trabajo {nueva_ot.codigo_de_orden} creada correctamente.',
+            'ot_id': nueva_ot.id,
+            'ot_codigo': nueva_ot.codigo_de_orden,
+        })
         
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

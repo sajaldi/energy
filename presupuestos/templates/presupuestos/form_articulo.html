@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if es_nuevo %}Nuevo Artículo{% else %}Editar: {{ item.descripcion|truncatechars:40 }}{% endif %}</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .shell-header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 0 24px; display: flex; align-items: center; gap: 12px; height: 48px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+        .shell-header h1 { font-size: 1rem; font-weight: 600; flex: 1; }
+        .shell-header .back { color: rgba(255,255,255,0.7); font-size: 0.82rem; padding: 5px 10px; border: 1px solid rgba(255,255,255,0.2); }
+        .shell-header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+        .container { max-width: 860px; margin: 0 auto; padding: 20px 16px 90px; }
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: var(--sap-card-shadow); margin-bottom: 14px; }
+        .card-header { padding: 11px 18px; background: var(--sap-group-bg); border-bottom: 1px solid var(--sap-border-color); font-weight: 600; font-size: 0.88rem; display: flex; align-items: center; gap: 8px; }
+        .card-body { padding: 16px 18px; }
+        .field-group { margin-bottom: 12px; }
+        .field-group label { display: block; font-size: 0.74rem; font-weight: 700; margin-bottom: 3px; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+        .field-group input, .field-group select, .field-group textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.86rem; background: #fff; transition: border-color 0.1s; }
+        .field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline: none; border-color: var(--sap-brand-color); }
+        .field-group .hint { font-size: 0.73rem; color: var(--sap-text-muted); margin-top: 3px; }
+        .field-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .field-row .field-group { flex: 1; min-width: 120px; }
+        .field-row .field-group.w-auto { flex: 0 0 auto; }
+        .btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 16px; font-family: var(--sap-font-family); font-size: 0.83rem; font-weight: 600; border: 1px solid var(--sap-border-color); cursor: pointer; transition: all 0.12s; text-decoration: none; background: var(--sap-card-bg); color: var(--sap-text-color); white-space: nowrap; }
+        .btn:hover { background: var(--sap-hover-bg); text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; border-color: var(--sap-brand-color); }
+        .btn-primary:hover { background: var(--sap-highlight-color); }
+        .btn-sm { padding: 4px 10px; font-size: 0.76rem; }
+        .btn-danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+        .btn-ghost { border-color: transparent; background: transparent; color: var(--sap-text-muted); }
+        .btn-ghost:hover { background: var(--sap-hover-bg); }
+        .check-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+        .check-row input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; }
+        .check-row label { font-size: 0.86rem; cursor: pointer; font-weight: 600; }
+        .msg { padding: 9px 14px; font-size: 0.84rem; margin-bottom: 10px; }
+        .msg.success { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .msg.error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+        .save-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--sap-card-bg); border-top: 2px solid var(--sap-border-color); padding: 10px 28px; display: flex; align-items: center; gap: 12px; box-shadow: 0 -4px 16px rgba(0,0,0,0.07); z-index: 100; }
+        /* Tipo selector */
+        .tipo-selector { display: flex; gap: 0; margin-bottom: 14px; }
+        .tipo-btn { flex: 1; padding: 10px 0; text-align: center; font-size: 0.86rem; font-weight: 600; border: 1px solid var(--sap-border-color); cursor: pointer; background: var(--sap-bg-color); color: var(--sap-text-muted); transition: all 0.12s; }
+        .tipo-btn:first-child { border-right: none; }
+        .tipo-btn.active-simple { background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; }
+        .tipo-btn.active-compuesto { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+        /* BOM inline */
+        .bom-section { border: 2px dashed #fde68a; background: #fffbeb; padding: 0; }
+        .bom-section.hidden { display: none; }
+        .bom-header { padding: 10px 16px; background: #fef3c7; border-bottom: 1px solid #fde68a; display: flex; align-items: center; gap: 8px; }
+        .bom-header h3 { font-size: 0.84rem; font-weight: 700; color: #92400e; flex: 1; }
+        .precio-calc { font-size: 1.1rem; font-weight: 800; color: #92400e; }
+        /* BOM table */
+        .bom-table { width: 100%; border-collapse: collapse; }
+        .bom-table th { padding: 7px 12px; font-size: 0.7rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; background: #fffbeb; border-bottom: 1px solid #fde68a; }
+        .bom-table td { padding: 7px 12px; font-size: 0.83rem; border-bottom: 1px solid #fef9c3; vertical-align: middle; }
+        .bom-table tr:last-child td { border-bottom: none; }
+        .bom-table .qty-inp { width: 80px; padding: 4px 7px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.83rem; text-align: right; }
+        .bom-table .qty-inp:focus { outline: none; border-color: var(--sap-brand-color); }
+        .bom-empty { text-align: center; padding: 20px; color: #92400e; font-size: 0.84rem; opacity: 0.7; }
+        /* Buscador */
+        .search-area { padding: 12px 14px; background: #fffdf0; border-top: 1px solid #fde68a; }
+        .search-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+        .search-row input { flex: 1; min-width: 180px; padding: 7px 10px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.84rem; }
+        .search-row input:focus { outline: none; border-color: var(--sap-brand-color); }
+        .results-drop { background: #fff; border: 1px solid var(--sap-border-color); max-height: 200px; overflow-y: auto; display: none; margin-bottom: 8px; }
+        .results-drop.open { display: block; }
+        .result-row { padding: 8px 12px; cursor: pointer; font-size: 0.83rem; border-bottom: 1px solid var(--sap-border-color); display: flex; align-items: center; gap: 10px; }
+        .result-row:last-child { border-bottom: none; }
+        .result-row:hover { background: var(--sap-hover-bg); }
+        .result-row .rc { font-size: 0.73rem; color: var(--sap-text-muted); font-family: monospace; min-width: 60px; }
+        .result-row .rp { margin-left: auto; color: var(--sap-brand-color); font-weight: 600; font-size: 0.78rem; white-space: nowrap; }
+        /* Nuevo inline */
+        .nuevo-inline { background: #f0f9ff; border: 1px solid #bae6fd; padding: 12px 14px; margin-top: 6px; display: none; }
+        .nuevo-inline.open { display: block; }
+        .nuevo-inline h4 { font-size: 0.78rem; font-weight: 700; color: #0369a1; margin-bottom: 10px; text-transform: uppercase; }
+        /* Familia inline */
+        .nueva-familia-panel { display: none; background: #f0f4ff; border: 1px solid #c7d2fe; padding: 10px 12px; margin-top: 6px; }
+        .nueva-familia-panel.open { display: block; }
+    </style>
+</head>
+<body>
+<div class="shell-header">
+    <a href="{% url 'presupuestos:lista_items_predefinidos' %}" class="back btn btn-sm">← Catálogo</a>
+    <h1>{% if es_nuevo %}Nuevo Artículo{% else %}Editando artículo{% endif %}</h1>
+    {% if not es_nuevo %}<span style="font-size:0.78rem;color:rgba(255,255,255,0.55);">{{ item.disciplina.nombre }}{% if item.familia %} › {{ item.familia.nombre }}{% endif %}</span>{% endif %}
+</div>
+{% include 'presupuestos/_nav.html' %}
+<div class="container">
+{% if messages %}{% for msg in messages %}<div class="msg {{ msg.tags }}">{{ msg }}</div>{% endfor %}{% endif %}
+<form method="post" id="main-form">
+{% csrf_token %}
+<input type="hidden" name="componentes_json" id="componentes-json" value="[]">
+
+<!-- Clasificación -->
+<div class="card">
+    <div class="card-header">📁 Clasificación</div>
+    <div class="card-body">
+        <div class="field-row">
+            <div class="field-group">
+                <label>Disciplina *</label>
+                <select name="disciplina" id="sel-disciplina" required onchange="cargarFamilias(this.value)">
+                    <option value="">— Seleccione —</option>
+                    {% for d in disciplinas %}
+                    <option value="{{ d.id }}" {% if item and item.disciplina_id == d.id %}selected{% elif disc_presel == d.id|stringformat:'s' %}selected{% endif %}>{{ d.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Familia <span onclick="toggleFamiliaPanel()" style="font-size:0.73rem;color:var(--sap-brand-color);cursor:pointer;font-weight:400;">＋ crear</span></label>
+                <select name="familia" id="sel-familia">
+                    <option value="">— Sin familia —</option>
+                    {% for f in familias %}<option value="{{ f.id }}" {% if item and item.familia_id == f.id %}selected{% elif familia_presel == f.id|stringformat:'s' %}selected{% endif %}>{{ f.nombre }}</option>{% endfor %}
+                </select>
+                <div class="nueva-familia-panel" id="nueva-familia-panel">
+                    <input type="text" id="nueva-familia-nombre" placeholder="Nombre de la familia" style="width:100%;margin-bottom:6px;">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="crearFamiliaInline()">Crear</button>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="toggleFamiliaPanel()">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Datos generales -->
+<div class="card">
+    <div class="card-header">📦 Datos del Artículo</div>
+    <div class="card-body">
+        <div class="field-row">
+            <div class="field-group w-auto">
+                <label>Código</label>
+                <input type="text" name="codigo" value="{% if item %}{{ item.codigo|default:'' }}{% endif %}" placeholder="EL-001" style="width:110px;">
+            </div>
+            <div class="field-group">
+                <label>Descripción *</label>
+                <input type="text" name="descripcion" value="{% if item %}{{ item.descripcion }}{% endif %}" required placeholder="Nombre completo del artículo">
+            </div>
+        </div>
+        <div class="field-group">
+            <label>Notas / Especificaciones</label>
+            <textarea name="notas" rows="2" placeholder="Marcas, estándares, detalles técnicos...">{% if item %}{{ item.notas }}{% endif %}</textarea>
+        </div>
+        <div class="field-row">
+            <div class="field-group w-auto">
+                <label>Unidad de Medida *</label>
+                {% with um=item.unidad_medida|default:"und" %}
+                <select name="unidad_medida" id="sel-um" style="width:120px;">
+                    <option value="und"     {% if um == "und"     %}selected{% endif %}>und</option>
+                    <option value="ml"      {% if um == "ml"      %}selected{% endif %}>ml</option>
+                    <option value="m2"      {% if um == "m2"      %}selected{% endif %}>m2</option>
+                    <option value="m3"      {% if um == "m3"      %}selected{% endif %}>m3</option>
+                    <option value="kg"      {% if um == "kg"      %}selected{% endif %}>kg</option>
+                    <option value="lt"      {% if um == "lt"      %}selected{% endif %}>lt</option>
+                    <option value="hr"      {% if um == "hr"      %}selected{% endif %}>hr</option>
+                    <option value="gl"      {% if um == "gl"      %}selected{% endif %}>gl</option>
+                    <option value="pie"     {% if um == "pie"     %}selected{% endif %}>pie</option>
+                    <option value="ton"     {% if um == "ton"     %}selected{% endif %}>ton</option>
+                    <option value="km"      {% if um == "km"      %}selected{% endif %}>km</option>
+                    <option value="lb"      {% if um == "lb"      %}selected{% endif %}>lb</option>
+                    <option value="caja"    {% if um == "caja"    %}selected{% endif %}>caja</option>
+                    <option value="rollo"   {% if um == "rollo"   %}selected{% endif %}>rollo</option>
+                    <option value="juego"   {% if um == "juego"   %}selected{% endif %}>juego</option>
+                    <option value="servicio"{% if um == "servicio"%}selected{% endif %}>servicio</option>
+                </select>
+                {% endwith %}
+                <div class="hint">o: <input type="text" id="um-manual" placeholder="otra..." style="width:72px;padding:3px 6px;border:1px solid var(--sap-border-color);font-size:0.8rem;" oninput="sincronizarUM(this)"></div>
+            </div>
+            <div class="field-group w-auto">
+                <label>Moneda *</label>
+                <select name="moneda" style="width:90px;">
+                    {% for m in monedas %}<option value="{{ m.id }}" {% if item and item.moneda_id == m.id %}selected{% endif %}>{{ m.codigo }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="check-row">
+            <input type="checkbox" name="activo" id="chk-activo" {% if es_nuevo or item.activo %}checked{% endif %}>
+            <label for="chk-activo">Activo (disponible en cotizaciones)</label>
+        </div>
+    </div>
+</div>
+
+<!-- Tipo: Simple vs Compuesto -->
+<div class="card">
+    <div class="card-header">⚙ Tipo de Artículo</div>
+    <div class="card-body" style="padding-bottom:0;">
+        <div class="tipo-selector">
+            <div class="tipo-btn" id="btn-simple" onclick="setTipo('simple')">▸ Simple — precio fijo</div>
+            <div class="tipo-btn" id="btn-compuesto" onclick="setTipo('compuesto')">⚙ Compuesto — suma de partes</div>
+        </div>
+        <input type="hidden" name="es_compuesto" id="hid-compuesto" value="{% if item and item.es_compuesto %}on{% else %}off{% endif %}">
+    </div>
+
+    <!-- Panel simple: precio manual -->
+    <div id="panel-simple" class="card-body" style="border-top:1px solid var(--sap-border-color);">
+        <div class="field-group w-auto">
+            <label>Precio Unitario *</label>
+            <input type="number" name="precio_unitario" id="inp-precio" value="{% if item %}{{ item.precio_unitario }}{% endif %}" min="0" step="0.01" style="width:160px;text-align:right;" placeholder="0.00">
+        </div>
+    </div>
+
+    <!-- Panel compuesto: BOM inline -->
+    <div id="panel-compuesto" class="bom-section hidden">
+        <div class="bom-header">
+            <h3>🔩 Lista de Componentes</h3>
+            <span style="font-size:0.78rem;color:#92400e;margin-right:6px;">Precio calculado:</span>
+            <span class="precio-calc" id="precio-calculado">$ 0.00</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="bom-table">
+                <thead>
+                    <tr>
+                        <th style="width:28px;">#</th>
+                        <th>Artículo componente</th>
+                        <th style="width:60px;">U.M.</th>
+                        <th style="width:100px;text-align:right;">P. Unit.</th>
+                        <th style="width:90px;text-align:right;">Cantidad</th>
+                        <th style="width:105px;text-align:right;">Subtotal</th>
+                        <th style="width:36px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="bom-tbody">
+                    <tr id="bom-empty-row"><td colspan="7" class="bom-empty">Sin componentes — agrega artículos abajo</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Buscador de componentes existentes -->
+        <div class="search-area">
+            <div style="font-size:0.76rem;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Agregar componente</div>
+            <div class="search-row">
+                <input type="text" id="search-comp" placeholder="Buscar artículo existente por código o descripción..." oninput="buscarComp(this.value)" autocomplete="off">
+                <button type="button" class="btn btn-sm" onclick="toggleNuevoInline()" style="white-space:nowrap;">＋ Crear nuevo aquí</button>
+            </div>
+            <div class="results-drop" id="results-drop"></div>
+
+            <!-- Inline: crear componente nuevo -->
+            <div class="nuevo-inline" id="nuevo-inline">
+                <h4>✏ Crear nuevo artículo como componente</h4>
+                <div class="field-row">
+                    <div class="field-group"><label>Descripción *</label><input type="text" id="ni-desc" placeholder="Descripción"></div>
+                    <div class="field-group w-auto"><label>Código</label><input type="text" id="ni-codigo" placeholder="Ej: EL-010" style="width:100px;"></div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group w-auto"><label>U.M.</label><input type="text" id="ni-um" value="und" style="width:80px;"></div>
+                    <div class="field-group w-auto"><label>Precio Unit.</label><input type="number" id="ni-precio" value="0" min="0" step="0.01" style="width:120px;text-align:right;"></div>
+                    <div class="field-group w-auto"><label>Cantidad</label><input type="number" id="ni-cant" value="1" min="0.0001" step="0.01" style="width:90px;text-align:right;"></div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:6px;">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="agregarNuevoComp()">Agregar como componente</button>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="toggleNuevoInline()">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not es_nuevo %}
+<div class="card">
+    <div class="card-body" style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:0.8rem;color:var(--sap-text-muted);">ID #{{ item.id }}</span>
+        <form method="post" style="margin-left:auto;" onsubmit="return confirm('¿Eliminar este artículo?')">
+            {% csrf_token %}<input type="hidden" name="accion" value="eliminar">
+            <button type="submit" class="btn btn-sm btn-danger">🗑 Eliminar</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="save-bar">
+    <a href="{% url 'presupuestos:lista_items_predefinidos' %}" class="btn btn-sm">Cancelar</a>
+    <span style="flex:1;font-size:0.78rem;color:var(--sap-text-muted);" id="save-hint"></span>
+    <button type="button" class="btn btn-primary" onclick="antesDeGuardar()">💾 {% if es_nuevo %}Crear artículo{% else %}Guardar cambios{% endif %}</button>
+</div>
+</form>
+</div>
+
+<script>
+var API_FAMILIAS = '{% url "presupuestos:api_familias_por_disciplina" 0 %}';
+var API_CREAR_FAMILIA = '{% url "presupuestos:crear_familia" %}';
+var API_BUSCAR = '{% url "presupuestos:api_buscar_articulos" %}';
+var CSRF = '{{ csrf_token }}';
+
+// ── Estado BOM ──────────────────────────────────────────────────────────────
+// Cada entrada: {tempId, id (si existente), codigo, descripcion, um, precio, cantidad, esNuevo, datos_nuevo}
+var bom = [];
+var tempCounter = 0;
+
+{% if not es_nuevo and item.es_compuesto %}
+// Cargar componentes existentes desde contexto Django
+bom = {{ componentes_iniciales_json|safe }};
+tempCounter = bom.length;
+{% endif %}
+
+// ── Tipo simple / compuesto ─────────────────────────────────────────────────
+var tipoActual = '{% if item and item.es_compuesto %}compuesto{% else %}simple{% endif %}';
+
+function setTipo(t) {
+    tipoActual = t;
+    document.getElementById('hid-compuesto').value = (t === 'compuesto') ? 'on' : 'off';
+    document.getElementById('btn-simple').className = 'tipo-btn' + (t === 'simple' ? ' active-simple' : '');
+    document.getElementById('btn-compuesto').className = 'tipo-btn' + (t === 'compuesto' ? ' active-compuesto' : '');
+    document.getElementById('panel-simple').style.display = (t === 'simple') ? '' : 'none';
+    var pc = document.getElementById('panel-compuesto');
+    if (t === 'compuesto') { pc.classList.remove('hidden'); }
+    else { pc.classList.add('hidden'); }
+    if (t === 'compuesto') { renderBOM(); }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setTipo(tipoActual);
+    if (tipoActual === 'compuesto') renderBOM();
+});
+
+// ── Render BOM table ────────────────────────────────────────────────────────
+function renderBOM() {
+    var tbody = document.getElementById('bom-tbody');
+    tbody.innerHTML = '';
+    if (!bom.length) {
+        tbody.innerHTML = '<tr id="bom-empty-row"><td colspan="7" class="bom-empty">Sin componentes — agrega artículos abajo</td></tr>';
+        actualizarPrecioCalc();
+        return;
+    }
+    bom.forEach(function(c, i) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td style="color:var(--sap-text-muted);font-size:0.73rem;">'+(i+1)+'</td>' +
+            '<td><strong style="font-size:0.84rem;">' + escH(c.descripcion) + '</strong>' +
+            (c.esNuevo ? ' <span style="font-size:0.68rem;background:#d1fae5;color:#065f46;padding:1px 5px;border:1px solid #6ee7b7;">nuevo</span>' : '') +
+            (c.codigo ? '<br><code style="font-size:0.72rem;color:var(--sap-text-muted);">'+escH(c.codigo)+'</code>' : '') +
+            '</td>' +
+            '<td style="font-size:0.8rem;">'+escH(c.um)+'</td>' +
+            '<td style="text-align:right;color:var(--sap-text-muted);font-size:0.8rem;">$ '+parseFloat(c.precio).toFixed(2)+'</td>' +
+            '<td style="text-align:right;"><input type="number" class="qty-inp" value="'+c.cantidad+'" min="0.0001" step="0.01" onchange="setCant('+c.tempId+', this.value)"></td>' +
+            '<td style="text-align:right;font-weight:600;" id="sub-'+c.tempId+'">$ '+(c.cantidad*c.precio).toFixed(2)+'</td>' +
+            '<td><button type="button" class="btn btn-sm" style="color:#dc2626;border:none;background:none;padding:2px 6px;" onclick="quitarComp('+c.tempId+')">✕</button></td>';
+        tbody.appendChild(tr);
+    });
+    actualizarPrecioCalc();
+}
+
+function actualizarPrecioCalc() {
+    var total = bom.reduce(function(s, c) { return s + c.cantidad * c.precio; }, 0);
+    document.getElementById('precio-calculado').textContent = '$ ' + total.toFixed(2);
+    // También actualiza el campo precio_unitario oculto para enviarlo
+    document.getElementById('inp-precio').value = total.toFixed(2);
+}
+
+function setCant(tempId, val) {
+    bom.forEach(function(c) { if (c.tempId === tempId) c.cantidad = parseFloat(val) || 1; });
+    var subEl = document.getElementById('sub-'+tempId);
+    var c = bom.find(function(x){ return x.tempId === tempId; });
+    if (subEl && c) subEl.textContent = '$ ' + (c.cantidad * c.precio).toFixed(2);
+    actualizarPrecioCalc();
+}
+
+function quitarComp(tempId) {
+    bom = bom.filter(function(c) { return c.tempId !== tempId; });
+    renderBOM();
+}
+
+// ── Buscar existente ────────────────────────────────────────────────────────
+var searchT;
+function buscarComp(q) {
+    clearTimeout(searchT);
+    var drop = document.getElementById('results-drop');
+    if (!q.trim()) { drop.classList.remove('open'); return; }
+    searchT = setTimeout(function() {
+        fetch(API_BUSCAR + '?q=' + encodeURIComponent(q))
+            .then(function(r){ return r.json(); })
+            .then(function(items) {
+                drop.innerHTML = '';
+                if (!items.length) {
+                    drop.innerHTML = '<div class="result-row" style="color:var(--sap-text-muted);">Sin resultados</div>';
+                } else {
+                    items.forEach(function(item) {
+                        var d = document.createElement('div');
+                        d.className = 'result-row';
+                        d.innerHTML = '<span class="rc">'+(item.codigo||'—')+'</span><span style="flex:1;">'+escH(item.descripcion.substring(0,60))+'</span><span class="rp">$ '+parseFloat(item.precio_unitario).toFixed(2)+' / '+item.unidad_medida+'</span>';
+                        d.onclick = function() { seleccionarExistente(item); };
+                        drop.appendChild(d);
+                    });
+                }
+                drop.classList.add('open');
+            });
+    }, 250);
+}
+
+function seleccionarExistente(item) {
+    document.getElementById('results-drop').classList.remove('open');
+    document.getElementById('search-comp').value = '';
+    tempCounter++;
+    bom.push({ tempId: tempCounter, id: item.id, codigo: item.codigo, descripcion: item.descripcion, um: item.unidad_medida, precio: item.precio_unitario, cantidad: 1, esNuevo: false, datos_nuevo: null });
+    renderBOM();
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#search-comp') && !e.target.closest('#results-drop')) {
+        document.getElementById('results-drop').classList.remove('open');
+    }
+});
+
+// ── Crear nuevo inline ──────────────────────────────────────────────────────
+function toggleNuevoInline() {
+    var el = document.getElementById('nuevo-inline');
+    el.classList.toggle('open');
+    if (el.classList.contains('open')) document.getElementById('ni-desc').focus();
+}
+
+function agregarNuevoComp() {
+    var desc = document.getElementById('ni-desc').value.trim();
+    var codigo = document.getElementById('ni-codigo').value.trim();
+    var um = document.getElementById('ni-um').value.trim() || 'und';
+    var precio = parseFloat(document.getElementById('ni-precio').value) || 0;
+    var cant = parseFloat(document.getElementById('ni-cant').value) || 1;
+    if (!desc) { alert('La descripción es requerida.'); document.getElementById('ni-desc').focus(); return; }
+    tempCounter++;
+    bom.push({ tempId: tempCounter, id: null, codigo: codigo, descripcion: desc, um: um, precio: precio, cantidad: cant, esNuevo: true, datos_nuevo: { descripcion: desc, codigo: codigo, unidad_medida: um, precio_unitario: precio } });
+    renderBOM();
+    // Limpiar
+    document.getElementById('ni-desc').value = '';
+    document.getElementById('ni-codigo').value = '';
+    document.getElementById('ni-precio').value = '0';
+    document.getElementById('ni-cant').value = '1';
+    document.getElementById('nuevo-inline').classList.remove('open');
+}
+
+// ── Antes de guardar ────────────────────────────────────────────────────────
+function antesDeGuardar() {
+    if (tipoActual === 'compuesto') {
+        var total = bom.reduce(function(s,c){ return s+c.cantidad*c.precio; }, 0);
+        document.getElementById('inp-precio').value = total.toFixed(2);
+    }
+    document.getElementById('componentes-json').value = JSON.stringify(
+        bom.map(function(c){ return { tempId: c.tempId, id: c.id, cantidad: c.cantidad, esNuevo: c.esNuevo, datos_nuevo: c.datos_nuevo }; })
+    );
+    document.getElementById('main-form').submit();
+}
+
+// ── Familia inline ──────────────────────────────────────────────────────────
+function toggleFamiliaPanel() {
+    document.getElementById('nueva-familia-panel').classList.toggle('open');
+}
+function cargarFamilias(discId) {
+    var sel = document.getElementById('sel-familia');
+    sel.innerHTML = '<option value="">— Sin familia —</option>';
+    if (!discId) return;
+    fetch(API_FAMILIAS.replace('/0/', '/'+discId+'/'))
+        .then(function(r){ return r.json(); })
+        .then(function(fs){ fs.forEach(function(f){ var o=document.createElement('option'); o.value=f.id; o.textContent=f.nombre; sel.appendChild(o); }); });
+}
+function crearFamiliaInline() {
+    var nombre = document.getElementById('nueva-familia-nombre').value.trim();
+    var discId = document.getElementById('sel-disciplina').value;
+    if (!nombre || !discId) { alert('Selecciona disciplina e ingresa un nombre.'); return; }
+    var fd = new FormData();
+    fd.append('csrfmiddlewaretoken', CSRF);
+    fd.append('disciplina', discId);
+    fd.append('nombre', nombre);
+    fd.append('descripcion', '');
+    fd.append('orden', '0');
+    fetch(API_CREAR_FAMILIA, { method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'} })
+        .then(function(){ return fetch(API_FAMILIAS.replace('/0/','/'+discId+'/')).then(function(r){ return r.json(); }); })
+        .then(function(fs){
+            var sel=document.getElementById('sel-familia');
+            sel.innerHTML='<option value="">— Sin familia —</option>';
+            fs.forEach(function(f){ var o=document.createElement('option'); o.value=f.id; o.textContent=f.nombre; if(f.nombre===nombre) o.selected=true; sel.appendChild(o); });
+            document.getElementById('nueva-familia-nombre').value='';
+            document.getElementById('nueva-familia-panel').classList.remove('open');
+        });
+}
+function sincronizarUM(el) {
+    var val = el.value.trim(); if (!val) return;
+    var sel = document.getElementById('sel-um');
+    for (var i=0;i<sel.options.length;i++) { if (sel.options[i].value.toLowerCase()===val.toLowerCase()) { sel.selectedIndex=i; return; } }
+    var ex=sel.querySelector('[data-custom]'); if(ex) ex.remove();
+    var opt=document.createElement('option'); opt.value=val; opt.textContent=val; opt.dataset.custom='1'; opt.selected=true; sel.appendChild(opt);
+}
+function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>

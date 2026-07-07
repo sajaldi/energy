@@ -1,0 +1,673 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ plano.titulo|default:plano.nombre }} &mdash; Visor de Plano</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #0f172a; color: #e2e8f0; height: 100vh;
+           display: flex; flex-direction: column; overflow: hidden; }
+    #toolbar { background: #1e293b; border-bottom: 1px solid #334155;
+               padding: 0 16px; height: 52px; display: flex; align-items: center;
+               gap: 10px; flex-shrink: 0; user-select: none; overflow: hidden; }
+    .tb-brand { font-size: 13px; font-weight: 700; color: #60a5fa; white-space: nowrap; }
+    .tb-div   { width: 1px; height: 24px; background: #334155; flex-shrink: 0; }
+    .tb-title { font-size: 13px; font-weight: 600; color: #cbd5e1; flex: 1;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tb-meta  { font-size: 11px; color: #64748b; white-space: nowrap; }
+    .tb-group { display: flex; align-items: center; gap: 4px; }
+    .tb-btn { background: #334155; border: 1px solid #475569; color: #cbd5e1;
+              border-radius: 6px; padding: 0 10px; height: 32px; cursor: pointer;
+              font-size: 13px; font-weight: 600; display: inline-flex; align-items: center;
+              gap: 6px; white-space: nowrap; text-decoration: none;
+              transition: background .15s; }
+    .tb-btn:hover { background: #475569; color: #f1f5f9; }
+    .tb-btn.primary { background: #2563eb; border-color: #3b82f6; color: #fff; }
+    .tb-btn.primary:hover { background: #1d4ed8; }
+    .tb-btn.ico { padding: 0; width: 32px; justify-content: center; }
+    #page-info { font-size: 13px; color: #94a3b8; min-width: 56px; text-align: center; }
+    #zoom-lbl  { font-size: 12px; color: #64748b; min-width: 42px; text-align: center; }
+    #main-area { flex: 1; display: flex; overflow: hidden; }
+    #viewer { flex: 1; overflow: hidden; position: relative; cursor: grab; background: #0f172a; }
+    #viewer.grabbing { cursor: grabbing; }
+    #stage { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; line-height: 0; }
+    #pdf-canvas { display: block; box-shadow: 0 8px 40px rgba(0,0,0,.6); border-radius: 2px;
+                  image-rendering: -webkit-optimize-contrast;
+                  image-rendering: crisp-edges; }
+    #pins-layer { position: absolute; top: 0; left: 0; pointer-events: none; }
+    .pin-dot { position: absolute; pointer-events: all; cursor: pointer;
+               transform: translate(-50%, -100%); filter: drop-shadow(0 2px 4px rgba(0,0,0,.7)); }
+    .pin-dot svg { width: 28px; height: 36px; display: block; }
+    .pin-tip { position: absolute; bottom: 38px; left: 50%; transform: translateX(-50%);
+               background: #1e293b; color: #f1f5f9; font-size: 11px; font-weight: 600;
+               padding: 3px 8px; border-radius: 4px; white-space: nowrap; border: 1px solid #475569;
+               display: none; pointer-events: none; }
+    .pin-dot:hover .pin-tip { display: block; }
+    #overlay { position: absolute; inset: 0; display: flex; flex-direction: column;
+               align-items: center; justify-content: center; gap: 14px; }
+    #overlay.hidden { display: none; }
+    .spinner { width: 38px; height: 38px; border: 3px solid #334155;
+               border-top-color: #60a5fa; border-radius: 50%;
+               animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #err-box { display: none; flex-direction: column; align-items: center;
+               gap: 12px; text-align: center; padding: 32px; }
+    #err-box.show { display: flex; }
+    #err-box p { color: #f87171; font-size: 14px; max-width: 380px; }
+    #thumb-strip { width: 88px; background: #1e293b; border-left: 1px solid #334155;
+                   overflow-y: auto; flex-shrink: 0; display: flex;
+                   flex-direction: column; gap: 6px; padding: 8px 5px; }
+    #thumb-strip.hidden { display: none; }
+    .t-item { cursor: pointer; border: 2px solid transparent; border-radius: 4px;
+              overflow: hidden; transition: border-color .15s; position: relative; }
+    .t-item:hover { border-color: #475569; }
+    .t-item.active { border-color: #3b82f6; }
+    .t-item canvas { width: 100%; display: block; }
+    .t-num { position: absolute; bottom: 2px; right: 4px; font-size: 10px;
+             color: #94a3b8; font-weight: 700; }
+    #ctx { position: fixed; z-index: 9999; min-width: 175px;
+           background: #1e293b; border: 1px solid #475569; border-radius: 8px;
+           box-shadow: 0 8px 24px rgba(0,0,0,.5); padding: 5px 0;
+           font-size: 13px; display: none; }
+    #ctx.show { display: block; }
+    .c-item { padding: 8px 15px; cursor: pointer; color: #cbd5e1; transition: background .1s; }
+    .c-item:hover { background: #334155; color: #f1f5f9; }
+    .c-item.c-danger { color: #f87171; }
+    .c-item.c-danger:hover { background: #450a0a; color: #fca5a5; }
+    .c-sep { height: 1px; background: #334155; margin: 4px 0; }
+    #ctx-pin-menu { position: fixed; z-index: 9999; min-width: 175px;
+           background: #1e293b; border: 1px solid #475569; border-radius: 8px;
+           box-shadow: 0 8px 24px rgba(0,0,0,.5); padding: 5px 0;
+           font-size: 13px; display: none; }
+    #ctx-pin-menu.show { display: block; }
+    #modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.65);
+                display: none; align-items: center; justify-content: center; z-index: 10000; }
+    #modal-bg.show { display: flex; }
+    #modal { background: #1e293b; border: 1px solid #475569; border-radius: 12px;
+             padding: 24px; width: 340px; max-width: 95vw;
+             box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+    #modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+    .ml { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;
+          margin-bottom: 5px; display: block; }
+    .mi { width: 100%; background: #0f172a; border: 1px solid #475569; color: #f1f5f9;
+          border-radius: 6px; padding: 8px 10px; font-size: 13px; outline: none; margin-bottom: 12px; }
+    .mi:focus { border-color: #3b82f6; }
+    .swatches { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+    .sw { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid #475569; flex-shrink: 0; }
+    .ma { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+    #no-file { flex: 1; display: flex; flex-direction: column;
+               align-items: center; justify-content: center; gap: 12px; color: #475569; }
+    #no-file span { font-size: 52px; }
+  </style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <span class="tb-brand">Visor de Plano</span>
+  <div class="tb-div"></div>
+  <span class="tb-title">{{ plano.titulo|default:plano.nombre }}{% if plano.numero_documento %} &middot; <span style="color:#64748b;font-weight:400">{{ plano.numero_documento }}</span>{% endif %}</span>
+  {% if plano.revision_actual %}<span class="tb-meta">{{ plano.revision_actual }}</span><div class="tb-div"></div>{% endif %}
+  {% if plano.disciplina %}<span class="tb-meta">{{ plano.disciplina }}</span><div class="tb-div"></div>{% endif %}
+  <div class="tb-group" id="pg-grp" style="display:none;">
+    <button class="tb-btn ico" id="btn-prev" title="Pagina anterior">&lsaquo;</button>
+    <span id="page-info">1 / 1</span>
+    <button class="tb-btn ico" id="btn-next" title="Pagina siguiente">&rsaquo;</button>
+    <div class="tb-div"></div>
+  </div>
+  <div class="tb-group">
+    <button class="tb-btn ico" id="btn-z-out" title="Reducir">&minus;</button>
+    <span id="zoom-lbl">100%</span>
+    <button class="tb-btn ico" id="btn-z-in"  title="Ampliar">+</button>
+    <button class="tb-btn" id="btn-fit">Ajustar</button>
+    <button class="tb-btn" id="btn-100">1:1</button>
+  </div>
+  <div class="tb-div"></div>
+  <button class="tb-btn" id="btn-thumbs">Paginas</button>
+  <div class="tb-div"></div>
+  <a class="tb-btn primary" href="{% url 'activos:plano_documento_proxy' plano.pk %}" download>Descargar</a>
+</div>
+
+<!-- MAIN -->
+<div id="main-area">
+{% if plano.archivo_actual %}
+  <div id="viewer">
+    <div id="stage">
+      <canvas id="pdf-canvas"></canvas>
+      <div id="pins-layer"></div>
+    </div>
+    <div id="overlay">
+      <div class="spinner"></div>
+      <span style="font-size:13px;color:#64748b;">Cargando plano...</span>
+    </div>
+    <div id="err-box">
+      <p id="err-msg">No se pudo cargar el archivo.</p>
+      <a class="tb-btn primary" href="{% url 'activos:plano_documento_proxy' plano.pk %}" target="_blank">Abrir directamente</a>
+    </div>
+  </div>
+  <div id="thumb-strip" class="hidden"></div>
+{% else %}
+  <div id="no-file"><span>&#128196;</span><p>Este plano no tiene archivo adjunto.</p></div>
+{% endif %}
+</div>
+
+<!-- CONTEXT MENU (canvas) -->
+<div id="ctx">
+  <div class="c-item" id="ctx-pin">&#128204; Agregar PIN aqui</div>
+  <div class="c-sep"></div>
+  <div class="c-item" id="ctx-fit">Ajustar a ventana</div>
+  <div class="c-item" id="ctx-rst">Restablecer zoom</div>
+</div>
+
+<!-- CONTEXT MENU (pin) -->
+<div id="ctx-pin-menu">
+  <div class="c-item" id="ctx-pin-edit">&#9998; Editar PIN</div>
+  <div class="c-item c-danger" id="ctx-pin-del">&#128465; Eliminar PIN</div>
+</div>
+
+<!-- PIN MODAL (nuevo/editar) -->
+<div id="modal-bg">
+  <div id="modal">
+    <h3>&#128204; <span id="modal-title">Nuevo PIN</span></h3>
+    <label class="ml">Nota / Etiqueta</label>
+    <input class="mi" id="pm-nota" type="text" placeholder="Descripcion del punto...">
+    <label class="ml">Color</label>
+    <div class="swatches">
+      <input type="color" id="pm-color" value="#ef4444" style="width:38px;height:30px;border:none;background:none;cursor:pointer;padding:0;border-radius:4px;">
+      <div class="sw" style="background:#ef4444" onclick="document.getElementById('pm-color').value='#ef4444'"></div>
+      <div class="sw" style="background:#f59e0b" onclick="document.getElementById('pm-color').value='#f59e0b'"></div>
+      <div class="sw" style="background:#22c55e" onclick="document.getElementById('pm-color').value='#22c55e'"></div>
+      <div class="sw" style="background:#3b82f6" onclick="document.getElementById('pm-color').value='#3b82f6'"></div>
+      <div class="sw" style="background:#a855f7" onclick="document.getElementById('pm-color').value='#a855f7'"></div>
+      <div class="sw" style="background:#ffffff" onclick="document.getElementById('pm-color').value='#ffffff'"></div>
+    </div>
+    <div class="ma">
+      <button class="tb-btn" id="pm-cancel">Cancelar</button>
+      <button class="tb-btn primary" id="pm-save">Guardar PIN</button>
+    </div>
+  </div>
+</div>
+
+<!-- PIN DETAIL MODAL (click izquierdo sobre pin) -->
+<div id="pin-detail-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.65);
+     display:none;align-items:center;justify-content:center;z-index:10000;">
+  <div style="background:#1e293b;border:1px solid #475569;border-radius:12px;
+              padding:24px;width:340px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.6);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div id="pd-color-dot" style="width:16px;height:16px;border-radius:50%;flex-shrink:0;"></div>
+      <h3 style="font-size:15px;font-weight:700;flex:1;color:#f1f5f9;">PIN #<span id="pd-id"></span></h3>
+      <button id="pd-close" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;line-height:1;">&times;</button>
+    </div>
+    <label class="ml">Nota</label>
+    <div id="pd-nota-view" style="font-size:14px;color:#cbd5e1;margin-bottom:16px;min-height:20px;"></div>
+    <label class="ml">Coordenadas</label>
+    <div style="font-size:12px;color:#64748b;margin-bottom:20px;">x: <span id="pd-x"></span> &nbsp; y: <span id="pd-y"></span></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;">
+      <button class="tb-btn c-danger" id="pd-delete"
+              style="background:#450a0a;border-color:#7f1d1d;color:#fca5a5;">
+        &#128465; Eliminar
+      </button>
+      <button class="tb-btn primary" id="pd-edit">&#9998; Editar</button>
+    </div>
+  </div>
+</div>
+
+{% if plano.archivo_actual %}
+{{ pines_data|json_script:"pines-data" }}
+<script>
+(function () {
+  'use strict';
+  var PROXY_URL   = "{% url 'activos:plano_documento_proxy' plano.pk %}";
+  var VISOR_ID    = {{ visor.pk }};
+  var IS_PDF      = {% if is_pdf %}true{% else %}false{% endif %};
+  var SAVE_URL    = "{% url 'activos:guardar_pin' %}";
+  var CSRF        = "{{ csrf_token }}";
+
+  // Pines existentes — inyectados de forma segura via json_script
+  var pinesEl   = document.getElementById('pines-data');
+  var PINES_INIT = pinesEl ? JSON.parse(pinesEl.textContent) : [];
+
+  // State
+  var pdfDoc = null, curPage = 1, totPages = 1;
+  var scale = 1, base = 1, cssW = 0, cssH = 0;
+  var tx = 0, ty = 0;
+  var panning = false, px0, py0, tx0, ty0;
+  var thumbsOn = false;
+  var ctxX = 0, ctxY = 0;
+
+  // Elements
+  var canvas    = document.getElementById('pdf-canvas');
+  var ctx       = canvas.getContext('2d');
+  var stage     = document.getElementById('stage');
+  var viewer    = document.getElementById('viewer');
+  var overlay   = document.getElementById('overlay');
+  var errBox    = document.getElementById('err-box');
+  var errMsg    = document.getElementById('err-msg');
+  var pageInfo  = document.getElementById('page-info');
+  var zoomLbl   = document.getElementById('zoom-lbl');
+  var thumbs    = document.getElementById('thumb-strip');
+  var pgGrp     = document.getElementById('pg-grp');
+  var pins      = document.getElementById('pins-layer');
+  var ctxMenu   = document.getElementById('ctx');
+  var modalBg   = document.getElementById('modal-bg');
+  var pmNota    = document.getElementById('pm-nota');
+  var pmColor   = document.getElementById('pm-color');
+
+  function xform() {
+    stage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+  }
+
+  function clamp() {
+    var vw = viewer.clientWidth, vh = viewer.clientHeight;
+    var cw = cssW * scale, ch = cssH * scale;
+    var pad = 40;
+    if (cw < vw) { tx = Math.max(0, Math.min(vw - cw, tx)); }
+    else { tx = Math.max(-(cw - vw) - pad, Math.min(pad, tx)); }
+    if (ch < vh) { ty = Math.max(0, Math.min(vh - ch, ty)); }
+    else { ty = Math.max(-(ch - vh) - pad, Math.min(pad, ty)); }
+  }
+
+  function center() {
+    tx = (viewer.clientWidth  - cssW * scale) / 2;
+    ty = (viewer.clientHeight - cssH * scale) / 2;
+    xform();
+  }
+
+  function zoomAt(f, vx, vy) {
+    var ns = Math.min(Math.max(scale * f, 0.05), 20);
+    var r = ns / scale;
+    tx = vx - r * (vx - tx);
+    ty = vy - r * (vy - ty);
+    scale = ns;
+    clamp(); xform();
+    zoomLbl.textContent = Math.round(scale / base * 100) + '%';
+  }
+
+  function zoom(f) { zoomAt(f, viewer.clientWidth / 2, viewer.clientHeight / 2); }
+
+  // Render PDF page — returns Promise
+  function renderPage(n) {
+    if (!pdfDoc) return Promise.resolve();
+    return pdfDoc.getPage(n).then(function(page) {
+      // Render a 4x para máxima nitidez en planos técnicos
+      var RENDER_FACTOR = 4;
+      var vp  = page.getViewport({ scale: base * RENDER_FACTOR });
+      canvas.width  = vp.width;
+      canvas.height = vp.height;
+      cssW = vp.width  / RENDER_FACTOR;
+      cssH = vp.height / RENDER_FACTOR;
+      canvas.style.width  = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      pins.style.width    = cssW + 'px';
+      pins.style.height   = cssH + 'px';
+      // Renderizado de alta calidad: background blanco + antialiasing desactivado
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      return page.render({ canvasContext: ctx, viewport: vp, intent: 'print',
+                           background: 'rgba(255,255,255,1)' }).promise;
+    }).then(function() {
+      curPage = n;
+      pageInfo.textContent = n + ' / ' + totPages;
+    });
+  }
+
+  function fitToWindow() {
+    if (!pdfDoc) return;
+    // Usar requestAnimationFrame para asegurar que el viewer tiene dimensiones reales
+    requestAnimationFrame(function() {
+      pdfDoc.getPage(curPage).then(function(page) {
+        var vp = page.getViewport({ scale: 1 });
+        var sw = (viewer.clientWidth  - 48) / vp.width;
+        var sh = (viewer.clientHeight - 48) / vp.height;
+        base  = Math.max(Math.min(sw, sh), 0.01); // evitar 0
+        scale = base;
+        renderPage(curPage).then(function() {
+          center();
+          overlay.classList.add('hidden');
+          zoomLbl.textContent = '100%';
+          loadExistingPins();
+        }).catch(function(err) {
+          showErr('Error al renderizar: ' + err.message);
+        });
+      }).catch(function(err) {
+        showErr('Error al obtener pagina: ' + err.message);
+      });
+    });
+  }
+
+  // Pan
+  viewer.addEventListener('mousedown', function(e) {
+    if (e.button !== 0) return;
+    panning = true; px0 = e.clientX; py0 = e.clientY; tx0 = tx; ty0 = ty;
+    viewer.classList.add('grabbing');
+  });
+  window.addEventListener('mouseup', function() {
+    panning = false; viewer.classList.remove('grabbing');
+  });
+  viewer.addEventListener('mousemove', function(e) {
+    if (!panning) return;
+    tx = tx0 + (e.clientX - px0);
+    ty = ty0 + (e.clientY - py0);
+    xform();
+  });
+
+  // Wheel zoom
+  viewer.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var r = viewer.getBoundingClientRect();
+    zoomAt(e.deltaY < 0 ? 1.1 : 1/1.1, e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+
+  // Touch pinch
+  var t0d = null, t0s, t0tx, t0ty;
+  viewer.addEventListener('touchstart', function(e) {
+    if (e.touches.length !== 2) return;
+    t0d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                     e.touches[0].clientY - e.touches[1].clientY);
+    t0s = scale; t0tx = tx; t0ty = ty;
+  }, { passive: true });
+  viewer.addEventListener('touchmove', function(e) {
+    if (e.touches.length !== 2 || !t0d) return;
+    e.preventDefault();
+    var d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                       e.touches[0].clientY - e.touches[1].clientY);
+    scale = Math.min(Math.max(t0s * d / t0d, 0.05), 20);
+    tx = t0tx; ty = t0ty; clamp(); xform();
+    zoomLbl.textContent = Math.round(scale / base * 100) + '%';
+  }, { passive: false });
+  viewer.addEventListener('touchend', function() { t0d = null; });
+
+  // Context menu
+  function hideCtx() { ctxMenu.classList.remove('show'); }
+
+  viewer.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    var r = viewer.getBoundingClientRect();
+    ctxX = (e.clientX - r.left - tx) / scale;
+    ctxY = (e.clientY - r.top  - ty) / scale;
+    ctxMenu.style.left = Math.min(e.clientX, window.innerWidth  - 190) + 'px';
+    ctxMenu.style.top  = Math.min(e.clientY, window.innerHeight - 110) + 'px';
+    ctxMenu.classList.add('show');
+  });
+  document.addEventListener('click', hideCtx);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { hideCtx(); modalBg.classList.remove('show'); }
+  });
+
+  document.getElementById('ctx-fit').addEventListener('click', fitToWindow);
+  document.getElementById('ctx-rst').addEventListener('click', function() {
+    scale = base; center(); zoomLbl.textContent = '100%';
+  });
+
+  // ── Pin detail/edit/delete ───────────────────────────────
+  var detailBg  = document.getElementById('pin-detail-bg');
+  var pdId      = document.getElementById('pd-id');
+  var pdNota    = document.getElementById('pd-nota-view');
+  var pdX       = document.getElementById('pd-x');
+  var pdY       = document.getElementById('pd-y');
+  var pdDot     = document.getElementById('pd-color-dot');
+  var activePinEl  = null;  // DOM element del pin seleccionado
+  var activePinId  = null;  // id numérico
+  var activePinX   = 0, activePinY = 0;
+
+  function openPinDetail(el) {
+    activePinEl  = el;
+    activePinId  = parseInt(el.dataset.id);
+    activePinX   = parseFloat(el.style.left);
+    activePinY   = parseFloat(el.style.top);
+    var nota     = el.dataset.nota  || '';
+    var color    = el.dataset.color || '#ef4444';
+    pdId.textContent   = activePinId;
+    pdNota.textContent = nota || '(sin nota)';
+    pdX.textContent    = activePinX.toFixed(1);
+    pdY.textContent    = activePinY.toFixed(1);
+    pdDot.style.background = color;
+    detailBg.style.display  = 'flex';
+  }
+
+  document.getElementById('pd-close').addEventListener('click', function() {
+    detailBg.style.display = 'none';
+  });
+  detailBg.addEventListener('click', function(e) {
+    if (e.target === detailBg) detailBg.style.display = 'none';
+  });
+
+  // Editar desde el detalle
+  document.getElementById('pd-edit').addEventListener('click', function() {
+    detailBg.style.display = 'none';
+    document.getElementById('modal-title').textContent = 'Editar PIN';
+    pmNota.value  = activePinEl.dataset.nota  || '';
+    pmColor.value = activePinEl.dataset.color || '#ef4444';
+    // Marcar modal en modo edición
+    modalBg.dataset.editId = activePinId;
+    modalBg.classList.add('show');
+    setTimeout(function() { pmNota.focus(); }, 60);
+  });
+
+  // Eliminar
+  document.getElementById('pd-delete').addEventListener('click', function() {
+    if (!activePinId) return;
+    if (!confirm('¿Eliminar este PIN?')) return;
+    fetch("{% url 'activos:eliminar_pin' 0 %}".replace('/0/', '/' + activePinId + '/'), {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF },
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'ok' || data.status === 'success') {
+        if (activePinEl && activePinEl.parentNode) activePinEl.parentNode.removeChild(activePinEl);
+        detailBg.style.display = 'none';
+      } else {
+        alert('Error al eliminar: ' + (data.message || ''));
+      }
+    })
+    .catch(function(err) { alert('Error: ' + err.message); });
+  });
+  // Abrir modal nuevo PIN desde menú contextual
+  document.getElementById('ctx-pin').addEventListener('click', function() {
+    document.getElementById('modal-title').textContent = 'Nuevo PIN';
+    pmNota.value = ''; pmColor.value = '#ef4444';
+    delete modalBg.dataset.editId;
+    modalBg.classList.add('show');
+    setTimeout(function() { pmNota.focus(); }, 60);
+  });
+  document.getElementById('pm-cancel').addEventListener('click', function() {
+    modalBg.classList.remove('show');
+  });
+  modalBg.addEventListener('click', function(e) {
+    if (e.target === modalBg) modalBg.classList.remove('show');
+  });
+
+  document.getElementById('pm-save').addEventListener('click', function() {
+    var nota    = pmNota.value.trim();
+    var color   = pmColor.value;
+    var editId  = modalBg.dataset.editId;
+    var isEdit  = !!editId;
+
+    var params = 'visor_id=' + VISOR_ID +
+                 '&x=' + (isEdit ? activePinX.toFixed(2) : ctxX.toFixed(2)) +
+                 '&y=' + (isEdit ? activePinY.toFixed(2) : ctxY.toFixed(2)) +
+                 '&color=' + encodeURIComponent(color) +
+                 '&nota='  + encodeURIComponent(nota);
+
+    if (isEdit) params += '&id=' + editId;
+
+    fetch(SAVE_URL, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params,
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function(data) {
+      if (data.status === 'success' || data.status === 'ok' || data.pin_id || data.id) {
+        var pinId = data.pin_id || data.id || Date.now();
+        if (isEdit && activePinEl) {
+          // Actualizar el pin existente en el DOM
+          activePinEl.dataset.nota  = nota;
+          activePinEl.dataset.color = color;
+          activePinEl.innerHTML =
+            '<svg viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">' +
+              '<path d="M12 0C5.4 0 0 5.4 0 12c0 8 12 20 12 20s12-12 12-20C24 5.4 18.6 0 12 0z"' +
+                    ' fill="' + color + '" stroke="rgba(0,0,0,.4)" stroke-width="1"/>' +
+              '<circle cx="12" cy="12" r="5" fill="rgba(255,255,255,.8)"/>' +
+            '</svg>' +
+            (nota ? '<div class="pin-tip">' + nota + '</div>' : '');
+          activePinEl.onclick = function(e) { e.stopPropagation(); openPinDetail(activePinEl); };
+        } else {
+          addPin(pinId, ctxX, ctxY, color, nota);
+        }
+        delete modalBg.dataset.editId;
+        modalBg.classList.remove('show');
+      } else {
+        alert('Error: ' + (data.message || 'No se pudo guardar el PIN'));
+      }
+    })
+    .catch(function(err) { alert('Error de red: ' + err.message); });
+  });
+
+  function addPin(id, x, y, color, nota) {
+    var el = document.createElement('div');
+    el.className       = 'pin-dot';
+    el.dataset.id      = id;
+    el.dataset.nota    = nota  || '';
+    el.dataset.color   = color || '#ef4444';
+    el.style.left      = x + 'px';
+    el.style.top       = y + 'px';
+    el.innerHTML =
+      '<svg viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">' +
+        '<path d="M12 0C5.4 0 0 5.4 0 12c0 8 12 20 12 20s12-12 12-20C24 5.4 18.6 0 12 0z"' +
+              ' fill="' + color + '" stroke="rgba(0,0,0,.4)" stroke-width="1"/>' +
+        '<circle cx="12" cy="12" r="5" fill="rgba(255,255,255,.8)"/>' +
+      '</svg>' +
+      (nota ? '<div class="pin-tip">' + nota + '</div>' : '');
+    // Clic izquierdo → abrir detalle/editar/eliminar
+    el.addEventListener('click', function(e) {
+      e.stopPropagation();  // evita que el viewer inicie un pan
+      openPinDetail(el);
+    });
+    pins.appendChild(el);
+  }
+
+  function loadExistingPins() {
+    pins.innerHTML = '';
+    for (var i = 0; i < PINES_INIT.length; i++) {
+      var p = PINES_INIT[i];
+      addPin(p.id, p.x, p.y, p.color, p.nota);
+    }
+  }
+
+  // Thumbnails
+  function buildThumbs() {
+    thumbs.innerHTML = '';
+    var i = 1;
+    function next() {
+      if (i > totPages) return;
+      pdfDoc.getPage(i).then(function(page) {
+        var vp = page.getViewport({ scale: 0.15 });
+        var tc = document.createElement('canvas');
+        tc.width = vp.width; tc.height = vp.height;
+        return page.render({ canvasContext: tc.getContext('2d'), viewport: vp }).promise
+          .then(function() {
+            var item = document.createElement('div');
+            item.className = 't-item';
+            if (i === curPage) item.classList.add('active');
+            item.dataset.page = i;
+            var lbl = document.createElement('span');
+            lbl.className = 't-num'; lbl.textContent = i;
+            item.appendChild(tc); item.appendChild(lbl);
+            var pg = i;
+            item.addEventListener('click', function() { renderPage(pg); });
+            thumbs.appendChild(item);
+            i++; next();
+          });
+      });
+    }
+    next();
+  }
+
+  // Toolbar buttons
+  document.getElementById('btn-prev').addEventListener('click', function() { if (curPage > 1) renderPage(curPage - 1); });
+  document.getElementById('btn-next').addEventListener('click', function() { if (curPage < totPages) renderPage(curPage + 1); });
+  document.getElementById('btn-z-in').addEventListener('click',  function() { zoom(1.25); });
+  document.getElementById('btn-z-out').addEventListener('click', function() { zoom(1/1.25); });
+  document.getElementById('btn-fit').addEventListener('click', fitToWindow);
+  document.getElementById('btn-100').addEventListener('click', function() { scale = base; center(); zoomLbl.textContent = '100%'; });
+  document.getElementById('btn-thumbs').addEventListener('click', function() {
+    thumbsOn = !thumbsOn;
+    thumbs.classList.toggle('hidden', !thumbsOn);
+    if (thumbsOn && thumbs.children.length === 0) buildThumbs();
+  });
+
+  // Keyboard
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { if (curPage < totPages) renderPage(curPage + 1); }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { if (curPage > 1) renderPage(curPage - 1); }
+    if (e.key === '+' || e.key === '=') zoom(1.25);
+    if (e.key === '-') zoom(1/1.25);
+    if (e.key === '0') fitToWindow();
+  });
+
+  // Error helper
+  function showErr(msg) {
+    overlay.classList.add('hidden');
+    errBox.classList.add('show');
+    errMsg.textContent = msg;
+  }
+
+  // Load PDF
+  function loadPdf() {
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = function() {
+      var lib = window.pdfjsLib;
+      if (!lib) { showErr('pdf.js no disponible'); return; }
+      lib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      lib.getDocument({ url: PROXY_URL, withCredentials: true }).promise
+        .then(function(doc) {
+          pdfDoc = doc; totPages = doc.numPages;
+          pageInfo.textContent = '1 / ' + totPages;
+          if (totPages > 1) pgGrp.style.display = 'flex';
+          fitToWindow();
+        })
+        .catch(function(err) { showErr('Error al cargar PDF: ' + err.message); });
+    };
+    s.onerror = function() { showErr('No se pudo cargar pdf.js'); };
+    document.head.appendChild(s);
+  }
+
+  // Load image
+  function loadImg() {
+    var img = new Image();
+    img.src = PROXY_URL;
+    img.style.cssText = 'display:block;box-shadow:0 8px 40px rgba(0,0,0,.6);border-radius:2px;max-width:none;';
+    img.onload = function() {
+      cssW = img.naturalWidth; cssH = img.naturalHeight;
+      canvas.style.display = 'none';
+      stage.insertBefore(img, pins);
+      pins.style.width  = cssW + 'px';
+      pins.style.height = cssH + 'px';
+      base  = Math.min((viewer.clientWidth - 48) / cssW, (viewer.clientHeight - 48) / cssH);
+      scale = base;
+      center();
+      overlay.classList.add('hidden');
+      zoomLbl.textContent = '100%';
+      loadExistingPins();
+    };
+    img.onerror = function() { showErr('No se pudo cargar la imagen.'); };
+  }
+
+  if (IS_PDF) { loadPdf(); } else { loadImg(); }
+
+})();
+</script>
+{% endif %}
+</body>
+</html>

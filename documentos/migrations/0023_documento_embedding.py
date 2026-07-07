@@ -11,6 +11,12 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Habilitar la extensión pgvector antes de crear columnas de tipo vector.
+        # Idempotente: IF NOT EXISTS no falla si ya está instalada.
+        migrations.RunSQL(
+            sql="CREATE EXTENSION IF NOT EXISTS vector;",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.AddField(
             model_name='documento',
             name='embedding',

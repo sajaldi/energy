@@ -438,6 +438,77 @@
             </div>
         </div>
 
+        <!-- ── Orden de Trabajo ────────────────────────────── -->
+        {% if ot_existente %}
+        <div class="fiori-card" style="border-left: 4px solid var(--sap-success);">
+            <div class="card-header" style="background: var(--sap-success-bg);">
+                <ion-icon name="clipboard-outline" style="color:var(--sap-success);"></ion-icon>
+                <h2 style="color:var(--sap-success);">Orden de Trabajo Vinculada</h2>
+            </div>
+            <div class="card-content">
+                <div class="fiori-form-group">
+                    <label>Código</label>
+                    <div class="value">
+                        <ion-icon name="barcode-outline"></ion-icon>
+                        <strong>{{ ot_existente.codigo_de_orden }}</strong>
+                    </div>
+                </div>
+                <div class="fiori-form-group">
+                    <label>Estado</label>
+                    <div class="value">
+                        <ion-icon name="pulse-outline"></ion-icon>
+                        <span>{{ ot_existente.get_estado_display }}</span>
+                    </div>
+                </div>
+                {% if ot_existente.tecnico %}
+                <div class="fiori-form-group">
+                    <label>Técnico Asignado</label>
+                    <div class="value">
+                        <ion-icon name="construct-outline"></ion-icon>
+                        <span>{{ ot_existente.tecnico.get_full_name|default:ot_existente.tecnico.username }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="fiori-form-group">
+                    <label>Inicio Programado</label>
+                    <div class="value">
+                        <ion-icon name="calendar-outline"></ion-icon>
+                        <span>{{ ot_existente.inicio_programado|date:"d M Y, H:i" }}</span>
+                    </div>
+                </div>
+                <a href="/admin/mantenimiento/ordentrabajo/{{ ot_existente.id }}/change/" 
+                   target="_blank"
+                   style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;color:var(--sap-brand-color);font-weight:700;text-decoration:none;">
+                    <ion-icon name="open-outline"></ion-icon> Ver en Admin
+                </a>
+            </div>
+        </div>
+        {% elif aviso.estado == 'ABIERTO' or aviso.estado == 'PROCESO' %}
+        <div class="fiori-card" id="otCreateCard">
+            <div class="card-header">
+                <ion-icon name="add-circle-outline"></ion-icon>
+                <h2>Generar Orden de Trabajo</h2>
+            </div>
+            <div class="card-content">
+                <p style="font-size:13px;color:var(--sap-text-muted);margin:0 0 14px;">
+                    Convierte este aviso en una OT Correctiva formal para su ejecución.
+                </p>
+                <div style="margin-bottom:12px;">
+                    <label style="display:block;font-size:11px;font-weight:800;color:var(--sap-text-muted);text-transform:uppercase;margin-bottom:6px;">
+                        Fecha y Hora Programada
+                    </label>
+                    <input type="datetime-local" id="otFechaInicioFiori"
+                           style="width:100%;padding:10px;border:1px solid var(--sap-border-color);border-radius:var(--sap-border-radius);font-size:14px;font-family:inherit;">
+                </div>
+                <div id="otFioriMsg" style="display:none;padding:10px 12px;border-radius:6px;font-size:13px;font-weight:600;margin-bottom:10px;"></div>
+                <button id="btnCrearOTFiori" onclick="crearOTFiori()"
+                        style="width:100%;padding:13px;background:var(--sap-brand-color);color:white;border:none;border-radius:var(--sap-border-radius);font-size:14px;font-weight:800;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-transform:uppercase;">
+                    <ion-icon name="add-circle-outline"></ion-icon> Crear Orden de Trabajo
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="fiori-card">
             <div class="card-header">
                 <ion-icon name="analytics-outline"></ion-icon>
@@ -501,9 +572,14 @@
             <ion-icon name="create-outline"></ion-icon> Editar
         </a>
         {% endif %}
-        {% if aviso.estado == 'ABIERTO' or aviso.estado == 'PROCESO' %}
-        <a href="{% url 'mantenimiento:mobile_aviso_editar' aviso.id %}#cierre" class="fiori-btn fiori-btn-secondary" style="background:var(--sap-success);color:white;border:none;">
-            <ion-icon name="checkmark-done-circle-outline"></ion-icon> Cerrar Aviso
+        {% if not ot_existente and aviso.estado != 'CERRADO' and aviso.estado != 'CANCELADO' %}
+        <button onclick="scrollToOT()" class="fiori-btn" style="background:#e86c00;color:white;border:none;flex:1;">
+            <ion-icon name="clipboard-outline"></ion-icon> Crear OT
+        </button>
+        {% elif ot_existente %}
+        <a href="/admin/mantenimiento/ordentrabajo/{{ ot_existente.id }}/change/" target="_blank"
+           class="fiori-btn" style="background:var(--sap-success);color:white;border:none;flex:1;">
+            <ion-icon name="clipboard-outline"></ion-icon> Ver OT
         </a>
         {% endif %}
         <a href="tel:{{ aviso.solicitante.perfil_usuario.telefono }}" class="fiori-btn fiori-btn-ghost">
@@ -521,6 +597,71 @@
                 confirmButtonColor: 'var(--sap-brand-color)'
             });
         }
+
+        function scrollToOT() {
+            const card = document.getElementById('otCreateCard');
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.style.outline = '2px solid var(--sap-brand-color)';
+                setTimeout(() => card.style.outline = '', 1500);
+            }
+        }
+
+        function crearOTFiori() {
+            const btn = document.getElementById('btnCrearOTFiori');
+            const msg = document.getElementById('otFioriMsg');
+            const fecha = document.getElementById('otFechaInicioFiori').value;
+
+            if (!fecha) {
+                msg.style.cssText = 'display:block;background:#fff3cd;color:#856404;border:1px solid #ffc107;padding:10px 12px;border-radius:6px;font-size:13px;font-weight:600;margin-bottom:10px;';
+                msg.textContent = '⚠ Seleccione una fecha y hora programada.';
+                document.getElementById('otFechaInicioFiori').focus();
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon>&nbsp; Creando...';
+            msg.style.display = 'none';
+
+            fetch('/mantenimiento/avisos/api/create-ot/{{ aviso.id }}/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ fecha_inicio: fecha })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    msg.style.cssText = 'display:block;padding:10px 12px;border-radius:6px;font-size:13px;font-weight:600;margin-bottom:10px;background:var(--sap-success-bg);color:var(--sap-success);border:1px solid var(--sap-success);';
+                    msg.innerHTML = `✔ ${res.message} &mdash; <a href="/admin/mantenimiento/ordentrabajo/${res.ot_id}/change/" target="_blank" style="color:var(--sap-brand-color);font-weight:700;">Abrir ${res.ot_codigo}</a>`;
+                    btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon>&nbsp; OT Creada';
+                    btn.style.background = 'var(--sap-success)';
+                } else {
+                    msg.style.cssText = 'display:block;padding:10px 12px;border-radius:6px;font-size:13px;font-weight:600;margin-bottom:10px;background:var(--sap-error-bg);color:var(--sap-error);border:1px solid var(--sap-error);';
+                    msg.textContent = '✕ ' + res.message;
+                    btn.disabled = false;
+                    btn.innerHTML = '<ion-icon name="add-circle-outline"></ion-icon>&nbsp; Crear Orden de Trabajo';
+                }
+            })
+            .catch(() => {
+                msg.style.cssText = 'display:block;padding:10px 12px;border-radius:6px;font-size:13px;font-weight:600;margin-bottom:10px;background:var(--sap-error-bg);color:var(--sap-error);border:1px solid var(--sap-error);';
+                msg.textContent = '✕ Error de red. Intente de nuevo.';
+                btn.disabled = false;
+                btn.innerHTML = '<ion-icon name="add-circle-outline"></ion-icon>&nbsp; Crear Orden de Trabajo';
+            });
+        }
+
+        // Pre-llenar fecha con ahora + 1 hora
+        (function() {
+            const input = document.getElementById('otFechaInicioFiori');
+            if (input) {
+                const now = new Date();
+                now.setHours(now.getHours() + 1, 0, 0, 0);
+                input.value = now.toISOString().slice(0, 16);
+            }
+        })();
     </script>
 </body>
 </html>

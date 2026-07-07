@@ -67,5 +67,6 @@ urlpatterns = [
     path('api/webhook/vector-update/', views.webhook_ticket_vector_callback, name='webhook_ticket_vector_callback'),
     path('app/ticket/new-cierre/<int:pk>/', views.mobile_ticket_cierre_view, name='mobile_ticket_cierre'),
     path('cluster/create-manual-ajax/', views.create_cluster_manual_ajax, name='create_cluster_manual_ajax'),
+    path('sync-sig/', views.trigger_sync_dashboard, name='trigger_sync_dashboard'),
 ]
 

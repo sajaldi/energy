@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.db.models import Sum, Q
 from django.db import models
-from .models import PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, ItemPresupuesto, PresupuestoAgrupado, Cotizacion, ItemCotizacion, ItemPredefinido, Moneda
+from .models import PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, ItemPresupuesto, PresupuestoAgrupado, Cotizacion, ItemCotizacion, ItemPredefinido, FamiliaItem, ComponenteItem, Moneda
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST
 from django.contrib import messages
@@ -2539,13 +2539,15 @@ def crear_cotizacion(request):
         proyecto_id = request.POST.get('proyecto')
         disciplina_id = request.POST.get('disciplina')
         fecha = request.POST.get('fecha')
+        version = request.POST.get('version') or 1
         valida_hasta = request.POST.get('valida_hasta') or None
+        notas = request.POST.get('notas', '')
         items_json = request.POST.get('items', '[]')
         import json
         items = json.loads(items_json)
 
-        if not disciplina_id or not fecha or not items:
-            messages.error(request, 'Faltan campos requeridos.')
+        if not fecha:
+            messages.error(request, 'La fecha es requerida.')
             return redirect('presupuestos:crear_cotizacion')
 
         ultimo = Cotizacion.objects.aggregate(models.Max('id'))['id__max'] or 0
@@ -2554,16 +2556,20 @@ def crear_cotizacion(request):
         cotizacion = Cotizacion.objects.create(
             numero=numero,
             proyecto_id=proyecto_id or None,
-            disciplina_id=disciplina_id,
+            disciplina=None,
             fecha=fecha,
+            version=int(version),
             valida_hasta=valida_hasta,
+            notas=notas,
             creado_por=request.user,
         )
 
         for idx, item in enumerate(items):
+            predef_id = item.get('item_predefinido_id') or None
             ItemCotizacion.objects.create(
                 cotizacion=cotizacion,
-                item_predefinido_id=item.get('item_predefinido_id') or None,
+                item_predefinido_id=predef_id,
+                disciplina_id=item.get('disciplina_id') or None,
                 descripcion=item['descripcion'],
                 unidad_medida=item['unidad_medida'],
                 cantidad=item['cantidad'],
@@ -2573,10 +2579,10 @@ def crear_cotizacion(request):
             )
 
         messages.success(request, f'Cotización {numero} creada exitosamente.')
-        return redirect('presupuestos:editar_cotizacion', pk=cotizacion.pk)
+        return redirect('presupuestos:ver_cotizacion', pk=cotizacion.pk)
 
     disciplinas = Disciplina.objects.all()
-    proyectos = Proyecto.objects.filter(activo=True)
+    proyectos = Proyecto.objects.all()
     return render(request, 'presupuestos/form_cotizacion.html', {
         'disciplinas': disciplinas,
         'proyectos': proyectos,
@@ -2594,8 +2600,8 @@ def editar_cotizacion(request, pk):
         accion = request.POST.get('accion')
         if accion == 'guardar_cabecera':
             cotizacion.proyecto_id = request.POST.get('proyecto') or None
-            cotizacion.disciplina_id = request.POST.get('disciplina')
             cotizacion.fecha = request.POST.get('fecha')
+            cotizacion.version = int(request.POST.get('version') or 1)
             cotizacion.valida_hasta = request.POST.get('valida_hasta') or None
             cotizacion.notas = request.POST.get('notas', '')
             cotizacion.save()
@@ -2612,9 +2618,11 @@ def editar_cotizacion(request, pk):
             items = json.loads(items_json)
             cotizacion.items.all().delete()
             for idx, item in enumerate(items):
+                predef_id = item.get('item_predefinido_id') or None
                 ItemCotizacion.objects.create(
                     cotizacion=cotizacion,
-                    item_predefinido_id=item.get('item_predefinido_id') or None,
+                    item_predefinido_id=predef_id,
+                    disciplina_id=item.get('disciplina_id') or None,
                     descripcion=item['descripcion'],
                     unidad_medida=item['unidad_medida'],
                     cantidad=item['cantidad'],
@@ -2629,14 +2637,41 @@ def editar_cotizacion(request, pk):
             return redirect('presupuestos:lista_cotizaciones')
         return redirect('presupuestos:editar_cotizacion', pk=cotizacion.pk)
 
+    from collections import defaultdict
+    import json as json_mod
+
     disciplinas = Disciplina.objects.all()
-    proyectos = Proyecto.objects.filter(activo=True)
-    items = cotizacion.items.all().order_by('orden')
+    proyectos = Proyecto.objects.all()
+    items_qs = cotizacion.items.select_related('disciplina').order_by('orden')
+
+    grupos = defaultdict(list)
+    for item in items_qs:
+        key = item.disciplina_id
+        grupos[key].append({
+            'id': item.id,
+            'disciplina_id': item.disciplina_id,
+            'disciplina_nombre': item.disciplina.nombre if item.disciplina else 'Sin disciplina',
+            'item_predefinido_id': item.item_predefinido_id,
+            'descripcion': item.descripcion,
+            'unidad_medida': item.unidad_medida,
+            'cantidad': float(item.cantidad),
+            'precio_unitario': float(item.precio_unitario),
+            'descuento_porcentaje': float(item.descuento_porcentaje),
+        })
+
+    items_por_disciplina = []
+    for disc_id, items_list in grupos.items():
+        items_por_disciplina.append({
+            'disciplina_id': disc_id,
+            'disciplina_nombre': items_list[0]['disciplina_nombre'],
+            'items': items_list,
+        })
+
     return render(request, 'presupuestos/form_cotizacion.html', {
         'cotizacion': cotizacion,
         'disciplinas': disciplinas,
         'proyectos': proyectos,
-        'items': items,
+        'items_por_disciplina_json': json_mod.dumps(items_por_disciplina),
         'es_nuevo': False,
         'ESTADOS': Cotizacion.ESTADOS,
     })
@@ -2645,7 +2680,7 @@ def editar_cotizacion(request, pk):
 @staff_required
 def ver_cotizacion(request, pk):
     cotizacion = get_object_or_404(Cotizacion.objects.select_related('proyecto', 'disciplina', 'creado_por'), pk=pk)
-    items = cotizacion.items.all().order_by('orden')
+    items = cotizacion.items.select_related('disciplina').order_by('disciplina__nombre', 'orden')
     return render(request, 'presupuestos/ver_cotizacion.html', {
         'cotizacion': cotizacion,
         'items': items,
@@ -2683,17 +2718,35 @@ def api_items_por_disciplina(request, disciplina_id):
 @staff_required
 def lista_items_predefinidos(request):
     from documentos.models import Disciplina
-    items = ItemPredefinido.objects.select_related('disciplina', 'moneda').all()
+
     disciplina_id = request.GET.get('disciplina')
-    q = request.GET.get('q')
+    familia_id = request.GET.get('familia')
+    q = request.GET.get('q', '').strip()
+    solo_activos = request.GET.get('activos', '1')
+
+    items = ItemPredefinido.objects.select_related('disciplina', 'familia', 'moneda').all()
     if disciplina_id:
         items = items.filter(disciplina_id=disciplina_id)
+    if familia_id:
+        items = items.filter(familia_id=familia_id)
+    if solo_activos == '1':
+        items = items.filter(activo=True)
     if q:
-        items = items.filter(Q(descripcion__icontains=q) | Q(codigo__icontains=q))
-    return render(request, 'presupuestos/lista_items_predefinidos.html', {
+        items = items.filter(Q(descripcion__icontains=q) | Q(codigo__icontains=q) | Q(notas__icontains=q))
+
+    familias = FamiliaItem.objects.select_related('disciplina').all()
+    if disciplina_id:
+        familias = familias.filter(disciplina_id=disciplina_id)
+
+    return render(request, 'presupuestos/catalogo_articulos.html', {
         'items': items,
         'disciplinas': Disciplina.objects.all(),
+        'familias': familias,
         'monedas': Moneda.objects.all(),
+        'disciplina_sel': disciplina_id,
+        'familia_sel': familia_id,
+        'q': q,
+        'solo_activos': solo_activos,
     })
 
 
@@ -2701,44 +2754,382 @@ def lista_items_predefinidos(request):
 def crear_item_predefinido(request):
     from documentos.models import Disciplina
     if request.method == 'POST':
-        ItemPredefinido.objects.create(
-            disciplina_id=request.POST['disciplina'],
+        import json as _json
+        disc_id = request.POST.get('disciplina')
+        familia_id = request.POST.get('familia') or None
+        es_compuesto = request.POST.get('es_compuesto') == 'on'
+        componentes_raw = request.POST.get('componentes_json', '[]')
+
+        try:
+            componentes_data = _json.loads(componentes_raw)
+        except Exception:
+            componentes_data = []
+
+        # Si compuesto, calcular precio desde los componentes_data
+        precio = request.POST.get('precio_unitario') or '0'
+        if es_compuesto and componentes_data:
+            total = 0
+            for c in componentes_data:
+                if c.get('esNuevo') and c.get('datos_nuevo'):
+                    total += float(c['datos_nuevo'].get('precio_unitario', 0)) * float(c.get('cantidad', 1))
+                elif c.get('id'):
+                    try:
+                        comp = ItemPredefinido.objects.get(pk=c['id'])
+                        total += float(comp.precio_unitario) * float(c.get('cantidad', 1))
+                    except ItemPredefinido.DoesNotExist:
+                        pass
+            precio = str(total)
+
+        item = ItemPredefinido.objects.create(
+            disciplina_id=disc_id,
+            familia_id=familia_id,
             codigo=request.POST.get('codigo') or None,
             descripcion=request.POST['descripcion'],
             unidad_medida=request.POST['unidad_medida'],
-            precio_unitario=request.POST['precio_unitario'],
+            precio_unitario=precio or '0',
             moneda_id=request.POST['moneda'],
             activo=request.POST.get('activo') == 'on',
+            notas=request.POST.get('notas', ''),
+            es_compuesto=es_compuesto,
         )
-        messages.success(request, 'Item predefinido creado.')
-        return redirect('presupuestos:lista_items_predefinidos')
 
-    return render(request, 'presupuestos/form_item_predefinido.html', {
+        # Crear componentes
+        if es_compuesto:
+            _guardar_componentes(item, componentes_data, disc_id)
+            item.recalcular_precio()
+
+        messages.success(request, 'Artículo creado.')
+        next_url = request.POST.get('next') or 'presupuestos:lista_items_predefinidos'
+        return redirect(next_url)
+
+    disc_id = request.GET.get('disciplina')
+    familia_id = request.GET.get('familia')
+    familias = FamiliaItem.objects.select_related('disciplina').all()
+    if disc_id:
+        familias = familias.filter(disciplina_id=disc_id)
+    from documentos.models import Disciplina
+    return render(request, 'presupuestos/form_articulo.html', {
         'disciplinas': Disciplina.objects.all(),
+        'familias': familias,
         'monedas': Moneda.objects.all(),
+        'disc_presel': disc_id,
+        'familia_presel': familia_id,
         'es_nuevo': True,
+        'componentes_iniciales_json': '[]',
     })
 
 
 @staff_required
 def editar_item_predefinido(request, pk):
     from documentos.models import Disciplina
-    item = get_object_or_404(ItemPredefinido, pk=pk)
+    item = get_object_or_404(ItemPredefinido.objects.select_related('disciplina', 'familia', 'moneda'), pk=pk)
     if request.method == 'POST':
+        if request.POST.get('accion') == 'eliminar':
+            item.delete()
+            messages.success(request, 'Artículo eliminado.')
+            return redirect('presupuestos:lista_items_predefinidos')
+
+        import json as _json
+        es_compuesto = request.POST.get('es_compuesto') == 'on'
+        componentes_raw = request.POST.get('componentes_json', '[]')
+        try:
+            componentes_data = _json.loads(componentes_raw)
+        except Exception:
+            componentes_data = []
+
         item.disciplina_id = request.POST['disciplina']
+        item.familia_id = request.POST.get('familia') or None
         item.codigo = request.POST.get('codigo') or None
         item.descripcion = request.POST['descripcion']
         item.unidad_medida = request.POST['unidad_medida']
-        item.precio_unitario = request.POST['precio_unitario']
+        item.precio_unitario = request.POST.get('precio_unitario') or '0'
         item.moneda_id = request.POST['moneda']
         item.activo = request.POST.get('activo') == 'on'
+        item.notas = request.POST.get('notas', '')
+        item.es_compuesto = es_compuesto
         item.save()
-        messages.success(request, 'Item predefinido actualizado.')
+
+        if es_compuesto:
+            item.componentes.all().delete()
+            _guardar_componentes(item, componentes_data, item.disciplina_id)
+            item.recalcular_precio()
+
+        messages.success(request, 'Artículo actualizado.')
         return redirect('presupuestos:lista_items_predefinidos')
 
-    return render(request, 'presupuestos/form_item_predefinido.html', {
+    familias = FamiliaItem.objects.select_related('disciplina').filter(disciplina=item.disciplina)
+    # Pasar componentes existentes como JSON para el template
+    import json as _json
+    comps_existentes = []
+    for i, c in enumerate(item.componentes.select_related('componente').order_by('orden'), 1):
+        comps_existentes.append({
+            'tempId': i,
+            'id': c.componente.id,
+            'codigo': c.componente.codigo or '',
+            'descripcion': c.componente.descripcion,
+            'um': c.componente.unidad_medida,
+            'precio': float(c.componente.precio_unitario),
+            'cantidad': float(c.cantidad),
+            'esNuevo': False,
+            'datos_nuevo': None,
+        })
+    return render(request, 'presupuestos/form_articulo.html', {
         'item': item,
         'disciplinas': Disciplina.objects.all(),
+        'familias': familias,
         'monedas': Moneda.objects.all(),
         'es_nuevo': False,
+        'componentes_iniciales_json': _json.dumps(comps_existentes),
     })
+
+
+def _guardar_componentes(padre, componentes_data, disciplina_id_padre):
+    """
+    Procesa la lista de componentes del JSON del formulario.
+    Crea artículos nuevos si esNuevo=True, luego crea los ComponenteItem.
+    """
+    for orden, c in enumerate(componentes_data):
+        cantidad = float(c.get('cantidad', 1) or 1)
+        comp_id = c.get('id')
+
+        if c.get('esNuevo') and c.get('datos_nuevo'):
+            nd = c['datos_nuevo']
+            # Buscar moneda por defecto
+            moneda = Moneda.objects.first()
+            nuevo = ItemPredefinido.objects.create(
+                disciplina_id=disciplina_id_padre,
+                codigo=nd.get('codigo') or None,
+                descripcion=nd.get('descripcion', 'Componente'),
+                unidad_medida=nd.get('unidad_medida', 'und'),
+                precio_unitario=nd.get('precio_unitario', 0),
+                moneda=moneda,
+                activo=True,
+                es_compuesto=False,
+            )
+            comp_id = nuevo.pk
+
+        if comp_id and int(comp_id) != padre.pk:
+            try:
+                comp_obj = ItemPredefinido.objects.get(pk=comp_id)
+                ComponenteItem.objects.get_or_create(
+                    padre=padre,
+                    componente=comp_obj,
+                    defaults={'cantidad': cantidad, 'orden': orden}
+                )
+            except ItemPredefinido.DoesNotExist:
+                pass
+
+
+# ── Familias CRUD ──────────────────────────────────────────────────────────────
+
+@staff_required
+def lista_familias(request):
+    from documentos.models import Disciplina
+    disciplina_id = request.GET.get('disciplina')
+    familias = FamiliaItem.objects.select_related('disciplina').annotate(
+        total_items=models.Count('items')
+    ).all()
+    if disciplina_id:
+        familias = familias.filter(disciplina_id=disciplina_id)
+    return render(request, 'presupuestos/lista_familias.html', {
+        'familias': familias,
+        'disciplinas': Disciplina.objects.all(),
+        'disciplina_sel': disciplina_id,
+    })
+
+
+@staff_required
+def crear_familia(request):
+    from documentos.models import Disciplina
+    if request.method == 'POST':
+        familia = FamiliaItem.objects.create(
+            disciplina_id=request.POST['disciplina'],
+            nombre=request.POST['nombre'],
+            descripcion=request.POST.get('descripcion', ''),
+            orden=int(request.POST.get('orden') or 0),
+        )
+        # Si es AJAX (llamada inline desde form_articulo), devolver JSON
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from django.http import JsonResponse as JR
+            return JR({'id': familia.id, 'nombre': familia.nombre})
+        messages.success(request, 'Familia creada.')
+        return redirect('presupuestos:lista_familias')
+    return render(request, 'presupuestos/form_familia.html', {
+        'disciplinas': Disciplina.objects.all(),
+        'es_nuevo': True,
+    })
+
+
+@staff_required
+def editar_familia(request, pk):
+    from documentos.models import Disciplina
+    familia = get_object_or_404(FamiliaItem.objects.select_related('disciplina'), pk=pk)
+    if request.method == 'POST':
+        if request.POST.get('accion') == 'eliminar':
+            familia.delete()
+            messages.success(request, 'Familia eliminada.')
+            return redirect('presupuestos:lista_familias')
+        familia.disciplina_id = request.POST['disciplina']
+        familia.nombre = request.POST['nombre']
+        familia.descripcion = request.POST.get('descripcion', '')
+        familia.orden = int(request.POST.get('orden') or 0)
+        familia.save()
+        messages.success(request, 'Familia actualizada.')
+        return redirect('presupuestos:lista_familias')
+    return render(request, 'presupuestos/form_familia.html', {
+        'familia': familia,
+        'disciplinas': Disciplina.objects.all(),
+        'es_nuevo': False,
+    })
+
+
+@staff_required
+def api_familias_por_disciplina(request, disciplina_id):
+    """API: retorna familias de una disciplina para poblar selects dinámicos."""
+    familias = FamiliaItem.objects.filter(disciplina_id=disciplina_id).values('id', 'nombre').order_by('orden', 'nombre')
+    return JsonResponse(list(familias), safe=False)
+
+
+# ── BOM: Artículos Compuestos ───────────────────────────────────────────────
+
+@staff_required
+def ver_bom(request, pk):
+    """Vista principal del BOM de un artículo compuesto."""
+    item = get_object_or_404(
+        ItemPredefinido.objects.select_related('disciplina', 'familia', 'moneda'),
+        pk=pk
+    )
+    componentes = item.componentes.select_related(
+        'componente', 'componente__disciplina', 'componente__familia', 'componente__moneda'
+    ).order_by('orden')
+
+    # Todos los artículos disponibles como componentes (excluir el propio padre)
+    candidatos = ItemPredefinido.objects.select_related('disciplina', 'familia').filter(
+        activo=True
+    ).exclude(pk=pk).order_by('disciplina__nombre', 'descripcion')
+
+    total_calculado = sum(c.subtotal for c in componentes)
+
+    return render(request, 'presupuestos/bom_articulo.html', {
+        'item': item,
+        'componentes': componentes,
+        'candidatos': candidatos,
+        'total_calculado': total_calculado,
+    })
+
+
+@staff_required
+@require_POST
+def bom_agregar_componente(request, pk):
+    """Agrega un componente al BOM via POST (JSON o form)."""
+    padre = get_object_or_404(ItemPredefinido, pk=pk)
+    import json as _json
+    try:
+        data = _json.loads(request.body)
+    except Exception:
+        data = request.POST
+
+    componente_id = data.get('componente_id')
+    cantidad = float(data.get('cantidad') or 1)
+    orden = int(data.get('orden') or 0)
+
+    if not componente_id:
+        return JsonResponse({'error': 'componente_id requerido'}, status=400)
+    if int(componente_id) == pk:
+        return JsonResponse({'error': 'Un artículo no puede ser componente de sí mismo'}, status=400)
+
+    componente = get_object_or_404(ItemPredefinido, pk=componente_id)
+
+    comp, created = ComponenteItem.objects.get_or_create(
+        padre=padre,
+        componente=componente,
+        defaults={'cantidad': cantidad, 'orden': orden}
+    )
+    if not created:
+        comp.cantidad = cantidad
+        comp.orden = orden
+        comp.save()
+
+    # Recalcular precio del padre
+    padre.recalcular_precio()
+
+    return JsonResponse({
+        'id': comp.id,
+        'componente_id': componente.id,
+        'componente_codigo': componente.codigo or '',
+        'componente_descripcion': componente.descripcion,
+        'componente_um': componente.unidad_medida,
+        'componente_precio': float(componente.precio_unitario),
+        'cantidad': float(comp.cantidad),
+        'subtotal': float(comp.subtotal),
+        'precio_padre_actualizado': float(padre.precio_unitario),
+        'created': created,
+    })
+
+
+@staff_required
+@require_POST
+def bom_eliminar_componente(request, pk, comp_pk):
+    """Elimina un componente del BOM."""
+    comp = get_object_or_404(ComponenteItem, pk=comp_pk, padre_id=pk)
+    padre = comp.padre
+    comp.delete()
+    padre.recalcular_precio()
+    return JsonResponse({'ok': True, 'precio_padre_actualizado': float(padre.precio_unitario)})
+
+
+@staff_required
+@require_POST
+def bom_actualizar_componente(request, pk, comp_pk):
+    """Actualiza cantidad/orden de un componente."""
+    comp = get_object_or_404(ComponenteItem, pk=comp_pk, padre_id=pk)
+    import json as _json
+    try:
+        data = _json.loads(request.body)
+    except Exception:
+        data = request.POST
+
+    if 'cantidad' in data:
+        comp.cantidad = float(data['cantidad'])
+    if 'orden' in data:
+        comp.orden = int(data['orden'])
+    comp.save()
+    comp.padre.recalcular_precio()
+    return JsonResponse({
+        'ok': True,
+        'cantidad': float(comp.cantidad),
+        'subtotal': float(comp.subtotal),
+        'precio_padre_actualizado': float(comp.padre.precio_unitario),
+    })
+
+
+@staff_required
+def api_buscar_articulos(request):
+    """API de búsqueda de artículos — soporta q, excluir, disciplina, familia."""
+    q = request.GET.get('q', '').strip()
+    excluir = request.GET.get('excluir')
+    disciplina_id = request.GET.get('disciplina')
+    familia_id = request.GET.get('familia')
+
+    items = ItemPredefinido.objects.select_related('disciplina', 'familia').filter(activo=True)
+    if excluir:
+        items = items.exclude(pk=excluir)
+    if disciplina_id:
+        items = items.filter(disciplina_id=disciplina_id)
+    if familia_id:
+        items = items.filter(familia_id=familia_id)
+    if q:
+        items = items.filter(Q(descripcion__icontains=q) | Q(codigo__icontains=q))
+    items = items.order_by('disciplina__nombre', 'familia__nombre', 'codigo')[:60]
+
+    data = [{
+        'id': i.id,
+        'codigo': i.codigo or '',
+        'descripcion': i.descripcion,
+        'unidad_medida': i.unidad_medida,
+        'precio_unitario': float(i.precio_unitario),
+        'disciplina': i.disciplina.nombre,
+        'familia': i.familia.nombre if i.familia else '',
+        'es_compuesto': i.es_compuesto,
+    } for i in items]
+    return JsonResponse(data, safe=False)

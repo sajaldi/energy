@@ -92,8 +92,13 @@
             background: var(--sap-card-bg);
             border: 1px solid var(--sap-border-color);
             border-radius: var(--sap-border-radius);
-            overflow: hidden;
+            overflow: visible;
             box-shadow: var(--sap-card-shadow);
+        }
+
+        .card-header {
+            border-radius: var(--sap-border-radius) var(--sap-border-radius) 0 0;
+            overflow: hidden;
         }
 
         .card-header {
@@ -422,6 +427,13 @@
                             <div class="asset-info-item"><b>Modelo</b><span id="detail-modelo">-</span></div>
                             <div class="asset-info-item"><b>Serie</b><span id="detail-serie">-</span></div>
                             <div class="asset-info-item"><b>Categoría</b><span id="detail-categoria">-</span></div>
+                            <div style="grid-column: 1 / -1; margin-top: 4px;">
+                                <a id="detail-link" href="#" target="_blank"
+                                   style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--sap-brand-color); text-decoration: none; padding: 6px 10px; border: 1px solid var(--sap-brand-color); border-radius: var(--sap-border-radius); background: white;">
+                                    <ion-icon name="open-outline" style="font-size: 14px;"></ion-icon>
+                                    Ver ficha del activo
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -660,16 +672,26 @@
         assetSearch.oninput = function () {
             const q = this.value.trim();
             clearTimeout(searchTimeout);
+            const statusEl = document.getElementById('search-status');
             if (q === '') {
                 assetIdInput.value = '';
                 document.getElementById('asset-details-card').style.display = 'none';
+                statusEl.style.display = 'none';
             }
             if (q.length < 2) { resultsContainer.style.display = 'none'; return; }
 
             searchTimeout = setTimeout(() => {
+                const statusEl = document.getElementById('search-status');
+                statusEl.style.display = 'block';
+                statusEl.style.color = 'var(--sap-text-muted)';
+                statusEl.textContent = 'Buscando...';
                 fetch(`{% url "mantenimiento:api_buscar_activos" %}?q=${encodeURIComponent(q)}`)
-                    .then(res => res.json())
+                    .then(res => {
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        return res.json();
+                    })
                     .then(data => {
+                        statusEl.style.display = 'none';
                         resultsContainer.innerHTML = '';
                         if (data.results.length) {
                             data.results.forEach(i => {
@@ -680,7 +702,18 @@
                                 resultsContainer.appendChild(div);
                             });
                             resultsContainer.style.display = 'block';
-                        } else { resultsContainer.style.display = 'none'; }
+                        } else {
+                            resultsContainer.style.display = 'none';
+                            statusEl.style.display = 'block';
+                            statusEl.style.color = 'var(--sap-text-muted)';
+                            statusEl.textContent = 'Sin resultados para "' + q + '"';
+                        }
+                    })
+                    .catch(err => {
+                        statusEl.style.display = 'block';
+                        statusEl.style.color = 'var(--sap-error)';
+                        statusEl.textContent = 'Error al buscar: ' + err.message;
+                        resultsContainer.style.display = 'none';
                     });
             }, 400);
         };
@@ -693,6 +726,7 @@
             document.getElementById('detail-modelo').innerText = item.modelo || '-';
             document.getElementById('detail-serie').innerText = item.serie || '-';
             document.getElementById('detail-categoria').innerText = item.categoria || '-';
+            document.getElementById('detail-link').href = `/activos/app/activo/${item.id}/`;
             document.getElementById('asset-details-card').style.display = 'grid';
             if (item.ubicacion_id) autoSelectHierarchy(item.ubicacion_id);
         }

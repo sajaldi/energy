@@ -88,8 +88,28 @@ urlpatterns = [
     path('admin/cotizaciones/<int:pk>/pdf/', views.cotizacion_pdf, name='cotizacion_pdf'),
     path('api/items-por-disciplina/<int:disciplina_id>/', views.api_items_por_disciplina, name='api_items_por_disciplina'),
 
-    # Items Predefinidos
-    path('admin/items-predefinidos/', views.lista_items_predefinidos, name='lista_items_predefinidos'),
-    path('admin/items-predefinidos/nuevo/', views.crear_item_predefinido, name='crear_item_predefinido'),
-    path('admin/items-predefinidos/<int:pk>/editar/', views.editar_item_predefinido, name='editar_item_predefinido'),
+    # Catálogo de Artículos Predefinidos
+    path('admin/catalogo/', views.lista_items_predefinidos, name='lista_items_predefinidos'),
+    path('admin/catalogo/nuevo/', views.crear_item_predefinido, name='crear_item_predefinido'),
+    path('admin/catalogo/<int:pk>/editar/', views.editar_item_predefinido, name='editar_item_predefinido'),
+    path('admin/catalogo/<int:pk>/bom/', views.ver_bom, name='ver_bom'),
+
+    # BOM API
+    path('api/articulos/buscar/', views.api_buscar_articulos, name='api_buscar_articulos'),
+    path('api/bom/<int:pk>/agregar/', views.bom_agregar_componente, name='bom_agregar_componente'),
+    path('api/bom/<int:pk>/componente/<int:comp_pk>/eliminar/', views.bom_eliminar_componente, name='bom_eliminar_componente'),
+    path('api/bom/<int:pk>/componente/<int:comp_pk>/actualizar/', views.bom_actualizar_componente, name='bom_actualizar_componente'),
+
+    # Familias de Artículos
+    path('admin/familias/', views.lista_familias, name='lista_familias'),
+    path('admin/familias/nueva/', views.crear_familia, name='crear_familia'),
+    path('admin/familias/<int:pk>/editar/', views.editar_familia, name='editar_familia'),
+
+    # API Familias por disciplina (para selects dinámicos)
+    path('api/familias-por-disciplina/<int:disciplina_id>/', views.api_familias_por_disciplina, name='api_familias_por_disciplina'),
+
+    # Aliases para compatibilidad con URLs antiguas
+    path('admin/items-predefinidos/', views.lista_items_predefinidos, name='lista_items_predefinidos_legacy'),
+    path('admin/items-predefinidos/nuevo/', views.crear_item_predefinido, name='crear_item_predefinido_legacy'),
+    path('admin/items-predefinidos/<int:pk>/editar/', views.editar_item_predefinido, name='editar_item_predefinido_legacy'),
 ]

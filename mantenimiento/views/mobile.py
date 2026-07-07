@@ -789,10 +789,12 @@ def aviso_fiori_view(request, pk):
     aviso = get_object_or_404(Aviso.objects.select_related(
         'falla', 'activo__modelo__marca', 'activo__ubicacion', 'ubicacion', 'solicitante',
         'responsable', 'departamento', 'proyecto'
-    ), pk=pk)
+    ).prefetch_related('ordenes'), pk=pk)
+    ot_existente = aviso.ordenes.first()
     return render(request, 'mantenimiento/mobile_aviso_detalle.html', {
         'aviso': aviso,
         'iframe_mode': True,
+        'ot_existente': ot_existente,
     })
 
 @staff_member_required

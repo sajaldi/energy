@@ -80,11 +80,11 @@ class PlanoAdmin(ImportExportModelAdmin):
     )
     search_fields = ('nombre', 'ubicacion__nombre', 'documento__codigo')
     autocomplete_fields = ('documento', 'disciplina', 'ubicacion', 'activos')
-    readonly_fields = ('visualizar_archivo',)
+    readonly_fields = ('visor_pdf_interactivo',)
     fieldsets = (
         (None, {'fields': ('nombre', 'tipo_plano', 'numero_documento', 'titulo', 'disciplina', 'ubicacion', 'descripcion')}),
         ('Archivo del Plano', {
-            'fields': ('documento', 'archivo'),
+            'fields': ('documento', 'archivo', 'visor_pdf_interactivo'),
             'description': 'Usa "Documento" para control de versiones, o "Archivo" para carga directa.'
         }),
         ('Activos Vinculados', {'fields': ('activos',)}),
@@ -98,13 +98,34 @@ class PlanoAdmin(ImportExportModelAdmin):
         return mark_safe('<span style="color: #94a3b8;">Sin documento</span>')
     documento_info.short_description = "Documento"
 
-    def visualizar_archivo(self, obj):
+    def visor_pdf_interactivo(self, obj):
+        if not obj.pk:
+            return mark_safe('<p style="color:#94a3b8;font-size:13px;">Guarda el plano primero para ver el visor.</p>')
         archivo = obj.archivo_actual
-        if archivo:
-            rev_tag = f' ({obj.revision_actual})' if obj.revision_actual else ''
-            return format_html('<a href="{0}" target="_blank">📄 Ver Plano{1}</a>', archivo.url, rev_tag)
-        return "No hay archivo"
-    visualizar_archivo.short_description = "Visualizar"
+        if not archivo:
+            return mark_safe('<p style="color:#94a3b8;font-size:13px;">Sin archivo adjunto.</p>')
+        visor_url = f'/activos/visor-pdf/{obj.pk}/'
+        proxy_url = f'/activos/plano-proxy/{obj.pk}/'
+        rev = f' &nbsp;<span style="color:#64748b;font-size:11px;">({obj.revision_actual})</span>' if obj.revision_actual else ''
+        return mark_safe(f'''
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:4px 0;">
+  <a href="{visor_url}" target="_blank"
+     style="display:inline-flex;align-items:center;gap:8px;background:#2563eb;color:white;
+            padding:8px 18px;border-radius:6px;font-size:13px;font-weight:700;
+            text-decoration:none;letter-spacing:0.3px;">
+    📐 Abrir Visor de Plano
+  </a>
+  <a href="{proxy_url}" target="_blank"
+     style="display:inline-flex;align-items:center;gap:6px;background:#f8fafc;color:#475569;
+            padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;
+            text-decoration:none;border:1px solid #e2e8f0;">
+    ↗ Ver archivo crudo
+  </a>
+  {rev}
+</div>
+''')
+
+    visor_pdf_interactivo.short_description = "Visor"
     
     def get_queryset(self, request):
         """Optimizar la consulta base con joins pre-calculados para evitar N+1."""

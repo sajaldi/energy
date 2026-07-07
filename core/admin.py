@@ -64,10 +64,93 @@ admin.site.unregister(User)
 class UserAdmin(BaseUserAdmin):
     inlines = (PerfilUsuarioInline,)
     list_display = ('username', 'email', 'first_name', 'last_name', 'get_nombre_completo', 'is_staff')
+    readonly_fields = BaseUserAdmin.readonly_fields + ('boton_invitacion',)
+
+    # Insertar el botón en el primer fieldset (Personal info) o crear uno nuevo
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if obj:  # solo en edición, no en creación
+            return fieldsets + (
+                ('Invitación', {
+                    'fields': ('boton_invitacion',),
+                    'description': 'Envía o reenvía el correo de activación de cuenta.',
+                }),
+            )
+        return fieldsets
 
     def get_nombre_completo(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
     get_nombre_completo.short_description = 'Nombre Completo'
+
+    def boton_invitacion(self, obj):
+        if not obj.pk:
+            return mark_safe('<span style="color:#94a3b8">Guarda el usuario primero.</span>')
+        url = f'/admin/auth/user/{obj.pk}/send-invitation/'
+        perfil = getattr(obj, 'perfil', None)
+        status = getattr(perfil, 'invitation_status', 'active') if perfil else 'active'
+        is_pending = (status == 'pending') or (not obj.is_active)
+        if is_pending:
+            label = '&#128231; Reenviar Invitación'
+            style = 'background:#f59e0b;border-color:#d97706;color:#fff;'
+            hint = '<span style="font-size:11px;color:#64748b;display:block;margin-top:6px;">El usuario tiene una invitación pendiente. Se generará un nuevo token.</span>'
+        else:
+            label = '&#128231; Enviar Invitación'
+            style = 'background:#2563eb;border-color:#1d4ed8;color:#fff;'
+            hint = '<span style="font-size:11px;color:#64748b;display:block;margin-top:6px;">Se enviará un correo con el enlace de activación.</span>'
+        return mark_safe(
+            f'<a href="{url}" class="button" style="{style}padding:8px 18px;'
+            f'border-radius:6px;font-weight:700;text-decoration:none;font-size:13px;">'
+            f'{label}</a>{hint}'
+        )
+    boton_invitacion.short_description = 'Invitación de Acceso'
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path('<int:user_id>/send-invitation/',
+                 self.admin_site.admin_view(self.send_invitation_view),
+                 name='auth_user_send_invitation'),
+        ]
+        return custom + urls
+
+    def send_invitation_view(self, request, user_id):
+        from django.shortcuts import redirect
+        from django.contrib import messages
+        from invitaciones.services import InvitationService
+        from invitaciones.exceptions import InvalidResendTarget, PowerAutomateDispatchError, ConfigurationError
+
+        user_obj = User.objects.filter(pk=user_id).first()
+        if not user_obj:
+            messages.error(request, 'Usuario no encontrado.')
+            return redirect('../../../')
+
+        service = InvitationService()
+        try:
+            perfil = getattr(user_obj, 'perfil', None)
+            status = getattr(perfil, 'invitation_status', 'active') if perfil else 'active'
+            is_pending = (status == 'pending') or (not user_obj.is_active)
+
+            if is_pending:
+                service.resend(user_obj, requested_by=request.user)
+                messages.success(request, f'Invitación reenviada a {user_obj.email}.')
+            else:
+                user_obj.is_active = False
+                user_obj.save(update_fields=['is_active'])
+                if perfil:
+                    perfil.invitation_status = 'pending'
+                    perfil.save(update_fields=['invitation_status'])
+                service.resend(user_obj, requested_by=request.user)
+                messages.success(request, f'Invitación enviada a {user_obj.email}. El usuario deberá completar su registro.')
+
+        except InvalidResendTarget as e:
+            messages.error(request, f'No se puede enviar invitación: {e}')
+        except (PowerAutomateDispatchError, ConfigurationError) as e:
+            messages.error(request, f'Error al enviar el correo: {e}')
+        except Exception as e:
+            messages.error(request, f'Error inesperado: {e}')
+
+        return redirect(f'/admin/auth/user/{user_id}/change/')
 
 
 from . import views

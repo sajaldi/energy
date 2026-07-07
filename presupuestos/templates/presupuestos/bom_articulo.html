@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOM: {{ item.descripcion|truncatechars:40 }}</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .shell-header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 0 24px; display: flex; align-items: center; gap: 12px; height: 48px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+        .shell-header h1 { font-size: 1rem; font-weight: 600; flex: 1; }
+        .shell-header .back { color: rgba(255,255,255,0.7); font-size: 0.82rem; padding: 5px 10px; border: 1px solid rgba(255,255,255,0.2); }
+        .shell-header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: var(--sap-card-shadow); margin-bottom: 16px; }
+        .card-header { padding: 12px 20px; background: var(--sap-group-bg); border-bottom: 1px solid var(--sap-border-color); font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
+        .card-body { padding: 16px 20px; }
+
+        /* Artículo padre info */
+        .padre-info { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: start; }
+        .padre-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-compuesto { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .badge-simple { background: var(--sap-neutral-bg); color: var(--sap-neutral); border: 1px solid var(--sap-neutral); }
+        .padre-meta { font-size: 0.8rem; color: var(--sap-text-muted); margin-top: 4px; }
+        .precio-display { text-align: right; }
+        .precio-display .lbl { font-size: 0.7rem; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+        .precio-display .val { font-size: 1.4rem; font-weight: 800; color: var(--sap-brand-color); }
+        .precio-display .val-calc { font-size: 0.82rem; color: var(--sap-text-muted); margin-top: 2px; }
+
+        /* BOM table */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 8px 14px; font-size: 0.71rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.4px; background: var(--sap-bg-color); border-bottom: 1px solid var(--sap-border-color); white-space: nowrap; }
+        td { padding: 9px 14px; font-size: 0.84rem; border-bottom: 1px solid var(--sap-border-color); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--sap-hover-bg); }
+        .total-row td { font-weight: 700; background: var(--sap-group-bg); border-top: 2px solid var(--sap-border-color); }
+
+        .cant-input { width: 90px; padding: 4px 8px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.84rem; text-align: right; transition: border-color 0.1s; }
+        .cant-input:focus { outline: none; border-color: var(--sap-brand-color); }
+
+        .btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 16px; font-family: var(--sap-font-family); font-size: 0.83rem; font-weight: 600; border: 1px solid var(--sap-border-color); cursor: pointer; transition: all 0.12s; text-decoration: none; background: var(--sap-card-bg); color: var(--sap-text-color); white-space: nowrap; }
+        .btn:hover { background: var(--sap-hover-bg); text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; border-color: var(--sap-brand-color); }
+        .btn-primary:hover { background: var(--sap-highlight-color); border-color: var(--sap-highlight-color); }
+        .btn-sm { padding: 5px 12px; font-size: 0.77rem; }
+        .btn-danger { color: #dc2626; border-color: #fecaca; background: #fff8f8; }
+        .btn-danger:hover { background: #fee2e2; }
+        .btn-ghost { border-color: transparent; background: transparent; color: var(--sap-text-muted); }
+        .btn-ghost:hover { background: var(--sap-hover-bg); color: var(--sap-text-color); }
+
+        .badge-disc { background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; display: inline-block; padding: 1px 6px; font-size: 0.69rem; font-weight: 600; }
+        .badge-fam { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; display: inline-block; padding: 1px 6px; font-size: 0.69rem; font-weight: 600; }
+
+        /* Agregar componente */
+        .add-panel { background: #f8fafc; border: 1px solid var(--sap-border-color); padding: 16px 20px; }
+        .add-panel h3 { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--sap-text-muted); margin-bottom: 12px; }
+        .search-comp { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+        .search-comp input { flex: 1; min-width: 200px; padding: 7px 10px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.85rem; }
+        .search-comp input:focus { outline: none; border-color: var(--sap-brand-color); }
+        .results-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--sap-border-color); background: #fff; display: none; }
+        .results-list.visible { display: block; }
+        .result-item { padding: 9px 14px; cursor: pointer; border-bottom: 1px solid var(--sap-border-color); font-size: 0.83rem; display: flex; align-items: center; gap: 8px; }
+        .result-item:last-child { border-bottom: none; }
+        .result-item:hover { background: var(--sap-hover-bg); }
+        .result-item .r-codigo { font-family: monospace; font-size: 0.75rem; color: var(--sap-text-muted); min-width: 70px; }
+        .result-item .r-precio { margin-left: auto; font-weight: 600; font-size: 0.8rem; color: var(--sap-brand-color); white-space: nowrap; }
+        .selected-comp { background: #f0f9ff; border: 1px solid #bae6fd; padding: 8px 14px; font-size: 0.84rem; display: none; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .selected-comp.visible { display: flex; }
+        .selected-comp strong { flex: 1; }
+        .cantidad-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .cantidad-row label { font-size: 0.82rem; font-weight: 600; color: var(--sap-text-muted); }
+        .cantidad-row input { width: 110px; padding: 7px 10px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.85rem; text-align: right; }
+        .cantidad-row input:focus { outline: none; border-color: var(--sap-brand-color); }
+
+        .msg { padding: 10px 16px; font-size: 0.85rem; margin-bottom: 12px; }
+        .msg.success { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .msg.error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+
+        .empty { text-align: center; padding: 32px 20px; color: var(--sap-text-muted); }
+        .toast { position: fixed; bottom: 24px; right: 24px; background: #1e293b; color: #fff; padding: 10px 18px; font-size: 0.84rem; border-radius: 2px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 999; }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div class="shell-header">
+    <a href="{% url 'presupuestos:editar_item_predefinido' item.id %}" class="back btn btn-sm">← Editar artículo</a>
+    <h1>🔩 BOM — {{ item.codigo|default:item.descripcion|truncatechars:40 }}</h1>
+    <a href="{% url 'presupuestos:lista_items_predefinidos' %}" class="btn btn-sm btn-ghost">Catálogo</a>
+</div>
+
+{% include 'presupuestos/_nav.html' %}
+
+<div class="container">
+
+    <!-- Artículo padre -->
+    <div class="card">
+        <div class="card-header">
+            📦 Artículo
+            <span class="padre-badge {% if item.es_compuesto %}badge-compuesto{% else %}badge-simple{% endif %}">
+                {% if item.es_compuesto %}⚙ Compuesto{% else %}▸ Simple{% endif %}
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="padre-info">
+                <div>
+                    <div style="font-size:1.05rem;font-weight:700;">{{ item.descripcion }}</div>
+                    <div class="padre-meta">
+                        {% if item.codigo %}<code style="font-size:0.78rem;">{{ item.codigo }}</code> · {% endif %}
+                        {{ item.unidad_medida }} ·
+                        <span class="badge-disc">{{ item.disciplina.nombre }}</span>
+                        {% if item.familia %} <span class="badge-fam">{{ item.familia.nombre }}</span>{% endif %}
+                    </div>
+                    {% if item.notas %}<div class="padre-meta" style="margin-top:6px;">{{ item.notas|truncatechars:120 }}</div>{% endif %}
+                </div>
+                <div></div>
+                <div class="precio-display">
+                    <div class="lbl">Precio unitario</div>
+                    <div class="val" id="precio-padre">$ {{ item.precio_unitario|floatformat:2 }}</div>
+                    {% if item.es_compuesto %}
+                    <div class="val-calc">calculado desde componentes</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOM / Componentes -->
+    <div class="card">
+        <div class="card-header">
+            🔩 Lista de Materiales (BOM)
+            <span style="flex:1;"></span>
+            <span style="font-size:0.8rem;color:var(--sap-text-muted);" id="comp-count">{{ componentes.count }} componente{{ componentes.count|pluralize:"s" }}</span>
+        </div>
+
+        {% if componentes %}
+        <table id="bom-table">
+            <thead>
+                <tr>
+                    <th style="width:32px;"></th>
+                    <th style="width:85px;">Código</th>
+                    <th>Descripción</th>
+                    <th>Disciplina</th>
+                    <th style="width:65px;">U.M.</th>
+                    <th style="width:110px;text-align:right;">P. Unit.</th>
+                    <th style="width:100px;text-align:right;">Cantidad</th>
+                    <th style="width:110px;text-align:right;">Subtotal</th>
+                    <th style="width:50px;"></th>
+                </tr>
+            </thead>
+            <tbody id="bom-tbody">
+                {% for c in componentes %}
+                <tr id="row-{{ c.id }}" data-comp-id="{{ c.id }}">
+                    <td style="color:var(--sap-text-muted);font-size:0.75rem;">{{ forloop.counter }}</td>
+                    <td><code style="font-size:0.77rem;color:var(--sap-text-muted);">{{ c.componente.codigo|default:'—' }}</code></td>
+                    <td>
+                        <strong>{{ c.componente.descripcion|truncatechars:60 }}</strong>
+                        {% if c.componente.es_compuesto %}<span style="font-size:0.7rem;color:#92400e;background:#fef3c7;padding:1px 5px;margin-left:4px;">⚙ compuesto</span>{% endif %}
+                    </td>
+                    <td><span class="badge-disc" style="font-size:0.68rem;">{{ c.componente.disciplina.nombre }}</span></td>
+                    <td style="font-size:0.8rem;">{{ c.componente.unidad_medida }}</td>
+                    <td style="text-align:right;color:var(--sap-text-muted);">$ {{ c.componente.precio_unitario|floatformat:2 }}</td>
+                    <td style="text-align:right;">
+                        <input type="number" class="cant-input" value="{{ c.cantidad|floatformat:4 }}"
+                               min="0.0001" step="0.01"
+                               onchange="actualizarCantidad({{ c.id }}, this.value)"
+                               data-original="{{ c.cantidad }}">
+                    </td>
+                    <td style="text-align:right;font-weight:600;" id="sub-{{ c.id }}">$ {{ c.subtotal|floatformat:2 }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="eliminarComponente({{ c.id }}, this)" title="Quitar componente">✕</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="7" style="text-align:right;">Total calculado</td>
+                    <td style="text-align:right;" id="total-bom">$ {{ total_calculado|floatformat:2 }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+        {% else %}
+        <div class="empty" id="empty-msg">
+            <p style="font-size:1rem;font-weight:600;margin-bottom:4px;">Sin componentes todavía</p>
+            <p style="font-size:0.84rem;">Agrega los materiales o servicios que forman este artículo.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Panel agregar componente -->
+    <div class="card">
+        <div class="card-header">➕ Agregar Componente</div>
+        <div class="card-body add-panel" style="padding:16px 20px;">
+            <div class="search-comp">
+                <input type="text" id="search-comp-input" placeholder="Buscar artículo por código o descripción..."
+                       oninput="buscarComponentes(this.value)" autocomplete="off">
+                <span style="font-size:0.78rem;color:var(--sap-text-muted);">Escribe para buscar en el catálogo</span>
+            </div>
+            <div class="results-list" id="results-list"></div>
+
+            <div class="selected-comp" id="selected-panel">
+                <strong id="sel-nombre">—</strong>
+                <span id="sel-precio" style="color:var(--sap-brand-color);font-weight:600;font-size:0.84rem;"></span>
+                <button class="btn btn-ghost btn-sm" onclick="limpiarSeleccion()">✕</button>
+            </div>
+
+            <div class="cantidad-row" id="cantidad-row" style="display:none;">
+                <label>Cantidad:</label>
+                <input type="number" id="cantidad-input" value="1" min="0.0001" step="0.01">
+                <button class="btn btn-primary btn-sm" onclick="agregarComponente()">＋ Agregar al BOM</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var PADRE_ID = {{ item.id }};
+var CSRF = '{{ csrf_token }}';
+var URL_AGREGAR = '{% url "presupuestos:bom_agregar_componente" item.id %}';
+var URL_BUSCAR  = '{% url "presupuestos:api_buscar_articulos" %}';
+var URL_ELIMINAR_BASE = '/presupuestos/api/bom/' + PADRE_ID + '/componente/';
+var URL_ACTUALIZAR_BASE = '/presupuestos/api/bom/' + PADRE_ID + '/componente/';
+
+var selectedId = null;
+var selectedPrecio = 0;
+var searchTimer;
+
+function toast(msg, ok) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.background = ok ? '#15803d' : '#dc2626';
+    el.classList.add('show');
+    setTimeout(function() { el.classList.remove('show'); }, 2200);
+}
+
+// ─── Búsqueda ───────────────────────────────────────────────────────────────
+function buscarComponentes(q) {
+    clearTimeout(searchTimer);
+    if (!q.trim()) { document.getElementById('results-list').classList.remove('visible'); return; }
+    searchTimer = setTimeout(function() {
+        fetch(URL_BUSCAR + '?q=' + encodeURIComponent(q) + '&excluir=' + PADRE_ID)
+            .then(function(r) { return r.json(); })
+            .then(function(items) {
+                var list = document.getElementById('results-list');
+                list.innerHTML = '';
+                if (!items.length) {
+                    list.innerHTML = '<div class="result-item" style="color:var(--sap-text-muted);">Sin resultados</div>';
+                } else {
+                    items.forEach(function(item) {
+                        var d = document.createElement('div');
+                        d.className = 'result-item';
+                        d.innerHTML =
+                            '<span class="r-codigo">' + (item.codigo || '—') + '</span>' +
+                            '<span style="flex:1;">' + item.descripcion.substring(0,70) +
+                            ' <small style="color:var(--sap-text-muted);">(' + item.disciplina + ')</small></span>' +
+                            '<span class="r-precio">$ ' + parseFloat(item.precio_unitario).toFixed(2) + ' / ' + item.unidad_medida + '</span>';
+                        d.onclick = function() { seleccionarComponente(item); };
+                        list.appendChild(d);
+                    });
+                }
+                list.classList.add('visible');
+            });
+    }, 280);
+}
+
+function seleccionarComponente(item) {
+    selectedId = item.id;
+    selectedPrecio = item.precio_unitario;
+    document.getElementById('results-list').classList.remove('visible');
+    document.getElementById('search-comp-input').value = '';
+    var panel = document.getElementById('selected-panel');
+    panel.classList.add('visible');
+    document.getElementById('sel-nombre').textContent = (item.codigo ? item.codigo + ' — ' : '') + item.descripcion;
+    document.getElementById('sel-precio').textContent = '$ ' + parseFloat(item.precio_unitario).toFixed(2) + ' / ' + item.unidad_medida;
+    document.getElementById('cantidad-row').style.display = 'flex';
+    document.getElementById('cantidad-input').focus();
+}
+
+function limpiarSeleccion() {
+    selectedId = null;
+    document.getElementById('selected-panel').classList.remove('visible');
+    document.getElementById('cantidad-row').style.display = 'none';
+}
+
+// ─── Agregar ────────────────────────────────────────────────────────────────
+function agregarComponente() {
+    if (!selectedId) { toast('Selecciona un artículo primero', false); return; }
+    var cantidad = parseFloat(document.getElementById('cantidad-input').value) || 1;
+    fetch(URL_AGREGAR, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ componente_id: selectedId, cantidad: cantidad })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) { toast(data.error, false); return; }
+        toast('Componente ' + (data.created ? 'agregado' : 'actualizado'), true);
+        actualizarPrecioDisplay(data.precio_padre_actualizado);
+        limpiarSeleccion();
+        recargarBOM();
+    })
+    .catch(function(e) { toast('Error: ' + e.message, false); });
+}
+
+// ─── Actualizar cantidad ────────────────────────────────────────────────────
+function actualizarCantidad(compId, nuevaCantidad) {
+    if (!nuevaCantidad || parseFloat(nuevaCantidad) <= 0) return;
+    fetch(URL_ACTUALIZAR_BASE + compId + '/actualizar/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ cantidad: parseFloat(nuevaCantidad) })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('sub-' + compId).textContent = '$ ' + parseFloat(data.subtotal).toFixed(2);
+        actualizarPrecioDisplay(data.precio_padre_actualizado);
+        recalcularTotalBOM();
+        toast('Cantidad actualizada', true);
+    })
+    .catch(function(e) { toast('Error al actualizar', false); });
+}
+
+// ─── Eliminar ───────────────────────────────────────────────────────────────
+function eliminarComponente(compId, btn) {
+    if (!confirm('¿Quitar este componente del BOM?')) return;
+    fetch(URL_ELIMINAR_BASE + compId + '/eliminar/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('row-' + compId).remove();
+        actualizarPrecioDisplay(data.precio_padre_actualizado);
+        recalcularTotalBOM();
+        actualizarContador();
+        toast('Componente quitado', true);
+    })
+    .catch(function(e) { toast('Error al eliminar', false); });
+}
+
+// ─── Recalcular total visual ────────────────────────────────────────────────
+function recalcularTotalBOM() {
+    var subs = document.querySelectorAll('#bom-tbody [id^="sub-"]');
+    var total = 0;
+    subs.forEach(function(el) {
+        total += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
+    });
+    var tEl = document.getElementById('total-bom');
+    if (tEl) tEl.textContent = '$ ' + total.toFixed(2);
+}
+
+function actualizarPrecioDisplay(precio) {
+    document.getElementById('precio-padre').textContent = '$ ' + parseFloat(precio).toFixed(2);
+}
+
+function actualizarContador() {
+    var rows = document.querySelectorAll('#bom-tbody tr');
+    var cc = document.getElementById('comp-count');
+    if (cc) cc.textContent = rows.length + ' componente' + (rows.length !== 1 ? 's' : '');
+}
+
+function recargarBOM() {
+    // Recarga suave: reload completo para mantener coherencia
+    window.location.reload();
+}
+
+// Cerrar lista de resultados al hacer click fuera
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#search-comp-input') && !e.target.closest('#results-list')) {
+        document.getElementById('results-list').classList.remove('visible');
+    }
+});
+</script>
+</body>
+</html>

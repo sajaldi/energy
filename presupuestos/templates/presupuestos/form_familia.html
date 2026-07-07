@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if es_nuevo %}Nueva Familia{% else %}Editar: {{ familia.nombre }}{% endif %}</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .shell-header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 0 24px; display: flex; align-items: center; gap: 12px; height: 48px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+        .shell-header h1 { font-size: 1rem; font-weight: 600; flex: 1; }
+        .shell-header .back { color: rgba(255,255,255,0.7); font-size: 0.82rem; padding: 5px 10px; border: 1px solid rgba(255,255,255,0.2); }
+        .shell-header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
+
+        .container { max-width: 560px; margin: 0 auto; padding: 28px 16px 80px; }
+
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: var(--sap-card-shadow); margin-bottom: 16px; }
+        .card-header { padding: 13px 20px; background: var(--sap-group-bg); border-bottom: 1px solid var(--sap-border-color); font-weight: 600; font-size: 0.9rem; }
+        .card-body { padding: 20px; }
+
+        .field-group { margin-bottom: 14px; }
+        .field-group label { display: block; font-size: 0.77rem; font-weight: 700; margin-bottom: 3px; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+        .field-group input, .field-group select, .field-group textarea { width: 100%; padding: 8px 11px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.88rem; background: #fff; }
+        .field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline: none; border-color: var(--sap-brand-color); }
+        .field-group .hint { font-size: 0.75rem; color: var(--sap-text-muted); margin-top: 3px; }
+        .field-row { display: flex; gap: 14px; flex-wrap: wrap; }
+        .field-row .field-group { flex: 1; min-width: 120px; }
+
+        .btn { display: inline-flex; align-items: center; gap: 5px; padding: 8px 18px; font-family: var(--sap-font-family); font-size: 0.85rem; font-weight: 600; border: 1px solid var(--sap-border-color); cursor: pointer; transition: all 0.12s; text-decoration: none; background: var(--sap-card-bg); color: var(--sap-text-color); }
+        .btn:hover { background: var(--sap-hover-bg); text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; border-color: var(--sap-brand-color); }
+        .btn-primary:hover { background: var(--sap-highlight-color); border-color: var(--sap-highlight-color); }
+        .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+        .btn-danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+
+        .msg { padding: 10px 16px; font-size: 0.85rem; margin-bottom: 12px; }
+        .msg.success { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .msg.error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+
+        .save-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--sap-card-bg); border-top: 2px solid var(--sap-border-color); padding: 10px 32px; display: flex; align-items: center; gap: 12px; box-shadow: 0 -4px 16px rgba(0,0,0,0.07); z-index: 100; }
+    </style>
+</head>
+<body>
+
+<div class="shell-header">
+    <a href="{% url 'presupuestos:lista_familias' %}" class="back btn btn-sm">← Familias</a>
+    <h1>{% if es_nuevo %}Nueva Familia de Artículos{% else %}Editando familia{% endif %}</h1>
+</div>
+
+{% include 'presupuestos/_nav.html' %}
+
+<div class="container">
+    {% if messages %}{% for msg in messages %}<div class="msg {{ msg.tags }}">{{ msg }}</div>{% endfor %}{% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="card">
+            <div class="card-header">🏷 Datos de la Familia</div>
+            <div class="card-body">
+                <div class="field-group">
+                    <label>Disciplina *</label>
+                    <select name="disciplina" required>
+                        <option value="">— Seleccione —</option>
+                        {% for d in disciplinas %}
+                        <option value="{{ d.id }}"
+                            {% if familia and familia.disciplina_id == d.id %}selected
+                            {% elif request.GET.disciplina == d.id|stringformat:'s' %}selected{% endif %}>
+                            {{ d.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="hint">La familia solo contendrá artículos de esta disciplina.</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label>Nombre de la Familia *</label>
+                        <input type="text" name="nombre" value="{% if familia %}{{ familia.nombre }}{% endif %}" required placeholder="Ej: Cableado, Válvulas, Instrumentación...">
+                    </div>
+                    <div class="field-group" style="flex:0 0 100px;">
+                        <label>Orden</label>
+                        <input type="number" name="orden" value="{% if familia %}{{ familia.orden }}{% else %}0{% endif %}" min="0" step="1">
+                        <div class="hint">Menor = primero</div>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Descripción</label>
+                    <textarea name="descripcion" rows="2" placeholder="Descripción opcional de los artículos que agrupa esta familia...">{% if familia %}{{ familia.descripcion }}{% endif %}</textarea>
+                </div>
+            </div>
+        </div>
+
+        {% if not es_nuevo %}
+        <div class="card">
+            <div class="card-body" style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:0.82rem;color:var(--sap-text-muted);">
+                    {{ familia.items.count }} artículo{{ familia.items.count|pluralize:"s" }} en esta familia
+                </span>
+                <a href="{% url 'presupuestos:lista_items_predefinidos' %}?familia={{ familia.id }}" class="btn btn-sm">Ver artículos</a>
+                <form method="post" style="margin-left:auto;" onsubmit="return confirm('¿Eliminar esta familia? Los artículos asociados quedarán sin familia asignada.')">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="eliminar">
+                    <button type="submit" class="btn btn-sm btn-danger">🗑 Eliminar familia</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="save-bar">
+            <a href="{% url 'presupuestos:lista_familias' %}" class="btn btn-sm">Cancelar</a>
+            <span style="flex:1;"></span>
+            <button type="submit" class="btn btn-primary">💾 {% if es_nuevo %}Crear familia{% else %}Guardar cambios{% endif %}</button>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

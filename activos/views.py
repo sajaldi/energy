@@ -1407,6 +1407,37 @@ def plano_documento_proxy(request, plano_id):
         return response
     except Exception as e:
         raise Http404(f"Error al acceder al archivo: {str(e)}")
+
+
+@staff_member_required
+def visor_pdf_plano(request, plano_id):
+    """Visor interactivo standalone para un Plano PDF — abre en pestaña nueva."""
+    from .models.plano import Plano, VisorPlano
+    plano = get_object_or_404(
+        Plano.objects.select_related('documento__ultima_revision', 'ubicacion', 'disciplina'),
+        pk=plano_id
+    )
+    # Obtener o crear un VisorPlano por defecto para este plano
+    visor, _ = VisorPlano.objects.get_or_create(
+        plano=plano,
+        defaults={'nombre': f'Visor — {plano.nombre}'}
+    )
+    # Cargar pines existentes
+    pines = visor.pines.select_related('activo', 'aviso').all()
+    pines_data = [
+        {'id': p.pk, 'x': p.x, 'y': p.y, 'color': p.color, 'nota': p.nota or ''}
+        for p in pines
+    ]
+    archivo = plano.archivo_actual
+    is_pdf = bool(archivo and archivo.name.lower().endswith('.pdf'))
+    return render(request, 'activos/visor_pdf_plano.html', {
+        'plano': plano,
+        'visor': visor,
+        'pines_data': pines_data,
+        'is_pdf': is_pdf,
+    })
+
+
 @staff_member_required
 def activo_fiori_view(request, pk):
     """Vista de detalle de activo estilo SAP Fiori con gráficas y rutinas"""

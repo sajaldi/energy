@@ -105,6 +105,7 @@ urlpatterns = [
     # Documentos de Alta/Baja
     path('documento-altabaja/<int:pk>/imprimir/', views.print_altabaja, name='print_altabaja'),
     path('plano-proxy/<int:plano_id>/', views.plano_documento_proxy, name='plano_documento_proxy'),
+    path('visor-pdf/<int:plano_id>/', views.visor_pdf_plano, name='visor_pdf_plano'),
     
     # PDF de QR Punto Medicion
     path('punto-medicion/<int:pk>/qr/', views_rutinas.punto_medicion_qr_pdf, name='punto_medicion_qr_pdf'),

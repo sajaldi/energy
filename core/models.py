@@ -232,13 +232,24 @@ class Departamento(models.Model):
         verbose_name_plural = "Departamentos"
 
 class PerfilUsuario(models.Model):
+    INVITATION_STATUS_CHOICES = [
+        ('pending', 'Pending Invitation'),
+        ('active',  'Active'),
+    ]
+
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
     visto_tutorial = models.BooleanField(default=False, verbose_name="Visto tutorial")
     telefono = models.CharField(max_length=20, blank=True, null=True, verbose_name="Teléfono")
     departamento = models.ForeignKey(Departamento, on_delete=models.SET_NULL, null=True, blank=True, related_name='usuarios', verbose_name="Departamento")
     ubicacion_defecto = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Ubicación por Defecto")
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='subordinados', verbose_name="Responsable / Jefe Directo")
-    
+    invitation_status = models.CharField(
+        max_length=10,
+        choices=INVITATION_STATUS_CHOICES,
+        default='active',
+        verbose_name="Estado de Invitación",
+    )
+
     def __str__(self):
         return f"Perfil de {self.usuario.username}"
 
@@ -249,14 +260,14 @@ class PerfilUsuario(models.Model):
 @receiver(post_save, sender=User)
 def crear_perfil_usuario(sender, instance, created, **kwargs):
     if created:
-        PerfilUsuario.objects.create(usuario=instance)
+        PerfilUsuario.objects.create(usuario=instance, invitation_status='active')
 
 @receiver(post_save, sender=User)
 def guardar_perfil_usuario(sender, instance, **kwargs):
     if hasattr(instance, 'perfil'):
         instance.perfil.save()
     else:
-        PerfilUsuario.objects.get_or_create(usuario=instance)
+        PerfilUsuario.objects.get_or_create(usuario=instance, defaults={'invitation_status': 'active'})
 
 
 class VistaPersonalizada(models.Model):

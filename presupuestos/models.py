@@ -1200,28 +1200,111 @@ class OrdenCompraArticulo(models.Model):
         verbose_name_plural = "Artículos de Órdenes de Compra"
 
 
+class FamiliaItem(models.Model):
+    """
+    Agrupación de artículos predefinidos dentro de una disciplina.
+    Disciplina → Familia → Artículos
+    """
+    disciplina = models.ForeignKey(
+        'documentos.Disciplina', on_delete=models.CASCADE,
+        related_name='familias_items', verbose_name="Disciplina"
+    )
+    nombre = models.CharField(max_length=100, verbose_name="Nombre de la Familia")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden de visualización")
+
+    def __str__(self):
+        return f"{self.disciplina.nombre} › {self.nombre}"
+
+    class Meta:
+        verbose_name = "Familia de Artículos"
+        verbose_name_plural = "Familias de Artículos"
+        ordering = ['disciplina__nombre', 'orden', 'nombre']
+        unique_together = ('disciplina', 'nombre')
+
+
 class ItemPredefinido(models.Model):
     disciplina = models.ForeignKey(
         'documentos.Disciplina', on_delete=models.CASCADE,
         related_name='items_predefinidos', verbose_name="Disciplina"
     )
+    familia = models.ForeignKey(
+        FamiliaItem, on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='items', verbose_name="Familia"
+    )
     codigo = models.CharField(max_length=50, blank=True, null=True, verbose_name="Código")
     descripcion = models.TextField(verbose_name="Descripción")
     unidad_medida = models.CharField(max_length=50, verbose_name="Unidad de Medida")
-    precio_unitario = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Precio Unitario")
+    precio_unitario = models.DecimalField(
+        max_digits=15, decimal_places=2, verbose_name="Precio Unitario",
+        help_text="Si es compuesto se calcula automáticamente desde los componentes."
+    )
     moneda = models.ForeignKey(
         'Moneda', on_delete=models.PROTECT,
         related_name='items_predefinidos', verbose_name="Moneda"
     )
     activo = models.BooleanField(default=True, verbose_name="Activo")
+    notas = models.TextField(blank=True, verbose_name="Notas / Especificaciones técnicas")
+    es_compuesto = models.BooleanField(
+        default=False, verbose_name="¿Es artículo compuesto?",
+        help_text="Si está marcado, el precio se calcula desde sus componentes."
+    )
 
     def __str__(self):
-        return f"{self.codigo or ''} - {self.descripcion[:60]}"
+        prefix = f"{self.codigo} - " if self.codigo else ""
+        return f"{prefix}{self.descripcion[:60]}"
+
+    @property
+    def precio_calculado(self):
+        """Retorna precio desde componentes si es compuesto, de lo contrario precio_unitario."""
+        if self.es_compuesto and self.pk:
+            return sum(
+                c.cantidad * c.componente.precio_unitario
+                for c in self.componentes.select_related('componente').all()
+            )
+        return self.precio_unitario
+
+    def recalcular_precio(self):
+        """Recalcula y persiste precio_unitario desde los componentes."""
+        if self.es_compuesto:
+            self.precio_unitario = self.precio_calculado
+            ItemPredefinido.objects.filter(pk=self.pk).update(precio_unitario=self.precio_unitario)
 
     class Meta:
-        verbose_name = "Item Predefinido"
-        verbose_name_plural = "Items Predefinidos"
-        ordering = ['disciplina', 'codigo']
+        verbose_name = "Artículo Predefinido"
+        verbose_name_plural = "Artículos Predefinidos"
+        ordering = ['disciplina__nombre', 'familia__nombre', 'codigo']
+
+
+class ComponenteItem(models.Model):
+    """
+    Línea de BOM (Bill of Materials) de un artículo compuesto.
+    padre → componente × cantidad
+    """
+    padre = models.ForeignKey(
+        ItemPredefinido, on_delete=models.CASCADE,
+        related_name='componentes', verbose_name="Artículo Compuesto"
+    )
+    componente = models.ForeignKey(
+        ItemPredefinido, on_delete=models.PROTECT,
+        related_name='usado_en', verbose_name="Componente"
+    )
+    cantidad = models.DecimalField(max_digits=12, decimal_places=4, verbose_name="Cantidad")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+
+    def __str__(self):
+        return f"{self.padre} ← {self.componente} × {self.cantidad}"
+
+    @property
+    def subtotal(self):
+        return self.cantidad * self.componente.precio_unitario
+
+    class Meta:
+        verbose_name = "Componente de Artículo"
+        verbose_name_plural = "Componentes de Artículos"
+        ordering = ['orden', 'id']
+        unique_together = ('padre', 'componente')
 
 
 class Cotizacion(models.Model):
@@ -1239,9 +1322,11 @@ class Cotizacion(models.Model):
     )
     disciplina = models.ForeignKey(
         'documentos.Disciplina', on_delete=models.PROTECT,
+        null=True, blank=True,
         related_name='cotizaciones', verbose_name="Disciplina"
     )
     fecha = models.DateField(verbose_name="Fecha")
+    version = models.PositiveIntegerField(default=1, verbose_name="Versión")
     valida_hasta = models.DateField(null=True, blank=True, verbose_name="Válida Hasta")
     estado = models.CharField(max_length=20, choices=ESTADOS, default='BORRADOR', verbose_name="Estado")
     creado_por = models.ForeignKey(
@@ -1265,7 +1350,8 @@ class Cotizacion(models.Model):
         return self.subtotal
 
     def __str__(self):
-        return f"{self.numero} - {self.disciplina}"
+        disc = self.disciplina.nombre if self.disciplina else "Sin disciplina"
+        return f"{self.numero} - {disc}"
 
     class Meta:
         verbose_name = "Cotización"
@@ -1282,6 +1368,11 @@ class ItemCotizacion(models.Model):
         ItemPredefinido, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='items_cotizacion',
         verbose_name="Item Predefinido"
+    )
+    disciplina = models.ForeignKey(
+        'documentos.Disciplina', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='items_cotizacion',
+        verbose_name="Disciplina"
     )
     descripcion = models.TextField(verbose_name="Descripción")
     unidad_medida = models.CharField(max_length=50, verbose_name="Unidad de Medida")

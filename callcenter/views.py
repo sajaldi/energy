@@ -161,6 +161,21 @@ def trigger_sync_tickets_automatico(request):
 
 
 @staff_member_required
+def trigger_sync_dashboard(request):
+    """
+    Vista AJAX: inicia la sincronización automática desde el dashboard
+    y devuelve JSON con el resultado (sin redirigir).
+    """
+    from django.http import JsonResponse
+    try:
+        sync_tickets_automatico_task.delay()
+        return JsonResponse({'status': 'ok', 'message': 'Sincronización iniciada en segundo plano.'})
+    except Exception as e:
+        logger.error(f"Error al iniciar sincronización desde dashboard: {e}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
 def trigger_sync_by_folios(request):
     """
     Inicia la sincronización de tickets específicos por folio.
@@ -672,6 +687,15 @@ def get_filtered_ticket_qs(request):
     fecha_fin_str = request.GET.get('fecha_fin')
     
     qs = SolicitudTicket.objects.all()
+
+    # Filtro por departamento: no-superusers solo ven su departamento
+    if not request.user.is_superuser:
+        perfil = getattr(request.user, 'perfil', None)
+        user_depto_id = perfil.departamento_id if perfil else None
+        if user_depto_id:
+            qs = qs.filter(falla_reportada__departamento_responsable_id=user_depto_id)
+        else:
+            qs = qs.none()
     
     if fecha_inicio_str:
         try:
@@ -721,7 +745,9 @@ def ticket_dashboard_view(request):
     tickets_abiertos = total_tickets - tickets_cerrados
     
     # --- CACHE PARA DATOS PESADOS (Clusters y Árbol) ---
-    cache_key = f"ticket_dashboard_heavy_{request.user.id}_{fecha_inicio_str}_{fecha_fin_str}"
+    perfil = getattr(request.user, 'perfil', None)
+    user_depto_id = perfil.departamento_id if perfil else None
+    cache_key = f"ticket_dashboard_heavy_{request.user.id}_{user_depto_id}_{fecha_inicio_str}_{fecha_fin_str}"
     cached_data = cache.get(cache_key)
     
     if cached_data:
@@ -743,10 +769,7 @@ def ticket_dashboard_view(request):
             num_abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False))
         ).select_related('usuario_creador', 'departamento', 'usuario_creador__perfil')
 
-        # Seguridad: Filtrar por departamento
-        perfil = getattr(request.user, 'perfil', None)
-        user_depto_id = perfil.departamento_id if perfil else None
-        
+        # Seguridad: Filtrar clusters por departamento (perfil/user_depto_id ya calculados)
         if not request.user.is_superuser and user_depto_id:
             raw_grupos_qs = raw_grupos_qs.filter(
                 Q(departamento_id=user_depto_id) | 
@@ -928,11 +951,24 @@ def ticket_dashboard_view(request):
 
     departamentos_qs = Departamento.objects.all().order_by('nombre')
 
+    from django.core.cache import cache
+    ultima_sincronizacion = cache.get('callcenter_last_sig_sync')
+
+    # Separar los últimos 4 clusters (recientes) del histórico por departamento
+    CLUSTERS_RECIENTES = 4
+    grupos_recientes_por_depto = {}
+    grupos_historico_por_depto = {}
+    for depto, lista in grupos_por_depto.items():
+        grupos_recientes_por_depto[depto] = lista[:CLUSTERS_RECIENTES]
+        if len(lista) > CLUSTERS_RECIENTES:
+            grupos_historico_por_depto[depto] = lista[CLUSTERS_RECIENTES:]
+
     context = {
         'total': total_tickets,
         'cerrados': tickets_cerrados,
         'abiertos': tickets_abiertos,
-        'grupos_por_depto': grupos_por_depto,
+        'grupos_por_depto': grupos_recientes_por_depto,
+        'grupos_historico_por_depto': grupos_historico_por_depto,
         'flat_nodes': flat_nodes,
         'cat_labels_json': json.dumps(cat_labels),
         'cat_data_json': json.dumps(cat_data),
@@ -941,6 +977,7 @@ def ticket_dashboard_view(request):
         'fecha_fin': fecha_fin_str,
         'title': 'Dashboard de Tickets',
         'departamentos': departamentos_qs,
+        'ultima_sincronizacion': ultima_sincronizacion,
     }
     return render(request, 'callcenter/ticket_dashboard.html', context)
 

@@ -1,6 +1,7 @@
 {% load static %}
 {% load humanize %}
 {% load l10n %}
+{% load core_tags %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -21,6 +22,22 @@
             <div class="header-title">
                 <h1>🎫 Dashboard de Tickets</h1>
                 <p>Análisis de Clusters y Seguimiento de Gestión</p>
+                <div class="sync-row">
+                    {% if ultima_sincronizacion %}
+                    <span class="sync-badge" id="sync-badge">
+                        <i class="ph ph-arrows-clockwise"></i>
+                        Actualizado por última vez el {{ ultima_sincronizacion|date:"d/m/Y" }} a las {{ ultima_sincronizacion|date:"H:i" }}
+                    </span>
+                    {% else %}
+                    <span class="sync-badge sync-badge--unknown" id="sync-badge">
+                        <i class="ph ph-arrows-clockwise"></i>
+                        Sin sincronización registrada
+                    </span>
+                    {% endif %}
+                    <button id="btn-sync-sig" class="btn-sync-sig" onclick="triggerSyncSIG()" title="Sincronizar tickets con SIG">
+                        <i class="ph ph-arrows-clockwise" id="sync-icon"></i> Sincronizar con SIG
+                    </button>
+                </div>
             </div>
             <div class="header-actions">
                 <a href="{% url 'callcenter:wizard_cluster' %}" class="btn-back" style="background: var(--sap-primary); color: white; border: none; margin-right: 10px;">
@@ -570,7 +587,7 @@
                             <h3 style="margin:0; color:#004065; font-size: 1.25rem; text-transform: uppercase; font-weight: 900;">
                                 <i class="ph ph-buildings"></i> {{ depto }}
                             </h3>
-                            <span style="background:#eef5fa; color:#0070b2; padding:4px 12px; font-size:0.85rem; font-weight:800;">{{ grupos|length }} CLUSTERS</span>
+                            <span style="background:#eef5fa; color:#0070b2; padding:4px 12px; font-size:0.85rem; font-weight:800;">{{ grupos|length }} RECIENTES</span>
                         </div>
 
                         <div class="bento-clusters-grid">
@@ -623,6 +640,59 @@
                             </div>
                             {% endfor %}
                         </div>
+
+                        {# ── Histórico colapsable por departamento ── #}
+                        {% with h_grupos=grupos_historico_por_depto|dict_get:depto %}
+                        {% if h_grupos %}
+                        <div class="historico-toggle-row">
+                            <button class="btn-historico" onclick="toggleHistorico('hist-{{ forloop.counter }}')" id="btn-hist-{{ forloop.counter }}">
+                                <i class="ph ph-clock-clockwise"></i>
+                                Ver histórico ({{ h_grupos|length }} clusters anteriores)
+                                <i class="ph ph-caret-down hist-caret" id="caret-hist-{{ forloop.counter }}"></i>
+                            </button>
+                        </div>
+                        <div class="historico-panel" id="hist-{{ forloop.counter }}" style="display:none;">
+                            <div class="bento-clusters-grid" style="opacity:0.85;">
+                                {% for grupo in h_grupos %}
+                                <div class="bento-panel bento-panel--historico" onclick="window.location.href='{% url 'callcenter:cluster_tickets' grupo.id|unlocalize %}'">
+                                    <div class="panel-header">
+                                        <div class="panel-id-group">
+                                            <span class="id-tag">#{{ grupo.correlativo }}</span>
+                                            <span class="date-tag">{{ grupo.fecha|date:"d M Y" }}</span>
+                                        </div>
+                                        <div class="panel-status-icon" style="color:#aaa;">
+                                            <i class="ph ph-archive"></i>
+                                        </div>
+                                    </div>
+                                    <div class="panel-body">
+                                        <h3 class="panel-title" title="{{ grupo.descripcion }}">
+                                            {{ grupo.descripcion|truncatewords:10 }}
+                                        </h3>
+                                        <div class="panel-stats-row">
+                                            <div class="stat-item">
+                                                <span class="stat-val">{{ grupo.num_tickets }}</span>
+                                                <span class="stat-lbl">Total</span>
+                                            </div>
+                                            <div class="stat-item active">
+                                                <span class="stat-val">{{ grupo.num_abiertos }}</span>
+                                                <span class="stat-lbl">Pend.</span>
+                                            </div>
+                                            <div class="stat-item completed">
+                                                <span class="stat-val">{{ grupo.num_cerrados }}</span>
+                                                <span class="stat-lbl">Listos</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="panel-footer">
+                                        <span>Ver Analisis <i class="ph ph-arrow-up-right"></i></span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+
                     </div>
                     {% empty %}
                     <div class="empty-clusters">
@@ -1269,6 +1339,59 @@
         document.getElementById('manual-cluster-modal').addEventListener('click', function(e) {
             if (e.target === this) closeManualClusterModal();
         });
+
+        // ── Histórico de clusters ──────────────────────────────────────────
+        function toggleHistorico(id) {
+            const panel = document.getElementById(id);
+            const num = id.replace('hist-', '');
+            const caret = document.getElementById('caret-hist-' + num);
+            const btn = document.getElementById('btn-hist-' + num);
+            if (!panel) return;
+            const open = panel.style.display !== 'none';
+            panel.style.display = open ? 'none' : 'block';
+            if (caret) caret.style.transform = open ? '' : 'rotate(180deg)';
+            if (btn) btn.classList.toggle('btn-historico--open', !open);
+        }
+        function triggerSyncSIG() {
+            const btn = document.getElementById('btn-sync-sig');
+            const icon = document.getElementById('sync-icon');
+            const badge = document.getElementById('sync-badge');
+
+            btn.disabled = true;
+            btn.classList.add('btn-sync-sig--loading');
+            icon.style.animation = 'spin 1s linear infinite';
+            btn.innerHTML = '<i class="ph ph-arrows-clockwise" id="sync-icon" style="animation:spin 1s linear infinite"></i> Sincronizando...';
+
+            fetch('{% url "callcenter:trigger_sync_dashboard" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    badge.className = 'sync-badge sync-badge--running';
+                    badge.innerHTML = '<i class="ph ph-arrows-clockwise"></i> Sincronización en proceso... (puede tardar unos minutos)';
+                    btn.innerHTML = '<i class="ph ph-check"></i> Iniciada';
+                    btn.style.background = '#2e7d32';
+                } else {
+                    badge.className = 'sync-badge sync-badge--error';
+                    badge.innerHTML = '<i class="ph ph-warning"></i> Error: ' + data.message;
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ph ph-arrows-clockwise"></i> Reintentar';
+                    btn.classList.remove('btn-sync-sig--loading');
+                }
+            })
+            .catch(() => {
+                badge.className = 'sync-badge sync-badge--error';
+                badge.innerHTML = '<i class="ph ph-warning"></i> Error de red. Intente de nuevo.';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-arrows-clockwise"></i> Reintentar';
+                btn.classList.remove('btn-sync-sig--loading');
+            });
+        }
     </script>
 </body>
 </html>
