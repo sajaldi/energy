@@ -42,9 +42,11 @@ class PowerAutomatePasswordResetView(auth_views.PasswordResetView):
         for user in users:
             uid   = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            reset_url = self.request.build_absolute_uri(
-                f'/admin/reset/{uid}/{token}/'
-            )
+            # Usar BASE_REGISTRATION_URL para evitar el host interno de Coolify/Docker
+            base_url = getattr(django_settings, 'BASE_REGISTRATION_URL', '').rstrip('/')
+            if not base_url:
+                base_url = self.request.build_absolute_uri('/').rstrip('/')
+            reset_url = f"{base_url}/admin/reset/{uid}/{token}/"
 
             webhook_url = (
                 getattr(django_settings, 'POWER_AUTOMATE_WEBHOOK_URL', '') or
