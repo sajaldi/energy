@@ -353,6 +353,9 @@ def proyecto_detalle_fiori(request, pk):
         'tasks_json': json.dumps(tasks),
         'observaciones': observaciones,
         'estados_obs': estados_obs,
+        'cotizaciones': proyecto.cotizaciones.select_related(
+            'disciplina', 'creado_por'
+        ).prefetch_related('items').order_by('-creado_en'),
     }
     return render(request, 'proyectos/proyecto_detalle_fiori.html', context)
 

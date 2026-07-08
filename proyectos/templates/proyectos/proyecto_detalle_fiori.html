@@ -296,6 +296,7 @@
         <div class="sap-tab" data-target="documentos">Documentos vinculados</div>
         <div class="sap-tab" data-target="visor">Órdenes de Trabajo</div>
         <div class="sap-tab" data-target="financiero">Requisiciones</div>
+        <div class="sap-tab" data-target="cotizaciones">Cotizaciones</div>
         <div class="sap-tab" data-target="observaciones">Observaciones</div>
     </nav>
 
@@ -716,6 +717,121 @@
             </div>
             {% endif %}
             {% endwith %}
+        </div>
+    </section>
+
+    <!-- SECTION: COTIZACIONES -->
+    <section id="cotizaciones" class="sap-section">
+        <div class="sap-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--fiori-border);">
+                <div class="sap-card-title" style="margin:0;">💰 Cotizaciones</div>
+                <a href="{% url 'presupuestos:crear_cotizacion' %}?proyecto={{ proyecto.id }}"
+                   class="sap-btn sap-btn-primary" style="text-decoration:none;">
+                    <i class="fas fa-plus"></i> Nueva Cotización
+                </a>
+            </div>
+
+            {% if cotizaciones %}
+            <div style="overflow-x:auto;">
+                <table class="sap-table">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Disciplina</th>
+                            <th>Fecha</th>
+                            <th>Versión</th>
+                            <th>Válida Hasta</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cot in cotizaciones %}
+                        <tr>
+                            <td style="font-weight:700;">
+                                <a href="{% url 'presupuestos:ver_cotizacion' cot.pk %}"
+                                   style="color:var(--fiori-blue);text-decoration:none;">
+                                    {{ cot.numero }}
+                                </a>
+                            </td>
+                            <td>{{ cot.disciplina.nombre|default:"—" }}</td>
+                            <td>{{ cot.fecha|date:"d/m/Y" }}</td>
+                            <td style="text-align:center;">v{{ cot.version }}</td>
+                            <td>{{ cot.valida_hasta|date:"d/m/Y"|default:"—" }}</td>
+                            <td style="text-align:center;">{{ cot.items.count }}</td>
+                            <td style="font-weight:600;">
+                                L {{ cot.total|floatformat:2 }}
+                            </td>
+                            <td>
+                                <span style="
+                                    padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;
+                                    {% if cot.estado == 'BORRADOR' %}background:#f1f5f9;color:#475569;{% endif %}
+                                    {% if cot.estado == 'ENVIADA' %}background:#fef3c7;color:#92400e;{% endif %}
+                                    {% if cot.estado == 'APROBADA' %}background:#dcfce7;color:#166534;{% endif %}
+                                    {% if cot.estado == 'RECHAZADA' %}background:#fee2e2;color:#991b1b;{% endif %}
+                                ">{{ cot.get_estado_display }}</span>
+                            </td>
+                            <td>
+                                <a href="{% url 'presupuestos:ver_cotizacion' cot.pk %}"
+                                   class="sap-btn sap-btn-secondary"
+                                   style="padding:4px 10px;font-size:11px;text-decoration:none;">
+                                    <i class="fas fa-eye"></i> Ver
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#f8fafc;font-weight:700;">
+                            <td colspan="6" style="padding:10px 16px;text-align:right;color:#475569;font-size:13px;">
+                                Total del proyecto:
+                            </td>
+                            <td style="padding:10px 16px;font-size:14px;color:#166534;">
+                                L {% with total=0 %}
+                                    {% for cot in cotizaciones %}{% if cot.estado != 'RECHAZADA' %}{{ cot.total|add:total }}{% endif %}{% endfor %}
+                                {% endwith %}
+                                <!-- Total calculado en JS -->
+                            </td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Resumen por disciplina -->
+            <div style="padding:16px 24px;border-top:1px solid var(--fiori-border);">
+                <div style="font-size:12px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:12px;">
+                    Resumen por disciplina
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;" id="cotizaciones-resumen">
+                    {% regroup cotizaciones by disciplina as cots_por_disc %}
+                    {% for disc_group in cots_por_disc %}
+                    <div style="background:#f0f4ff;border:1px solid #cdd9f5;border-radius:6px;padding:10px 16px;min-width:160px;">
+                        <div style="font-size:12px;font-weight:700;color:#32363a;">
+                            {{ disc_group.grouper.nombre|default:"Sin disciplina" }}
+                        </div>
+                        <div style="font-size:11px;color:#6a6d70;margin-top:2px;">
+                            {{ disc_group.list|length }} cotización{{ disc_group.list|length|pluralize }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% else %}
+            <div style="padding:40px;background:#f8fafc;border:2px dashed #e2e8f0;border-radius:8px;text-align:center;color:#94a3b8;margin:16px;">
+                <span style="font-size:2.5rem;display:block;margin-bottom:10px;">📋</span>
+                <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Sin cotizaciones</div>
+                <div style="font-size:13px;">No hay cotizaciones vinculadas a este proyecto.</div>
+                <a href="{% url 'presupuestos:crear_cotizacion' %}?proyecto={{ proyecto.id }}"
+                   class="sap-btn sap-btn-primary"
+                   style="display:inline-flex;margin-top:16px;text-decoration:none;">
+                    <i class="fas fa-plus"></i> Crear primera cotización
+                </a>
+            </div>
+            {% endif %}
         </div>
     </section>
 
