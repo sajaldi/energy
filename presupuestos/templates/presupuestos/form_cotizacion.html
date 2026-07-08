@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if es_nuevo %}Nueva Cotización{% else %}Editar: {{ cotizacion.numero }}{% endif %}</title>
+    <title>{% if es_nuevo %}Nueva CotizaciÃ³n{% else %}Editar: {{ cotizacion.numero }}{% endif %}</title>
     {% include 'core/fiori_tokens.html' %}
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -28,7 +28,7 @@
         .seccion-disciplina { margin-bottom: 8px; }
         .seccion-disciplina .card-header { background: linear-gradient(90deg, var(--sap-group-bg) 0%, var(--sap-card-bg) 100%); }
 
-        /* Bloque Área */
+        /* Bloque Ãrea */
         .bloque-area { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 16px; overflow: hidden; }
         .bloque-area-header { background: #1e3a5f; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
         .bloque-area-titulo { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.3px; }
@@ -93,7 +93,7 @@
         /* Toolbar */
         .items-toolbar { padding: 10px 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--sap-border-color); background: var(--sap-bg-color); }
 
-        /* ── Modal Catálogo ─────────────────────────────────────────────── */
+        /* â”€â”€ Modal CatÃ¡logo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 500; align-items: center; justify-content: center; }
         .modal-overlay.open { display: flex; }
         .modal-box { background: #fff; width: 820px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
@@ -152,12 +152,12 @@
 <body>
 
 <div class="shell-header">
-    <a href="{% url 'presupuestos:lista_cotizaciones' %}" class="back btn btn-sm">← Cotizaciones</a>
-    <h1>{% if es_nuevo %}Nueva Cotización{% else %}Editando {{ cotizacion.numero }}{% endif %}</h1>
+    <a href="{% url 'presupuestos:lista_cotizaciones' %}" class="back btn btn-sm">â† Cotizaciones</a>
+    <h1>{% if es_nuevo %}Nueva CotizaciÃ³n{% else %}Editando {{ cotizacion.numero }}{% endif %}</h1>
     {% if not es_nuevo %}
     <span class="badge badge-{{ cotizacion.estado|lower }}">{{ cotizacion.get_estado_display }}</span>
-    <a href="{% url 'presupuestos:ver_cotizacion' cotizacion.id %}" class="btn btn-sm" target="_blank">👁 Vista previa</a>
-    <a href="{% url 'presupuestos:cotizacion_pdf' cotizacion.id %}" class="btn btn-sm" target="_blank">📄 PDF</a>
+    <a href="{% url 'presupuestos:ver_cotizacion' cotizacion.id %}" class="btn btn-sm" target="_blank">ðŸ‘ Vista previa</a>
+    <a href="{% url 'presupuestos:cotizacion_pdf' cotizacion.id %}" class="btn btn-sm" target="_blank">ðŸ“„ PDF</a>
     {% endif %}
 </div>
 
@@ -171,7 +171,7 @@
     {% endif %}
 
     {% if es_nuevo %}
-    <!-- ═══════════════════════════════ CREAR ═══════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• CREAR â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
     <form method="post" id="crear-form">
         {% csrf_token %}
         <input type="hidden" name="accion" value="crear_completo">
@@ -179,13 +179,13 @@
 
         <!-- Encabezado -->
         <div class="card">
-            <div class="card-header">📋 Información General</div>
+            <div class="card-header">ðŸ“‹ InformaciÃ³n General</div>
             <div class="card-body">
                 <div class="field-row">
                     <div class="field-group" style="flex:2;min-width:200px;">
                         <label>Proyecto</label>
                         <select name="proyecto" id="select-proyecto-new" onchange="cargarAreasProyecto(this.value, 'select-area-new')">
-                            <option value="">— Sin proyecto —</option>
+                            <option value="">â€” Sin proyecto â€”</option>
                             {% for p in proyectos %}
                             <option value="{{ p.id }}"
                               {% if proyecto_id_preselect and proyecto_id_preselect == p.id|stringformat:"s" %}selected{% endif %}>
@@ -195,9 +195,9 @@
                         </select>
                     </div>
                     <div class="field-group" style="flex:2;min-width:200px;">
-                        <label>Área</label>
+                        <label>Ãrea</label>
                         <select name="area" id="select-area-new">
-                            <option value="">— Sin área —</option>
+                            <option value="">â€” Sin Ã¡rea â€”</option>
                             {% for u in ubicaciones %}
                             <option value="{{ u.id }}">{{ u.nombre }}</option>
                             {% endfor %}
@@ -208,17 +208,17 @@
                         <input type="date" name="fecha" value="{% now 'Y-m-d' %}" required style="width:140px;">
                     </div>
                     <div class="field-group w-auto">
-                        <label>Versión</label>
+                        <label>VersiÃ³n</label>
                         <input type="number" name="version" value="1" min="1" step="1" style="width:70px;">
                     </div>
                     <div class="field-group w-auto">
-                        <label>Válida hasta</label>
+                        <label>VÃ¡lida hasta</label>
                         <input type="date" name="valida_hasta" style="width:140px;">
                     </div>
                 </div>
                 <div class="field-group">
                     <label>Notas / Condiciones comerciales</label>
-                    <textarea name="notas" rows="2" placeholder="Tiempo de entrega, condiciones de pago, garantías..."></textarea>
+                    <textarea name="notas" rows="2" placeholder="Tiempo de entrega, condiciones de pago, garantÃ­as..."></textarea>
                 </div>
             </div>
         </div>
@@ -228,21 +228,21 @@
 
         <!-- Empty state (visible si no hay secciones) -->
         <div id="empty-secciones" class="empty-secciones" style="display:none;">
-            <p style="font-size:1.1rem;font-weight:600;">Sin disciplinas todavía</p>
-            <p>Agrega una sección de disciplina para comenzar a ingresar ítems.</p>
+            <p style="font-size:1.1rem;font-weight:600;">Sin disciplinas todavÃ­a</p>
+            <p>Agrega una secciÃ³n de disciplina para comenzar a ingresar Ã­tems.</p>
         </div>
 
-        <!-- Agregar sección -->
+        <!-- Agregar secciÃ³n -->
         <div class="card">
             <div class="card-body">
                 <div class="add-section-bar">
-                    <input type="text" id="input-nueva-area" placeholder="Nombre del área (ej: Nivel 4, Zona A...)"
+                    <input type="text" id="input-nueva-area" placeholder="Nombre del Ã¡rea (ej: Nivel 4, Zona A...)"
                            style="flex:2;padding:6px 10px;border:1px solid var(--sap-border-color);font-family:inherit;font-size:0.84rem;">
                     <select id="select-nueva-disciplina">
-                        <option value="">— Selecciona disciplina —</option>
+                        <option value="">â€” Selecciona disciplina â€”</option>
                         {% for d in disciplinas %}<option value="{{ d.id }}" data-nombre="{{ d.nombre }}">{{ d.nombre }}</option>{% endfor %}
                     </select>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="agregarSeccionDesdeSelector()">＋ Agregar</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="agregarSeccionDesdeSelector()">ï¼‹ Agregar</button>
                 </div>
             </div>
         </div>
@@ -250,20 +250,20 @@
         <!-- Total general -->
         <div class="total-general-bar">
             <span class="label">Total General</span>
-            <span class="amount" id="total-general">$ 0.00</span>
+            <span class="amount" id="total-general">L 0.00</span>
         </div>
 
         <!-- Save bar -->
         <div class="save-bar">
-            <span class="status" id="save-status">Completa los datos para crear la cotización.</span>
-            <button type="submit" class="btn btn-primary" onclick="antesDeGuardar(event)">💾 Crear Cotización</button>
+            <span class="status" id="save-status">Completa los datos para crear la cotizaciÃ³n.</span>
+            <button type="submit" class="btn btn-primary" onclick="antesDeGuardar(event)">ðŸ’¾ Crear CotizaciÃ³n</button>
         </div>
     </form>
 
     {% else %}
-    <!-- ═══════════════════════════════ EDITAR ═══════════════════════════════ -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• EDITAR â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 
-    <!-- Datos de secciones para reconstrucción -->
+    <!-- Datos de secciones para reconstrucciÃ³n -->
     <script>var ITEMS_POR_DISCIPLINA = {{ items_por_disciplina_json|safe }};</script>
 
     <!-- Encabezado -->
@@ -271,13 +271,13 @@
         {% csrf_token %}
         <input type="hidden" name="accion" value="guardar_cabecera">
         <div class="card">
-            <div class="card-header">📋 Información General</div>
+            <div class="card-header">ðŸ“‹ InformaciÃ³n General</div>
             <div class="card-body">
                 <div class="field-row">
                     <div class="field-group" style="flex:2;min-width:200px;">
                         <label>Proyecto</label>
                         <select name="proyecto">
-                            <option value="">— Sin proyecto —</option>
+                            <option value="">â€” Sin proyecto â€”</option>
                             {% for p in proyectos %}<option value="{{ p.id }}"{% if cotizacion.proyecto_id == p.id %} selected{% endif %}>{{ p.nombre }}</option>{% endfor %}
                         </select>
                     </div>
@@ -286,11 +286,11 @@
                         <input type="date" name="fecha" value="{{ cotizacion.fecha|date:'Y-m-d' }}" required style="width:140px;">
                     </div>
                     <div class="field-group w-auto">
-                        <label>Versión</label>
+                        <label>VersiÃ³n</label>
                         <input type="number" name="version" value="{{ cotizacion.version }}" min="1" step="1" style="width:70px;">
                     </div>
                     <div class="field-group w-auto">
-                        <label>Válida hasta</label>
+                        <label>VÃ¡lida hasta</label>
                         <input type="date" name="valida_hasta" value="{% if cotizacion.valida_hasta %}{{ cotizacion.valida_hasta|date:'Y-m-d' }}{% endif %}" style="width:140px;">
                     </div>
                 </div>
@@ -299,10 +299,10 @@
                     <textarea name="notas" rows="2">{{ cotizacion.notas }}</textarea>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-                    <button type="submit" class="btn btn-primary btn-sm">💾 Guardar cabecera</button>
-                    <form method="post" style="display:inline;" onsubmit="return confirm('¿Eliminar esta cotización permanentemente?')">
+                    <button type="submit" class="btn btn-primary btn-sm">ðŸ’¾ Guardar cabecera</button>
+                    <form method="post" style="display:inline;" onsubmit="return confirm('Â¿Eliminar esta cotizaciÃ³n permanentemente?')">
                         {% csrf_token %}<input type="hidden" name="accion" value="eliminar">
-                        <button type="submit" class="btn btn-sm btn-danger">🗑 Eliminar</button>
+                        <button type="submit" class="btn btn-sm btn-danger">ðŸ—‘ Eliminar</button>
                     </form>
                     <div style="margin-left:auto;">
                         <form method="post" style="display:inline;">
@@ -321,7 +321,7 @@
         </div>
     </form>
 
-    <!-- Items por sección -->
+    <!-- Items por secciÃ³n -->
     <form method="post" id="items-form">
         {% csrf_token %}
         <input type="hidden" name="accion" value="guardar_items">
@@ -331,21 +331,21 @@
         <div id="secciones-container"></div>
 
         <div id="empty-secciones" class="empty-secciones" style="display:none;">
-            <p style="font-size:1.1rem;font-weight:600;">Sin secciones todavía</p>
-            <p>Agrega un área y disciplina para comenzar a ingresar ítems.</p>
+            <p style="font-size:1.1rem;font-weight:600;">Sin secciones todavÃ­a</p>
+            <p>Agrega un Ã¡rea y disciplina para comenzar a ingresar Ã­tems.</p>
         </div>
 
-        <!-- Agregar sección -->
+        <!-- Agregar secciÃ³n -->
         <div class="card">
             <div class="card-body">
                 <div class="add-section-bar">
-                    <input type="text" id="input-nueva-area" placeholder="Área (ej: Nivel 4, Zona A...)"
+                    <input type="text" id="input-nueva-area" placeholder="Ãrea (ej: Nivel 4, Zona A...)"
                            style="flex:2;padding:6px 10px;border:1px solid var(--sap-border-color);font-family:inherit;font-size:0.84rem;">
                     <select id="select-nueva-disciplina">
-                        <option value="">— Selecciona disciplina —</option>
+                        <option value="">â€” Selecciona disciplina â€”</option>
                         {% for d in disciplinas %}<option value="{{ d.id }}" data-nombre="{{ d.nombre }}">{{ d.nombre }}</option>{% endfor %}
                     </select>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="agregarSeccionDesdeSelector()">＋ Agregar</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="agregarSeccionDesdeSelector()">ï¼‹ Agregar</button>
                 </div>
             </div>
         </div>
@@ -353,28 +353,28 @@
         <!-- Total general -->
         <div class="total-general-bar">
             <span class="label">Total General</span>
-            <span class="amount" id="total-general">$ 0.00</span>
+            <span class="amount" id="total-general">L 0.00</span>
         </div>
 
         <!-- Save bar -->
         <div class="save-bar">
             <span class="status" id="save-status">Listo para guardar.</span>
-            <button type="button" class="btn btn-success" onclick="guardarItems()">💾 Guardar ítems</button>
+            <button type="button" class="btn btn-success" onclick="guardarItems()">ðŸ’¾ Guardar Ã­tems</button>
         </div>
     </form>
     {% endif %}
 </div>
 
-<!-- ═══ Modal: Catálogo de Artículos ═══════════════════════════════════════ -->
+<!-- â•â•â• Modal: CatÃ¡logo de ArtÃ­culos â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <div class="modal-overlay" id="modal-catalogo" onclick="if(event.target===this)cerrarCatalogo()">
     <div class="modal-box">
         <div class="modal-header">
-            <span>📦</span>
-            <h2>Cargar desde Catálogo</h2>
-            <button class="modal-close" onclick="cerrarCatalogo()">✕</button>
+            <span>ðŸ“¦</span>
+            <h2>Cargar desde CatÃ¡logo</h2>
+            <button class="modal-close" onclick="cerrarCatalogo()">âœ•</button>
         </div>
         <div class="modal-filters">
-            <input type="text" id="cat-search" placeholder="Buscar por descripción o código..." oninput="buscarCatalogo()" autocomplete="off" style="min-width:220px;">
+            <input type="text" id="cat-search" placeholder="Buscar por descripciÃ³n o cÃ³digo..." oninput="buscarCatalogo()" autocomplete="off" style="min-width:220px;">
             <select id="cat-familia" onchange="buscarCatalogo()" style="min-width:150px;">
                 <option value="">Todas las familias</option>
             </select>
@@ -388,22 +388,22 @@
                 <thead>
                     <tr>
                         <th class="chk-col"><input type="checkbox" id="chk-all-cat" onchange="toggleTodoCatalogo(this.checked)" title="Seleccionar todos"></th>
-                        <th style="width:80px;">Código</th>
-                        <th>Descripción</th>
+                        <th style="width:80px;">CÃ³digo</th>
+                        <th>DescripciÃ³n</th>
                         <th style="width:60px;">U.M.</th>
                         <th style="width:100px;text-align:right;">Precio</th>
                         <th style="width:80px;"></th>
                     </tr>
                 </thead>
                 <tbody id="cat-table-body">
-                    <tr><td colspan="6" class="modal-loading">Selecciona una sección para cargar artículos</td></tr>
+                    <tr><td colspan="6" class="modal-loading">Selecciona una secciÃ³n para cargar artÃ­culos</td></tr>
                 </tbody>
             </table>
         </div>
         <div class="modal-footer">
-            <span class="sel-count" id="cat-sel-count">Ningún artículo seleccionado</span>
+            <span class="sel-count" id="cat-sel-count">NingÃºn artÃ­culo seleccionado</span>
             <button class="btn btn-sm" onclick="cerrarCatalogo()">Cancelar</button>
-            <button class="btn btn-primary btn-sm" id="btn-agregar-cat" onclick="confirmarSeleccionCatalogo()" disabled>＋ Agregar seleccionados</button>
+            <button class="btn btn-primary btn-sm" id="btn-agregar-cat" onclick="confirmarSeleccionCatalogo()" disabled>ï¼‹ Agregar seleccionados</button>
         </div>
     </div>
 </div>
@@ -412,25 +412,25 @@
 var API_ITEMS_URL = '{% url "presupuestos:api_items_por_disciplina" 0 %}';
 var COTIZACION_ID = {% if not es_nuevo %}{{ cotizacion.id }}{% else %}null{% endif %};
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function fmt(n) {
-    return '$ ' + parseFloat(n || 0).toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    return 'L ' + parseFloat(n || 0).toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
 function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ─── Build HTML helpers ────────────────────────────────────────────────────
+// â”€â”€â”€ Build HTML helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function buildItemRowHTML(idx, desc, um, cant, pu, dto, predId) {
     var total = (parseFloat(cant)||0) * (parseFloat(pu)||0) * (1 - (parseFloat(dto)||0)/100);
     var S = 'class="cell-input"';
     var SN = 'class="cell-input num"';
     return '<td class="col-num">' + idx + '</td>' +
-        '<td class="col-del"><button type="button" class="del-btn" onclick="eliminarItemDeSeccion(this)" title="Eliminar ítem">✕</button></td>' +
-        '<td><input ' + S + ' type="text" value="' + escHtml(desc) + '" placeholder="Descripción del ítem"></td>' +
+        '<td class="col-del"><button type="button" class="del-btn" onclick="eliminarItemDeSeccion(this)" title="Eliminar Ã­tem">âœ•</button></td>' +
+        '<td><input ' + S + ' type="text" value="' + escHtml(desc) + '" placeholder="DescripciÃ³n del Ã­tem"></td>' +
         '<td class="col-um"><input ' + S + ' type="text" value="' + escHtml(um) + '" placeholder="und"></td>' +
         '<td class="col-cant"><input ' + SN + ' type="number" value="' + (parseFloat(cant)||1) + '" min="0" step="0.01" oninput="recalcularItemEnSeccion(this)"></td>' +
         '<td class="col-pu"><input ' + SN + ' type="number" value="' + (parseFloat(pu)||0) + '" min="0" step="0.01" oninput="recalcularItemEnSeccion(this)"></td>' +
@@ -445,15 +445,15 @@ function buildSeccionHTML(disciplinaId, nombre) {
             '<span class="disc-badge">' + escHtml(nombre) + '</span>' +
             '<span style="flex:1;"></span>' +
             '<span class="seccion-subtotal-label">Subtotal&nbsp;</span>' +
-            '<span class="seccion-subtotal-val">$ 0.00</span>' +
-            '<button type="button" class="btn btn-xs btn-danger" style="margin-left:16px;" onclick="eliminarSeccion(this)" title="Eliminar disciplina">🗑</button>' +
+            '<span class="seccion-subtotal-val">L 0.00</span>' +
+            '<button type="button" class="btn btn-xs btn-danger" style="margin-left:16px;" onclick="eliminarSeccion(this)" title="Eliminar disciplina">ðŸ—‘</button>' +
         '</div>' +
         '<div style="overflow-x:auto;">' +
             '<table>' +
                 '<thead><tr>' +
                     '<th class="col-num">#</th>' +
                     '<th class="col-del"></th>' +
-                    '<th>Descripción</th>' +
+                    '<th>DescripciÃ³n</th>' +
                     '<th class="col-um">U.M.</th>' +
                     '<th class="col-cant">Cantidad</th>' +
                     '<th class="col-pu">Precio Unit.</th>' +
@@ -464,21 +464,21 @@ function buildSeccionHTML(disciplinaId, nombre) {
                 '<tbody class="seccion-items-body"></tbody>' +
                 '<tfoot><tr class="subtotal-row">' +
                     '<td colspan="7" style="text-align:right;padding:8px 12px;">Subtotal ' + escHtml(nombre) + '</td>' +
-                    '<td class="col-total seccion-total" style="text-align:right;padding:8px 12px;">$ 0.00</td>' +
+                    '<td class="col-total seccion-total" style="text-align:right;padding:8px 12px;">L 0.00</td>' +
                     '<td style="display:none"></td>' +
                 '</tr></tfoot>' +
             '</table>' +
         '</div>' +
         '<div class="items-toolbar">' +
-            '<button type="button" class="btn btn-sm" onclick="agregarItemEnSeccion(this)">＋ Agregar ítem</button>' +
-            '<button type="button" class="btn btn-sm" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;" onclick="abrirCatalogo(this)">📦 Cargar desde Catálogo</button>' +
+            '<button type="button" class="btn btn-sm" onclick="agregarItemEnSeccion(this)">ï¼‹ Agregar Ã­tem</button>' +
+            '<button type="button" class="btn btn-sm" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;" onclick="abrirCatalogo(this)">ðŸ“¦ Cargar desde CatÃ¡logo</button>' +
         '</div>' +
     '</div>';
 }
 
-// ─── Sección management ────────────────────────────────────────────────────
+// â”€â”€â”€ SecciÃ³n management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ─── Área management ──────────────────────────────────────────────────────
+// â”€â”€â”€ Ãrea management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getOCrearBloqueArea(area) {
     area = (area || '').trim();
@@ -492,15 +492,15 @@ function getOCrearBloqueArea(area) {
     bloque.dataset.areaKey = areaKey;
     bloque.dataset.area = area;
 
-    var areaTitle = area || 'Sin área';
+    var areaTitle = area || 'Sin Ã¡rea';
     bloque.innerHTML =
         '<div class="bloque-area-header">' +
-            '<span style="font-size:1rem;">📍</span>' +
+            '<span style="font-size:1rem;">ðŸ“</span>' +
             '<span class="bloque-area-titulo">' + escHtml(areaTitle) + '</span>' +
             '<span style="flex:1;"></span>' +
-            '<span class="bloque-area-subtotal-label">Subtotal área&nbsp;</span>' +
-            '<span class="bloque-area-subtotal-val">$ 0.00</span>' +
-            '<button type="button" class="btn btn-xs btn-danger" style="margin-left:16px;" onclick="eliminarBloqueArea(this)">🗑 Eliminar área</button>' +
+            '<span class="bloque-area-subtotal-label">Subtotal Ã¡rea&nbsp;</span>' +
+            '<span class="bloque-area-subtotal-val">L 0.00</span>' +
+            '<button type="button" class="btn btn-xs btn-danger" style="margin-left:16px;" onclick="eliminarBloqueArea(this)">ðŸ—‘ Eliminar Ã¡rea</button>' +
         '</div>' +
         '<div class="bloque-area-secciones"></div>';
 
@@ -510,8 +510,8 @@ function getOCrearBloqueArea(area) {
 
 function eliminarBloqueArea(btn) {
     var bloque = btn.closest('.bloque-area');
-    var nombre = bloque.dataset.area || 'Sin área';
-    if (!confirm('¿Eliminar el área "' + nombre + '" y todas sus secciones?')) return;
+    var nombre = bloque.dataset.area || 'Sin Ã¡rea';
+    if (!confirm('Â¿Eliminar el Ã¡rea "' + nombre + '" y todas sus secciones?')) return;
     bloque.remove();
     recalcularTotalGeneral();
     actualizarEmptyState();
@@ -528,7 +528,7 @@ function recalcularBloqueArea(bloque) {
     recalcularTotalGeneral();
 }
 
-// ─── Sección management ────────────────────────────────────────────────────
+// â”€â”€â”€ SecciÃ³n management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function agregarSeccion(disciplinaId, nombre, area) {
     if (!disciplinaId) return null;
@@ -537,7 +537,7 @@ function agregarSeccion(disciplinaId, nombre, area) {
     var key = areaKey + '||' + disciplinaId;
     var existing = document.querySelector('.seccion-disciplina[data-seccion-key="' + key + '"]');
     if (existing) {
-        alert('Ya existe una sección de "' + nombre + '" en el área "' + (area || 'Sin área') + '".');
+        alert('Ya existe una secciÃ³n de "' + nombre + '" en el Ã¡rea "' + (area || 'Sin Ã¡rea') + '".');
         return null;
     }
     var bloque = getOCrearBloqueArea(area);
@@ -561,7 +561,7 @@ function agregarSeccionDesdeSelector() {
     var id = sel.value;
     var nombre = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].dataset.nombre : '';
     var area = areaInput ? areaInput.value.trim() : '';
-    if (!id) { alert('Selecciona una disciplina antes de agregar la sección.'); return; }
+    if (!id) { alert('Selecciona una disciplina antes de agregar la secciÃ³n.'); return; }
     var wrap = agregarSeccion(id, nombre, area);
     if (wrap) { sel.value = ''; }
 }
@@ -569,7 +569,7 @@ function agregarSeccionDesdeSelector() {
 function eliminarSeccion(btn) {
     var wrap = btn.closest('.seccion-disciplina');
     var nombre = wrap.dataset.disciplinaNombre;
-    if (!confirm('¿Eliminar la sección "' + nombre + '" y todos sus ítems?')) return;
+    if (!confirm('Â¿Eliminar la secciÃ³n "' + nombre + '" y todos sus Ã­tems?')) return;
     wrap.remove();
     recalcularTotalGeneral();
     actualizarEmptyState();
@@ -588,7 +588,7 @@ function recalcularTotalGeneral() {
     subs.forEach(function(el) {
         total += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
     });
-    // Fallback si no hay bloques área (compatibilidad)
+    // Fallback si no hay bloques Ã¡rea (compatibilidad)
     if (subs.length === 0) {
         document.querySelectorAll('.seccion-subtotal-val').forEach(function(el) {
             total += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
@@ -598,7 +598,7 @@ function recalcularTotalGeneral() {
     if (tg) tg.textContent = fmt(total);
 }
 
-// ─── Item management ───────────────────────────────────────────────────────
+// â”€â”€â”€ Item management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function agregarItemEnSeccion(btn) {
     var wrap = btn.closest('.seccion-disciplina');
@@ -629,7 +629,7 @@ function actualizarIndicesSeccion(tbody) {
     });
 }
 
-// ─── Recalculation ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Recalculation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function recalcularItemEnSeccion(el) {
     var tr = el.closest('tr');
@@ -658,14 +658,14 @@ function recalcularSeccion(wrap) {
     var subFoot = wrap.querySelector('.seccion-total');
     if (subVal) subVal.textContent = fmt(sum);
     if (subFoot) subFoot.textContent = fmt(sum);
-    // Recalcular el bloque área padre
+    // Recalcular el bloque Ã¡rea padre
     var bloque = wrap.closest('.bloque-area');
     if (bloque) recalcularBloqueArea(bloque);
     else recalcularTotalGeneral();
 }
 
 function recalcularTotalGeneral() {
-    // Esta función ahora es manejada por recalcularBloqueArea → recalcularTotalGeneral
+    // Esta funciÃ³n ahora es manejada por recalcularBloqueArea â†’ recalcularTotalGeneral
     // Se mantiene como stub para compatibilidad con llamadas directas
     var bloques = document.querySelectorAll('.bloque-area-subtotal-val');
     var total = 0;
@@ -682,12 +682,12 @@ function recalcularTotalGeneral() {
     if (tg) tg.textContent = fmt(total);
 }
 
-// ─── Catálogo Modal ────────────────────────────────────────────────────────
+// â”€â”€â”€ CatÃ¡logo Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 var catalogoSeccionActual = null;
-var catalogoSeleccion = {}; // id → item data completo
+var catalogoSeleccion = {}; // id â†’ item data completo
 var catalogoTimer;
-var catalogoItemsCache = []; // cache de items del último fetch
+var catalogoItemsCache = []; // cache de items del Ãºltimo fetch
 
 function abrirCatalogo(btn) {
     catalogoSeccionActual = btn.closest('.seccion-disciplina');
@@ -739,7 +739,7 @@ function buscarCatalogo() {
         if (discId) params.push('disciplina=' + discId);
         if (familiaId) params.push('familia=' + familiaId);
         var url = '/presupuestos/api/articulos/buscar/?' + params.join('&');
-        document.getElementById('cat-table-body').innerHTML = '<tr><td colspan="6" class="modal-loading">🔍 Buscando...</td></tr>';
+        document.getElementById('cat-table-body').innerHTML = '<tr><td colspan="6" class="modal-loading">ðŸ” Buscando...</td></tr>';
         fetch(url)
             .then(function(r) { return r.json(); })
             .then(function(items) {
@@ -747,7 +747,7 @@ function buscarCatalogo() {
                 renderCatalogoTabla(items);
             })
             .catch(function() {
-                document.getElementById('cat-table-body').innerHTML = '<tr><td colspan="6" class="modal-empty">Error al cargar artículos</td></tr>';
+                document.getElementById('cat-table-body').innerHTML = '<tr><td colspan="6" class="modal-empty">Error al cargar artÃ­culos</td></tr>';
             });
     }, 250);
 }
@@ -756,7 +756,7 @@ function renderCatalogoTabla(items) {
     var body = document.getElementById('cat-table-body');
     body.innerHTML = '';
     if (!items.length) {
-        body.innerHTML = '<tr><td colspan="6" class="modal-empty">Sin artículos que coincidan</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" class="modal-empty">Sin artÃ­culos que coincidan</td></tr>';
         actualizarContadorCat();
         return;
     }
@@ -767,12 +767,12 @@ function renderCatalogoTabla(items) {
         tr.dataset.itemId = item.id;
         tr.innerHTML =
             '<td class="chk-col"><input type="checkbox" ' + (isSel ? 'checked' : '') + ' onchange="toggleSelCat(' + item.id + ', this.checked, event)"></td>' +
-            '<td><code style="font-size:0.73rem;color:var(--sap-text-muted);">' + escHtml(item.codigo || '—') + '</code></td>' +
+            '<td><code style="font-size:0.73rem;color:var(--sap-text-muted);">' + escHtml(item.codigo || 'â€”') + '</code></td>' +
             '<td><strong style="font-size:0.83rem;">' + escHtml(item.descripcion.substring(0, 65)) + '</strong>' +
             (item.familia ? ' <span class="badge-fam">' + escHtml(item.familia) + '</span>' : '') + '</td>' +
             '<td style="font-size:0.78rem;">' + escHtml(item.unidad_medida) + '</td>' +
-            '<td style="text-align:right;font-weight:600;color:var(--sap-brand-color);">$ ' + parseFloat(item.precio_unitario).toFixed(2) + '</td>' +
-            '<td>' + (item.es_compuesto ? '<span style="font-size:0.67rem;background:#fef3c7;color:#92400e;padding:1px 5px;border:1px solid #fde68a;">⚙ compuesto</span>' : '') + '</td>';
+            '<td style="text-align:right;font-weight:600;color:var(--sap-brand-color);">L  + parseFloat(item.precio_unitario).toFixed(2) + '</td>' +
+            '<td>' + (item.es_compuesto ? '<span style="font-size:0.67rem;background:#fef3c7;color:#92400e;padding:1px 5px;border:1px solid #fde68a;">âš™ compuesto</span>' : '') + '</td>';
         tr.onclick = function(e) {
             if (e.target.tagName === 'INPUT') return;
             var chk = tr.querySelector('input[type=checkbox]');
@@ -815,7 +815,7 @@ function toggleTodoCatalogo(checked) {
 
 function actualizarContadorCat() {
     var n = Object.keys(catalogoSeleccion).length;
-    document.getElementById('cat-sel-count').textContent = n > 0 ? n + ' artículo(s) seleccionado(s)' : 'Ningún artículo seleccionado';
+    document.getElementById('cat-sel-count').textContent = n > 0 ? n + ' artÃ­culo(s) seleccionado(s)' : 'NingÃºn artÃ­culo seleccionado';
     document.getElementById('btn-agregar-cat').disabled = (n === 0);
 }
 
@@ -848,7 +848,7 @@ function escHtml(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ─── Serialización ─────────────────────────────────────────────────────────
+// â”€â”€â”€ SerializaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function recolectarTodosLosItems() {
     var result = [];
@@ -886,10 +886,10 @@ function guardarItems() {
     document.getElementById('items-form').submit();
 }
 
-// ─── Init ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Reconstruir secciones en modo edición
+    // Reconstruir secciones en modo ediciÃ³n
     if (typeof ITEMS_POR_DISCIPLINA !== 'undefined' && ITEMS_POR_DISCIPLINA.length) {
         ITEMS_POR_DISCIPLINA.forEach(function(seccion) {
             var wrap = agregarSeccion(
@@ -922,3 +922,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
+
+
+
