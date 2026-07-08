@@ -25,8 +25,16 @@
 
         /* Disciplina section card */
         .seccion-disciplina .card { margin-bottom: 0; border-left: 3px solid var(--sap-brand-color); }
-        .seccion-disciplina { margin-bottom: 16px; }
+        .seccion-disciplina { margin-bottom: 8px; }
         .seccion-disciplina .card-header { background: linear-gradient(90deg, var(--sap-group-bg) 0%, var(--sap-card-bg) 100%); }
+
+        /* Bloque Área */
+        .bloque-area { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 16px; overflow: hidden; }
+        .bloque-area-header { background: #1e3a5f; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
+        .bloque-area-titulo { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.3px; }
+        .bloque-area-subtotal-label { font-size: 0.78rem; color: rgba(255,255,255,0.7); font-weight: 400; }
+        .bloque-area-subtotal-val { font-size: 1rem; font-weight: 700; color: #7dd3fc; min-width: 100px; text-align: right; }
+        .bloque-area-secciones { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
         .disc-badge { display: inline-block; padding: 2px 8px; font-size: 0.72rem; font-weight: 700; background: var(--sap-brand-color); color: #fff; border-radius: 2px; letter-spacing: 0.5px; text-transform: uppercase; }
         .seccion-subtotal-label { font-size: 0.78rem; color: var(--sap-text-muted); font-weight: 400; }
         .seccion-subtotal-val { font-size: 1rem; font-weight: 700; color: var(--sap-brand-color); min-width: 100px; text-align: right; }
@@ -431,16 +439,14 @@ function buildItemRowHTML(idx, desc, um, cant, pu, dto, predId) {
         '<td style="display:none"><input class="item-predefinido-id" type="hidden" value="' + (predId||'') + '"></td>';
 }
 
-function buildSeccionHTML(disciplinaId, nombre, area) {
-    var areaLabel = area ? '<span style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:2px 8px;font-size:0.72rem;font-weight:700;border-radius:2px;margin-right:8px;">📍 ' + escHtml(area) + '</span>' : '';
-    return '<div class="card">' +
+function buildSeccionHTML(disciplinaId, nombre) {
+    return '<div class="card" style="margin-bottom:0;border-left:3px solid var(--sap-brand-color);">' +
         '<div class="card-header">' +
-            areaLabel +
             '<span class="disc-badge">' + escHtml(nombre) + '</span>' +
             '<span style="flex:1;"></span>' +
             '<span class="seccion-subtotal-label">Subtotal&nbsp;</span>' +
             '<span class="seccion-subtotal-val">$ 0.00</span>' +
-            '<button type="button" class="btn btn-xs btn-danger" style="margin-left:16px;" onclick="eliminarSeccion(this)" title="Eliminar sección completa">🗑 Eliminar sección</button>' +
+            '<button type="button" class="btn btn-xs btn-danger" style="margin-left:16px;" onclick="eliminarSeccion(this)" title="Eliminar disciplina">🗑</button>' +
         '</div>' +
         '<div style="overflow-x:auto;">' +
             '<table>' +
@@ -472,25 +478,79 @@ function buildSeccionHTML(disciplinaId, nombre, area) {
 
 // ─── Sección management ────────────────────────────────────────────────────
 
+// ─── Área management ──────────────────────────────────────────────────────
+
+function getOCrearBloqueArea(area) {
+    area = (area || '').trim();
+    var areaKey = area || '__sin_area__';
+    var bloque = document.querySelector('.bloque-area[data-area-key="' + areaKey.replace(/"/g, '\\"') + '"]');
+    if (bloque) return bloque;
+
+    var container = document.getElementById('secciones-container');
+    bloque = document.createElement('div');
+    bloque.className = 'bloque-area';
+    bloque.dataset.areaKey = areaKey;
+    bloque.dataset.area = area;
+
+    var areaTitle = area || 'Sin área';
+    bloque.innerHTML =
+        '<div class="bloque-area-header">' +
+            '<span style="font-size:1rem;">📍</span>' +
+            '<span class="bloque-area-titulo">' + escHtml(areaTitle) + '</span>' +
+            '<span style="flex:1;"></span>' +
+            '<span class="bloque-area-subtotal-label">Subtotal área&nbsp;</span>' +
+            '<span class="bloque-area-subtotal-val">$ 0.00</span>' +
+            '<button type="button" class="btn btn-xs btn-danger" style="margin-left:16px;" onclick="eliminarBloqueArea(this)">🗑 Eliminar área</button>' +
+        '</div>' +
+        '<div class="bloque-area-secciones"></div>';
+
+    container.appendChild(bloque);
+    return bloque;
+}
+
+function eliminarBloqueArea(btn) {
+    var bloque = btn.closest('.bloque-area');
+    var nombre = bloque.dataset.area || 'Sin área';
+    if (!confirm('¿Eliminar el área "' + nombre + '" y todas sus secciones?')) return;
+    bloque.remove();
+    recalcularTotalGeneral();
+    actualizarEmptyState();
+}
+
+function recalcularBloqueArea(bloque) {
+    var subs = bloque.querySelectorAll('.seccion-subtotal-val');
+    var total = 0;
+    subs.forEach(function(el) {
+        total += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
+    });
+    var sv = bloque.querySelector('.bloque-area-subtotal-val');
+    if (sv) sv.textContent = fmt(total);
+    recalcularTotalGeneral();
+}
+
+// ─── Sección management ────────────────────────────────────────────────────
+
 function agregarSeccion(disciplinaId, nombre, area) {
     if (!disciplinaId) return null;
-    area = area || '';
-    // Permite múltiples secciones de la misma disciplina si tienen diferente área
-    var key = disciplinaId + '||' + area;
-    var existing = document.querySelector('.seccion-disciplina[data-seccion-key="' + CSS.escape(key) + '"]');
+    area = (area || '').trim();
+    var areaKey = area || '__sin_area__';
+    var key = areaKey + '||' + disciplinaId;
+    var existing = document.querySelector('.seccion-disciplina[data-seccion-key="' + key + '"]');
     if (existing) {
-        alert('Ya existe una sección de "' + nombre + '" para el área "' + (area || 'Sin área') + '".');
+        alert('Ya existe una sección de "' + nombre + '" en el área "' + (area || 'Sin área') + '".');
         return null;
     }
-    var container = document.getElementById('secciones-container');
+    var bloque = getOCrearBloqueArea(area);
+    var seccionesContainer = bloque.querySelector('.bloque-area-secciones');
+
     var wrap = document.createElement('div');
     wrap.className = 'seccion-disciplina';
     wrap.dataset.disciplinaId = disciplinaId;
     wrap.dataset.disciplinaNombre = nombre;
     wrap.dataset.area = area;
     wrap.dataset.seccionKey = key;
-    wrap.innerHTML = buildSeccionHTML(disciplinaId, nombre, area);
-    container.appendChild(wrap);
+    wrap.innerHTML = buildSeccionHTML(disciplinaId, nombre);
+    seccionesContainer.appendChild(wrap);
     actualizarEmptyState();
     return wrap;
 }
@@ -502,10 +562,8 @@ function agregarSeccionDesdeSelector() {
     var nombre = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].dataset.nombre : '';
     var area = areaInput ? areaInput.value.trim() : '';
     if (!id) { alert('Selecciona una disciplina antes de agregar la sección.'); return; }
-    if (agregarSeccion(id, nombre, area)) {
-        sel.value = '';
-        if (areaInput) areaInput.value = '';
-    }
+    var wrap = agregarSeccion(id, nombre, area);
+    if (wrap) { sel.value = ''; }
 }
 
 function eliminarSeccion(btn) {
@@ -522,6 +580,22 @@ function actualizarEmptyState() {
     var empty = document.getElementById('empty-secciones');
     if (!empty) return;
     empty.style.display = (container.children.length === 0) ? 'block' : 'none';
+}
+
+function recalcularTotalGeneral() {
+    var subs = document.querySelectorAll('.bloque-area-subtotal-val');
+    var total = 0;
+    subs.forEach(function(el) {
+        total += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
+    });
+    // Fallback si no hay bloques área (compatibilidad)
+    if (subs.length === 0) {
+        document.querySelectorAll('.seccion-subtotal-val').forEach(function(el) {
+            total += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
+        });
+    }
+    var tg = document.getElementById('total-general');
+    if (tg) tg.textContent = fmt(total);
 }
 
 // ─── Item management ───────────────────────────────────────────────────────
@@ -584,15 +658,26 @@ function recalcularSeccion(wrap) {
     var subFoot = wrap.querySelector('.seccion-total');
     if (subVal) subVal.textContent = fmt(sum);
     if (subFoot) subFoot.textContent = fmt(sum);
-    recalcularTotalGeneral();
+    // Recalcular el bloque área padre
+    var bloque = wrap.closest('.bloque-area');
+    if (bloque) recalcularBloqueArea(bloque);
+    else recalcularTotalGeneral();
 }
 
 function recalcularTotalGeneral() {
-    var subs = document.querySelectorAll('.seccion-subtotal-val');
+    // Esta función ahora es manejada por recalcularBloqueArea → recalcularTotalGeneral
+    // Se mantiene como stub para compatibilidad con llamadas directas
+    var bloques = document.querySelectorAll('.bloque-area-subtotal-val');
     var total = 0;
-    subs.forEach(function(el) {
-        total += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
-    });
+    if (bloques.length > 0) {
+        bloques.forEach(function(el) {
+            total += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
+        });
+    } else {
+        document.querySelectorAll('.seccion-subtotal-val').forEach(function(el) {
+            total += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
+        });
+    }
     var tg = document.getElementById('total-general');
     if (tg) tg.textContent = fmt(total);
 }
