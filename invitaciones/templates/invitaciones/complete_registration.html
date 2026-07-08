@@ -4,254 +4,98 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Activar cuenta — SoftCoM</title>
-  {% if fiori_tokens_url %}
-  {% else %}
   <style>
     :root {
-      --sap-brand-color: #0070f2;
-      --sap-brand-hover: #0064d9;
-      --sap-bg-color: #f5f6f7;
-      --sap-card-bg: #ffffff;
-      --sap-border-color: #e5e5e5;
-      --sap-text-color: #32363a;
-      --sap-text-muted: #6a6d70;
-      --sap-error: #bb0000;
-      --sap-error-bg: #fff1f1;
-      --sap-success: #107e3e;
-      --sap-success-bg: #f1fff6;
-      --sap-warning: #e9730c;
-      --sap-shell-bg: #354a5e;
-      --sap-border-radius: 4px;
+      --brand:#0070f2; --brand-h:#0064d9; --shell:#354a5e; --bg:#f5f6f7;
+      --card:#fff; --border:#e5e5e5; --text:#32363a; --muted:#6a6d70;
+      --error:#bb0000; --error-bg:#fff1f1; --success:#107e3e; --radius:4px;
     }
-  </style>
-  {% endif %}
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: "72", "72full", Arial, Helvetica, sans-serif;
-      background: var(--sap-bg-color, #f5f6f7);
-      color: var(--sap-text-color, #32363a);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:"72",Arial,sans-serif; background:var(--bg); color:var(--text);
+           min-height:100vh; display:flex; flex-direction:column; }
+    .shell { background:var(--shell); height:44px; display:flex; align-items:center;
+             padding:0 16px; gap:12px; flex-shrink:0; }
+    .shell-logo  { font-size:16px; font-weight:700; color:#fff; }
+    .shell-title { font-size:13px; color:rgba(255,255,255,.7); }
+    .main { flex:1; display:flex; align-items:center; justify-content:center; padding:24px 16px; }
+    .fd-card { background:var(--card); border:1px solid var(--border);
+               border-radius:var(--radius); box-shadow:0 2px 8px rgba(0,0,0,.08);
+               width:100%; max-width:520px; }
+    .fd-card__header { padding:16px 24px; border-bottom:1px solid var(--border);
+                       display:flex; align-items:center; gap:12px; }
+    .hdr-icon { width:40px; height:40px; background:var(--shell); border-radius:50%;
+                display:flex; align-items:center; justify-content:center;
+                font-size:18px; color:#fff; flex-shrink:0; }
+    .hdr-content h2 { font-size:16px; font-weight:700; }
+    .hdr-content p  { font-size:12px; color:var(--muted); margin-top:2px; }
+    .fd-card__body   { padding:24px; }
+    .fd-card__footer { padding:12px 24px; border-top:1px solid var(--border);
+                       font-size:11px; color:var(--muted); text-align:center; }
+    /* User badge */
+    .user-tile { background:#f0f4ff; border:1px solid #cdd9f5;
+                 border-radius:var(--radius); padding:10px 14px;
+                 display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+    .user-tile__av { width:36px; height:36px; background:var(--brand); border-radius:50%;
+                     display:flex; align-items:center; justify-content:center;
+                     font-size:15px; font-weight:700; color:#fff; flex-shrink:0; }
+    .user-tile__name  { font-size:13px; font-weight:600; }
+    .user-tile__email { font-size:11px; color:var(--muted); }
+    /* Section divider */
+    .section-title { font-size:11px; font-weight:700; color:var(--muted);
+                     text-transform:uppercase; letter-spacing:.5px;
+                     padding:0 0 8px; margin:4px 0 16px;
+                     border-bottom:2px solid var(--border); }
+    /* Form */
+    .fd-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .fd-form-group { margin-bottom:16px; }
+    .fd-label { display:block; font-size:12px; font-weight:700; color:var(--muted);
+                text-transform:uppercase; letter-spacing:.3px; margin-bottom:5px; }
+    .fd-label .req { color:var(--error); margin-left:2px; }
+    .fd-input-wrap { position:relative; }
+    .fd-input, .fd-select {
+      width:100%; height:36px; padding:0 12px;
+      border:1px solid #89919a; border-radius:var(--radius);
+      font-size:14px; font-family:inherit; color:var(--text);
+      background:#fff; outline:none;
+      transition:border-color .15s, box-shadow .15s;
     }
-
-    /* Shell header */
-    .shell {
-      background: var(--sap-shell-bg, #354a5e);
-      height: 44px;
-      display: flex;
-      align-items: center;
-      padding: 0 16px;
-      gap: 12px;
-      flex-shrink: 0;
+    .fd-input.pw { padding-right:36px; }
+    .fd-input:focus, .fd-select:focus {
+      border-color:var(--brand); box-shadow:0 0 0 2px rgba(0,112,242,.15);
     }
-    .shell-logo {
-      font-size: 16px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: 0.5px;
-    }
-    .shell-title {
-      font-size: 13px;
-      color: rgba(255,255,255,0.7);
-    }
-
-    /* Main layout */
-    .main {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 32px 16px;
-    }
-
-    /* Card */
-    .fd-card {
-      background: var(--sap-card-bg, #fff);
-      border: 1px solid var(--sap-border-color, #e5e5e5);
-      border-radius: var(--sap-border-radius, 4px);
-      box-shadow: 0 2px 8px rgba(0,0,0,.08);
-      width: 100%;
-      max-width: 480px;
-    }
-
-    .fd-card__header {
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--sap-border-color, #e5e5e5);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .fd-card__header-icon {
-      width: 40px; height: 40px;
-      background: var(--sap-brand-color, #0070f2);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      font-size: 18px;
-      color: #fff;
-    }
-
-    .fd-card__header-content h2 {
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--sap-text-color, #32363a);
-      line-height: 1.3;
-    }
-    .fd-card__header-content p {
-      font-size: 12px;
-      color: var(--sap-text-muted, #6a6d70);
-      margin-top: 2px;
-    }
-
-    .fd-card__body { padding: 24px; }
-
-    /* User info tile */
-    .user-tile {
-      background: #f0f4ff;
-      border: 1px solid #cdd9f5;
-      border-radius: var(--sap-border-radius, 4px);
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-    .user-tile__avatar {
-      width: 38px; height: 38px;
-      background: var(--sap-brand-color, #0070f2);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px; font-weight: 700; color: #fff; flex-shrink: 0;
-    }
-    .user-tile__name { font-size: 14px; font-weight: 600; color: var(--sap-text-color); }
-    .user-tile__email { font-size: 12px; color: var(--sap-text-muted); }
-
-    /* Form elements - SAP Fiori style */
-    .fd-form-group { margin-bottom: 20px; }
-    .fd-form-label {
-      display: block;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--sap-text-muted, #6a6d70);
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      margin-bottom: 6px;
-    }
-    .fd-form-label .required { color: var(--sap-error, #bb0000); margin-left: 2px; }
-
-    .fd-input-wrap { position: relative; }
-    .fd-input {
-      width: 100%;
-      height: 36px;
-      padding: 0 36px 0 12px;
-      border: 1px solid #89919a;
-      border-radius: var(--sap-border-radius, 4px);
-      font-size: 14px;
-      font-family: inherit;
-      color: var(--sap-text-color, #32363a);
-      background: #fff;
-      outline: none;
-      transition: border-color .15s, box-shadow .15s;
-    }
-    .fd-input:focus {
-      border-color: var(--sap-brand-color, #0070f2);
-      box-shadow: 0 0 0 2px rgba(0,112,242,.15);
-    }
-    .fd-input.is-error  { border-color: var(--sap-error, #bb0000); }
-    .fd-input.is-success { border-color: var(--sap-success, #107e3e); }
-
-    .fd-input-icon {
-      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-      font-size: 16px; cursor: pointer; color: var(--sap-text-muted);
-      user-select: none;
-    }
-
-    /* Password strength meter */
-    .strength-bar {
-      height: 4px;
-      border-radius: 2px;
-      background: #e5e5e5;
-      margin-top: 6px;
-      overflow: hidden;
-    }
-    .strength-bar__fill {
-      height: 100%;
-      width: 0%;
-      border-radius: 2px;
-      transition: width .3s, background .3s;
-    }
-    .strength-label {
-      font-size: 11px;
-      margin-top: 4px;
-      font-weight: 600;
-    }
-
-    /* Requirements checklist */
-    .req-list { margin-top: 8px; list-style: none; }
-    .req-list li {
-      font-size: 12px;
-      color: var(--sap-text-muted);
-      padding: 2px 0;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: color .2s;
-    }
-    .req-list li.ok  { color: var(--sap-success, #107e3e); }
-    .req-list li.err { color: var(--sap-error, #bb0000); }
-    .req-list li::before { content: '○'; font-size: 10px; }
-    .req-list li.ok::before  { content: '✓'; }
-    .req-list li.err::before { content: '✗'; }
-
-    /* Error message box */
-    .fd-message-bar {
-      background: var(--sap-error-bg, #fff1f1);
-      border-left: 3px solid var(--sap-error, #bb0000);
-      border-radius: var(--sap-border-radius, 4px);
-      padding: 10px 14px;
-      font-size: 13px;
-      color: var(--sap-error, #bb0000);
-      font-weight: 600;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
+    .fd-input.is-error   { border-color:var(--error); }
+    .fd-input.is-success { border-color:var(--success); }
+    .fd-eye { position:absolute; right:10px; top:50%; transform:translateY(-50%);
+              font-size:15px; cursor:pointer; color:var(--muted); user-select:none; }
+    /* Error bar */
+    .fd-msg { background:var(--error-bg); border-left:3px solid var(--error);
+              border-radius:var(--radius); padding:10px 14px; font-size:13px;
+              color:var(--error); font-weight:600; margin-bottom:16px;
+              display:flex; align-items:center; gap:8px; }
+    /* Strength */
+    .strength-bar  { height:4px; border-radius:2px; background:#e5e5e5;
+                     margin-top:6px; overflow:hidden; }
+    .strength-fill { height:100%; width:0%; border-radius:2px;
+                     transition:width .3s, background .3s; }
+    .strength-lbl  { font-size:11px; margin-top:3px; font-weight:600; min-height:14px; }
+    .req-list { margin-top:6px; list-style:none; }
+    .req-list li { font-size:11px; color:var(--muted); padding:1px 0;
+                   display:flex; align-items:center; gap:5px; transition:color .2s; }
+    .req-list li.ok  { color:var(--success); }
+    .req-list li.err { color:var(--error); }
+    .req-list li::before { content:'○'; font-size:9px; }
+    .req-list li.ok::before  { content:'✓'; }
+    .req-list li.err::before { content:'✗'; }
+    .match-msg { font-size:12px; margin-top:4px; font-weight:600; min-height:16px; }
     /* Button */
-    .fd-button {
-      width: 100%;
-      height: 40px;
-      background: var(--sap-brand-color, #0070f2);
-      color: #fff;
-      border: none;
-      border-radius: var(--sap-border-radius, 4px);
-      font-size: 14px;
-      font-weight: 700;
-      font-family: inherit;
-      cursor: pointer;
-      transition: background .15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      letter-spacing: 0.2px;
-    }
-    .fd-button:hover:not(:disabled) { background: var(--sap-brand-hover, #0064d9); }
-    .fd-button:disabled { background: #89919a; cursor: not-allowed; }
-
-    /* Footer */
-    .fd-card__footer {
-      padding: 12px 24px;
-      border-top: 1px solid var(--sap-border-color, #e5e5e5);
-      text-align: center;
-      font-size: 11px;
-      color: var(--sap-text-muted);
-    }
+    .fd-btn { width:100%; height:40px; background:var(--brand); color:#fff;
+              border:none; border-radius:var(--radius); font-size:14px;
+              font-weight:700; font-family:inherit; cursor:pointer;
+              display:flex; align-items:center; justify-content:center;
+              gap:8px; transition:background .15s; margin-top:8px; }
+    .fd-btn:hover:not(:disabled) { background:var(--brand-h); }
+    .fd-btn:disabled { background:#89919a; cursor:not-allowed; }
+    @media(max-width:480px) { .fd-row { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -265,10 +109,10 @@
   <div class="fd-card">
 
     <div class="fd-card__header">
-      <div class="fd-card__header-icon">&#128274;</div>
-      <div class="fd-card__header-content">
-        <h2>Establecer contraseña</h2>
-        <p>Completa tu registro para acceder al sistema</p>
+      <div class="hdr-icon">&#128274;</div>
+      <div class="hdr-content">
+        <h2>Completa tu registro</h2>
+        <p>Ingresa tus datos para activar tu cuenta en SoftCoM</p>
       </div>
     </div>
 
@@ -276,160 +120,165 @@
 
       <!-- User badge -->
       <div class="user-tile">
-        <div class="user-tile__avatar">{{ user.username|first|upper }}</div>
+        <div class="user-tile__av">{{ user.username|first|upper }}</div>
         <div>
-          <div class="user-tile__name">{{ user.get_full_name|default:user.username }}</div>
+          <div class="user-tile__name">{{ user.username }}</div>
           <div class="user-tile__email">{{ user.email }}</div>
         </div>
       </div>
 
       {% if error %}
-      <div class="fd-message-bar">
-        <span>&#9888;</span>
-        {{ error }}
-      </div>
+      <div class="fd-msg">&#9888; {{ error }}</div>
       {% endif %}
 
       <form method="post" id="reg-form" novalidate>
         {% csrf_token %}
         <input type="hidden" name="token" value="{{ token }}">
 
-        <!-- Password 1 -->
-        <div class="fd-form-group">
-          <label class="fd-form-label" for="password1">
-            Nueva contraseña <span class="required">*</span>
-          </label>
-          <div class="fd-input-wrap">
-            <input class="fd-input" type="password" id="password1" name="password1"
-                   placeholder="Ingresa tu contraseña" autocomplete="new-password">
-            <span class="fd-input-icon" id="toggle1" title="Mostrar/ocultar">&#128065;</span>
+        <!-- Datos personales -->
+        <div class="section-title">Datos personales</div>
+
+        <div class="fd-row">
+          <div class="fd-form-group">
+            <label class="fd-label" for="first_name">Nombre <span class="req">*</span></label>
+            <input class="fd-input" type="text" id="first_name" name="first_name"
+                   value="{{ v_first_name|default:user.first_name }}"
+                   placeholder="Tu nombre" required autofocus>
           </div>
-          <div class="strength-bar"><div class="strength-bar__fill" id="strength-fill"></div></div>
-          <div class="strength-label" id="strength-label" style="color:#6a6d70"></div>
-          <ul class="req-list" id="req-list">
-            <li id="req-len">Mínimo 8 caracteres</li>
-            <li id="req-upper">Al menos una mayúscula</li>
-            <li id="req-lower">Al menos una minúscula</li>
-            <li id="req-digit">Al menos un número</li>
-            <li id="req-nonum">No solo números</li>
+          <div class="fd-form-group">
+            <label class="fd-label" for="last_name">Apellido <span class="req">*</span></label>
+            <input class="fd-input" type="text" id="last_name" name="last_name"
+                   value="{{ v_last_name|default:user.last_name }}"
+                   placeholder="Tu apellido" required>
+          </div>
+        </div>
+
+        <div class="fd-row">
+          <div class="fd-form-group">
+            <label class="fd-label" for="telefono">Teléfono</label>
+            <input class="fd-input" type="tel" id="telefono" name="telefono"
+                   value="{{ v_telefono|default:'' }}"
+                   placeholder="+504 0000-0000">
+          </div>
+          <div class="fd-form-group">
+            <label class="fd-label" for="departamento">Departamento</label>
+            <select class="fd-select" id="departamento" name="departamento">
+              <option value="">-- Sin asignar --</option>
+              {% for dep in departamentos %}
+              <option value="{{ dep.id }}"
+                {% if v_departamento == dep.id|stringformat:"s" %}selected{% endif %}>
+                {{ dep.nombre }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Contraseña -->
+        <div class="section-title" style="margin-top:8px;">Contraseña</div>
+
+        <div class="fd-form-group">
+          <label class="fd-label" for="password1">Nueva contraseña <span class="req">*</span></label>
+          <div class="fd-input-wrap">
+            <input class="fd-input pw" type="password" id="password1" name="password1"
+                   placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+            <span class="fd-eye" id="eye1">&#128065;</span>
+          </div>
+          <div class="strength-bar"><div class="strength-fill" id="s-fill"></div></div>
+          <div class="strength-lbl" id="s-lbl"></div>
+          <ul class="req-list">
+            <li id="r-len">Mínimo 8 caracteres</li>
+            <li id="r-upper">Al menos una mayúscula</li>
+            <li id="r-lower">Al menos una minúscula</li>
+            <li id="r-digit">Al menos un número</li>
+            <li id="r-nonum">No solo números</li>
           </ul>
         </div>
 
-        <!-- Password 2 -->
         <div class="fd-form-group">
-          <label class="fd-form-label" for="password2">
-            Confirmar contraseña <span class="required">*</span>
-          </label>
+          <label class="fd-label" for="password2">Confirmar contraseña <span class="req">*</span></label>
           <div class="fd-input-wrap">
-            <input class="fd-input" type="password" id="password2" name="password2"
+            <input class="fd-input pw" type="password" id="password2" name="password2"
                    placeholder="Repite tu contraseña" autocomplete="new-password">
-            <span class="fd-input-icon" id="toggle2" title="Mostrar/ocultar">&#128065;</span>
+            <span class="fd-eye" id="eye2">&#128065;</span>
           </div>
-          <div id="match-msg" style="font-size:12px;margin-top:4px;font-weight:600;"></div>
+          <div class="match-msg" id="match-msg"></div>
         </div>
 
-        <button class="fd-button" type="submit" id="submit-btn" disabled>
+        <button class="fd-btn" type="submit" id="submit-btn" disabled>
           &#10003; Activar mi cuenta
         </button>
       </form>
     </div>
 
     <div class="fd-card__footer">
-      SoftCoM &mdash; Sistema de Gestión de Mantenimiento &nbsp;&middot;&nbsp; CCG
+      SoftCoM &mdash; Sistema de Gestión de Mantenimiento &middot; CCG
     </div>
   </div>
 </div>
 
 <script>
-(function () {
-  var p1     = document.getElementById('password1');
-  var p2     = document.getElementById('password2');
-  var fill   = document.getElementById('strength-fill');
-  var lbl    = document.getElementById('strength-label');
-  var match  = document.getElementById('match-msg');
-  var btn    = document.getElementById('submit-btn');
+(function(){
+  var p1=document.getElementById('password1');
+  var p2=document.getElementById('password2');
+  var fn=document.getElementById('first_name');
+  var ln=document.getElementById('last_name');
+  var fill=document.getElementById('s-fill');
+  var lbl=document.getElementById('s-lbl');
+  var match=document.getElementById('match-msg');
+  var btn=document.getElementById('submit-btn');
 
-  // Toggle visibility
-  document.getElementById('toggle1').addEventListener('click', function () {
-    p1.type = p1.type === 'password' ? 'text' : 'password';
-  });
-  document.getElementById('toggle2').addEventListener('click', function () {
-    p2.type = p2.type === 'password' ? 'text' : 'password';
-  });
+  document.getElementById('eye1').onclick=function(){p1.type=p1.type==='password'?'text':'password';};
+  document.getElementById('eye2').onclick=function(){p2.type=p2.type==='password'?'text':'password';};
 
-  function setReq(id, ok) {
-    var el = document.getElementById(id);
-    el.classList.toggle('ok',  ok);
-    el.classList.toggle('err', !ok && p1.value.length > 0);
+  function setReq(id,ok){
+    var el=document.getElementById(id);
+    el.classList.toggle('ok', ok);
+    el.classList.toggle('err', !ok && p1.value.length>0);
   }
 
-  function checkStrength(val) {
-    var score = 0;
-    var len    = val.length >= 8;
-    var upper  = /[A-Z]/.test(val);
-    var lower  = /[a-z]/.test(val);
-    var digit  = /\d/.test(val);
-    var nonum  = !/^\d+$/.test(val);
-    var special = /[^A-Za-z0-9]/.test(val);
+  function validate(){
+    var v=p1.value, v2=p2.value;
+    var len=v.length>=8, upper=/[A-Z]/.test(v), lower=/[a-z]/.test(v);
+    var digit=/\d/.test(v), nonum=!/^\d+$/.test(v), special=/[^A-Za-z0-9]/.test(v);
 
-    setReq('req-len',   len);
-    setReq('req-upper', upper);
-    setReq('req-lower', lower);
-    setReq('req-digit', digit);
-    setReq('req-nonum', nonum);
+    setReq('r-len',len); setReq('r-upper',upper); setReq('r-lower',lower);
+    setReq('r-digit',digit); setReq('r-nonum',nonum);
 
-    if (len)     score++;
-    if (upper)   score++;
-    if (lower)   score++;
-    if (digit)   score++;
-    if (special) score++;
+    var score=[len,upper,lower,digit,special].filter(Boolean).length;
+    var pct,color,text;
+    if(!v.length){pct=0;color='#e5e5e5';text='';}
+    else if(score<=2){pct=25;color='#bb0000';text='Débil';}
+    else if(score===3){pct=50;color='#e9730c';text='Regular';}
+    else if(score===4){pct=75;color='#0f7a8c';text='Buena';}
+    else{pct=100;color='#107e3e';text='Muy segura';}
 
-    var pct, color, text;
-    if (val.length === 0) { pct = 0; color = '#e5e5e5'; text = ''; }
-    else if (score <= 2)  { pct = 25;  color = '#bb0000'; text = 'Débil'; }
-    else if (score === 3) { pct = 50;  color = '#e9730c'; text = 'Regular'; }
-    else if (score === 4) { pct = 75;  color = '#0f7a8c'; text = 'Buena'; }
-    else                  { pct = 100; color = '#107e3e'; text = 'Muy segura'; }
+    fill.style.width=pct+'%'; fill.style.background=color;
+    lbl.textContent=text; lbl.style.color=color;
 
-    fill.style.width      = pct + '%';
-    fill.style.background = color;
-    lbl.textContent       = text;
-    lbl.style.color       = color;
-
-    return len && nonum;  // mínimo requerido
-  }
-
-  function validate() {
-    var val    = p1.value;
-    var val2   = p2.value;
-    var strong = checkStrength(val);
-
-    // Match check
-    if (val2.length > 0) {
-      if (val === val2) {
-        match.textContent = '✓ Las contraseñas coinciden';
-        match.style.color = '#107e3e';
-        p2.classList.add('is-success');
-        p2.classList.remove('is-error');
+    if(v2.length>0){
+      if(v===v2){
+        match.textContent='✓ Las contraseñas coinciden';
+        match.style.color='#107e3e';
+        p2.classList.add('is-success'); p2.classList.remove('is-error');
       } else {
-        match.textContent = '✗ Las contraseñas no coinciden';
-        match.style.color = '#bb0000';
-        p2.classList.add('is-error');
-        p2.classList.remove('is-success');
+        match.textContent='✗ No coinciden';
+        match.style.color='#bb0000';
+        p2.classList.add('is-error'); p2.classList.remove('is-success');
       }
     } else {
-      match.textContent = '';
-      p2.classList.remove('is-error', 'is-success');
+      match.textContent=''; p2.classList.remove('is-error','is-success');
     }
 
-    var allOk = strong && val.length >= 8 && val === val2 && val2.length > 0;
-    btn.disabled = !allOk;
+    var nameOk = fn.value.trim().length>0 && ln.value.trim().length>0;
+    btn.disabled = !(nameOk && len && nonum && v===v2 && v2.length>0);
   }
 
   p1.addEventListener('input', validate);
   p2.addEventListener('input', validate);
+  fn.addEventListener('input', validate);
+  ln.addEventListener('input', validate);
 })();
 </script>
-
 </body>
 </html>
