@@ -266,9 +266,18 @@
                 <div class="field-row">
                     <div class="field-group" style="flex:2;min-width:200px;">
                         <label>Proyecto</label>
-                        <select name="proyecto">
+                        <select name="proyecto" id="select-proyecto-edit" onchange="cargarAreasProyecto(this.value, 'select-area-edit')">
                             <option value="">— Sin proyecto —</option>
                             {% for p in proyectos %}<option value="{{ p.id }}"{% if cotizacion.proyecto_id == p.id %} selected{% endif %}>{{ p.nombre }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="field-group" style="flex:2;min-width:200px;">
+                        <label>Área</label>
+                        <select name="area" id="select-area-edit">
+                            <option value="">— Sin área —</option>
+                            {% for u in ubicaciones %}
+                            <option value="{{ u.id }}"{% if cotizacion.area_id == u.id %} selected{% endif %}>{{ u.nombre }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="field-group w-auto">
