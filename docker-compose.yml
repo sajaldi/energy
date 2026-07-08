@@ -1,27 +1,68 @@
 version: '3.8'
 
+# Variables comunes para todos los servicios Django
+x-django-common: &django-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  environment:
+    DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+    SECRET_KEY: ${SECRET_KEY}
+    DATABASE_URL: ${DATABASE_URL}
+    CELERY_BROKER_URL: redis://redis:6379/0
+    CELERY_RESULT_BACKEND: django-db
+    ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+    BASE_REGISTRATION_URL: ${BASE_REGISTRATION_URL:-}
+    POWER_AUTOMATE_INVITATION: ${POWER_AUTOMATE_INVITATION:-}
+    POWER_AUTOMATE_WEBHOOK_URL: ${POWER_AUTOMATE_WEBHOOK_URL:-}
+  depends_on:
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
 services:
   web:
-    build:
-      context: .
-      cache_from:
-        - energia-base:latest
-    command: gunicorn energia.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 600
-    volumes:
-      - ./media:/app/media
-      - ./staticfiles:/app/staticfiles
+    <<: *django-common
     ports:
       - "8000:8000"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/admin/login/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  celery_worker:
+    <<: *django-common
+    command: ["bash", "/app/start.sh"]
     environment:
-      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
-      - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=${DATABASE_URL}
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=django-db
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: django-db
+      SERVICE_TYPE: worker
+    volumes:
+      - media_data:/app/media
+
+  celery_beat:
+    <<: *django-common
+    command: ["bash", "/app/start.sh"]
+    environment:
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: django-db
+      SERVICE_TYPE: beat
+    volumes:
+      - media_data:/app/media
     depends_on:
       - redis
-    restart: unless-stopped
+      - web
 
   redis:
     image: redis:7-alpine
@@ -37,49 +78,7 @@ services:
       timeout: 3s
       retries: 3
 
-  celery_worker:
-    build:
-      context: .
-      cache_from:
-        - energia-base:latest
-    command: celery -A energia worker --loglevel=info --concurrency=2 --max-tasks-per-child=50
-    volumes:
-      - ./media:/app/media
-    environment:
-      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
-      - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=${DATABASE_URL}
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=django-db
-    depends_on:
-      - redis
-      - web
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "celery -A energia inspect ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  celery_beat:
-    build:
-      context: .
-      cache_from:
-        - energia-base:latest
-    command: celery -A energia beat --loglevel=info
-    volumes:
-      - ./media:/app/media
-    environment:
-      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
-      - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=${DATABASE_URL}
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=django-db
-    depends_on:
-      - redis
-      - web
-    restart: unless-stopped
-
 volumes:
+  media_data:
+  static_data:
   redis_data:
-    driver: local

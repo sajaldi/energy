@@ -921,12 +921,10 @@ N8N_OT_WHATSAPP_WEBHOOK_URL = "http://localhost:5678/webhook-test/notificar-ot"
 # ===========================================================================
 
 # URL base para construir el Invitation_Link enviado al usuario invitado.
-# DEBE comenzar con https:// en producción.
-# Ejemplo producción: 'https://softcom.ccg.hn'
-BASE_REGISTRATION_URL = os.environ.get(
-    'BASE_REGISTRATION_URL',
-    'http://localhost:8000'  # Default desarrollo (LinkBuilder lo rechazará si no es https)
-)
+# En producción configurar: BASE_REGISTRATION_URL=https://softcom.ccg.hn
+# En desarrollo se permite http:// automáticamente.
+_default_base_url = 'http://localhost:8000' if DEBUG else ''
+BASE_REGISTRATION_URL = os.environ.get('BASE_REGISTRATION_URL', _default_base_url)
 
 # Webhook de Power Automate que recibe el payload de invitación
 # ({email, username, invitation_link, sender_email?}) y envía el correo.

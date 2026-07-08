@@ -135,13 +135,16 @@ class UserAdmin(BaseUserAdmin):
                 service.resend(user_obj, requested_by=request.user)
                 messages.success(request, f'Invitación reenviada a {user_obj.email}.')
             else:
-                user_obj.is_active = False
-                user_obj.save(update_fields=['is_active'])
-                if perfil:
-                    perfil.invitation_status = 'pending'
-                    perfil.save(update_fields=['invitation_status'])
-                service.resend(user_obj, requested_by=request.user)
-                messages.success(request, f'Invitación enviada a {user_obj.email}. El usuario deberá completar su registro.')
+                # Enviar invitación sin desactivar la cuenta
+                # Solo genera token y despacha el correo
+                from invitaciones.services import TokenService, LinkBuilder
+                token_svc = TokenService()
+                link_builder = LinkBuilder()
+                inv_token = token_svc.generate_token(user_obj)
+                inv_link = link_builder.build(inv_token.token)
+                from invitaciones.tasks import dispatch_invitation_email
+                dispatch_invitation_email.delay(user_obj.pk, inv_link)
+                messages.success(request, f'Invitación enviada a {user_obj.email}.')
 
         except InvalidResendTarget as e:
             messages.error(request, f'No se puede enviar invitación: {e}')
