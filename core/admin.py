@@ -117,7 +117,7 @@ class UserAdmin(BaseUserAdmin):
     def send_invitation_view(self, request, user_id):
         from django.shortcuts import redirect
         from django.contrib import messages
-        from invitaciones.services import InvitationService
+        from invitaciones.services import InvitationService, TokenService, LinkBuilder, PowerAutomateInvitationService
         from invitaciones.exceptions import InvalidResendTarget, PowerAutomateDispatchError, ConfigurationError
 
         user_obj = User.objects.filter(pk=user_id).first()
@@ -125,29 +125,27 @@ class UserAdmin(BaseUserAdmin):
             messages.error(request, 'Usuario no encontrado.')
             return redirect('../../../')
 
-        service = InvitationService()
         try:
+            token_svc    = TokenService()
+            link_builder = LinkBuilder()
+            inv_token    = token_svc.generate_token(user_obj)
+            inv_link     = link_builder.build(inv_token.token)
+
+            # Llamada directa (síncrona) a Power Automate — sin Celery
+            PowerAutomateInvitationService().dispatch(
+                email           = user_obj.email,
+                username        = user_obj.get_full_name() or user_obj.username,
+                invitation_link = inv_link,
+            )
+
+            # Actualizar estado del perfil
             perfil = getattr(user_obj, 'perfil', None)
-            status = getattr(perfil, 'invitation_status', 'active') if perfil else 'active'
-            is_pending = (status == 'pending') or (not user_obj.is_active)
+            if perfil and perfil.invitation_status != 'pending':
+                perfil.invitation_status = 'pending'
+                perfil.save(update_fields=['invitation_status'])
 
-            if is_pending:
-                service.resend(user_obj, requested_by=request.user)
-                messages.success(request, f'Invitación reenviada a {user_obj.email}.')
-            else:
-                # Enviar invitación sin desactivar la cuenta
-                # Solo genera token y despacha el correo
-                from invitaciones.services import TokenService, LinkBuilder
-                token_svc = TokenService()
-                link_builder = LinkBuilder()
-                inv_token = token_svc.generate_token(user_obj)
-                inv_link = link_builder.build(inv_token.token)
-                from invitaciones.tasks import dispatch_invitation_email
-                dispatch_invitation_email.delay(user_obj.pk, inv_link)
-                messages.success(request, f'Invitación enviada a {user_obj.email}.')
+            messages.success(request, f'✅ Invitación enviada a {user_obj.email}.')
 
-        except InvalidResendTarget as e:
-            messages.error(request, f'No se puede enviar invitación: {e}')
         except (PowerAutomateDispatchError, ConfigurationError) as e:
             messages.error(request, f'Error al enviar el correo: {e}')
         except Exception as e:
