@@ -1320,6 +1320,11 @@ class Cotizacion(models.Model):
         null=True, blank=True, related_name='cotizaciones',
         verbose_name="Proyecto"
     )
+    area = models.ForeignKey(
+        'activos.Ubicacion', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='cotizaciones',
+        verbose_name="Área"
+    )
     disciplina = models.ForeignKey(
         'documentos.Disciplina', on_delete=models.PROTECT,
         null=True, blank=True,

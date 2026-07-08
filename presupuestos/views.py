@@ -2556,6 +2556,7 @@ def crear_cotizacion(request):
         cotizacion = Cotizacion.objects.create(
             numero=numero,
             proyecto_id=proyecto_id or None,
+            area_id=request.POST.get('area') or None,
             disciplina=None,
             fecha=fecha,
             version=int(version),
@@ -2583,9 +2584,15 @@ def crear_cotizacion(request):
 
     disciplinas = Disciplina.objects.all()
     proyectos = Proyecto.objects.all()
+    # Proyecto pre-seleccionado desde ?proyecto=ID (viene del detalle de proyecto)
+    proyecto_id_preselect = request.GET.get('proyecto')
+    from activos.models import Ubicacion
+    ubicaciones = Ubicacion.objects.all().order_by('nombre')
     return render(request, 'presupuestos/form_cotizacion.html', {
         'disciplinas': disciplinas,
         'proyectos': proyectos,
+        'ubicaciones': ubicaciones,
+        'proyecto_id_preselect': proyecto_id_preselect,
         'es_nuevo': True,
     })
 
@@ -2600,6 +2607,7 @@ def editar_cotizacion(request, pk):
         accion = request.POST.get('accion')
         if accion == 'guardar_cabecera':
             cotizacion.proyecto_id = request.POST.get('proyecto') or None
+            cotizacion.area_id     = request.POST.get('area') or None
             cotizacion.fecha = request.POST.get('fecha')
             cotizacion.version = int(request.POST.get('version') or 1)
             cotizacion.valida_hasta = request.POST.get('valida_hasta') or None
@@ -2642,6 +2650,8 @@ def editar_cotizacion(request, pk):
 
     disciplinas = Disciplina.objects.all()
     proyectos = Proyecto.objects.all()
+    from activos.models import Ubicacion
+    ubicaciones = Ubicacion.objects.all().order_by('nombre')
     items_qs = cotizacion.items.select_related('disciplina').order_by('orden')
 
     grupos = defaultdict(list)
@@ -2671,6 +2681,7 @@ def editar_cotizacion(request, pk):
         'cotizacion': cotizacion,
         'disciplinas': disciplinas,
         'proyectos': proyectos,
+        'ubicaciones': ubicaciones,
         'items_por_disciplina_json': json_mod.dumps(items_por_disciplina),
         'es_nuevo': False,
         'ESTADOS': Cotizacion.ESTADOS,

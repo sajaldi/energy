@@ -176,9 +176,23 @@
                 <div class="field-row">
                     <div class="field-group" style="flex:2;min-width:200px;">
                         <label>Proyecto</label>
-                        <select name="proyecto">
+                        <select name="proyecto" id="select-proyecto-new" onchange="cargarAreasProyecto(this.value, 'select-area-new')">
                             <option value="">— Sin proyecto —</option>
-                            {% for p in proyectos %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}
+                            {% for p in proyectos %}
+                            <option value="{{ p.id }}"
+                              {% if proyecto_id_preselect and proyecto_id_preselect == p.id|stringformat:"s" %}selected{% endif %}>
+                                {{ p.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field-group" style="flex:2;min-width:200px;">
+                        <label>Área</label>
+                        <select name="area" id="select-area-new">
+                            <option value="">— Sin área —</option>
+                            {% for u in ubicaciones %}
+                            <option value="{{ u.id }}">{{ u.nombre }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="field-group w-auto">
