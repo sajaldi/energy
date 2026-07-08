@@ -1320,11 +1320,6 @@ class Cotizacion(models.Model):
         null=True, blank=True, related_name='cotizaciones',
         verbose_name="Proyecto"
     )
-    area = models.ForeignKey(
-        'activos.Ubicacion', on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='cotizaciones',
-        verbose_name="Área"
-    )
     disciplina = models.ForeignKey(
         'documentos.Disciplina', on_delete=models.PROTECT,
         null=True, blank=True,
@@ -1380,6 +1375,7 @@ class ItemCotizacion(models.Model):
         verbose_name="Disciplina"
     )
     descripcion = models.TextField(verbose_name="Descripción")
+    area = models.CharField(max_length=200, blank=True, default='', verbose_name="Área")
     unidad_medida = models.CharField(max_length=50, verbose_name="Unidad de Medida")
     cantidad = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Cantidad")
     precio_unitario = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Precio Unitario")
@@ -1388,7 +1384,6 @@ class ItemCotizacion(models.Model):
         verbose_name="Descuento %"
     )
     orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
-
     @property
     def total(self):
         return self.cantidad * self.precio_unitario * (1 - self.descuento_porcentaje / 100)

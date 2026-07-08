@@ -228,11 +228,13 @@
         <div class="card">
             <div class="card-body">
                 <div class="add-section-bar">
+                    <input type="text" id="input-nueva-area" placeholder="Nombre del área (ej: Nivel 4, Zona A...)"
+                           style="flex:2;padding:6px 10px;border:1px solid var(--sap-border-color);font-family:inherit;font-size:0.84rem;">
                     <select id="select-nueva-disciplina">
                         <option value="">— Selecciona disciplina —</option>
                         {% for d in disciplinas %}<option value="{{ d.id }}" data-nombre="{{ d.nombre }}">{{ d.nombre }}</option>{% endfor %}
                     </select>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="agregarSeccionDesdeSelector()">＋ Agregar sección de disciplina</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="agregarSeccionDesdeSelector()">＋ Agregar</button>
                 </div>
             </div>
         </div>
@@ -266,18 +268,9 @@
                 <div class="field-row">
                     <div class="field-group" style="flex:2;min-width:200px;">
                         <label>Proyecto</label>
-                        <select name="proyecto" id="select-proyecto-edit" onchange="cargarAreasProyecto(this.value, 'select-area-edit')">
+                        <select name="proyecto">
                             <option value="">— Sin proyecto —</option>
                             {% for p in proyectos %}<option value="{{ p.id }}"{% if cotizacion.proyecto_id == p.id %} selected{% endif %}>{{ p.nombre }}</option>{% endfor %}
-                        </select>
-                    </div>
-                    <div class="field-group" style="flex:2;min-width:200px;">
-                        <label>Área</label>
-                        <select name="area" id="select-area-edit">
-                            <option value="">— Sin área —</option>
-                            {% for u in ubicaciones %}
-                            <option value="{{ u.id }}"{% if cotizacion.area_id == u.id %} selected{% endif %}>{{ u.nombre }}</option>
-                            {% endfor %}
                         </select>
                     </div>
                     <div class="field-group w-auto">
@@ -330,19 +323,21 @@
         <div id="secciones-container"></div>
 
         <div id="empty-secciones" class="empty-secciones" style="display:none;">
-            <p style="font-size:1.1rem;font-weight:600;">Sin disciplinas todavía</p>
-            <p>Agrega una sección para comenzar a ingresar ítems.</p>
+            <p style="font-size:1.1rem;font-weight:600;">Sin secciones todavía</p>
+            <p>Agrega un área y disciplina para comenzar a ingresar ítems.</p>
         </div>
 
         <!-- Agregar sección -->
         <div class="card">
             <div class="card-body">
                 <div class="add-section-bar">
+                    <input type="text" id="input-nueva-area" placeholder="Área (ej: Nivel 4, Zona A...)"
+                           style="flex:2;padding:6px 10px;border:1px solid var(--sap-border-color);font-family:inherit;font-size:0.84rem;">
                     <select id="select-nueva-disciplina">
                         <option value="">— Selecciona disciplina —</option>
                         {% for d in disciplinas %}<option value="{{ d.id }}" data-nombre="{{ d.nombre }}">{{ d.nombre }}</option>{% endfor %}
                     </select>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="agregarSeccionDesdeSelector()">＋ Agregar sección de disciplina</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="agregarSeccionDesdeSelector()">＋ Agregar</button>
                 </div>
             </div>
         </div>
@@ -436,9 +431,11 @@ function buildItemRowHTML(idx, desc, um, cant, pu, dto, predId) {
         '<td style="display:none"><input class="item-predefinido-id" type="hidden" value="' + (predId||'') + '"></td>';
 }
 
-function buildSeccionHTML(disciplinaId, nombre) {
+function buildSeccionHTML(disciplinaId, nombre, area) {
+    var areaLabel = area ? '<span style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:2px 8px;font-size:0.72rem;font-weight:700;border-radius:2px;margin-right:8px;">📍 ' + escHtml(area) + '</span>' : '';
     return '<div class="card">' +
         '<div class="card-header">' +
+            areaLabel +
             '<span class="disc-badge">' + escHtml(nombre) + '</span>' +
             '<span style="flex:1;"></span>' +
             '<span class="seccion-subtotal-label">Subtotal&nbsp;</span>' +
@@ -475,11 +472,14 @@ function buildSeccionHTML(disciplinaId, nombre) {
 
 // ─── Sección management ────────────────────────────────────────────────────
 
-function agregarSeccion(disciplinaId, nombre) {
+function agregarSeccion(disciplinaId, nombre, area) {
     if (!disciplinaId) return null;
-    var existing = document.querySelector('.seccion-disciplina[data-disciplina-id="' + disciplinaId + '"]');
+    area = area || '';
+    // Permite múltiples secciones de la misma disciplina si tienen diferente área
+    var key = disciplinaId + '||' + area;
+    var existing = document.querySelector('.seccion-disciplina[data-seccion-key="' + CSS.escape(key) + '"]');
     if (existing) {
-        alert('La disciplina "' + nombre + '" ya tiene una sección en esta cotización.');
+        alert('Ya existe una sección de "' + nombre + '" para el área "' + (area || 'Sin área') + '".');
         return null;
     }
     var container = document.getElementById('secciones-container');
@@ -487,18 +487,25 @@ function agregarSeccion(disciplinaId, nombre) {
     wrap.className = 'seccion-disciplina';
     wrap.dataset.disciplinaId = disciplinaId;
     wrap.dataset.disciplinaNombre = nombre;
-    wrap.innerHTML = buildSeccionHTML(disciplinaId, nombre);
+    wrap.dataset.area = area;
+    wrap.dataset.seccionKey = key;
+    wrap.innerHTML = buildSeccionHTML(disciplinaId, nombre, area);
     container.appendChild(wrap);
     actualizarEmptyState();
     return wrap;
 }
 
 function agregarSeccionDesdeSelector() {
+    var areaInput = document.getElementById('input-nueva-area');
     var sel = document.getElementById('select-nueva-disciplina');
     var id = sel.value;
     var nombre = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].dataset.nombre : '';
+    var area = areaInput ? areaInput.value.trim() : '';
     if (!id) { alert('Selecciona una disciplina antes de agregar la sección.'); return; }
-    if (agregarSeccion(id, nombre)) { sel.value = ''; }
+    if (agregarSeccion(id, nombre, area)) {
+        sel.value = '';
+        if (areaInput) areaInput.value = '';
+    }
 }
 
 function eliminarSeccion(btn) {
@@ -762,6 +769,7 @@ function recolectarTodosLosItems() {
     var result = [];
     document.querySelectorAll('.seccion-disciplina').forEach(function(wrap) {
         var discId = wrap.dataset.disciplinaId ? parseInt(wrap.dataset.disciplinaId) : null;
+        var area   = wrap.dataset.area || '';
         wrap.querySelectorAll('.seccion-items-body tr').forEach(function(tr) {
             var nums = tr.querySelectorAll('input[type="number"]');
             var descEl = tr.querySelector('input[type="text"]');
@@ -769,6 +777,7 @@ function recolectarTodosLosItems() {
             var predEl = tr.querySelector('.item-predefinido-id');
             result.push({
                 disciplina_id: discId,
+                area: area,
                 item_predefinido_id: predEl ? (predEl.value || null) : null,
                 descripcion: descEl ? descEl.value : '',
                 unidad_medida: umEl ? umEl.value : 'und',
@@ -800,7 +809,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ITEMS_POR_DISCIPLINA.forEach(function(seccion) {
             var wrap = agregarSeccion(
                 seccion.disciplina_id || 'null',
-                seccion.disciplina_nombre || 'Sin disciplina'
+                seccion.disciplina_nombre || 'Sin disciplina',
+                seccion.area || ''
             );
             if (!wrap) return;
             var tbody = wrap.querySelector('.seccion-items-body');

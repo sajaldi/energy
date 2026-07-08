@@ -2566,18 +2566,19 @@ def crear_cotizacion(request):
         )
 
         for idx, item in enumerate(items):
-            predef_id = item.get('item_predefinido_id') or None
-            ItemCotizacion.objects.create(
-                cotizacion=cotizacion,
-                item_predefinido_id=predef_id,
-                disciplina_id=item.get('disciplina_id') or None,
-                descripcion=item['descripcion'],
-                unidad_medida=item['unidad_medida'],
-                cantidad=item['cantidad'],
-                precio_unitario=item['precio_unitario'],
-                descuento_porcentaje=item.get('descuento_porcentaje', 0),
-                orden=idx,
-            )
+                predef_id = item.get('item_predefinido_id') or None
+                ItemCotizacion.objects.create(
+                    cotizacion=cotizacion,
+                    item_predefinido_id=predef_id,
+                    disciplina_id=item.get('disciplina_id') or None,
+                    area=item.get('area', '') or '',
+                    descripcion=item['descripcion'],
+                    unidad_medida=item['unidad_medida'],
+                    cantidad=item['cantidad'],
+                    precio_unitario=item['precio_unitario'],
+                    descuento_porcentaje=item.get('descuento_porcentaje', 0),
+                    orden=idx,
+                )
 
         messages.success(request, f'Cotización {numero} creada exitosamente.')
         return redirect('presupuestos:ver_cotizacion', pk=cotizacion.pk)
@@ -2631,6 +2632,7 @@ def editar_cotizacion(request, pk):
                     cotizacion=cotizacion,
                     item_predefinido_id=predef_id,
                     disciplina_id=item.get('disciplina_id') or None,
+                    area=item.get('area', '') or '',
                     descripcion=item['descripcion'],
                     unidad_medida=item['unidad_medida'],
                     cantidad=item['cantidad'],
@@ -2656,9 +2658,10 @@ def editar_cotizacion(request, pk):
 
     grupos = defaultdict(list)
     for item in items_qs:
-        key = item.disciplina_id
+        key = (item.area or '', item.disciplina_id)
         grupos[key].append({
             'id': item.id,
+            'area': item.area or '',
             'disciplina_id': item.disciplina_id,
             'disciplina_nombre': item.disciplina.nombre if item.disciplina else 'Sin disciplina',
             'item_predefinido_id': item.item_predefinido_id,
@@ -2670,8 +2673,9 @@ def editar_cotizacion(request, pk):
         })
 
     items_por_disciplina = []
-    for disc_id, items_list in grupos.items():
+    for (area, disc_id), items_list in grupos.items():
         items_por_disciplina.append({
+            'area': area,
             'disciplina_id': disc_id,
             'disciplina_nombre': items_list[0]['disciplina_nombre'],
             'items': items_list,
