@@ -132,7 +132,7 @@
         .visual-toolbar input[type="file"] { display: none; }
 
         /* ── Image Resize Popover ── */
-        .img-resize-popover { position: absolute; z-index: 200; background: #fff; border: 1px solid var(--sap-border-color); box-shadow: 0 4px 16px rgba(0,0,0,0.15); border-radius: 6px; padding: 10px 12px; display: none; min-width: 220px; }
+        .img-resize-popover { position: fixed; z-index: 200; background: #fff; border: 1px solid var(--sap-border-color); box-shadow: 0 4px 16px rgba(0,0,0,0.15); border-radius: 6px; padding: 10px 12px; display: none; min-width: 220px; }
         .img-resize-popover.show { display: block; }
         .img-resize-popover .resize-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .img-resize-popover label { font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase; min-width: 40px; }
@@ -166,8 +166,21 @@
         .pagina-content img { max-width: 100%; border-radius: 4px; }
         .paginas-empty { font-size: 0.8rem; color: #94a3b8; font-style: italic; padding: 6px 0; }
         .pagina-edit-form { display: flex; flex-direction: column; gap: 8px; }
-        .pagina-edit-form input, .pagina-edit-form textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--sap-border-color); border-radius: 4px; font-size: 0.82rem; font-family: var(--sap-font-family); }
+        .pagina-edit-form input, .pagina-edit-form > textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--sap-border-color); border-radius: 4px; font-size: 0.82rem; font-family: var(--sap-font-family); }
         .pagina-edit-form textarea { min-height: 80px; font-family: Consolas, monospace; font-size: 0.78rem; resize: vertical; }
+        .pagina-edit-form .pag-editor-wrap textarea { width: 100%; min-height: 150px; border: none; border-radius: 0; resize: vertical; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.78rem; line-height: 1.6; padding: 10px; }
+        .pagina-edit-form .pag-editor-wrap .html-split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--sap-border-color); border-radius: 0 0 4px 4px; overflow: hidden; }
+        .pagina-edit-form .pag-editor-wrap .html-preview { padding: 10px; min-height: 150px; font-size: 0.85rem; line-height: 1.6; overflow-y: auto; border-left: 1px solid var(--sap-border-color); }
+        .pagina-edit-form .pag-editor-wrap .html-preview.edit-mode { cursor: text; outline: 2px dashed var(--sap-brand-color); outline-offset: -2px; border-left: none; }
+        .pagina-edit-form .pag-editor-wrap .html-preview.edit-mode:focus { outline-color: var(--sap-success); }
+        .pagina-edit-form .pag-editor-wrap .html-preview img { max-width: 100%; }
+        .pagina-edit-form .html-preview-tabs button { padding: 5px 12px; font-size: 0.75rem; border: 1px solid var(--sap-border-color); background: var(--sap-bg-color); cursor: pointer; font-family: inherit; }
+        .pagina-edit-form .html-preview-tabs button.active { background: var(--sap-card-bg); border-bottom-color: transparent; font-weight: 600; }
+        .pagina-edit-form .pag-visual-toolbar { flex-wrap: wrap; gap: 2px; padding: 4px 6px; background: #f8fafc; border: 1px solid var(--sap-border-color); border-bottom: none; }
+        .pagina-edit-form .pag-visual-toolbar .tb-group { display: flex; gap: 1px; padding: 0 4px; border-right: 1px solid #e2e8f0; }
+        .pagina-edit-form .pag-visual-toolbar .tb-group:last-child { border-right: none; }
+        .pagina-edit-form .pag-visual-toolbar button { background: none; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.78rem; color: #475569; }
+        .pagina-edit-form .pag-visual-toolbar button:hover { background: #e2e8f0; }
         .pagina-edit-form .form-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .pagina-edit-form .form-row label { font-size: 0.78rem; display: flex; align-items: center; gap: 4px; cursor: pointer; }
         .pagina-actions { display: flex; gap: 6px; margin-top: 4px; }
@@ -851,10 +864,9 @@
             const popover = document.getElementById('img-resize-popover');
 
             if (img) {
-                e.preventDefault();
                 e.stopPropagation();
                 selectImage(img);
-            } else if (!e.target.closest('#img-resize-popover')) {
+            } else if (!e.target.closest('#img-resize-popover') && !e.target.closest('.img-resize-popover')) {
                 deselectImage();
             }
         });
@@ -875,7 +887,7 @@
             // Posicionar popover cerca de la imagen
             const popover = document.getElementById('img-resize-popover');
             const rect = img.getBoundingClientRect();
-            popover.style.top = (window.scrollY + rect.bottom + 6) + 'px';
+            popover.style.top = (rect.bottom + 6) + 'px';
             popover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 240)) + 'px';
             popover.classList.add('show');
         }
@@ -896,16 +908,22 @@
         }
 
         // Sync width/height con ratio
-        document.getElementById('img-resize-w').addEventListener('input', function() {
-            if (resizeLocked && imgOriginalRatio) {
-                document.getElementById('img-resize-h').value = Math.round(this.value / imgOriginalRatio);
-            }
-        });
-        document.getElementById('img-resize-h').addEventListener('input', function() {
-            if (resizeLocked && imgOriginalRatio) {
-                document.getElementById('img-resize-w').value = Math.round(this.value * imgOriginalRatio);
-            }
-        });
+        const imgResizeW = document.getElementById('img-resize-w');
+        const imgResizeH = document.getElementById('img-resize-h');
+        if (imgResizeW) {
+            imgResizeW.addEventListener('input', function() {
+                if (resizeLocked && imgOriginalRatio) {
+                    document.getElementById('img-resize-h').value = Math.round(this.value / imgOriginalRatio);
+                }
+            });
+        }
+        if (imgResizeH) {
+            imgResizeH.addEventListener('input', function() {
+                if (resizeLocked && imgOriginalRatio) {
+                    document.getElementById('img-resize-w').value = Math.round(this.value * imgOriginalRatio);
+                }
+            });
+        }
 
         function applyImageResize() {
             if (!selectedImage) return;
@@ -1046,6 +1064,153 @@
             }
         });
 
+        // ── Page WYSIWYG Editor helpers ──────────────────────────────────────
+
+        function cambiarModoPagina(btn, mode, uid) {
+            const tabs = btn.closest('.html-preview-tabs');
+            tabs.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const split = document.getElementById('split-' + uid);
+            const textarea = document.getElementById('ta-' + uid);
+            const preview = document.getElementById('prev-' + uid);
+            const toolbar = document.getElementById('tb-' + uid);
+
+            if (mode === 'visual') {
+                split.style.gridTemplateColumns = '1fr';
+                textarea.style.display = 'none';
+                const html = textarea.value.trim() || '<p style="color:#94a3b8;">Empezá a escribir aquí...</p>';
+                preview.innerHTML = html;
+                preview.classList.remove('empty');
+                preview.contentEditable = true;
+                preview.classList.add('edit-mode');
+                if (toolbar) toolbar.style.display = 'flex';
+                preview.focus();
+                base64Observer.observe(preview, { childList: true, subtree: true });
+            } else {
+                split.style.gridTemplateColumns = '';
+                preview.contentEditable = false;
+                preview.classList.remove('edit-mode');
+                if (toolbar) toolbar.style.display = 'none';
+                textarea.style.display = '';
+                const previewHtml = preview.innerHTML;
+                if (previewHtml && previewHtml !== '<p style="color:#94a3b8;">Empezá a escribir aquí...</p>') {
+                    textarea.value = previewHtml;
+                }
+                actualizarPreviewPag(uid);
+            }
+        }
+
+        function actualizarPreviewPag(uid) {
+            const textarea = document.getElementById('ta-' + uid);
+            const preview = document.getElementById('prev-' + uid);
+            if (!textarea || !preview) return;
+            if (preview.contentEditable === 'true') return;
+            const val = textarea.value.trim();
+            if (val) {
+                preview.innerHTML = val;
+                preview.classList.remove('empty');
+            } else {
+                preview.innerHTML = '🪞 Vista previa';
+                preview.classList.add('empty');
+            }
+        }
+
+        function tbCmdPag(cmd, uid) {
+            const preview = document.getElementById('prev-' + uid);
+            if (!preview || preview.contentEditable !== 'true') return;
+            preview.focus();
+            if (cmd === 'createLink') {
+                const url = prompt('URL del enlace:');
+                if (url) document.execCommand(cmd, false, url);
+            } else {
+                document.execCommand(cmd, false, null);
+            }
+            // Sync to textarea
+            const textarea = document.getElementById('ta-' + uid);
+            if (textarea) textarea.value = preview.innerHTML;
+        }
+
+        function tbInsertImagePag(uid) {
+            const preview = document.getElementById('prev-' + uid);
+            if (!preview) return;
+            const url = prompt('URL de la imagen (o dejar vacío para subir archivo):');
+            if (url) {
+                preview.focus();
+                document.execCommand('insertImage', false, url);
+                const textarea = document.getElementById('ta-' + uid);
+                if (textarea) textarea.value = preview.innerHTML;
+            } else {
+                // Trigger file upload
+                activePagUploadUid = uid;
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = function() { handlePagImageUpload(this, uid); };
+                input.click();
+            }
+        }
+
+        let activePagUploadUid = null;
+
+        function handlePagImageUpload(input, uid) {
+            const file = input.files[0];
+            if (!file) return;
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            fetch('{% url "courses:upload_image" %}', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.url) {
+                        const preview = document.getElementById('prev-' + uid);
+                        if (preview && preview.contentEditable === 'true') {
+                            preview.focus();
+                            document.execCommand('insertImage', false, data.url);
+                            const textarea = document.getElementById('ta-' + uid);
+                            if (textarea) textarea.value = preview.innerHTML;
+                        }
+                    }
+                })
+                .catch(e => alert('Error al subir imagen: ' + e.message));
+        }
+
+        function tbInsertVideoPag(uid) {
+            const preview = document.getElementById('prev-' + uid);
+            if (!preview) return;
+            const url = prompt('URL del video (YouTube, Vimeo, etc.):');
+            if (!url) return;
+            let embed = '';
+            const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+            if (ytMatch) {
+                embed = `<iframe width="560" height="315" src="https://www.youtube.com/embed/${ytMatch[1]}" frameborder="0" allowfullscreen></iframe>`;
+            } else {
+                embed = `<iframe src="${url}" frameborder="0" allowfullscreen style="width:100%;aspect-ratio:16/9;"></iframe>`;
+            }
+            preview.focus();
+            document.execCommand('insertHTML', false, embed);
+            const textarea = document.getElementById('ta-' + uid);
+            if (textarea) textarea.value = preview.innerHTML;
+        }
+
+        function syncPagEditorToTextarea(item) {
+            const preview = item.querySelector('.html-preview.edit-mode');
+            const textarea = item.querySelector('.pag-edit-contenido');
+            if (preview && textarea && preview.contentEditable === 'true') {
+                textarea.value = preview.innerHTML;
+            }
+        }
+
+        // Sync contenteditable for page editors
+        document.addEventListener('input', function(e) {
+            if (e.target.matches('.pag-editor-wrap .html-preview.edit-mode')) {
+                const wrap = e.target.closest('.pag-editor-wrap');
+                if (!wrap) return;
+                const textarea = wrap.querySelector('.pag-edit-contenido');
+                if (textarea) textarea.value = e.target.innerHTML;
+            }
+        });
+
         // ── Page Management ──
         function togglePagina(head) {
             const body = head.nextElementSibling;
@@ -1055,6 +1220,7 @@
         function agregarPagina(seccionId, cursoId) {
             const list = document.querySelector(`.paginas-list[data-seccion-id="${seccionId}"]`);
             if (!list) return;
+            const uid = 'pag-new-' + Date.now();
             // Show inline form
             const form = document.createElement('div');
             form.className = 'pagina-item';
@@ -1066,7 +1232,32 @@
                 <div class="pagina-body open">
                     <div class="pagina-edit-form">
                         <input class="pag-edit-titulo" placeholder="Título de la página" value="">
-                        <textarea class="pag-edit-contenido" placeholder="Contenido HTML..."></textarea>
+                        <div class="pag-editor-wrap">
+                            <div class="html-preview-tabs" style="display:flex;gap:0;margin-bottom:0;">
+                                <button type="button" class="active" data-mode="code" onclick="cambiarModoPagina(this,'code','${uid}')">📝 Código</button>
+                                <button type="button" data-mode="visual" onclick="cambiarModoPagina(this,'visual','${uid}')">🎨 Visual</button>
+                            </div>
+                            <div class="visual-toolbar pag-visual-toolbar" id="tb-${uid}" style="display:none;">
+                                <div class="tb-group">
+                                    <button type="button" onclick="tbCmdPag('bold','${uid}')" title="Negrita"><b>B</b></button>
+                                    <button type="button" onclick="tbCmdPag('italic','${uid}')" title="Cursiva"><i>I</i></button>
+                                    <button type="button" onclick="tbCmdPag('underline','${uid}')" title="Subrayado"><u>U</u></button>
+                                </div>
+                                <div class="tb-group">
+                                    <button type="button" onclick="tbCmdPag('insertUnorderedList','${uid}')" title="Lista">• Lista</button>
+                                    <button type="button" onclick="tbCmdPag('insertOrderedList','${uid}')" title="Lista numerada">1. Lista</button>
+                                </div>
+                                <div class="tb-group">
+                                    <button type="button" onclick="tbInsertImagePag('${uid}')" title="Insertar imagen">🖼</button>
+                                    <button type="button" onclick="tbInsertVideoPag('${uid}')" title="Insertar video">▶</button>
+                                    <button type="button" onclick="tbCmdPag('createLink','${uid}')" title="Enlace">🔗</button>
+                                </div>
+                            </div>
+                            <div class="html-split" id="split-${uid}">
+                                <textarea class="pag-edit-contenido" id="ta-${uid}" placeholder="Contenido HTML..." oninput="actualizarPreviewPag('${uid}')"></textarea>
+                                <div class="html-preview" id="prev-${uid}" data-preview-for="ta-${uid}">🪞 Vista previa</div>
+                            </div>
+                        </div>
                         <div class="form-row">
                             <input class="pag-edit-duracion" type="number" value="0" min="0" style="width:80px;">
                             <label><input class="pag-edit-obligatorio" type="checkbox" checked> Obligatorio</label>
@@ -1079,10 +1270,16 @@
                 </div>`;
             list.appendChild(form);
             form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // Observar para base64 images
+            const prev = form.querySelector('.html-preview');
+            if (prev) base64Observer.observe(prev, { childList: true, subtree: true });
+        }
         }
 
         function guardarPagina(btn, seccionId, cursoId) {
             const item = btn.closest('.pagina-item');
+            // Sync visual mode to textarea if active
+            syncPagEditorToTextarea(item);
             const fd = new FormData();
             fd.append('action', 'crear');
             fd.append('titulo', item.querySelector('.pag-edit-titulo').value);
@@ -1121,13 +1318,40 @@
             const cursoId = list?.dataset.cursoId;
             const body = item.querySelector('.pagina-body');
             if (body && body.classList.contains('open') && body.querySelector('.pagina-edit-form')) return;
+            const uid = 'pag-edit-' + paginaId + '-' + Date.now();
             fetch(`/courses/admin/${cursoId}/seccion/${seccionId}/pagina/${paginaId}/`)
             .then(r => r.json())
             .then(data => {
+                const escapedHtml = data.contenido_html.replace(/</g,'&lt;').replace(/>/g,'&gt;');
                 body.innerHTML = `
                     <div class="pagina-edit-form">
                         <input class="pag-edit-titulo" placeholder="Título" value="${data.titulo.replace(/"/g,'&quot;')}">
-                        <textarea class="pag-edit-contenido" placeholder="Contenido HTML...">${data.contenido_html.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+                        <div class="pag-editor-wrap">
+                            <div class="html-preview-tabs" style="display:flex;gap:0;margin-bottom:0;">
+                                <button type="button" class="active" data-mode="code" onclick="cambiarModoPagina(this,'code','${uid}')">📝 Código</button>
+                                <button type="button" data-mode="visual" onclick="cambiarModoPagina(this,'visual','${uid}')">🎨 Visual</button>
+                            </div>
+                            <div class="visual-toolbar pag-visual-toolbar" id="tb-${uid}" style="display:none;">
+                                <div class="tb-group">
+                                    <button type="button" onclick="tbCmdPag('bold','${uid}')" title="Negrita"><b>B</b></button>
+                                    <button type="button" onclick="tbCmdPag('italic','${uid}')" title="Cursiva"><i>I</i></button>
+                                    <button type="button" onclick="tbCmdPag('underline','${uid}')" title="Subrayado"><u>U</u></button>
+                                </div>
+                                <div class="tb-group">
+                                    <button type="button" onclick="tbCmdPag('insertUnorderedList','${uid}')" title="Lista">• Lista</button>
+                                    <button type="button" onclick="tbCmdPag('insertOrderedList','${uid}')" title="Lista numerada">1. Lista</button>
+                                </div>
+                                <div class="tb-group">
+                                    <button type="button" onclick="tbInsertImagePag('${uid}')" title="Insertar imagen">🖼</button>
+                                    <button type="button" onclick="tbInsertVideoPag('${uid}')" title="Insertar video">▶</button>
+                                    <button type="button" onclick="tbCmdPag('createLink','${uid}')" title="Enlace">🔗</button>
+                                </div>
+                            </div>
+                            <div class="html-split" id="split-${uid}">
+                                <textarea class="pag-edit-contenido" id="ta-${uid}" placeholder="Contenido HTML..." oninput="actualizarPreviewPag('${uid}')">${escapedHtml}</textarea>
+                                <div class="html-preview" id="prev-${uid}" data-preview-for="ta-${uid}">🪞 Vista previa</div>
+                            </div>
+                        </div>
                         <div class="form-row">
                             <input class="pag-edit-duracion" type="number" value="${data.duracion_minutos}" min="0" style="width:80px;">
                             <label><input class="pag-edit-obligatorio" type="checkbox" ${data.obligatorio?'checked':''}> Obligatorio</label>
@@ -1138,6 +1362,11 @@
                         </div>
                     </div>`;
                 body.classList.add('open');
+                // Render preview
+                actualizarPreviewPag(uid);
+                // Observar para base64 images
+                const prev = body.querySelector('.html-preview');
+                if (prev) base64Observer.observe(prev, { childList: true, subtree: true });
             })
             .catch(e => alert('Error: ' + e.message));
         }
@@ -1155,6 +1384,8 @@
             const item = btn.closest('.pagina-item');
             const list = item.closest('.paginas-list');
             const cursoId = list?.dataset.cursoId;
+            // Sync visual mode to textarea if active
+            syncPagEditorToTextarea(item);
             const fd = new FormData();
             fd.append('action', 'editar');
             fd.append('titulo', item.querySelector('.pag-edit-titulo').value);
