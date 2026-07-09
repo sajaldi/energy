@@ -16,7 +16,7 @@
         .shell-header .back { color: rgba(255,255,255,0.75); font-size: 0.82rem; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.2); }
         .shell-header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
 
-        .container { max-width: 1300px; margin: 0 auto; padding: 20px 16px 90px; }
+        .container { margin: 0 auto; padding: 20px 16px 90px; }
 
         /* Cards */
         .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: var(--sap-card-shadow); margin-bottom: 16px; }
@@ -65,6 +65,8 @@
         .btn-ghost:hover { background: var(--sap-hover-bg); color: var(--sap-text-color); }
         .del-btn { background: none; border: none; color: #dc2626; cursor: pointer; padding: 4px 6px; font-size: 0.8rem; opacity: 0.6; }
         .del-btn:hover { opacity: 1; background: #fee2e2; }
+        .btn-edit-area { opacity: 0.6; transition: opacity 0.15s; }
+        .btn-edit-area:hover { opacity: 1; }
 
         /* Fields */
         .field-group { margin-bottom: 10px; }
@@ -406,6 +408,27 @@ var COTIZACION_ID = {% if not es_nuevo %}{{ cotizacion.id }}{% else %}null{% end
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
+var AREA_COUNTER = 0;
+var AREAS_MAP = {}; // area -> numero
+
+function getAreaNumero(area) {
+    if (!area) area = '';
+    if (AREAS_MAP.hasOwnProperty(area)) {
+        return AREAS_MAP[area];
+    }
+    AREA_COUNTER++;
+    AREAS_MAP[area] = AREA_COUNTER;
+    return AREA_COUNTER;
+}
+
+function getDisciplinaNumero(area) {
+    var areaNum = getAreaNumero(area);
+    var key = 'disc_' + area;
+    if (!window[key]) window[key] = 0;
+    window[key]++;
+    return areaNum + '.' + window[key];
+}
+
 function fmt(n) {
     return 'L ' + parseFloat(n || 0).toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
@@ -416,11 +439,12 @@ function escHtml(s) {
 
 // ─── Build HTML helpers ────────────────────────────────────────────────────
 
-function buildItemRowHTML(idx, desc, um, cant, pu, dto, predId) {
+function buildItemRowHTML(idx, desc, um, cant, pu, dto, predId, discNum) {
     var total = (parseFloat(cant)||0) * (parseFloat(pu)||0) * (1 - (parseFloat(dto)||0)/100);
+    var itemNum = discNum ? discNum + '.' + idx : idx;
     var S = 'class="cell-input"';
     var SN = 'class="cell-input num"';
-    return '<td class="col-num">' + idx + '</td>' +
+    return '<td class="col-num">' + itemNum + '</td>' +
         '<td class="col-del"><button type="button" class="del-btn" onclick="eliminarItemDeSeccion(this)" title="Eliminar ítem">✕</button></td>' +
         '<td><input ' + S + ' type="text" value="' + escHtml(desc) + '" placeholder="Descripción del ítem"></td>' +
         '<td class="col-um"><input ' + S + ' type="text" value="' + escHtml(um) + '" placeholder="und"></td>' +
@@ -432,11 +456,13 @@ function buildItemRowHTML(idx, desc, um, cant, pu, dto, predId) {
 }
 
 function buildSeccionHTML(disciplinaId, nombre, area) {
-    var areaLabel = area ? '<span style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:2px 8px;font-size:0.72rem;font-weight:700;border-radius:2px;margin-right:8px;">📍 ' + escHtml(area) + '</span>' : '';
+    var areaNum = getAreaNumero(area);
+    var discNum = getDisciplinaNumero(area);
+    var areaLabel = '<span style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:2px 8px;font-size:0.72rem;font-weight:700;border-radius:2px;margin-right:8px;">📍 <span class="area-numero">' + areaNum + '</span> <span class="area-text">' + escHtml(area || 'Sin área') + '</span><button type="button" class="btn-edit-area" onclick="editarAreaSeccion(this)" title="Editar área" style="margin-left:4px;background:none;border:none;color:#0369a1;cursor:pointer;font-size:0.75rem;">✏️</button></span>';
     return '<div class="card">' +
         '<div class="card-header">' +
             areaLabel +
-            '<span class="disc-badge">' + escHtml(nombre) + '</span>' +
+            '<span class="disc-badge"><span class="disc-numero">' + discNum + '</span> ' + escHtml(nombre) + '</span>' +
             '<span style="flex:1;"></span>' +
             '<span class="seccion-subtotal-label">Subtotal&nbsp;</span>' +
             '<span class="seccion-subtotal-val">L 0.00</span>' +
@@ -466,8 +492,98 @@ function buildSeccionHTML(disciplinaId, nombre, area) {
         '<div class="items-toolbar">' +
             '<button type="button" class="btn btn-sm" onclick="agregarItemEnSeccion(this)">＋ Agregar ítem</button>' +
             '<button type="button" class="btn btn-sm" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;" onclick="abrirCatalogo(this)">📦 Cargar desde Catálogo</button>' +
+            '<button type="button" class="btn btn-sm btn-ghost" onclick="agregarDisciplinaAArea(this.closest(\'.seccion-disciplina\').dataset.area)" title="Agregar otra disciplina a esta área">＋ Agregar disciplina a esta área</button>' +
         '</div>' +
     '</div>';
+}
+
+// ─── Editar área de sección ────────────────────────────────────────────────
+
+function editarAreaSeccion(btn) {
+    var wrap = btn.closest('.seccion-disciplina');
+    var areaText = wrap.querySelector('.area-text');
+    var currentArea = wrap.dataset.area || '';
+    
+    var nuevoArea = prompt('Editar nombre del área:', currentArea);
+    if (nuevoArea === null) return; // Canceló
+    
+    nuevoArea = nuevoArea.trim();
+    wrap.dataset.area = nuevoArea;
+    
+    // Actualizar el texto visible
+    areaText.textContent = nuevoArea || 'Sin área';
+    
+    // Actualizar la key de la sección
+    var discId = wrap.dataset.disciplinaId;
+    var newKey = discId + '||' + nuevoArea;
+    wrap.dataset.seccionKey = newKey;
+    
+    // Recalcular numeración
+    recalcularNumeracion();
+}
+
+// ─── Agregar disciplina a área existente ───────────────────────────────────
+
+function agregarDisciplinaAArea(area) {
+    // Abrir selector de disciplina con área pre-llenada
+    var areaInput = document.getElementById('input-nueva-area');
+    if (areaInput) {
+        areaInput.value = area || '';
+    }
+    
+    // Scroll al selector y focus
+    document.getElementById('select-nueva-disciplina').focus();
+    document.getElementById('select-nueva-disciplina').scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+// ─── Recalcular numeración completa ────────────────────────────────────────
+
+function recalcularNumeracion() {
+    // Resetear contadores
+    AREAS_MAP = {};
+    AREA_COUNTER = 0;
+    
+    // Limpiar contadores de disciplina por área
+    var keys = Object.keys(window).filter(function(k) { return k.indexOf('disc_') === 0; });
+    keys.forEach(function(k) { delete window[k]; });
+    
+    // Agrupar secciones por área
+    var areasVistas = {};
+    var secciones = document.querySelectorAll('.seccion-disciplina');
+    
+    secciones.forEach(function(wrap) {
+        var area = wrap.dataset.area || '';
+        var areaNum, discNum;
+        
+        // Si es la primera vez que vemos esta área, asignar número
+        if (!areasVistas.hasOwnProperty(area)) {
+            AREA_COUNTER++;
+            areasVistas[area] = AREA_COUNTER;
+            areaNum = AREA_COUNTER;
+        } else {
+            areaNum = areasVistas[area];
+        }
+        
+        // Incrementar contador de disciplina para esta área
+        var key = 'disc_' + area.replace(/[^a-zA-Z0-9]/g, '_');
+        if (!window[key]) window[key] = 0;
+        window[key]++;
+        discNum = areaNum + '.' + window[key];
+        
+        // Actualizar número de área
+        var areaNumEl = wrap.querySelector('.area-numero');
+        if (areaNumEl) areaNumEl.textContent = areaNum;
+        
+        // Actualizar número de disciplina
+        var discNumEl = wrap.querySelector('.disc-numero');
+        if (discNumEl) discNumEl.textContent = discNum;
+        
+        // Actualizar números de items
+        var tbody = wrap.querySelector('.seccion-items-body');
+        if (tbody) {
+            actualizarIndicesItems(tbody, discNum);
+        }
+    });
 }
 
 // ─── Sección management ────────────────────────────────────────────────────
@@ -492,6 +608,8 @@ function agregarSeccion(disciplinaId, nombre, area) {
     wrap.innerHTML = buildSeccionHTML(disciplinaId, nombre, area);
     container.appendChild(wrap);
     actualizarEmptyState();
+    // Recalcular numeración
+    recalcularNumeracion();
     return wrap;
 }
 
@@ -515,6 +633,8 @@ function eliminarSeccion(btn) {
     wrap.remove();
     recalcularTotalGeneral();
     actualizarEmptyState();
+    // Recalcular numeración
+    recalcularNumeracion();
 }
 
 function actualizarEmptyState() {
@@ -529,10 +649,11 @@ function actualizarEmptyState() {
 function agregarItemEnSeccion(btn) {
     var wrap = btn.closest('.seccion-disciplina');
     var tbody = wrap.querySelector('.seccion-items-body');
+    var discNum = wrap.querySelector('.disc-numero') ? wrap.querySelector('.disc-numero').textContent : '';
     var tr = document.createElement('tr');
-    tr.innerHTML = buildItemRowHTML(tbody.children.length + 1, '', 'und', 1, 0, 0, '');
+    tr.innerHTML = buildItemRowHTML(tbody.children.length + 1, '', 'und', 1, 0, 0, '', discNum);
     tbody.appendChild(tr);
-    actualizarIndicesSeccion(tbody);
+    actualizarIndicesItems(tbody, discNum);
     recalcularSeccion(wrap);
     // Focus on description
     var inp = tr.querySelector('input.cell-input:not(.num)');
@@ -543,15 +664,22 @@ function eliminarItemDeSeccion(btn) {
     var tr = btn.closest('tr');
     var tbody = tr.closest('tbody');
     var wrap = tbody.closest('.seccion-disciplina');
+    var discNum = wrap.querySelector('.disc-numero') ? wrap.querySelector('.disc-numero').textContent : '';
     tr.remove();
-    actualizarIndicesSeccion(tbody);
+    actualizarIndicesItems(tbody, discNum);
     recalcularSeccion(wrap);
 }
 
 function actualizarIndicesSeccion(tbody) {
+    var wrap = tbody.closest('.seccion-disciplina');
+    var discNum = wrap.querySelector('.disc-numero') ? wrap.querySelector('.disc-numero').textContent : '';
+    actualizarIndicesItems(tbody, discNum);
+}
+
+function actualizarIndicesItems(tbody, discNum) {
     Array.from(tbody.rows).forEach(function(tr, i) {
         var numCell = tr.querySelector('.col-num');
-        if (numCell) numCell.textContent = i + 1;
+        if (numCell) numCell.textContent = discNum ? discNum + '.' + (i + 1) : (i + 1);
     });
 }
 
@@ -739,6 +867,7 @@ function confirmarSeleccionCatalogo() {
     var ids = Object.keys(catalogoSeleccion);
     if (!ids.length) return;
     var tbody = catalogoSeccionActual.querySelector('.seccion-items-body');
+    var discNum = catalogoSeccionActual.querySelector('.disc-numero') ? catalogoSeccionActual.querySelector('.disc-numero').textContent : '';
     ids.forEach(function(id) {
         var item = catalogoSeleccion[id];
         if (!item) return;
@@ -750,11 +879,12 @@ function confirmarSeleccionCatalogo() {
             1,
             item.precio_unitario,
             0,
-            item.id
+            item.id,
+            discNum
         );
         tbody.appendChild(tr);
     });
-    actualizarIndicesSeccion(tbody);
+    actualizarIndicesItems(tbody, discNum);
     recalcularSeccion(catalogoSeccionActual);
     cerrarCatalogo();
 }
@@ -814,6 +944,7 @@ document.addEventListener('DOMContentLoaded', function() {
             );
             if (!wrap) return;
             var tbody = wrap.querySelector('.seccion-items-body');
+            var discNum = wrap.querySelector('.disc-numero') ? wrap.querySelector('.disc-numero').textContent : '';
             seccion.items.forEach(function(item, i) {
                 var tr = document.createElement('tr');
                 tr.innerHTML = buildItemRowHTML(
@@ -823,11 +954,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     item.cantidad,
                     item.precio_unitario,
                     item.descuento_porcentaje,
-                    item.item_predefinido_id
+                    item.item_predefinido_id,
+                    discNum
                 );
                 tbody.appendChild(tr);
             });
-            actualizarIndicesSeccion(tbody);
+            actualizarIndicesItems(tbody, discNum);
             recalcularSeccion(wrap);
         });
     }

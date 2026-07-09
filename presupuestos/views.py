@@ -2556,7 +2556,6 @@ def crear_cotizacion(request):
         cotizacion = Cotizacion.objects.create(
             numero=numero,
             proyecto_id=proyecto_id or None,
-            area_id=request.POST.get('area') or None,
             disciplina=None,
             fecha=fecha,
             version=int(version),
@@ -2608,7 +2607,6 @@ def editar_cotizacion(request, pk):
         accion = request.POST.get('accion')
         if accion == 'guardar_cabecera':
             cotizacion.proyecto_id = request.POST.get('proyecto') or None
-            cotizacion.area_id     = request.POST.get('area') or None
             cotizacion.fecha = request.POST.get('fecha')
             cotizacion.version = int(request.POST.get('version') or 1)
             cotizacion.valida_hasta = request.POST.get('valida_hasta') or None
@@ -2695,20 +2693,62 @@ def editar_cotizacion(request, pk):
 @staff_required
 def ver_cotizacion(request, pk):
     cotizacion = get_object_or_404(Cotizacion.objects.select_related('proyecto', 'disciplina', 'creado_por'), pk=pk)
-    items = cotizacion.items.select_related('disciplina').order_by('disciplina__nombre', 'orden')
+    items = cotizacion.items.select_related('disciplina').order_by('area', 'disciplina__nombre', 'orden')
+    
+    # Calcular subtotales por área
+    from itertools import groupby
+    items_list = list(items)
+    subtotales_area = {}
+    for area, area_items in groupby(items_list, key=lambda x: x.area):
+        subtotales_area[area or ''] = sum(item.total for item in area_items)
+    
     return render(request, 'presupuestos/ver_cotizacion.html', {
         'cotizacion': cotizacion,
         'items': items,
+        'subtotales_area': subtotales_area,
     })
 
 
 @staff_required
 def cotizacion_pdf(request, pk):
     cotizacion = get_object_or_404(Cotizacion.objects.select_related('proyecto', 'disciplina', 'creado_por'), pk=pk)
-    items = cotizacion.items.all().order_by('orden')
+    items = cotizacion.items.select_related('disciplina').order_by('area', 'disciplina__nombre', 'orden')
+    
+    # Calcular subtotales por área para el PDF (no tiene JS)
+    from itertools import groupby
+    from collections import OrderedDict
+    items_list = list(items)
+    
+    areas_data = OrderedDict()
+    area_counter = 0
+    for area, area_items_iter in groupby(items_list, key=lambda x: x.area):
+        area_counter += 1
+        area_items_list = list(area_items_iter)
+        area_total = sum(item.total for item in area_items_list)
+        
+        # Agrupar por disciplina dentro del área
+        disc_counter = 0
+        disciplinas_data = []
+        for disc, disc_items_iter in groupby(area_items_list, key=lambda x: x.disciplina):
+            disc_counter += 1
+            disc_items = list(disc_items_iter)
+            disciplinas_data.append({
+                'disciplina': disc,
+                'num': f"{area_counter}.{disc_counter}",
+                'items': [{'item': it, 'num': f"{area_counter}.{disc_counter}.{i+1}"} for i, it in enumerate(disc_items)],
+            })
+        
+        areas_data[area or ''] = {
+            'nombre': area or 'Sin área',
+            'num': area_counter,
+            'total': area_total,
+            'disciplinas': disciplinas_data,
+        }
+    
     return render(request, 'presupuestos/cotizacion_pdf.html', {
         'cotizacion': cotizacion,
         'items': items,
+        'areas_data': areas_data,
     })
 
 

@@ -47,35 +47,56 @@
         </div>
     </div>
 
+    {% for area_key, area_info in areas_data.items %}
+    <div style="margin-bottom: 16px;">
+        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #0369a1; border-bottom: 2px solid #0369a1; padding: 4px 0; margin-bottom: 8px;">
+            {{ area_info.num }}. {{ area_info.nombre }}
+        </div>
+        
+        {% for disc_data in area_info.disciplinas %}
+        <div style="margin-bottom: 12px;">
+            <div style="font-size: 10px; font-weight: 600; color: #0078d4; margin-bottom: 4px;">{{ disc_data.num }}. {{ disc_data.disciplina.nombre|default:"Sin disciplina" }}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:50px;">#</th>
+                        <th>Descripción</th>
+                        <th style="width:50px;">U.M.</th>
+                        <th style="width:60px;">Cantidad</th>
+                        <th style="width:80px;">Precio Unit.</th>
+                        <th style="width:50px;">Dto %</th>
+                        <th style="width:80px;text-align:right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item_data in disc_data.items %}
+                    <tr>
+                        <td>{{ item_data.num }}</td>
+                        <td>{{ item_data.item.descripcion }}</td>
+                        <td>{{ item_data.item.unidad_medida }}</td>
+                        <td>{{ item_data.item.cantidad|floatformat:2 }}</td>
+                        <td>L {{ item_data.item.precio_unitario|floatformat:2 }}</td>
+                        <td>{{ item_data.item.descuento_porcentaje|floatformat:1 }}%</td>
+                        <td style="text-align:right;font-weight:600;">L {{ item_data.item.total|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+        
+        <!-- Subtotal por Área -->
+        <div style="text-align:right;padding:6px 10px;background:#f0f9ff;border:1px solid #bae6fd;font-size:11px;font-weight:700;color:#0369a1;margin-top:4px;">
+            Subtotal {{ area_info.nombre }}: L {{ area_info.total|floatformat:2 }}
+        </div>
+    </div>
+    {% endfor %}
+    
     <table>
-        <thead>
-            <tr>
-                <th style="width:30px;">#</th>
-                <th>Descripción</th>
-                <th style="width:50px;">U.M.</th>
-                <th style="width:60px;">Cantidad</th>
-                <th style="width:80px;">Precio Unit.</th>
-                <th style="width:50px;">Dto %</th>
-                <th style="width:80px;text-align:right;">Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in items %}
-            <tr>
-                <td>{{ forloop.counter }}</td>
-                <td>{{ item.descripcion }}</td>
-                <td>{{ item.unidad_medida }}</td>
-                <td>{{ item.cantidad|floatformat:2 }}</td>
-                <td>$ {{ item.precio_unitario|floatformat:2 }}</td>
-                <td>{{ item.descuento_porcentaje|floatformat:1 }}%</td>
-                <td style="text-align:right;font-weight:600;">$ {{ item.total|floatformat:2 }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
         <tfoot>
             <tr class="total-row">
-                <td colspan="6" style="text-align:right;">TOTAL</td>
-                <td style="text-align:right;font-size:14px;">$ {{ cotizacion.total|floatformat:2 }}</td>
+                <td colspan="6" style="text-align:right;">TOTAL GENERAL</td>
+                <td style="text-align:right;font-size:14px;">L {{ cotizacion.total|floatformat:2 }}</td>
             </tr>
         </tfoot>
     </table>

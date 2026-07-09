@@ -86,50 +86,68 @@
     {% endif %}
 </div>
 
-{% regroup items by disciplina as grupos_disciplina %}
-{% for grupo in grupos_disciplina %}
-<div class="disc-section">
-    <h3>{{ grupo.grouper.nombre|default:"Sin disciplina" }}</h3>
-    <table>
-        <thead>
-            <tr>
-                <th style="width:36px;">#</th>
-                <th>Descripción</th>
-                <th style="width:70px;">U.M.</th>
-                <th style="width:85px;text-align:right;">Cantidad</th>
-                <th style="width:110px;text-align:right;">Precio Unit.</th>
-                <th style="width:70px;text-align:right;">Dto %</th>
-                <th style="width:110px;text-align:right;">Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in grupo.list %}
-            <tr>
-                <td style="color:var(--sap-text-muted);font-size:0.75rem;">{{ forloop.counter }}</td>
-                <td>{{ item.descripcion }}</td>
-                <td>{{ item.unidad_medida }}</td>
-                <td class="td-right">{{ item.cantidad|floatformat:2 }}</td>
-                <td class="td-right">$ {{ item.precio_unitario|floatformat:2 }}</td>
-                <td class="td-right">{{ item.descuento_porcentaje|floatformat:1 }}%</td>
-                <td class="td-right" style="font-weight:600;">$ {{ item.total|floatformat:2 }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        <tfoot>
-            <tr class="subtotal-row">
-                <td colspan="6" class="td-right" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">
-                    Subtotal {{ grupo.grouper.nombre|default:"Sin disciplina" }}
-                </td>
-                <td class="td-right" id="sub-{{ grupo.grouper.id|default:'null' }}">—</td>
-            </tr>
-        </tfoot>
-    </table>
-</div>
+{% regroup items by area as grupos_area %}
+{% for grupo_area in grupos_area %}
+{% with area_num=forloop.counter %}
+<div class="area-section" style="margin-bottom: 32px;">
+    <h2 style="font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #0369a1; padding: 8px 0; border-bottom: 3px solid #0369a1; margin-bottom: 16px;">
+        📍 {{ area_num }}. {{ grupo_area.grouper|default:"Sin área" }}
+    </h2>
+    
+    {% regroup grupo_area.list by disciplina as grupos_disciplina %}
+    {% for grupo in grupos_disciplina %}
+    {% with disc_num=forloop.counter %}
+    <div class="disc-section">
+        <h3>{{ area_num }}.{{ disc_num }}. {{ grupo.grouper.nombre|default:"Sin disciplina" }}</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:50px;">#</th>
+                    <th>Descripción</th>
+                    <th style="width:70px;">U.M.</th>
+                    <th style="width:85px;text-align:right;">Cantidad</th>
+                    <th style="width:110px;text-align:right;">Precio Unit.</th>
+                    <th style="width:70px;text-align:right;">Dto %</th>
+                    <th style="width:110px;text-align:right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in grupo.list %}
+                <tr>
+                    <td style="color:var(--sap-text-muted);font-size:0.75rem;">{{ area_num }}.{{ disc_num }}.{{ forloop.counter }}</td>
+                    <td>{{ item.descripcion }}</td>
+                    <td>{{ item.unidad_medida }}</td>
+                    <td class="td-right">{{ item.cantidad|floatformat:2 }}</td>
+                    <td class="td-right">L {{ item.precio_unitario|floatformat:2 }}</td>
+                    <td class="td-right">{{ item.descuento_porcentaje|floatformat:1 }}%</td>
+                    <td class="td-right" style="font-weight:600;">L {{ item.total|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="subtotal-row">
+                    <td colspan="6" class="td-right" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">
+                        Subtotal {{ grupo.grouper.nombre|default:"Sin disciplina" }}
+                    </td>
+                    <td class="td-right disc-subtotal">—</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% endwith %}
+    {% endfor %}
+
+    <!-- Subtotal por Área -->
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:16px;padding:10px 12px;background:#f0f9ff;border:1px solid #bae6fd;margin-top:8px;">
+        <span style="font-size:0.85rem;font-weight:700;text-transform:uppercase;color:#0369a1;letter-spacing:0.5px;">Subtotal {{ grupo_area.grouper|default:"Sin área" }}</span>
+        <span class="area-subtotal" style="font-size:1.1rem;font-weight:800;color:#0369a1;">—</span>
+    </div>
+{% endwith %}
 {% endfor %}
 
 <div class="total-bar">
     <span class="lbl">Total General</span>
-    <span class="val">$ {{ cotizacion.total|floatformat:2 }}</span>
+    <span class="val">L {{ cotizacion.total|floatformat:2 }}</span>
 </div>
 
 {% if cotizacion.notas %}
@@ -146,20 +164,28 @@
 </div>
 
 <script>
-// Calculate subtotals per discipline group using client-side JS
+// Calculate subtotals per discipline and per area
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.disc-section').forEach(function(sec) {
-        var rows = sec.querySelectorAll('tbody tr');
-        var sum = 0;
-        rows.forEach(function(tr) {
-            var lastTd = tr.querySelectorAll('td');
-            if (lastTd.length) {
-                var val = parseFloat(lastTd[lastTd.length-1].textContent.replace(/[^0-9.\-]/g,'')) || 0;
-                sum += val;
-            }
+    document.querySelectorAll('.area-section').forEach(function(areaSection) {
+        var areaSum = 0;
+        
+        areaSection.querySelectorAll('.disc-section').forEach(function(sec) {
+            var rows = sec.querySelectorAll('tbody tr');
+            var sum = 0;
+            rows.forEach(function(tr) {
+                var lastTd = tr.querySelectorAll('td');
+                if (lastTd.length) {
+                    var val = parseFloat(lastTd[lastTd.length-1].textContent.replace(/[^0-9.\-]/g,'')) || 0;
+                    sum += val;
+                }
+            });
+            var subTd = sec.querySelector('.disc-subtotal');
+            if (subTd) subTd.textContent = 'L ' + sum.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
+            areaSum += sum;
         });
-        var subTd = sec.querySelector('.subtotal-row td:last-child');
-        if (subTd) subTd.textContent = '$ ' + sum.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
+        
+        var areaSubTd = areaSection.querySelector('.area-subtotal');
+        if (areaSubTd) areaSubTd.textContent = 'L ' + areaSum.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
     });
 });
 </script>
