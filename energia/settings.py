@@ -143,6 +143,7 @@ URL_ASIGNACION_CURSO = os.environ.get(
 # ntfy Push Notifications
 NTFY_URL = os.environ.get('NTFY_URL', 'https://ntfy.sh')
 NTFY_TOPIC_SOLICITUDES = os.environ.get('NTFY_TOPIC_SOLICITUDES', 'softcom-ccg-almacen')
+NTFY_TOPIC_APROBACION = os.environ.get('NTFY_TOPIC_APROBACION', 'softcom-ccg-aprobacion')
 
 # --- URL del Sitio para Callbacks ---
 # Priorizar SITE_URL de entorno si existe, sino usar Coolify o localhost

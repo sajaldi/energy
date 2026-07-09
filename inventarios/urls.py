@@ -47,6 +47,7 @@ urlpatterns = [
     path('api/ingreso-lote/', views.api_ingreso_lote, name='api_ingreso_lote'),
     path('api/solicitudes/search/', views.api_list_solicitudes, name='api_list_solicitudes'),
     path('api/solicitudes/<int:pk>/autorizar/', views.api_autorizar_solicitud, name='api_autorizar_solicitud'),
+    path('aprobar/<int:pk>/<str:token>/', views.formulario_aprobacion_solicitud, name='formulario_aprobacion'),
     path('api/sync-offline-queue/', views.api_sync_offline_queue, name='api_sync_offline_queue'),
     path('api/solicitudes/<str:pk>/items/', views.api_get_solicitud_items, name='api_get_solicitud_items'),
     path('api/material/quick-create/', views.api_create_material, name='api_create_material'),

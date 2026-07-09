@@ -503,6 +503,9 @@ def cart_checkout(request):
             if estado_inicial == 'PENDIENTE_AUTORIZACION':
                 from .utils_n8n import notify_n8n_solicitud_autorizacion
                 notify_n8n_solicitud_autorizacion(solicitud, jefe)
+                # Push notification al canal de aprobación
+                from .utils_ntfy import notificar_pendiente_aprobacion
+                notificar_pendiente_aprobacion(solicitud)
             else:
                 notify_n8n_solicitud_material(solicitud)
             # Webhook a Power Automate
@@ -2484,4 +2487,65 @@ def api_guardar_conteo_inventario(request):
         'status': 'success',
         'message': f'{movimientos_creados} ajuste(s) registrado(s) correctamente.',
         'movimientos': movimientos_creados,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FORMULARIO DE APROBACIÓN (accesible vía link de ntfy)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def formulario_aprobacion_solicitud(request, pk, token):
+    """Formulario web para aprobar/rechazar solicitud vía link externo."""
+    import hashlib
+    
+    solicitud = get_object_or_404(SolicitudMaterial.objects.select_related(
+        'usuario', 'orden_trabajo', 'ubicacion_origen', 'edificio_destino', 'nivel_destino'
+    ), pk=pk)
+    
+    # Verificar token
+    expected_token = hashlib.sha256(f"{solicitud.id}-{solicitud.fecha_solicitud}".encode()).hexdigest()[:16]
+    if token != expected_token:
+        return render(request, 'inventarios/aprobacion_solicitud.html', {'error': 'Token inválido o expirado.'})
+    
+    ya_procesada = solicitud.estado != 'PENDIENTE_AUTORIZACION'
+    
+    if request.method == 'POST' and not ya_procesada:
+        accion = request.POST.get('accion')
+        comentario = request.POST.get('comentario', '')
+        
+        if accion == 'aprobar':
+            solicitud.estado = 'PENDIENTE'
+            solicitud.comentarios_almacen = (solicitud.comentarios_almacen or '') + f"\n[Aprobado vía enlace] {comentario}".strip()
+            solicitud.save()
+            
+            # Notificar al almacén
+            from .utils_n8n import notify_n8n_solicitud_material
+            notify_n8n_solicitud_material(solicitud)
+            from .utils_ntfy import notificar_nueva_solicitud
+            notificar_nueva_solicitud(solicitud)
+            
+            return render(request, 'inventarios/aprobacion_solicitud.html', {
+                'solicitud': solicitud,
+                'resultado': 'aprobada',
+            })
+        
+        elif accion == 'rechazar':
+            solicitud.estado = 'RECHAZADO'
+            solicitud.comentarios_almacen = (solicitud.comentarios_almacen or '') + f"\n[Rechazado vía enlace] {comentario}".strip()
+            solicitud.save()
+            solicitud.items.update(estado='RECHAZADO')
+            
+            return render(request, 'inventarios/aprobacion_solicitud.html', {
+                'solicitud': solicitud,
+                'resultado': 'rechazada',
+            })
+    
+    # GET: mostrar formulario
+    items = solicitud.items.select_related('material').all()
+    
+    return render(request, 'inventarios/aprobacion_solicitud.html', {
+        'solicitud': solicitud,
+        'items': items,
+        'ya_procesada': ya_procesada,
+        'token': token,
     })
