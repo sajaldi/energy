@@ -134,6 +134,16 @@ N8N_OT_WEBHOOK_URL = os.environ.get(
     'https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e7b524b469954e71870b4b73c6c54a26/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=TYYR08s7NihebVikrkZVZTtD9oTnhkuEiKDTOteqps0'
 )
 
+# Asignación de Cursos
+URL_ASIGNACION_CURSO = os.environ.get(
+    'URL_ASIGNACION_CURSO',
+    'https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/41b503c8265642068a6cd67b292482a0/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zWBaAa8-_vntcKBl8OAnQdbgkP7ZT85y4misPO3yV2k'
+)
+
+# ntfy Push Notifications
+NTFY_URL = os.environ.get('NTFY_URL', 'https://ntfy.sh')
+NTFY_TOPIC_SOLICITUDES = os.environ.get('NTFY_TOPIC_SOLICITUDES', 'softcom-ccg-almacen')
+
 # --- URL del Sitio para Callbacks ---
 # Priorizar SITE_URL de entorno si existe, sino usar Coolify o localhost
 env_site_url = os.environ.get('SITE_URL')
@@ -500,11 +510,6 @@ JAZZMIN_SETTINGS = {
     "user_avatar": None,
     "topmenu_links": [
         {"name": "Inicio", "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"name": "📊 Dashboard de Mantenimiento", "url": "/mantenimiento/", "permissions": ["mantenimiento.view_ordentrabajo"]},
-        {"name": "📅 Cronograma", "url": "/mantenimiento/cronograma/", "permissions": ["mantenimiento.view_ordentrabajo"]},
-        {"name": "📈 Dashboard de Importaciones", "url": "/activos/import-dashboard/", "permissions": ["activos.view_registroimportacion"]},
-        {"name": "🎫 Dashboard de tickets", "url": "/callcenter/dashboard/", "permissions": ["callcenter.view_solicitudticket"]},
-        {"name": "📋 Dashboard de Requisiciones", "url": "/presupuestos/requisiciones/dashboard/", "permissions": ["presupuestos.view_requisicion"]},
         {"name": "❓ Ayuda", "url": "/ayuda/", "new_window": True},
     ],
     "show_sidebar": True,

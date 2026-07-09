@@ -399,3 +399,21 @@ class FotoDevolucion(models.Model):
             from core.image_utils import compress_image
             self.imagen = compress_image(self.imagen)
         super().save(*args, **kwargs)
+
+
+class HistorialCambioMaterial(models.Model):
+    """Registra cambios en los campos de un material (auditoría)."""
+    material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='historial_cambios')
+    usuario = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+    campo = models.CharField(max_length=50, verbose_name="Campo modificado")
+    valor_anterior = models.TextField(blank=True, default='', verbose_name="Valor anterior")
+    valor_nuevo = models.TextField(blank=True, default='', verbose_name="Valor nuevo")
+
+    class Meta:
+        verbose_name = "Historial de Cambio de Material"
+        verbose_name_plural = "Historial de Cambios de Material"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.material.sku} - {self.campo}: {self.valor_anterior} → {self.valor_nuevo}"

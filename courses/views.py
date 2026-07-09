@@ -473,19 +473,38 @@ def asignar_curso(request, pk):
             fecha_v = None
 
         try:
+            ya_asignado = False
+            nuevas_asignaciones = []
+
             if usuario_id:
                 user = User.objects.get(pk=usuario_id)
-                AsignacionCurso.objects.get_or_create(
+                obj, created = AsignacionCurso.objects.get_or_create(
                     curso=curso, usuario=user,
                     defaults={'asignado_por': request.user, 'fecha_vencimiento': fecha_v}
                 )
+                if not created:
+                    ya_asignado = True
+                else:
+                    nuevas_asignaciones.append({'usuario': user, 'grupo': None})
+
             if grupo_id:
                 group = Group.objects.get(pk=grupo_id)
-                AsignacionCurso.objects.get_or_create(
+                obj, created = AsignacionCurso.objects.get_or_create(
                     curso=curso, grupo=group,
                     defaults={'asignado_por': request.user, 'fecha_vencimiento': fecha_v}
                 )
-            messages.success(request, 'Asignación guardada.')
+                if not created:
+                    ya_asignado = True
+                else:
+                    nuevas_asignaciones.append({'usuario': None, 'grupo': group})
+
+            if ya_asignado:
+                messages.warning(request, 'El usuario o grupo ya estaba asignado a este curso.')
+            elif nuevas_asignaciones:
+                messages.success(request, 'Asignación guardada.')
+                # Enviar webhook de notificación
+                _enviar_webhook_asignacion(curso, nuevas_asignaciones, request.user, fecha_v)
+
         except Exception as e:
             messages.error(request, f'Error: {e}')
 
@@ -498,6 +517,52 @@ def asignar_curso(request, pk):
         'grupos': Group.objects.all().order_by('name'),
         'now': timezone.now(),
     })
+
+
+def _enviar_webhook_asignacion(curso, asignaciones, asignado_por, fecha_vencimiento):
+    """Envía webhook a Power Automate para notificar asignación de curso."""
+    import requests as req
+    from django.conf import settings
+    
+    webhook_url = getattr(settings, 'URL_ASIGNACION_CURSO', None)
+    if not webhook_url:
+        return
+    
+    for asignacion in asignaciones:
+        usuario = asignacion.get('usuario')
+        grupo = asignacion.get('grupo')
+        
+        if usuario:
+            payload = {
+                'tipo': 'usuario',
+                'curso_id': curso.id,
+                'curso_titulo': curso.titulo,
+                'usuario_id': usuario.id,
+                'usuario_nombre': usuario.get_full_name() or usuario.username,
+                'usuario_email': usuario.email,
+                'asignado_por': asignado_por.get_full_name() or asignado_por.username,
+                'fecha_asignacion': timezone.now().isoformat(),
+                'fecha_vencimiento': fecha_vencimiento.isoformat() if fecha_vencimiento else None,
+            }
+        elif grupo:
+            payload = {
+                'tipo': 'grupo',
+                'curso_id': curso.id,
+                'curso_titulo': curso.titulo,
+                'grupo_id': grupo.id,
+                'grupo_nombre': grupo.name,
+                'asignado_por': asignado_por.get_full_name() or asignado_por.username,
+                'fecha_asignacion': timezone.now().isoformat(),
+                'fecha_vencimiento': fecha_vencimiento.isoformat() if fecha_vencimiento else None,
+            }
+        else:
+            continue
+        
+        try:
+            resp = req.post(webhook_url, json=payload, timeout=10)
+            print(f"[WEBHOOK] Asignación curso enviada: {resp.status_code}")
+        except Exception as e:
+            print(f"[WEBHOOK] Error enviando asignación: {e}")
 
 
 @staff_member_required

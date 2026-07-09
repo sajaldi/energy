@@ -351,6 +351,15 @@
                     <p>Ver todo</p>
                 </div>
             </a>
+            {% if es_almacen %}
+            <a href="{% url 'inventarios:mobile_modificacion_inventario' %}" class="action-card">
+                <div class="icon-box" style="background: #fef3c7; color: #b45309;"><ion-icon name="clipboard-outline"></ion-icon></div>
+                <div class="action-card-text">
+                    <h3>Conteo Físico</h3>
+                    <p>Ajuste de inventario</p>
+                </div>
+            </a>
+            {% endif %}
             <a href="#" class="action-card" onclick="openDiscrepancies(); return false;">
                 {% if discrepancias_count > 0 %}<div class="badge-notif">{{ discrepancias_count }}</div>{% endif %}
                 <div class="icon-box" style="background: #fff7ed; color: #f59e0b;"><ion-icon name="alert-circle-outline"></ion-icon></div>
@@ -444,10 +453,17 @@
         <div id="discrepancies-list" style="flex: 1; padding: 10px;">
             {% for d in discrepancias_list %}
             <div class="request-card disc-card" data-search="{{ d.material.nombre|lower }}" onclick="resolveDiscrepancy('{{ d.id }}', '{{ d.material.nombre|escapejs }}', '{{ d.material.sku|escapejs }}')">
-                <div class="request-header"><span>#{{ d.id }}</span><span>{{ d.fecha_movimiento|date:"d/m/Y" }}</span></div>
+                <div class="request-header"><span>#{{ d.id }}</span><span>{{ d.fecha_movimiento|date:"d/m/Y %H:%M" }}</span></div>
                 <div class="request-body">
                     <h4>{{ d.material.nombre }}</h4>
-                    <p>SKU: {{ d.material.sku }} | Cant: {{ d.cantidad }}</p>
+                    <p style="font-size:12px;color:#475569;">SKU: {{ d.material.sku }} | Cantidad: {{ d.cantidad }} {{ d.material.unidad_medida.abreviatura }}</p>
+                    <p style="font-size:11px;color:#b45309;margin-top:4px;font-weight:600;">
+                        ⚠️ {% if d.comentarios %}{{ d.comentarios|truncatechars:80 }}{% else %}Salida sin stock suficiente en sistema{% endif %}
+                    </p>
+                    <p style="font-size:11px;color:#64748b;margin-top:2px;">
+                        {{ d.get_tipo_display }} por {{ d.usuario.get_full_name|default:d.usuario.username }}
+                        {% if d.ubicacion_origen %} · Desde: {{ d.ubicacion_origen.nombre }}{% endif %}
+                    </p>
                 </div>
             </div>
             {% endfor %}
@@ -525,10 +541,19 @@
     </div>
 
     <div id="scanner-overlay" class="detail-overlay" style="background: black;">
-        <div class="detail-header" style="background: transparent; border: none; position: absolute; top:0; z-index:100;">
-            <ion-icon name="close-outline" onclick="stopSkuScanner()" style="font-size: 28px; color: white;"></ion-icon>
+        <div class="detail-header" style="background: transparent; border: none; position: absolute; top:0; z-index:100; width:100%; display:flex; justify-content:space-between; padding:15px;">
+            <ion-icon name="close-outline" onclick="stopSkuScanner()" style="font-size: 28px; color: white; cursor:pointer;"></ion-icon>
+            <button onclick="toggleManualInput()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:6px 12px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;border-radius:4px;">⌨️ Manual</button>
         </div>
         <div id="reader" style="width: 100%; height: 100%;"></div>
+        <!-- Input manual -->
+        <div id="manual-input-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;background:white;padding:16px;z-index:101;box-shadow:0 -4px 20px rgba(0,0,0,0.3);">
+            <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;text-transform:uppercase;">Ingresar código manualmente</div>
+            <div style="display:flex;gap:8px;">
+                <input type="text" id="manual-sku-input" placeholder="SKU o código de barras..." style="flex:1;padding:10px;border:1px solid #e2e8f0;font-size:0.95rem;font-family:inherit;" onkeydown="if(event.key==='Enter'){submitManualSku();}">
+                <button onclick="submitManualSku()" style="padding:10px 16px;background:#0070f2;color:white;border:none;font-weight:600;font-family:inherit;cursor:pointer;">Buscar</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -663,7 +688,31 @@
         }
         function stopSkuScanner() {
             document.getElementById('scanner-overlay').style.display = 'none';
+            document.getElementById('manual-input-bar').style.display = 'none';
             if (html5QrCode) html5QrCode.stop().catch(() => {});
+        }
+
+        function toggleManualInput() {
+            const bar = document.getElementById('manual-input-bar');
+            if (bar.style.display === 'none') {
+                bar.style.display = 'block';
+                document.getElementById('manual-sku-input').focus();
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        function submitManualSku() {
+            const input = document.getElementById('manual-sku-input');
+            const sku = input.value.trim();
+            if (!sku) return;
+            stopSkuScanner();
+            input.value = '';
+            if (targetSkuInput) {
+                document.getElementById(targetSkuInput).value = sku;
+            } else {
+                handleGlobalScan(sku);
+            }
         }
 
         async function handleGlobalScan(sku) {

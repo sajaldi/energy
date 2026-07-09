@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.cache import cache
 from colorfield.fields import ColorField
 from pgvector.django import VectorField
 from .models_config import ConfiguracionUI
@@ -365,5 +366,82 @@ class ElementoApp(models.Model):
             .values_list('clave', flat=True)
         )
         return con_grupo | sin_grupo
+
+
+class AdminNavMenu(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Nombre")
+    icon = models.CharField(max_length=100, default="fas fa-circle", verbose_name="Icono (FontAwesome)")
+    color = models.CharField(max_length=20, default="#0064d2", verbose_name="Color (hex)")
+    superuser_only = models.BooleanField(default=False, verbose_name="Solo superusuarios")
+    order = models.IntegerField(default=0, verbose_name="Orden")
+    active = models.BooleanField(default=True, verbose_name="Activo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "Menú de navegación"
+        verbose_name_plural = "Menús de navegación"
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        cache.delete("admin_nav_groups")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        cache.delete("admin_nav_groups")
+        super().delete(*args, **kwargs)
+
+
+class AdminNavColumn(models.Model):
+    menu = models.ForeignKey(AdminNavMenu, on_delete=models.CASCADE, related_name="columns", verbose_name="Menú")
+    heading = models.CharField(max_length=100, verbose_name="Encabezado")
+    order = models.IntegerField(default=0, verbose_name="Orden")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "Columna de menú"
+        verbose_name_plural = "Columnas de menú"
+
+    def __str__(self):
+        return f"{self.menu.name} → {self.heading}"
+
+    def save(self, *args, **kwargs):
+        cache.delete("admin_nav_groups")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        cache.delete("admin_nav_groups")
+        super().delete(*args, **kwargs)
+
+
+class AdminNavItem(models.Model):
+    column = models.ForeignKey(AdminNavColumn, on_delete=models.CASCADE, related_name="items", verbose_name="Columna")
+    name = models.CharField(max_length=200, verbose_name="Nombre")
+    url = models.CharField(max_length=500, verbose_name="URL")
+    permission = models.CharField(max_length=200, blank=True, null=True, verbose_name="Permiso requerido")
+    order = models.IntegerField(default=0, verbose_name="Orden")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "Elemento de menú"
+        verbose_name_plural = "Elementos de menú"
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        cache.delete("admin_nav_groups")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        cache.delete("admin_nav_groups")
+        super().delete(*args, **kwargs)
 
 

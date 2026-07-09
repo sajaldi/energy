@@ -11,17 +11,6 @@
         a { color: var(--sap-brand-color); text-decoration: none; }
         a:hover { text-decoration: underline; }
 
-        /* ── Header ── */
-        .editor-header {
-            background: var(--sap-shell-bg); color: var(--sap-shell-color);
-            padding: 16px 32px; display: flex; align-items: center; gap: 20px;
-            position: sticky; top: 0; z-index: 50;
-        }
-        .editor-header h1 { font-size: 1.15rem; font-weight: 600; flex: 1; }
-        .editor-header .back { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.75); font-size: 0.85rem; padding: 6px 12px; transition: all 0.15s; }
-        .editor-header .back:hover { background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }
-        .header-actions { display: flex; gap: 8px; }
-
         /* ── Container ── */
         .container { max-width: 1400px; margin: 0 auto; padding: 24px 16px 80px; }
 
@@ -236,8 +225,6 @@
 
         /* ── Responsive ── */
         @media (max-width: 640px) {
-            .editor-header { padding: 14px 16px; flex-wrap: wrap; }
-            .editor-header h1 { font-size: 1rem; min-width: 100%; order: -1; }
             .container { padding: 16px 12px 100px; }
             .card-body { padding: 14px; }
             .field-row { flex-direction: column; }
@@ -248,15 +235,6 @@
     </style>
 </head>
 <body>
-
-    <!-- ── Header ── -->
-    <div class="editor-header">
-        <a href="{% url 'courses:lista_admin' %}" class="back">← Gestión</a>
-        <h1>{% if es_nuevo %}Crear Nuevo Curso{% else %}Editando: {{ curso.titulo }}{% endif %}</h1>
-        {% if not es_nuevo %}
-        <a href="{% url 'courses:visualizar' curso.id %}" class="back" style="border:1px solid rgba(255,255,255,0.2);" target="_blank">👁 Vista Previa</a>
-        {% endif %}
-    </div>
 
     <!-- ── Messages ── -->
     {% if messages %}
@@ -274,6 +252,15 @@
         {{ formset.management_form }}
 
         <div class="container">
+
+            <!-- ── Nav ── -->
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+                <a href="{% url 'courses:lista_admin' %}" style="font-size:0.85rem;padding:6px 12px;background:var(--sap-shell-bg);color:#fff;border-radius:4px;text-decoration:none;">← Gestión</a>
+                <h1 style="font-size:1.1rem;font-weight:600;flex:1;margin:0;">{% if es_nuevo %}Crear Nuevo Curso{% else %}Editando: {{ curso.titulo }}{% endif %}</h1>
+                {% if not es_nuevo %}
+                <a href="{% url 'courses:visualizar' curso.id %}" target="_blank" style="font-size:0.82rem;padding:5px 12px;border:1px solid var(--sap-border-color);border-radius:4px;text-decoration:none;">👁 Vista Previa</a>
+                {% endif %}
+            </div>
 
             <!-- ── Card: Información del Curso ── -->
             <div class="card">
@@ -854,125 +841,7 @@
         }
 
         // ── Image Resize Popover ──────────────────────────────────────────────
-        let selectedImage = null;
-        let resizeLocked = true;
-        let imgOriginalRatio = 1;
-
-        // Click en imagen dentro del editor visual → mostrar popover
-        document.addEventListener('click', function(e) {
-            const img = e.target.closest('.html-preview.edit-mode img');
-            const popover = document.getElementById('img-resize-popover');
-
-            if (img) {
-                e.stopPropagation();
-                selectImage(img);
-            } else if (!e.target.closest('#img-resize-popover') && !e.target.closest('.img-resize-popover')) {
-                deselectImage();
-            }
-        });
-
-        function selectImage(img) {
-            deselectImage();
-            selectedImage = img;
-            img.classList.add('img-selected-outline');
-
-            const w = img.naturalWidth || img.offsetWidth;
-            const h = img.naturalHeight || img.offsetHeight;
-            imgOriginalRatio = w / h;
-
-            document.getElementById('img-resize-w').value = img.offsetWidth || w;
-            document.getElementById('img-resize-h').value = img.offsetHeight || h;
-            document.getElementById('img-resize-maxw').value = parseInt(img.style.maxWidth) || 100;
-
-            // Posicionar popover cerca de la imagen
-            const popover = document.getElementById('img-resize-popover');
-            const rect = img.getBoundingClientRect();
-            popover.style.top = (rect.bottom + 6) + 'px';
-            popover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 240)) + 'px';
-            popover.classList.add('show');
-        }
-
-        function deselectImage() {
-            if (selectedImage) {
-                selectedImage.classList.remove('img-selected-outline');
-                selectedImage = null;
-            }
-            document.getElementById('img-resize-popover').classList.remove('show');
-        }
-
-        function toggleResizeLock() {
-            resizeLocked = !resizeLocked;
-            const btn = document.getElementById('img-resize-lock');
-            btn.textContent = resizeLocked ? '🔒' : '🔓';
-            btn.classList.toggle('locked', resizeLocked);
-        }
-
-        // Sync width/height con ratio
-        const imgResizeW = document.getElementById('img-resize-w');
-        const imgResizeH = document.getElementById('img-resize-h');
-        if (imgResizeW) {
-            imgResizeW.addEventListener('input', function() {
-                if (resizeLocked && imgOriginalRatio) {
-                    document.getElementById('img-resize-h').value = Math.round(this.value / imgOriginalRatio);
-                }
-            });
-        }
-        if (imgResizeH) {
-            imgResizeH.addEventListener('input', function() {
-                if (resizeLocked && imgOriginalRatio) {
-                    document.getElementById('img-resize-w').value = Math.round(this.value * imgOriginalRatio);
-                }
-            });
-        }
-
-        function applyImageResize() {
-            if (!selectedImage) return;
-            const w = document.getElementById('img-resize-w').value;
-            const h = document.getElementById('img-resize-h').value;
-            const maxW = document.getElementById('img-resize-maxw').value;
-
-            selectedImage.style.width = w + 'px';
-            selectedImage.style.height = h + 'px';
-            selectedImage.style.maxWidth = (maxW || 100) + '%';
-            selectedImage.removeAttribute('width');
-            selectedImage.removeAttribute('height');
-
-            // Sync al textarea
-            const preview = selectedImage.closest('.html-preview');
-            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
-            deselectImage();
-        }
-
-        function resetImageSize() {
-            if (!selectedImage) return;
-            selectedImage.style.width = '';
-            selectedImage.style.height = '';
-            selectedImage.style.maxWidth = '100%';
-            selectedImage.removeAttribute('width');
-            selectedImage.removeAttribute('height');
-
-            document.getElementById('img-resize-w').value = selectedImage.naturalWidth;
-            document.getElementById('img-resize-h').value = selectedImage.naturalHeight;
-            document.getElementById('img-resize-maxw').value = 100;
-
-            const preview = selectedImage.closest('.html-preview');
-            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        function removeSelectedImage() {
-            if (!selectedImage) return;
-            if (!confirm('¿Eliminar esta imagen?')) return;
-            const preview = selectedImage.closest('.html-preview');
-            selectedImage.remove();
-            selectedImage = null;
-            document.getElementById('img-resize-popover').classList.remove('show');
-            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-
-        // Cerrar popover con Escape
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') deselectImage();
-        });
+        // (Se inicializa en DOMContentLoaded al final del archivo)
 
         function tbInsertVideo(textareaId) {
             const sel = window.getSelection();
@@ -1274,7 +1143,6 @@
             const prev = form.querySelector('.html-preview');
             if (prev) base64Observer.observe(prev, { childList: true, subtree: true });
         }
-        }
 
         function guardarPagina(btn, seccionId, cursoId) {
             const item = btn.closest('.pagina-item');
@@ -1468,6 +1336,137 @@
             actualizarOrdenes();
             document.querySelectorAll('textarea[name$="-contenido_html"]').forEach(el => actualizarPreview(el));
         });
+    </script>
+
+    <script>
+    // ── Image Resize Popover (aislado para no interferir con el editor) ──
+    (function() {
+        var selectedImage = null;
+        var resizeLocked = true;
+        var imgOriginalRatio = 1;
+
+        document.addEventListener('click', function(e) {
+            var img = e.target;
+            if (img.tagName !== 'IMG') return;
+            var preview = img.closest('.html-preview.edit-mode');
+            if (!preview) return;
+
+            // Es una imagen dentro del editor visual
+            selectImage(img);
+        });
+
+        // Click fuera para deseleccionar
+        document.addEventListener('mousedown', function(e) {
+            if (!selectedImage) return;
+            if (e.target.closest('#img-resize-popover')) return;
+            if (e.target.tagName === 'IMG' && e.target.closest('.html-preview.edit-mode')) return;
+            deselectImage();
+        });
+
+        function selectImage(img) {
+            deselectImage();
+            selectedImage = img;
+            img.classList.add('img-selected-outline');
+
+            var w = img.naturalWidth || img.offsetWidth;
+            var h = img.naturalHeight || img.offsetHeight;
+            imgOriginalRatio = h > 0 ? w / h : 1;
+
+            var wInput = document.getElementById('img-resize-w');
+            var hInput = document.getElementById('img-resize-h');
+            var maxwInput = document.getElementById('img-resize-maxw');
+            if (wInput) wInput.value = img.offsetWidth || w;
+            if (hInput) hInput.value = img.offsetHeight || h;
+            if (maxwInput) maxwInput.value = parseInt(img.style.maxWidth) || 100;
+
+            var popover = document.getElementById('img-resize-popover');
+            if (popover) {
+                var rect = img.getBoundingClientRect();
+                popover.style.top = (rect.bottom + 6) + 'px';
+                popover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 240)) + 'px';
+                popover.classList.add('show');
+            }
+        }
+
+        function deselectImage() {
+            if (selectedImage) {
+                selectedImage.classList.remove('img-selected-outline');
+                selectedImage = null;
+            }
+            var popover = document.getElementById('img-resize-popover');
+            if (popover) popover.classList.remove('show');
+        }
+
+        // Funciones globales para los onclick del popover HTML
+        window.toggleResizeLock = function() {
+            resizeLocked = !resizeLocked;
+            var btn = document.getElementById('img-resize-lock');
+            if (btn) {
+                btn.textContent = resizeLocked ? '🔒' : '🔓';
+                btn.classList.toggle('locked', resizeLocked);
+            }
+        };
+
+        window.applyImageResize = function() {
+            if (!selectedImage) return;
+            var w = document.getElementById('img-resize-w').value;
+            var h = document.getElementById('img-resize-h').value;
+            var maxW = document.getElementById('img-resize-maxw').value;
+            selectedImage.style.width = w + 'px';
+            selectedImage.style.height = h + 'px';
+            selectedImage.style.maxWidth = (maxW || 100) + '%';
+            selectedImage.removeAttribute('width');
+            selectedImage.removeAttribute('height');
+            var preview = selectedImage.closest('.html-preview');
+            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+            deselectImage();
+        };
+
+        window.resetImageSize = function() {
+            if (!selectedImage) return;
+            selectedImage.style.width = '';
+            selectedImage.style.height = '';
+            selectedImage.style.maxWidth = '100%';
+            selectedImage.removeAttribute('width');
+            selectedImage.removeAttribute('height');
+            var wInput = document.getElementById('img-resize-w');
+            var hInput = document.getElementById('img-resize-h');
+            if (wInput) wInput.value = selectedImage.naturalWidth;
+            if (hInput) hInput.value = selectedImage.naturalHeight;
+            document.getElementById('img-resize-maxw').value = 100;
+            var preview = selectedImage.closest('.html-preview');
+            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+
+        window.removeSelectedImage = function() {
+            if (!selectedImage) return;
+            if (!confirm('¿Eliminar esta imagen?')) return;
+            var preview = selectedImage.closest('.html-preview');
+            selectedImage.remove();
+            selectedImage = null;
+            var popover = document.getElementById('img-resize-popover');
+            if (popover) popover.classList.remove('show');
+            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+
+        // Sync width/height
+        var wInput = document.getElementById('img-resize-w');
+        var hInput = document.getElementById('img-resize-h');
+        if (wInput) wInput.addEventListener('input', function() {
+            if (resizeLocked && imgOriginalRatio) {
+                hInput.value = Math.round(this.value / imgOriginalRatio);
+            }
+        });
+        if (hInput) hInput.addEventListener('input', function() {
+            if (resizeLocked && imgOriginalRatio) {
+                wInput.value = Math.round(this.value * imgOriginalRatio);
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') deselectImage();
+        });
+    })();
     </script>
 </body>
 </html>

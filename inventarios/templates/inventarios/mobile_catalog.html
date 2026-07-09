@@ -182,6 +182,7 @@
             padding: 12px 0; border-bottom: 1px solid #f1f5f9;
         }
 
+        .swal-over-overlay { z-index: 3000 !important; }
     </style>
 </head>
 <body>
@@ -565,18 +566,88 @@
             `).join('');
 
             // Render Historial
-            document.getElementById('ov-history-list').innerHTML = data.movimientos.map(m => `
-                <div class="movement-item">
+            document.getElementById('ov-history-list').innerHTML = data.movimientos.map((m, idx) => {
+                const esSalida = m.es_salida;
+                const esAjuste = m.tipo_raw === 'AJUSTE';
+                const esDev = m.tipo_raw === 'DEVOLUCION' || m.tipo.includes('Devolución');
+                const signo = esSalida ? '-' : '+';
+                let color, tipoColor;
+                if (esSalida) { color = '#ef4444'; tipoColor = '#ef4444'; }
+                else if (esAjuste) { color = '#b45309'; tipoColor = '#b45309'; }
+                else if (esDev) { color = '#8b5cf6'; tipoColor = '#8b5cf6'; }
+                else { color = '#22c55e'; tipoColor = '#22c55e'; }
+
+                return `
+                <div class="movement-item" style="cursor:pointer;" onclick="abrirDetalleMovimiento(${idx})">
                     <div style="display:flex; justify-content:space-between;">
-                        <span style="font-weight:700; font-size:12px; color:${m.tipo_raw === 'ENTRADA' ? 'var(--sap-success)' : 'var(--sap-error)'}">${m.tipo}</span>
+                        <span style="font-weight:700; font-size:12px; color:${tipoColor}">${m.tipo}</span>
                         <span style="font-size:11px; color:#64748b;">${m.fecha}</span>
                     </div>
-                    <div style="font-weight:600; font-size:14px;">${m.cantidad > 0 ? '+' : ''}${m.cantidad} - Por ${m.usuario}</div>
+                    <div style="font-weight:600; font-size:14px; color:${color}">${signo}${m.cantidad} <span style="color:#1e293b; font-weight:400;">– Por ${m.usuario}</span></div>
                     <div style="font-size:11px; color:#64748b;">📍 ${m.ubicacion}</div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
+
+            // Render Cambios de campos
+            if (data.cambios_campos && data.cambios_campos.length > 0) {
+                document.getElementById('ov-history-list').innerHTML += `
+                    <div style="margin-top:16px;padding-top:12px;border-top:2px solid #e2e8f0;">
+                        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px;">Modificaciones de datos</div>
+                    </div>
+                ` + data.cambios_campos.map(c => `
+                    <div class="movement-item" style="border-left:3px solid #6366f1;padding-left:10px;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="font-weight:700; font-size:12px; color:#6366f1;">✏️ ${c.campo}</span>
+                            <span style="font-size:11px; color:#64748b;">${c.fecha}</span>
+                        </div>
+                        <div style="font-size:13px;"><span style="text-decoration:line-through;color:#94a3b8;">${c.valor_anterior || '(vacío)'}</span> → <strong>${c.valor_nuevo || '(vacío)'}</strong></div>
+                        <div style="font-size:11px; color:#64748b;">Por ${c.usuario}</div>
+                    </div>
+                `).join('');
+            }
 
             document.getElementById('detail-overlay').style.display = 'flex';
+            // Guardar movimientos para el modal de detalle
+            window._currentMovimientos = data.movimientos;
+        }
+
+        function abrirDetalleMovimiento(idx) {
+            const m = window._currentMovimientos[idx];
+            if (!m) return;
+
+            const esSalida = m.es_salida;
+            const signo = esSalida ? '-' : '+';
+
+            let rows = [];
+            rows.push(`<tr><td style="font-weight:600;color:#64748b;padding:6px 0;">Tipo</td><td style="padding:6px 0;">${m.tipo}</td></tr>`);
+            rows.push(`<tr><td style="font-weight:600;color:#64748b;padding:6px 0;">Cantidad</td><td style="padding:6px 0;font-weight:700;color:${esSalida ? '#ef4444' : '#22c55e'}">${signo}${m.cantidad}</td></tr>`);
+            if (m.cantidad_solicitada && m.cantidad_solicitada != m.cantidad) {
+                rows.push(`<tr><td style="font-weight:600;color:#64748b;padding:6px 0;">Solicitado</td><td style="padding:6px 0;">${m.cantidad_solicitada}</td></tr>`);
+            }
+            rows.push(`<tr><td style="font-weight:600;color:#64748b;padding:6px 0;">Fecha</td><td style="padding:6px 0;">${m.fecha}</td></tr>`);
+            rows.push(`<tr><td style="font-weight:600;color:#64748b;padding:6px 0;">Usuario</td><td style="padding:6px 0;">${m.usuario}</td></tr>`);
+            rows.push(`<tr><td style="font-weight:600;color:#64748b;padding:6px 0;">Ubicación</td><td style="padding:6px 0;">${m.ubicacion}</td></tr>`);
+            if (m.solicitud_info) {
+                rows.push(`<tr><td style="font-weight:600;color:#64748b;padding:6px 0;">Solicitud</td><td style="padding:6px 0;">${m.solicitud_info}</td></tr>`);
+            }
+            if (m.orden_trabajo_info) {
+                rows.push(`<tr><td style="font-weight:600;color:#64748b;padding:6px 0;">Orden de Trabajo</td><td style="padding:6px 0;">${m.orden_trabajo_info}</td></tr>`);
+            }
+            if (m.estado_raw && m.estado_raw !== 'APROBADO') {
+                rows.push(`<tr><td style="font-weight:600;color:#64748b;padding:6px 0;">Estado</td><td style="padding:6px 0;">${m.estado || m.estado_raw}</td></tr>`);
+            }
+            if (m.comentarios) {
+                rows.push(`<tr><td style="font-weight:600;color:#64748b;padding:6px 0;">Comentarios</td><td style="padding:6px 0;font-size:12px;">${m.comentarios}</td></tr>`);
+            }
+
+            Swal.fire({
+                title: m.tipo,
+                html: `<table style="width:100%;text-align:left;font-size:13px;border-collapse:collapse;">${rows.join('')}</table>`,
+                showCloseButton: true,
+                showConfirmButton: false,
+                width: '380px',
+                customClass: { popup: 'swal-mov-detail', container: 'swal-over-overlay' }
+            });
         }
 
         function closeDetail() { document.getElementById('detail-overlay').style.display = 'none'; }

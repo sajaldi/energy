@@ -1,0 +1,248 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Conteo Físico | Inventario</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body { font-family: 'Outfit', sans-serif; background: #f1f5f9; color: #1e293b; margin: 0; padding-bottom: 80px; }
+        header { background: #334155; color: white; padding: 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; }
+        header a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.85rem; }
+        header h1 { font-size: 1rem; font-weight: 700; flex: 1; margin: 0; }
+        .container { padding: 12px; }
+
+        .ubicacion-selector { background: white; border: 1px solid #e2e8f0; padding: 12px; margin-bottom: 12px; }
+        .ubicacion-selector label { font-size: 0.78rem; font-weight: 600; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 4px; }
+        .ubicacion-selector select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; font-family: inherit; font-size: 0.9rem; background: #fff; }
+
+        .search-box { margin-bottom: 12px; position: relative; }
+        .search-box input { width: 100%; padding: 10px 10px 10px 36px; border: 1px solid #e2e8f0; font-family: inherit; font-size: 0.88rem; background: white; }
+        .search-box ion-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+
+        .materiales-grid { display: flex; flex-direction: column; gap: 8px; }
+        .material-row { background: white; border: 1px solid #e2e8f0; padding: 12px; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+        .material-row.changed { border-left: 3px solid #f59e0b; }
+        .material-row.positivo { border-left: 3px solid #22c55e; }
+        .material-row.negativo { border-left: 3px solid #ef4444; }
+        .material-info { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+        .material-info .sku { font-size: 0.7rem; color: #94a3b8; font-weight: 600; }
+        .material-info .nombre { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .material-info .meta { font-size: 0.72rem; color: #64748b; }
+        .material-stock { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 100px; }
+        .stock-sistema { font-size: 0.72rem; color: #64748b; }
+        .stock-input { width: 80px; padding: 6px 8px; border: 1px solid #e2e8f0; font-family: inherit; font-size: 0.9rem; text-align: right; font-weight: 600; }
+        .stock-input:focus { outline: none; border-color: #0070f2; }
+        .diferencia { font-size: 0.75rem; font-weight: 700; }
+        .dif-pos { color: #22c55e; }
+        .dif-neg { color: #ef4444; }
+        .dif-zero { color: #94a3b8; }
+
+        .resumen-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 2px solid #e2e8f0; padding: 12px 16px; display: flex; align-items: center; gap: 12px; z-index: 50; }
+        .resumen-bar .info { flex: 1; font-size: 0.8rem; color: #64748b; }
+        .resumen-bar .info strong { color: #1e293b; }
+        .resumen-bar button { padding: 10px 20px; background: #0070f2; color: white; border: none; font-family: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+        .resumen-bar button:disabled { background: #94a3b8; cursor: not-allowed; }
+
+        .empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
+        .empty-state ion-icon { font-size: 48px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="{% url 'inventarios:mobile_dashboard' %}">← Almacén</a>
+        <h1>Conteo Físico</h1>
+    </header>
+
+    <div class="container">
+        <!-- Selector de ubicación -->
+        <div class="ubicacion-selector">
+            <label>Ubicación / Bodega</label>
+            <select id="select-ubicacion" onchange="cambiarUbicacion(this.value)">
+                <option value="">— Seleccionar ubicación —</option>
+                {% for u in ubicaciones %}
+                <option value="{{ u.id }}" {% if ubicacion_actual and ubicacion_actual.id == u.id %}selected{% endif %}>{{ u.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {% if ubicacion_actual %}
+        <!-- Búsqueda -->
+        <div class="search-box">
+            <ion-icon name="search-outline"></ion-icon>
+            <input type="text" id="search-material" placeholder="Buscar por SKU o nombre..." oninput="filtrarMateriales()">
+        </div>
+
+        <!-- Grid de materiales -->
+        <div class="materiales-grid" id="materiales-grid"></div>
+        {% else %}
+        <div class="empty-state">
+            <ion-icon name="location-outline"></ion-icon>
+            <p>Selecciona una ubicación para iniciar el conteo.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Barra de resumen -->
+    <div class="resumen-bar" id="resumen-bar" style="{% if not ubicacion_actual %}display:none{% endif %}">
+        <div class="info">
+            <strong id="count-cambios">0</strong> cambio(s) · 
+            <span id="resumen-texto">Sin modificaciones</span>
+        </div>
+        <button id="btn-guardar" disabled onclick="guardarConteo()">Guardar</button>
+    </div>
+
+    <script>
+    var materiales = {{ materiales_json|safe }};
+    var ubicacionId = '{{ ubicacion_actual.id|default:"" }}';
+
+    function cambiarUbicacion(id) {
+        if (id) {
+            window.location.href = '{% url "inventarios:mobile_modificacion_inventario" %}?ubicacion=' + id;
+        }
+    }
+
+    function renderGrid(items) {
+        var grid = document.getElementById('materiales-grid');
+        if (!grid) return;
+        if (!items.length) {
+            grid.innerHTML = '<div class="empty-state"><p>No hay materiales en esta ubicación.</p></div>';
+            return;
+        }
+        grid.innerHTML = items.map(function(m, i) {
+            return '<div class="material-row" data-idx="' + i + '" data-id="' + m.id + '">' +
+                '<div class="material-info">' +
+                    '<span class="sku">' + m.sku + '</span>' +
+                    '<span class="nombre">' + m.nombre + '</span>' +
+                    '<span class="meta">' + m.categoria + ' · ' + m.unidad + '</span>' +
+                '</div>' +
+                '<div class="material-stock">' +
+                    '<span class="stock-sistema">Sistema: ' + m.stock_sistema.toFixed(2) + '</span>' +
+                    '<input type="number" class="stock-input" value="' + m.stock_sistema.toFixed(2) + '" step="0.01" min="0" data-original="' + m.stock_sistema + '" oninput="actualizarDiferencia(this)">' +
+                    '<span class="diferencia dif-zero">±0</span>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function actualizarDiferencia(input) {
+        var original = parseFloat(input.dataset.original);
+        var actual = parseFloat(input.value) || 0;
+        var dif = actual - original;
+        var difSpan = input.nextElementSibling;
+        var row = input.closest('.material-row');
+
+        if (dif > 0) {
+            difSpan.textContent = '+' + dif.toFixed(2);
+            difSpan.className = 'diferencia dif-pos';
+            row.className = 'material-row positivo';
+        } else if (dif < 0) {
+            difSpan.textContent = dif.toFixed(2);
+            difSpan.className = 'diferencia dif-neg';
+            row.className = 'material-row negativo';
+        } else {
+            difSpan.textContent = '±0';
+            difSpan.className = 'diferencia dif-zero';
+            row.className = 'material-row';
+        }
+        actualizarResumen();
+    }
+
+    function actualizarResumen() {
+        var inputs = document.querySelectorAll('.stock-input');
+        var cambios = 0, positivos = 0, negativos = 0;
+        inputs.forEach(function(inp) {
+            var orig = parseFloat(inp.dataset.original);
+            var actual = parseFloat(inp.value) || 0;
+            var dif = actual - orig;
+            if (dif !== 0) {
+                cambios++;
+                if (dif > 0) positivos++;
+                else negativos++;
+            }
+        });
+        document.getElementById('count-cambios').textContent = cambios;
+        document.getElementById('resumen-texto').textContent = cambios === 0 ? 'Sin modificaciones' : positivos + ' entrada(s), ' + negativos + ' salida(s)';
+        document.getElementById('btn-guardar').disabled = (cambios === 0);
+    }
+
+    function filtrarMateriales() {
+        var q = document.getElementById('search-material').value.toLowerCase().trim();
+        var filtered = materiales.filter(function(m) {
+            return m.nombre.toLowerCase().includes(q) || m.sku.toLowerCase().includes(q);
+        });
+        renderGrid(filtered);
+    }
+
+    function guardarConteo() {
+        var inputs = document.querySelectorAll('.stock-input');
+        var items = [];
+        inputs.forEach(function(inp) {
+            var orig = parseFloat(inp.dataset.original);
+            var actual = parseFloat(inp.value) || 0;
+            if (actual !== orig) {
+                var row = inp.closest('.material-row');
+                items.push({
+                    material_id: parseInt(row.dataset.id),
+                    cantidad_real: actual,
+                    stock_sistema: orig
+                });
+            }
+        });
+
+        if (!items.length) return;
+
+        Swal.fire({
+            title: 'Confirmar conteo',
+            text: 'Se registrarán ' + items.length + ' ajuste(s) de inventario. ¿Continuar?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Guardar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0070f2'
+        }).then(function(result) {
+            if (!result.isConfirmed) return;
+
+            fetch('{% url "inventarios:api_guardar_conteo_inventario" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    ubicacion_id: ubicacionId,
+                    items: items,
+                    comentario: 'Conteo físico de inventario'
+                })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'success') {
+                    Swal.fire('Guardado', data.message, 'success').then(function() {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', data.error || 'Error desconocido', 'error');
+                }
+            })
+            .catch(function(e) {
+                Swal.fire('Error', 'Error de red: ' + e.message, 'error');
+            });
+        });
+    }
+
+    function getCookie(name) {
+        var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+        return v ? v[2] : null;
+    }
+
+    // Init
+    if (materiales.length) renderGrid(materiales);
+    </script>
+</body>
+</html>

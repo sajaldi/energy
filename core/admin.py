@@ -18,7 +18,8 @@ from django.db import transaction
 from .models import (
     Consumo, InterfaceConsumo, Medidor, PuntoMedicion, Equipo,
     CaracteristicaMedicion, CategoriaPuntoMedicion, DocumentoMedicion, RangoMedicion, TipoMedidor, UnidadMedida, VistaConsumoDiferencia,
-    Servicio, KPI, PerfilUsuario, ConfiguracionUI, Departamento, ElementoApp
+    Servicio, KPI, PerfilUsuario, ConfiguracionUI, Departamento, ElementoApp,
+    AdminNavMenu, AdminNavColumn, AdminNavItem,
 )
 
 @admin.register(ConfiguracionUI)
@@ -426,3 +427,39 @@ class ElementoAppAdmin(admin.ModelAdmin):
             return format_html('<span style="color:#10b981; font-weight:600;">✅ Todos</span>')
         return ', '.join(g.name for g in grupos)
     get_grupos.short_description = 'Visible para'
+
+
+class AdminNavItemInline(admin.TabularInline):
+    model = AdminNavItem
+    extra = 1
+    fields = ("name", "url", "permission", "order")
+    ordering = ("order",)
+    verbose_name = "Elemento"
+    verbose_name_plural = "Elementos del menú"
+
+
+class AdminNavColumnInline(admin.TabularInline):
+    model = AdminNavColumn
+    extra = 0
+    fields = ("heading", "order")
+    ordering = ("order",)
+    verbose_name = "Columna"
+    verbose_name_plural = "Columnas"
+
+
+@admin.register(AdminNavMenu)
+class AdminNavMenuAdmin(admin.ModelAdmin):
+    list_display = ("name", "icon", "color", "order", "superuser_only", "active")
+    list_editable = ("order", "superuser_only", "active")
+    list_filter = ("active", "superuser_only")
+    search_fields = ("name",)
+    ordering = ("order",)
+    inlines = [AdminNavColumnInline]
+
+
+@admin.register(AdminNavColumn)
+class AdminNavColumnAdmin(admin.ModelAdmin):
+    list_display = ("__str__", "menu", "order")
+    list_filter = ("menu",)
+    ordering = ("menu", "order")
+    inlines = [AdminNavItemInline]
