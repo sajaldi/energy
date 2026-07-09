@@ -48,6 +48,9 @@ RUN mkdir -p /app/media /app/staticfiles
 # Código fuente — única capa que cambia en CADA deploy
 COPY . /app/
 
+# Pre-compilar archivos .py a bytecode para arranque más rápido
+RUN python -m compileall -q /app/ 2>/dev/null || true
+
 RUN chmod +x /app/start.sh
 
 EXPOSE 8000

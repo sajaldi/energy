@@ -14,7 +14,8 @@ else
     python manage.py migrate --noinput
 
     echo "[WEB] Recolectando archivos estáticos..."
-    python manage.py collectstatic --noinput --clear 2>/dev/null || \
+    # --no-post-process evita rehashing innecesario de archivos que no cambiaron
+    python manage.py collectstatic --noinput --no-post-process 2>/dev/null || \
     python manage.py collectstatic --noinput
 
     echo "[WEB] Iniciando Gunicorn..."
@@ -26,6 +27,7 @@ else
         --keep-alive 5 \
         --max-requests 1000 \
         --max-requests-jitter 100 \
+        --preload \
         --log-level info \
         --access-logfile - \
         --error-logfile -
