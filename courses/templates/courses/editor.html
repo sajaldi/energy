@@ -131,6 +131,20 @@
         .visual-toolbar button.tb-label { font-weight: 700; font-size: 0.7rem; padding: 4px 6px; }
         .visual-toolbar input[type="file"] { display: none; }
 
+        /* ── Image Resize Popover ── */
+        .img-resize-popover { position: absolute; z-index: 200; background: #fff; border: 1px solid var(--sap-border-color); box-shadow: 0 4px 16px rgba(0,0,0,0.15); border-radius: 6px; padding: 10px 12px; display: none; min-width: 220px; }
+        .img-resize-popover.show { display: block; }
+        .img-resize-popover .resize-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .img-resize-popover label { font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase; min-width: 40px; }
+        .img-resize-popover input[type="number"] { width: 70px; padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 3px; font-size: 0.82rem; font-family: inherit; }
+        .img-resize-popover input[type="number"]:focus { outline: none; border-color: var(--sap-brand-color); }
+        .img-resize-popover .resize-lock { background: none; border: 1px solid #e2e8f0; border-radius: 3px; padding: 3px 6px; cursor: pointer; font-size: 0.78rem; }
+        .img-resize-popover .resize-lock.locked { background: #dbeafe; border-color: #93c5fd; color: #2563eb; }
+        .img-resize-popover .resize-actions { display: flex; gap: 6px; justify-content: flex-end; border-top: 1px solid #f1f5f9; padding-top: 8px; }
+        .img-resize-popover .resize-actions button { padding: 4px 10px; font-size: 0.78rem; border: 1px solid #e2e8f0; border-radius: 3px; cursor: pointer; font-family: inherit; }
+        .img-resize-popover .resize-actions .btn-apply { background: var(--sap-brand-color); color: #fff; border-color: var(--sap-brand-color); }
+        .img-selected-outline { outline: 2px solid var(--sap-brand-color) !important; outline-offset: 2px; cursor: pointer; }
+
         /* ── Pages ── */
         .paginas-section { margin-top: 16px; border-top: 1px dashed var(--sap-border-color); padding-top: 12px; }
         .paginas-title { font-size: 0.82rem; font-weight: 700; color: var(--sap-text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
@@ -479,6 +493,31 @@
 
     <input type="file" id="image-upload-input" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
 
+    <!-- Image Resize Popover -->
+    <div class="img-resize-popover" id="img-resize-popover">
+        <div class="resize-row">
+            <label>Ancho</label>
+            <input type="number" id="img-resize-w" min="10" step="1">
+            <span style="font-size:0.78rem;color:#94a3b8;">px</span>
+            <button type="button" class="resize-lock locked" id="img-resize-lock" onclick="toggleResizeLock()" title="Mantener proporción">🔒</button>
+        </div>
+        <div class="resize-row">
+            <label>Alto</label>
+            <input type="number" id="img-resize-h" min="10" step="1">
+            <span style="font-size:0.78rem;color:#94a3b8;">px</span>
+        </div>
+        <div class="resize-row" style="margin-bottom:0;">
+            <label>Max-W</label>
+            <input type="number" id="img-resize-maxw" min="0" step="5" placeholder="100" value="100">
+            <span style="font-size:0.78rem;color:#94a3b8;">%</span>
+        </div>
+        <div class="resize-actions">
+            <button type="button" onclick="resetImageSize()">↺ Reset</button>
+            <button type="button" onclick="removeSelectedImage()">🗑</button>
+            <button type="button" class="btn-apply" onclick="applyImageResize()">Aplicar</button>
+        </div>
+    </div>
+
     <script>
         const PREFIX = '{{ formset.prefix }}';
         let activeToolbarTextareaId = null;
@@ -800,6 +839,122 @@
                     console.error('Error uploading base64 image:', err);
                 });
         }
+
+        // ── Image Resize Popover ──────────────────────────────────────────────
+        let selectedImage = null;
+        let resizeLocked = true;
+        let imgOriginalRatio = 1;
+
+        // Click en imagen dentro del editor visual → mostrar popover
+        document.addEventListener('click', function(e) {
+            const img = e.target.closest('.html-preview.edit-mode img');
+            const popover = document.getElementById('img-resize-popover');
+
+            if (img) {
+                e.preventDefault();
+                e.stopPropagation();
+                selectImage(img);
+            } else if (!e.target.closest('#img-resize-popover')) {
+                deselectImage();
+            }
+        });
+
+        function selectImage(img) {
+            deselectImage();
+            selectedImage = img;
+            img.classList.add('img-selected-outline');
+
+            const w = img.naturalWidth || img.offsetWidth;
+            const h = img.naturalHeight || img.offsetHeight;
+            imgOriginalRatio = w / h;
+
+            document.getElementById('img-resize-w').value = img.offsetWidth || w;
+            document.getElementById('img-resize-h').value = img.offsetHeight || h;
+            document.getElementById('img-resize-maxw').value = parseInt(img.style.maxWidth) || 100;
+
+            // Posicionar popover cerca de la imagen
+            const popover = document.getElementById('img-resize-popover');
+            const rect = img.getBoundingClientRect();
+            popover.style.top = (window.scrollY + rect.bottom + 6) + 'px';
+            popover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 240)) + 'px';
+            popover.classList.add('show');
+        }
+
+        function deselectImage() {
+            if (selectedImage) {
+                selectedImage.classList.remove('img-selected-outline');
+                selectedImage = null;
+            }
+            document.getElementById('img-resize-popover').classList.remove('show');
+        }
+
+        function toggleResizeLock() {
+            resizeLocked = !resizeLocked;
+            const btn = document.getElementById('img-resize-lock');
+            btn.textContent = resizeLocked ? '🔒' : '🔓';
+            btn.classList.toggle('locked', resizeLocked);
+        }
+
+        // Sync width/height con ratio
+        document.getElementById('img-resize-w').addEventListener('input', function() {
+            if (resizeLocked && imgOriginalRatio) {
+                document.getElementById('img-resize-h').value = Math.round(this.value / imgOriginalRatio);
+            }
+        });
+        document.getElementById('img-resize-h').addEventListener('input', function() {
+            if (resizeLocked && imgOriginalRatio) {
+                document.getElementById('img-resize-w').value = Math.round(this.value * imgOriginalRatio);
+            }
+        });
+
+        function applyImageResize() {
+            if (!selectedImage) return;
+            const w = document.getElementById('img-resize-w').value;
+            const h = document.getElementById('img-resize-h').value;
+            const maxW = document.getElementById('img-resize-maxw').value;
+
+            selectedImage.style.width = w + 'px';
+            selectedImage.style.height = h + 'px';
+            selectedImage.style.maxWidth = (maxW || 100) + '%';
+            selectedImage.removeAttribute('width');
+            selectedImage.removeAttribute('height');
+
+            // Sync al textarea
+            const preview = selectedImage.closest('.html-preview');
+            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+            deselectImage();
+        }
+
+        function resetImageSize() {
+            if (!selectedImage) return;
+            selectedImage.style.width = '';
+            selectedImage.style.height = '';
+            selectedImage.style.maxWidth = '100%';
+            selectedImage.removeAttribute('width');
+            selectedImage.removeAttribute('height');
+
+            document.getElementById('img-resize-w').value = selectedImage.naturalWidth;
+            document.getElementById('img-resize-h').value = selectedImage.naturalHeight;
+            document.getElementById('img-resize-maxw').value = 100;
+
+            const preview = selectedImage.closest('.html-preview');
+            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        function removeSelectedImage() {
+            if (!selectedImage) return;
+            if (!confirm('¿Eliminar esta imagen?')) return;
+            const preview = selectedImage.closest('.html-preview');
+            selectedImage.remove();
+            selectedImage = null;
+            document.getElementById('img-resize-popover').classList.remove('show');
+            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // Cerrar popover con Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') deselectImage();
+        });
 
         function tbInsertVideo(textareaId) {
             const sel = window.getSelection();
