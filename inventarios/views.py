@@ -508,9 +508,10 @@ def cart_checkout(request):
             # Webhook a Power Automate
             from .utils_n8n import notify_powerautomate_solicitud
             notify_powerautomate_solicitud(solicitud)
-            # Push notification vía ntfy
-            from .utils_ntfy import notificar_nueva_solicitud
-            notificar_nueva_solicitud(solicitud)
+            # Push notification vía ntfy (solo si ya está lista para almacén)
+            if estado_inicial == 'PENDIENTE':
+                from .utils_ntfy import notificar_nueva_solicitud
+                notificar_nueva_solicitud(solicitud)
             # Limpiar carrito solo si venimos de la vista de carrito
             if not items_json:
                 Cart(request).clear()
@@ -2149,6 +2150,10 @@ def api_autorizar_solicitud(request, pk):
         # Notificar al almacén que la orden ya fue aprobada y está lista
         from .utils_n8n import notify_n8n_solicitud_material
         notify_n8n_solicitud_material(solicitud)
+        
+        # Push notification vía ntfy
+        from .utils_ntfy import notificar_nueva_solicitud
+        notificar_nueva_solicitud(solicitud)
         
         return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} aprobada. Almacén notificado.'})
         
