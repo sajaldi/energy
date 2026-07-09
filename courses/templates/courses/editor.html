@@ -682,6 +682,125 @@
                 .finally(() => { input.value = ''; });
         }
 
+        // ── Interceptar PASTE de imágenes → subir a MinIO ──
+        document.addEventListener('paste', function(e) {
+            const preview = e.target.closest('.html-preview.edit-mode');
+            if (!preview) return;
+
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image/') === 0) {
+                    e.preventDefault();
+                    const file = items[i].getAsFile();
+                    if (!file) return;
+
+                    // Insertar placeholder mientras sube
+                    const placeholderId = 'img-uploading-' + Date.now();
+                    document.execCommand('insertHTML', false,
+                        `<span id="${placeholderId}" style="display:inline-block;padding:4px 12px;background:#dbeafe;border:1px solid #93c5fd;border-radius:4px;font-size:0.75rem;color:#1d4ed8;">⏳ Subiendo imagen...</span>`
+                    );
+
+                    const fd = new FormData();
+                    fd.append('file', file, file.name || 'pasted-image.png');
+                    fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+                    fetch('{% url "courses:upload_image" %}', { method: 'POST', body: fd })
+                        .then(r => r.json())
+                        .then(data => {
+                            const placeholder = document.getElementById(placeholderId);
+                            if (data.url && placeholder) {
+                                const img = document.createElement('img');
+                                img.src = data.url;
+                                img.style.maxWidth = '100%';
+                                img.alt = data.filename || 'imagen';
+                                placeholder.replaceWith(img);
+                            } else if (placeholder) {
+                                placeholder.textContent = '❌ Error al subir';
+                                setTimeout(() => placeholder.remove(), 2000);
+                            }
+                            // Sync al textarea
+                            preview.dispatchEvent(new Event('input', { bubbles: true }));
+                        })
+                        .catch(err => {
+                            const placeholder = document.getElementById(placeholderId);
+                            if (placeholder) {
+                                placeholder.textContent = '❌ Error: ' + err.message;
+                                setTimeout(() => placeholder.remove(), 3000);
+                            }
+                        });
+                    return; // Solo procesar la primera imagen
+                }
+            }
+        });
+
+        // ── Detectar imágenes base64 pegadas dentro de HTML y subirlas a MinIO ──
+        const base64Observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType !== 1) return;
+                    const imgs = node.tagName === 'IMG' ? [node] : node.querySelectorAll ? Array.from(node.querySelectorAll('img')) : [];
+                    imgs.forEach(function(img) {
+                        if (img.src && img.src.startsWith('data:image/')) {
+                            uploadBase64Image(img);
+                        }
+                    });
+                });
+            });
+        });
+
+        // Observar todos los previews editables
+        document.addEventListener('DOMContentLoaded', function() {
+            observeEditablePreviews();
+        });
+
+        function observeEditablePreviews() {
+            document.querySelectorAll('.html-preview').forEach(function(preview) {
+                base64Observer.observe(preview, { childList: true, subtree: true });
+            });
+        }
+
+        function uploadBase64Image(img) {
+            // Convertir data URL a File
+            const dataUrl = img.src;
+            const arr = dataUrl.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            const n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+            const ext = mime.split('/')[1] || 'png';
+            const file = new File([u8arr], `pasted-${Date.now()}.${ext}`, { type: mime });
+
+            // Reemplazar src con placeholder visual
+            img.style.opacity = '0.5';
+            img.alt = '⏳ Subiendo...';
+
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+            fetch('{% url "courses:upload_image" %}', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.url) {
+                        img.src = data.url;
+                        img.style.opacity = '1';
+                        img.style.maxWidth = '100%';
+                        img.alt = data.filename || 'imagen';
+                        // Sync al textarea
+                        const preview = img.closest('.html-preview');
+                        if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                })
+                .catch(err => {
+                    img.alt = '❌ Error subiendo imagen';
+                    img.style.opacity = '1';
+                    console.error('Error uploading base64 image:', err);
+                });
+        }
+
         function tbInsertVideo(textareaId) {
             const sel = window.getSelection();
             const preview = sel.anchorNode?.closest('.html-preview.edit-mode');
@@ -721,6 +840,8 @@
                 preview.classList.add('edit-mode');
                 toolbar?.classList.add('show');
                 preview.focus();
+                // Observar para imágenes base64
+                base64Observer.observe(preview, { childList: true, subtree: true });
             } else {
                 split.style.gridTemplateColumns = '';
                 preview.contentEditable = false;
