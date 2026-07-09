@@ -128,7 +128,14 @@
     let currentRequests = [];
     let currentDetailId = null;
 
-    document.addEventListener('DOMContentLoaded', () => { loadRequests(); });
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadRequests();
+        // Auto-abrir solicitud si viene por ?solicitud=ID
+        const solicitudDirecta = '{{ solicitud_directa }}';
+        if (solicitudDirecta) {
+            setTimeout(() => { openDetail(solicitudDirecta); }, 500);
+        }
+    });
 
     async function loadRequests() {
         try {

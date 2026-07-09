@@ -432,10 +432,21 @@ class ElementoAppAdmin(admin.ModelAdmin):
 class AdminNavItemInline(admin.TabularInline):
     model = AdminNavItem
     extra = 1
+    fk_name = "menu"
+    fields = ("name", "url", "group", "permission", "order")
+    ordering = ("group", "order")
+    verbose_name = "Elemento"
+    verbose_name_plural = "Elementos del menú"
+
+
+class ColumnAdminNavItemInline(admin.TabularInline):
+    model = AdminNavItem
+    extra = 1
+    fk_name = "column"
     fields = ("name", "url", "permission", "order")
     ordering = ("order",)
     verbose_name = "Elemento"
-    verbose_name_plural = "Elementos del menú"
+    verbose_name_plural = "Elementos de la columna"
 
 
 class AdminNavColumnInline(admin.TabularInline):
@@ -445,6 +456,8 @@ class AdminNavColumnInline(admin.TabularInline):
     ordering = ("order",)
     verbose_name = "Columna"
     verbose_name_plural = "Columnas"
+    classes = ("collapse",)
+    help_text = "Define grupos para organizar los elementos del menú en columnas. Luego asigna estos grupos desde el campo 'Encabezado de columna' en cada elemento."
 
 
 @admin.register(AdminNavMenu)
@@ -454,7 +467,7 @@ class AdminNavMenuAdmin(admin.ModelAdmin):
     list_filter = ("active", "superuser_only")
     search_fields = ("name",)
     ordering = ("order",)
-    inlines = [AdminNavColumnInline]
+    inlines = [AdminNavItemInline, AdminNavColumnInline]
 
 
 @admin.register(AdminNavColumn)
@@ -462,4 +475,4 @@ class AdminNavColumnAdmin(admin.ModelAdmin):
     list_display = ("__str__", "menu", "order")
     list_filter = ("menu",)
     ordering = ("menu", "order")
-    inlines = [AdminNavItemInline]
+    inlines = [ColumnAdminNavItemInline]

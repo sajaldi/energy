@@ -420,10 +420,12 @@ class AdminNavColumn(models.Model):
 
 
 class AdminNavItem(models.Model):
-    column = models.ForeignKey(AdminNavColumn, on_delete=models.CASCADE, related_name="items", verbose_name="Columna")
+    column = models.ForeignKey(AdminNavColumn, on_delete=models.CASCADE, related_name="items", verbose_name="Columna", blank=True, null=True)
+    menu = models.ForeignKey(AdminNavMenu, on_delete=models.CASCADE, related_name="items", verbose_name="Menú", blank=True, null=True)
     name = models.CharField(max_length=200, verbose_name="Nombre")
     url = models.CharField(max_length=500, verbose_name="URL")
     permission = models.CharField(max_length=200, blank=True, null=True, verbose_name="Permiso requerido")
+    group = models.CharField(max_length=100, blank=True, null=True, verbose_name="Encabezado de columna", help_text="Agrupa items bajo un mismo encabezado en el mega menú")
     order = models.IntegerField(default=0, verbose_name="Orden")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -436,7 +438,14 @@ class AdminNavItem(models.Model):
     def __str__(self):
         return self.name
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if not self.column_id and not self.menu_id:
+            raise ValidationError("Debes asignar el elemento a un Menú o a una Columna.")
+
     def save(self, *args, **kwargs):
+        if self.column_id and not self.menu_id:
+            self.menu = self.column.menu
         cache.delete("admin_nav_groups")
         super().save(*args, **kwargs)
 

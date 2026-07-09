@@ -4,118 +4,124 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aprobar Solicitud</title>
+    {% include 'core/fiori_tokens.html' %}
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; min-height: 100vh; padding: 16px; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); max-width: 500px; margin: 0 auto; overflow: hidden; }
-        .header { background: #334155; color: white; padding: 20px; text-align: center; }
-        .header h1 { font-size: 1.1rem; font-weight: 700; }
-        .header .sub { font-size: 0.8rem; opacity: 0.7; margin-top: 4px; }
-        .body { padding: 20px; }
-        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); min-height: 100vh; padding: 24px 16px; color: var(--sap-text-color); }
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: var(--sap-card-shadow); max-width: 520px; margin: 0 auto; overflow: hidden; }
+        .card-header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 20px 24px; }
+        .card-header h1 { font-size: 1.05rem; font-weight: 700; }
+        .card-header .sub { font-size: 0.78rem; opacity: 0.7; margin-top: 4px; }
+        .card-body { padding: 20px 24px; }
+        .info-grid { display: flex; flex-direction: column; gap: 0; }
+        .info-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--sap-border-color); }
         .info-row:last-child { border-bottom: none; }
-        .info-row .label { color: #64748b; font-weight: 500; }
-        .info-row .value { font-weight: 600; color: #1e293b; }
-        .section-title { font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 16px 0 8px; letter-spacing: 0.5px; }
-        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f8fafc; border-radius: 6px; margin-bottom: 6px; font-size: 0.85rem; }
-        .item-row .name { font-weight: 600; flex: 1; }
-        .item-row .qty { background: #dbeafe; color: #1d4ed8; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.8rem; }
-        .actions { padding: 20px; border-top: 1px solid #e2e8f0; }
-        .comment-box { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: inherit; font-size: 0.88rem; margin-bottom: 12px; resize: vertical; min-height: 60px; }
-        .comment-box:focus { outline: none; border-color: #0070f2; }
+        .info-row .label { font-size: 0.78rem; font-weight: 600; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+        .info-row .value { font-size: 0.88rem; font-weight: 600; color: var(--sap-text-color); text-align: right; max-width: 60%; }
+        .section-title { font-size: 0.72rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--sap-brand-color); }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--sap-bg-color); margin-bottom: 4px; }
+        .item-row .name { font-size: 0.85rem; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 12px; }
+        .item-row .qty { background: var(--sap-information-bg); color: var(--sap-information); padding: 3px 10px; font-weight: 700; font-size: 0.8rem; white-space: nowrap; }
+        .actions-section { padding: 20px 24px; border-top: 1px solid var(--sap-border-color); background: var(--sap-group-bg); }
+        .comment-box { width: 100%; padding: 10px 12px; border: 1px solid var(--sap-border-color); font-family: var(--sap-font-family); font-size: 0.88rem; margin-bottom: 14px; resize: vertical; min-height: 56px; }
+        .comment-box:focus { outline: none; border-color: var(--sap-brand-color); box-shadow: 0 0 0 2px rgba(0,112,242,0.15); }
         .btn-group { display: flex; gap: 10px; }
-        .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; font-family: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer; text-align: center; }
-        .btn-approve { background: #22c55e; color: white; }
-        .btn-approve:hover { background: #16a34a; }
-        .btn-reject { background: #ef4444; color: white; }
-        .btn-reject:hover { background: #dc2626; }
-        .resultado { text-align: center; padding: 40px 20px; }
-        .resultado .icon { font-size: 48px; margin-bottom: 12px; }
-        .resultado h2 { font-size: 1.2rem; margin-bottom: 8px; }
-        .resultado p { color: #64748b; font-size: 0.9rem; }
-        .error { text-align: center; padding: 40px 20px; color: #ef4444; }
-        .badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
-        .badge-pendiente { background: #fef3c7; color: #92400e; }
-        .badge-procesada { background: #e2e8f0; color: #475569; }
+        .btn { flex: 1; padding: 12px; border: none; font-family: var(--sap-font-family); font-size: 0.9rem; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.15s; }
+        .btn-approve { background: var(--sap-success); color: #fff; }
+        .btn-approve:hover { background: #0a6b34; }
+        .btn-reject { background: var(--sap-error); color: #fff; }
+        .btn-reject:hover { background: #990000; }
+        .resultado { text-align: center; padding: 40px 24px; }
+        .resultado .icon { font-size: 48px; margin-bottom: 14px; }
+        .resultado h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+        .resultado p { color: var(--sap-text-muted); font-size: 0.88rem; }
+        .error-box { text-align: center; padding: 40px 24px; }
+        .error-box .icon { font-size: 40px; margin-bottom: 12px; }
+        .error-box p { color: var(--sap-error); font-size: 0.9rem; font-weight: 500; }
+        .badge { display: inline-block; padding: 3px 10px; font-size: 0.72rem; font-weight: 700; }
+        .badge-warning { background: var(--sap-warning-bg); color: #92400e; border: 1px solid var(--sap-warning); }
     </style>
 </head>
 <body>
     <div class="card">
         {% if error %}
-        <div class="header"><h1>Error</h1></div>
-        <div class="error">
+        <div class="card-header"><h1>Autorización de Solicitud</h1></div>
+        <div class="error-box">
+            <div class="icon">⛔</div>
             <p>{{ error }}</p>
         </div>
 
         {% elif resultado %}
-        <div class="header" style="background:{% if resultado == 'aprobada' %}#22c55e{% else %}#ef4444{% endif %};">
+        <div class="card-header" style="background:{% if resultado == 'aprobada' %}var(--sap-success){% else %}var(--sap-error){% endif %};">
             <h1>Solicitud {{ resultado|title }}</h1>
         </div>
         <div class="resultado">
             <div class="icon">{% if resultado == 'aprobada' %}✅{% else %}❌{% endif %}</div>
             <h2>Solicitud #{{ solicitud.id }} {{ resultado }}</h2>
-            <p>{% if resultado == 'aprobada' %}El almacén ha sido notificado para despachar los materiales.{% else %}Los materiales no serán despachados.{% endif %}</p>
+            <p>{% if resultado == 'aprobada' %}El almacén ha sido notificado para preparar el despacho.{% else %}Los materiales no serán despachados.{% endif %}</p>
         </div>
 
         {% elif ya_procesada %}
-        <div class="header"><h1>Solicitud #{{ solicitud.id }}</h1></div>
+        <div class="card-header"><h1>Solicitud #{{ solicitud.id }}</h1></div>
         <div class="resultado">
             <div class="icon">ℹ️</div>
             <h2>Ya fue procesada</h2>
-            <p>Esta solicitud ya tiene estado: <strong>{{ solicitud.get_estado_display }}</strong></p>
+            <p>Estado actual: <strong>{{ solicitud.get_estado_display }}</strong></p>
         </div>
 
         {% else %}
-        <div class="header">
+        <div class="card-header">
             <h1>Aprobar Solicitud #{{ solicitud.id }}</h1>
             <div class="sub">Pendiente de tu autorización</div>
         </div>
-        <div class="body">
-            <div class="info-row">
-                <span class="label">Solicitante</span>
-                <span class="value">{{ solicitud.usuario.get_full_name|default:solicitud.usuario.username }}</span>
+        <div class="card-body">
+            <div class="info-grid">
+                <div class="info-row">
+                    <span class="label">Solicitante</span>
+                    <span class="value">{{ solicitud.usuario.get_full_name|default:solicitud.usuario.username }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Fecha</span>
+                    <span class="value">{{ solicitud.fecha_solicitud|date:"d/m/Y H:i" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Almacén origen</span>
+                    <span class="value">{{ solicitud.ubicacion_origen.nombre|default:"—" }}</span>
+                </div>
+                {% if solicitud.orden_trabajo %}
+                <div class="info-row">
+                    <span class="label">Orden de Trabajo</span>
+                    <span class="value">{{ solicitud.orden_trabajo.codigo_de_orden }}</span>
+                </div>
+                {% endif %}
+                {% if solicitud.edificio_destino %}
+                <div class="info-row">
+                    <span class="label">Destino</span>
+                    <span class="value">{{ solicitud.edificio_destino.nombre }}{% if solicitud.nivel_destino %} / {{ solicitud.nivel_destino.nombre }}{% endif %}</span>
+                </div>
+                {% endif %}
+                {% if solicitud.comentarios_solicitud %}
+                <div class="info-row">
+                    <span class="label">Comentarios</span>
+                    <span class="value">{{ solicitud.comentarios_solicitud|truncatechars:80 }}</span>
+                </div>
+                {% endif %}
             </div>
-            <div class="info-row">
-                <span class="label">Fecha</span>
-                <span class="value">{{ solicitud.fecha_solicitud|date:"d/m/Y H:i" }}</span>
-            </div>
-            <div class="info-row">
-                <span class="label">Origen</span>
-                <span class="value">{{ solicitud.ubicacion_origen.nombre|default:"—" }}</span>
-            </div>
-            {% if solicitud.orden_trabajo %}
-            <div class="info-row">
-                <span class="label">Orden de Trabajo</span>
-                <span class="value">{{ solicitud.orden_trabajo.codigo_de_orden }}</span>
-            </div>
-            {% endif %}
-            {% if solicitud.edificio_destino %}
-            <div class="info-row">
-                <span class="label">Destino</span>
-                <span class="value">{{ solicitud.edificio_destino.nombre }}{% if solicitud.nivel_destino %} / {{ solicitud.nivel_destino.nombre }}{% endif %}</span>
-            </div>
-            {% endif %}
-            {% if solicitud.comentarios_solicitud %}
-            <div class="info-row">
-                <span class="label">Comentarios</span>
-                <span class="value" style="max-width:60%;text-align:right;">{{ solicitud.comentarios_solicitud|truncatechars:100 }}</span>
-            </div>
-            {% endif %}
 
             <div class="section-title">Materiales solicitados ({{ items.count }})</div>
             {% for item in items %}
             <div class="item-row">
                 <span class="name">{{ item.material.nombre }}</span>
-                <span class="qty">{{ item.cantidad }}</span>
+                <span class="qty">{{ item.cantidad }} {{ item.material.unidad_medida.abreviatura|default:"und" }}</span>
             </div>
             {% endfor %}
         </div>
 
-        <form method="post" class="actions">
+        <form method="post" class="actions-section">
             {% csrf_token %}
             <textarea name="comentario" class="comment-box" placeholder="Comentario (opcional)..."></textarea>
             <div class="btn-group">
-                <button type="submit" name="accion" value="rechazar" class="btn btn-reject">Rechazar</button>
+                <button type="submit" name="accion" value="rechazar" class="btn btn-reject">✕ Rechazar</button>
                 <button type="submit" name="accion" value="aprobar" class="btn btn-approve">✓ Aprobar</button>
             </div>
         </form>

@@ -499,22 +499,22 @@ def cart_checkout(request):
                         comentarios=comentarios
                     )
             
-            # Notificar a n8n (Webhook)
+            # Notificaciones
             if estado_inicial == 'PENDIENTE_AUTORIZACION':
-                from .utils_n8n import notify_n8n_solicitud_autorizacion
-                notify_n8n_solicitud_autorizacion(solicitud, jefe)
                 # Push notification al canal de aprobación
-                from .utils_ntfy import notificar_pendiente_aprobacion
-                notificar_pendiente_aprobacion(solicitud)
+                try:
+                    from .utils_ntfy import notificar_pendiente_aprobacion
+                    notificar_pendiente_aprobacion(solicitud)
+                    print(f"[DEBUG] ntfy aprobación enviado para solicitud #{solicitud.id}")
+                except Exception as e:
+                    print(f"[DEBUG] Error ntfy aprobación: {e}")
             else:
-                notify_n8n_solicitud_material(solicitud)
+                # Push notification vía ntfy al almacén
+                from .utils_ntfy import notificar_nueva_solicitud
+                notificar_nueva_solicitud(solicitud)
             # Webhook a Power Automate
             from .utils_n8n import notify_powerautomate_solicitud
             notify_powerautomate_solicitud(solicitud)
-            # Push notification vía ntfy (solo si ya está lista para almacén)
-            if estado_inicial == 'PENDIENTE':
-                from .utils_ntfy import notificar_nueva_solicitud
-                notificar_nueva_solicitud(solicitud)
             # Limpiar carrito solo si venimos de la vista de carrito
             if not items_json:
                 Cart(request).clear()
@@ -972,8 +972,12 @@ def mobile_gestion_salidas_view(request):
     # Obtener el número de pedidos pendientes para el contador inicial
     pedidos_pendientes = SolicitudMaterial.objects.filter(estado='PENDIENTE').count()
     
+    # Si viene ?solicitud=ID, abrir automáticamente esa solicitud
+    solicitud_directa = request.GET.get('solicitud', '')
+    
     context = {
         'pedidos_pendientes': pedidos_pendientes,
+        'solicitud_directa': solicitud_directa,
         'title': 'Gestión de Salidas'
     }
     return render(request, 'inventarios/mobile_gestion_salidas.html', context)
@@ -2150,11 +2154,7 @@ def api_autorizar_solicitud(request, pk):
         solicitud.estado = 'PENDIENTE'
         solicitud.save()
         
-        # Notificar al almacén que la orden ya fue aprobada y está lista
-        from .utils_n8n import notify_n8n_solicitud_material
-        notify_n8n_solicitud_material(solicitud)
-        
-        # Push notification vía ntfy
+        # Push notification vía ntfy al almacén
         from .utils_ntfy import notificar_nueva_solicitud
         notificar_nueva_solicitud(solicitud)
         
@@ -2495,17 +2495,36 @@ def api_guardar_conteo_inventario(request):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def formulario_aprobacion_solicitud(request, pk, token):
-    """Formulario web para aprobar/rechazar solicitud vía link externo."""
+    """Formulario web para aprobar/rechazar solicitud. Requiere login y ser el jefe del solicitante."""
     import hashlib
     
+    # Requiere login — redirige al login si no está autenticado
+    if not request.user.is_authenticated:
+        from django.contrib.auth.views import redirect_to_login
+        return redirect_to_login(request.get_full_path())
+    
     solicitud = get_object_or_404(SolicitudMaterial.objects.select_related(
-        'usuario', 'orden_trabajo', 'ubicacion_origen', 'edificio_destino', 'nivel_destino'
+        'usuario', 'usuario__perfil', 'orden_trabajo', 'ubicacion_origen', 'edificio_destino', 'nivel_destino'
     ), pk=pk)
     
     # Verificar token
     expected_token = hashlib.sha256(f"{solicitud.id}-{solicitud.fecha_solicitud}".encode()).hexdigest()[:16]
     if token != expected_token:
         return render(request, 'inventarios/aprobacion_solicitud.html', {'error': 'Token inválido o expirado.'})
+    
+    # Verificar que el usuario logueado sea el jefe del solicitante o superusuario
+    jefe_esperado = getattr(solicitud.usuario, 'perfil', None) and getattr(solicitud.usuario.perfil, 'responsable', None)
+    es_autorizado = (
+        request.user.is_superuser or 
+        request.user == jefe_esperado or
+        (hasattr(request.user, 'perfil') and request.user.perfil.departamento and 
+         request.user.perfil.departamento.aprobador == request.user)
+    )
+    
+    if not es_autorizado:
+        return render(request, 'inventarios/aprobacion_solicitud.html', {
+            'error': f'No tienes permiso para aprobar esta solicitud. Solo el jefe del solicitante ({jefe_esperado or "no asignado"}) puede hacerlo.'
+        })
     
     ya_procesada = solicitud.estado != 'PENDIENTE_AUTORIZACION'
     
@@ -2515,12 +2534,10 @@ def formulario_aprobacion_solicitud(request, pk, token):
         
         if accion == 'aprobar':
             solicitud.estado = 'PENDIENTE'
-            solicitud.comentarios_almacen = (solicitud.comentarios_almacen or '') + f"\n[Aprobado vía enlace] {comentario}".strip()
+            solicitud.comentarios_almacen = (solicitud.comentarios_almacen or '') + f"\n[Aprobado por {request.user.get_full_name() or request.user.username}] {comentario}".strip()
             solicitud.save()
             
-            # Notificar al almacén
-            from .utils_n8n import notify_n8n_solicitud_material
-            notify_n8n_solicitud_material(solicitud)
+            # Notificar al almacén vía ntfy
             from .utils_ntfy import notificar_nueva_solicitud
             notificar_nueva_solicitud(solicitud)
             
@@ -2531,7 +2548,7 @@ def formulario_aprobacion_solicitud(request, pk, token):
         
         elif accion == 'rechazar':
             solicitud.estado = 'RECHAZADO'
-            solicitud.comentarios_almacen = (solicitud.comentarios_almacen or '') + f"\n[Rechazado vía enlace] {comentario}".strip()
+            solicitud.comentarios_almacen = (solicitud.comentarios_almacen or '') + f"\n[Rechazado por {request.user.get_full_name() or request.user.username}] {comentario}".strip()
             solicitud.save()
             solicitud.items.update(estado='RECHAZADO')
             

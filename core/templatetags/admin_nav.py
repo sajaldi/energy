@@ -16,21 +16,25 @@ def _build_from_db(user):
     for menu in menus:
         if menu.superuser_only and not user.is_superuser:
             continue
-        columns = menu.columns.order_by("order")
-        cols = []
-        for col in columns:
-            items = []
-            for item in col.items.order_by("order"):
-                perm = item.permission
-                if perm:
-                    try:
-                        if not user.has_perm(perm):
-                            continue
-                    except Exception:
+
+        items_qs = menu.items.order_by("group", "order")
+
+        grouped = {}
+        for item in items_qs:
+            perm = item.permission
+            if perm:
+                try:
+                    if not user.has_perm(perm):
                         continue
-                items.append({"name": item.name, "url": item.url})
-            if items:
-                cols.append({"heading": col.heading, "items": items})
+                except Exception:
+                    continue
+
+            heading = item.group or "General"
+            if heading not in grouped:
+                grouped[heading] = []
+            grouped[heading].append({"name": item.name, "url": item.url})
+
+        cols = [{"heading": h, "items": items} for h, items in grouped.items()]
         if cols:
             result.append({"name": menu.name, "icon": menu.icon, "color": menu.color, "columns": cols})
     return result

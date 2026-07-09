@@ -36,7 +36,7 @@ def notificar_nueva_solicitud(solicitud):
                 "Title": f"Nueva Solicitud #{solicitud.id}",
                 "Priority": "high",
                 "Tags": "package,arrow_down",
-                "Click": f"{getattr(settings, 'SITE_URL', 'http://localhost:8000')}/inventarios/mobile/pedidos/{solicitud.id}/",
+                "Click": f"{getattr(settings, 'SITE_URL', 'http://localhost:8000')}/inventarios/mobile/gestion-salidas/?solicitud={solicitud.id}",
             },
             timeout=5
         )
@@ -70,7 +70,7 @@ def notificar_pendiente_aprobacion(solicitud):
             url,
             data=mensaje.encode('utf-8'),
             headers={
-                "Title": f"⏳ Aprobar Solicitud #{solicitud.id}",
+                "Title": f"Aprobar Solicitud #{solicitud.id}",
                 "Priority": "high",
                 "Tags": "warning,clipboard",
                 "Click": link_aprobacion,
