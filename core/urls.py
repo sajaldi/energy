@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from .views_coolify import coolify_dashboard, coolify_redeploy, coolify_logs, coolify_stream_logs, coolify_build_logs, celery_logs, celery_stream_logs
+from .views_impersonate import impersonate_start, impersonate_stop
 
 app_name = 'core'
 
@@ -35,4 +36,8 @@ urlpatterns = [
     # Celery Live Logs
     path('devops/celery/logs/', celery_logs, name='celery_logs'),
     path('devops/celery/logs/stream/', celery_stream_logs, name='celery_stream_logs'),
+
+    # Impersonation (solo superusuarios)
+    path('impersonate/<int:user_id>/', impersonate_start, name='impersonate_start'),
+    path('impersonate/stop/', impersonate_stop, name='impersonate_stop'),
 ]

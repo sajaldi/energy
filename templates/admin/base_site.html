@@ -176,6 +176,21 @@
                 nav.appendChild(li);
             }
         });
+
+        // Add "Configurar" link
+        const configLi = document.createElement('li');
+        configLi.className = 'nav-item d-none d-sm-inline-block';
+        const configA = document.createElement('a');
+        configA.className = 'nav-link';
+        configA.href = '/admin/menu-config/';
+        configA.innerHTML = '<i class="fas fa-sliders-h" style="font-size:0.8rem;"></i>';
+        configA.title = 'Personalizar menú';
+        configLi.appendChild(configA);
+        if (ayudaLi && ayudaLi !== inicioLi) {
+            nav.insertBefore(configLi, ayudaLi);
+        } else {
+            nav.appendChild(configLi);
+        }
     }
 
     if (document.readyState === 'loading') {
@@ -189,7 +204,67 @@
 
 {% block extrahead %}
 {{ block.super }}
-<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<style>
+    body, .main-header, .content-wrapper, .main-sidebar, .nav-link, h1, h2, h3, h4, h5, h6,
+    .form-control, .btn, .dropdown-item, .breadcrumb, .alert, .table, .card-title,
+    .small-box, .info-box, .timeline, .direct-chat, .users-list, .product-list {
+        font-family: 'Artifakt Element', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    }
+</style>
+{% if request.is_impersonating %}
+<style>
+    .impersonation-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10000;
+        background: linear-gradient(135deg, #7c3aed, #6d28d9);
+        color: white;
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+        flex-wrap: wrap;
+    }
+    .impersonation-banner a {
+        color: #fbbf24;
+        text-decoration: underline;
+        font-weight: 700;
+    }
+    .impersonation-banner a:hover {
+        color: #fcd34d;
+    }
+    .impersonation-banner .impersonation-icon {
+        font-size: 1.2rem;
+    }
+    body {
+        padding-top: 46px !important;
+    }
+    .main-header {
+        margin-top: 46px !important;
+    }
+    .content-wrapper {
+        margin-top: 0 !important;
+    }
+</style>
+<div class="impersonation-banner">
+    <span class="impersonation-icon">&#128100;</span>
+    <span>
+        <strong>Modo Impersonación</strong> — Estás actuando como
+        <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+        ({{ request.user.email }})
+    </span>
+    <a href="{% url 'core:impersonate_stop' %}" class="btn btn-sm"
+       style="background:#fbbf24;color:#1e293b;font-weight:700;padding:4px 16px;border-radius:6px;text-decoration:none;">
+        ✕ Volver a mi cuenta
+    </a>
+</div>
+{% endif %}
 <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 <style>
     .modal-overlay {

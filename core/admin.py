@@ -65,23 +65,46 @@ admin.site.unregister(User)
 class UserAdmin(BaseUserAdmin):
     inlines = (PerfilUsuarioInline,)
     list_display = ('username', 'email', 'first_name', 'last_name', 'get_nombre_completo', 'is_staff')
-    readonly_fields = BaseUserAdmin.readonly_fields + ('boton_invitacion',)
+    readonly_fields = BaseUserAdmin.readonly_fields + ('boton_invitacion', 'boton_impersonar')
 
-    # Insertar el botón en el primer fieldset (Personal info) o crear uno nuevo
+    # Insertar los botones en el primer fieldset (Personal info) o crear uno nuevo
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
         if obj:  # solo en edición, no en creación
-            return fieldsets + (
+            extra_fieldsets = []
+            if request.user.is_superuser:
+                extra_fieldsets.append(
+                    ('Inpersonación', {
+                        'fields': ('boton_impersonar',),
+                        'description': 'Actúa como este usuario para ver el sistema desde su perspectiva.',
+                    }),
+                )
+            extra_fieldsets.append(
                 ('Invitación', {
                     'fields': ('boton_invitacion',),
                     'description': 'Envía o reenvía el correo de activación de cuenta.',
                 }),
             )
+            return fieldsets + tuple(extra_fieldsets)
         return fieldsets
 
     def get_nombre_completo(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
     get_nombre_completo.short_description = 'Nombre Completo'
+
+    def boton_impersonar(self, obj):
+        if not obj.pk:
+            return mark_safe('<span style="color:#94a3b8">Guarda el usuario primero.</span>')
+        if obj.is_superuser:
+            return mark_safe('<span style="color:#94a3b8">—</span>')
+        url = reverse('core:impersonate_start', args=[obj.pk])
+        return mark_safe(
+            f'<a href="{url}" class="button" style="background:#8b5cf6;border-color:#7c3aed;color:#fff;'
+            f'padding:8px 18px;border-radius:6px;font-weight:700;text-decoration:none;font-size:13px;" '
+            f'onclick="return confirm(\'¿Impersonar a {obj.get_full_name() or obj.username}?\\n\\nPodrás ver el sistema como este usuario.\')">'
+            f'&#128100; Impersonar</a>'
+        )
+    boton_impersonar.short_description = 'Impersonar'
 
     def boton_invitacion(self, obj):
         if not obj.pk:
