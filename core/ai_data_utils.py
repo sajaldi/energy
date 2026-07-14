@@ -59,12 +59,42 @@ def get_inventarios_summary():
         return summary
     except: return "Inventarios: Error al obtener\n"
 
-def get_documents_summary():
+def get_documents_summary(search_query=None):
+    """
+    Retorna resumen de documentos. Si search_query se proporciona,
+    busca en TODOS los documentos por código o título.
+    """
+    from django.db.models import Q
+    
     try:
         total_docs = Documento.objects.count()
-        summary = f"DOCUMENTOS (Total: {total_docs})\n"
+        docs_by_status = Documento.objects.values('estado_actual').annotate(total=Count('id'))
+        docs_by_type = Documento.objects.values('tipo_documento__nombre').annotate(total=Count('id')).order_by('-total')[:10]
+        
+        summary = f"DOCUMENTOS (Total: {total_docs}):\n"
+        
+        # Estado de documentos
+        summary += "Por estado:\n"
+        for item in docs_by_status:
+            summary += f"  - {item['estado_actual']}: {item['total']}\n"
+        
+        # Por tipo
+        summary += "Por tipo:\n"
+        for item in docs_by_type:
+            summary += f"  - {item['tipo_documento__nombre']}: {item['total']}\n"
+        
+        # Últimos 15 documentos (compacto)
+        recent_docs = Documento.objects.select_related(
+            'tipo_documento'
+        ).order_by('-actualizado_en')[:15]
+        
+        summary += f"\nÚLTIMOS 15 DOCUMENTOS:\n"
+        for doc in recent_docs:
+            summary += f"[{doc.codigo}] (ID:{doc.id}) {doc.titulo[:50]} | {doc.tipo_documento.nombre} | {doc.estado_actual}\n"
+        
         return summary
-    except: return "Documentos: Error al obtener\n"
+    except Exception as e:
+        return f"Documentos: Error al obtener ({e})\n"
 
 def get_comunicaciones_summary():
     try:

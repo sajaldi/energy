@@ -1012,9 +1012,9 @@ class CarpetaAdmin(admin.ModelAdmin):
 
 @admin.register(GroqApiKey)
 class GroqApiKeyAdmin(admin.ModelAdmin):
-    list_display = ('alias', 'modelo', 'is_active', 'orden', 'api_key_masked', 'created_at')
+    list_display = ('alias', 'proveedor', 'modelo', 'is_active', 'orden', 'api_key_masked', 'created_at')
     list_editable = ('is_active', 'orden')
-    list_filter = ('is_active', 'modelo')
+    list_filter = ('is_active', 'proveedor', 'modelo')
     search_fields = ('alias',)
 
     def api_key_masked(self, obj):

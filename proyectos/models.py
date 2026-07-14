@@ -307,8 +307,8 @@ class PinObservacionProyecto(models.Model):
         on_delete=models.CASCADE,
         related_name='pines_plano'
     )
-    coordenada_x = models.FloatField(help_text="Posición X en píxeles absolutos del viewport base")
-    coordenada_y = models.FloatField(help_text="Posición Y en píxeles absolutos del viewport base")
+    coordenada_x = models.FloatField(help_text="Posición X en puntos PDF intrínsecos (viewport scale=1)")
+    coordenada_y = models.FloatField(help_text="Posición Y en puntos PDF intrínsecos (viewport scale=1)")
     pagina = models.PositiveIntegerField(default=1)
     color = ColorField(default='#EF4444')
     nota = models.TextField(blank=True)
@@ -357,10 +357,10 @@ class AreaPlanoProyecto(models.Model):
     )
     nombre = models.CharField(max_length=100)
     color = ColorField(default='#3B82F6')
-    x1 = models.FloatField(help_text="X esquina superior izquierda (viewport base)")
-    y1 = models.FloatField(help_text="Y esquina superior izquierda (viewport base)")
-    x2 = models.FloatField(help_text="X esquina inferior derecha (viewport base)")
-    y2 = models.FloatField(help_text="Y esquina inferior derecha (viewport base)")
+    x1 = models.FloatField(help_text="X esquina superior izquierda (puntos PDF intrínsecos, scale=1)")
+    y1 = models.FloatField(help_text="Y esquina superior izquierda (puntos PDF intrínsecos, scale=1)")
+    x2 = models.FloatField(help_text="X esquina inferior derecha (puntos PDF intrínsecos, scale=1)")
+    y2 = models.FloatField(help_text="Y esquina inferior derecha (puntos PDF intrínsecos, scale=1)")
     pagina = models.PositiveIntegerField(default=1)
     creado_en = models.DateTimeField(auto_now_add=True)
 

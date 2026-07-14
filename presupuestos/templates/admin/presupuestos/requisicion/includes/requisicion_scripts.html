@@ -899,17 +899,25 @@
             const documentModal = {
                 init() { this.bindEvents(); },
                 bindEvents() {
-                    $(document).on('click', '.document-preview-item', function () {
+                    $(document).on('click', '.document-preview-item', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
                         const url = $(this).data('url');
                         const name = $(this).data('name');
-                        documentModal.open(url, name);
+                        console.log('Document preview click:', url, name);
+                        if (url) {
+                            documentModal.open(url, name);
+                        }
                     });
-                    $('#close-document-modal').on('click', () => documentModal.close());
-                    $('#document-modal').on('click', (e) => { if (e.target.id === 'document-modal') documentModal.close(); });
+                    $(document).on('click', '#close-document-modal', () => documentModal.close());
+                    $(document).on('click', '#document-modal', (e) => { if (e.target.id === 'document-modal') documentModal.close(); });
+                    $(document).on('keydown', (e) => { if (e.key === 'Escape') documentModal.close(); });
                 },
                 open(url, name) {
                     $('#document-modal-title').text(`📄 ${name}`);
                     $('#document-iframe').attr('src', url);
+                    const downloadUrl = url + (url.includes('?') ? '&' : '?') + 'download=1';
+                    $('#document-download-btn').attr('href', downloadUrl).attr('download', name || '');
                     $('#document-modal').fadeIn(200);
                 },
                 close() {
@@ -951,11 +959,26 @@
                 const formInputs = document.querySelectorAll('#wizard-form input, #wizard-form select, #wizard-form textarea, #wizard-form button[type="submit"]');
                 formInputs.forEach(el => el.disabled = true);
 
-                const actionButtons = document.querySelectorAll('.next-step, .prev-step, .save-draft, #add-article, #add-document');
+                const actionButtons = document.querySelectorAll('.save-draft, #add-article, #add-document');
                 actionButtons.forEach(el => {
                     el.style.opacity = '0.5';
                     el.style.cursor = 'not-allowed';
                     el.style.pointerEvents = 'none';
+                });
+
+                // Keep navigation and document preview working
+                document.querySelectorAll('.next-step, .prev-step').forEach(el => {
+                    el.disabled = false;
+                    el.style.pointerEvents = 'auto';
+                });
+                
+                // Ensure document preview items remain clickable
+                document.querySelectorAll('.document-preview-item').forEach(el => {
+                    el.style.pointerEvents = 'auto';
+                    el.style.cursor = 'pointer';
+                });
+                document.querySelectorAll('.doc-download-link').forEach(el => {
+                    el.style.pointerEvents = 'auto';
                 });
             })();
             {% endif %}

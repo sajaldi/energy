@@ -156,6 +156,7 @@
 <a id="back-btn" href="{% url 'inventarios:racks_list' %}">← Volver</a>
 
 <div id="tooltip"></div>
+<div id="toast" style="position:fixed;bottom:100px;left:50%;transform:translateX(-50%);display:none;background:rgba(239,68,68,0.9);color:#fff;padding:12px 24px;border-radius:8px;font-size:13px;z-index:1000;backdrop-filter:blur(4px);"></div>
 
 <!-- Context Menu -->
 <div id="ctx-menu">
@@ -291,9 +292,80 @@ function computeStackLayout(positions, cellDims) {
     return layout;
 }
 
+/**
+ * Determina si una celda está desbordada.
+ * Calcula la altura total del layout (tope de la caja más alta) y la compara
+ * con la altura disponible de la celda.
+ *
+ * @param {Array<StackedBox>} layout - Resultado de computeStackLayout
+ * @param {number} cellHeight - Altura disponible de la celda
+ * @returns {Object} - {overflow: boolean, percent: number}
+ */
+function detectOverflow(layout, cellHeight) {
+    if (!layout || layout.length === 0) {
+        return { overflow: false, percent: 0 };
+    }
+
+    // totalHeight = max(y + h/2) across all boxes = top of the highest box
+    let totalHeight = 0;
+    for (const box of layout) {
+        const boxTop = box.y + box.h / 2;
+        if (boxTop > totalHeight) {
+            totalHeight = boxTop;
+        }
+    }
+
+    if (totalHeight > cellHeight) {
+        const percent = Math.round(((totalHeight - cellHeight) / cellHeight) * 100);
+        return { overflow: true, percent: percent };
+    }
+
+    return { overflow: false, percent: 0 };
+}
+
+// --- Color Map by tipo_material (also accessible from module scope) ---
+const TIPO_COLOR_MAP = {
+    'INSUMO':      0x3b82f6, // blue
+    'REPUESTO':    0xf97316, // orange
+    'CONSUMIBLE':  0x22c55e, // green
+    'MEDICAMENTO': 0xa855f7, // purple
+    'HERRAMIENTA': 0xeab308, // yellow
+    'EPP':         0x06b6d4, // cyan
+    'OTRO':        0x6b7280, // gray
+};
+
+const FALLBACK_COLOR = 0x6b7280;
+
+/**
+ * Creates a material box descriptor (without Three.js dependency).
+ * Returns the color and material properties for a StackedBox based on its tipo.
+ *
+ * @param {Object} box - A StackedBox object from computeStackLayout result
+ * @returns {Object} - {color, opacity, roughness, metalness} for the material
+ */
+function getMaterialBoxProps(box) {
+    return {
+        color: TIPO_COLOR_MAP[box.tipo] || FALLBACK_COLOR,
+        opacity: 0.85,
+        roughness: 0.5,
+        metalness: 0.1,
+    };
+}
+
+/**
+ * Formats a label string: truncates name to 30 chars with "…", appends " ×N".
+ * @param {string} name - Material name
+ * @param {number} quantity - Total quantity for this material group
+ * @returns {string}
+ */
+function formatLabelText(name, quantity) {
+    const truncated = name.length > 30 ? name.substring(0, 30) + '…' : name;
+    return `${truncated} ×${quantity}`;
+}
+
 // Export for testing (Node.js environment)
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { computeStackLayout, DEFAULTS };
+    module.exports = { computeStackLayout, detectOverflow, DEFAULTS, TIPO_COLOR_MAP, FALLBACK_COLOR, getMaterialBoxProps, formatLabelText };
 }
 </script>
 
@@ -312,6 +384,14 @@ const modalResults = document.getElementById('modal-results');
 const modalClose = document.getElementById('modal-close');
 const modalTitle = document.getElementById('modal-title');
 
+// --- Toast notification ---
+function showToast(message, duration = 3000) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, duration);
+}
+
 // --- Scene setup (same as before) ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xe2e8f0);
@@ -328,6 +408,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
+renderer.localClippingEnabled = true;
 document.body.prepend(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -430,6 +511,137 @@ function getOpacity(peso) {
   return 0.20;
 }
 
+// --- Color Map by tipo_material ---
+// TIPO_COLOR_MAP and FALLBACK_COLOR are defined in the global scope above
+// and accessible here. We reference them directly.
+
+/**
+ * Creates a Three.js mesh representing a material box with dimensions from a StackedBox.
+ * Uses tipo_material to determine color from TIPO_COLOR_MAP.
+ *
+ * @param {Object} box - A StackedBox object from computeStackLayout result
+ *   {x, y, z, w, h, d, materialId, positionId, tipo, isOverflow, instanceIndex}
+ * @returns {THREE.Mesh} - A mesh with BoxGeometry, MeshStandardMaterial, and shadow enabled
+ */
+function createMaterialBox(box) {
+    const geometry = new THREE.BoxGeometry(box.w, box.h, box.d);
+    const color = TIPO_COLOR_MAP[box.tipo] || FALLBACK_COLOR;
+    const material = new THREE.MeshStandardMaterial({
+        color: color,
+        transparent: true,
+        opacity: 0.85,
+        roughness: 0.5,
+        metalness: 0.1,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData = { ...box };
+    return mesh;
+}
+
+/**
+ * Creates a text sprite label to display material name and quantity above a group.
+ * Truncates material name to 30 chars with "…" if longer, appends " ×N" for quantity.
+ *
+ * @param {string} text - The label text (already formatted)
+ * @param {THREE.Vector3} position - World position for the sprite
+ * @returns {THREE.Sprite} - A sprite with canvas-based text texture
+ */
+function createTextLabel(text, position) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 256;
+    canvas.height = 64;
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 32);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({
+        map: texture, transparent: true, opacity: 0.9,
+        depthTest: false
+    });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(cellW * 0.8, cellW * 0.2, 1);
+    sprite.position.copy(position);
+    return sprite;
+}
+
+/**
+ * Creates text labels for a cell's material groups. Groups boxes by materialId
+ * and places one label above the topmost box of each group.
+ *
+ * @param {Object} cell - The cell mesh with userData containing layout and mboxes
+ * @param {number} cellBaseY - The Y base position of the cell (world coords)
+ * @param {number} cx - The X center position of the cell (world coords)
+ * @returns {Array<THREE.Sprite>} - Array of label sprites added to the scene
+ */
+function createLabelsForCell(cell, cellBaseY, cx) {
+    const labels = [];
+    const d = cell.userData;
+    if (!d.layout || d.layout.length === 0) return labels;
+
+    // Group boxes by materialId to find top of each group and total quantity
+    const groups = {};
+    for (const box of d.layout) {
+        if (!groups[box.materialId]) {
+            groups[box.materialId] = { boxTop: 0, quantity: 0, name: '' };
+        }
+        const top = box.y + box.h / 2;
+        if (top > groups[box.materialId].boxTop) {
+            groups[box.materialId].boxTop = top;
+        }
+        groups[box.materialId].quantity++;
+    }
+
+    // Find material names from the cell's materiales data
+    for (const mat of d.materiales) {
+        if (groups[mat.material_id]) {
+            groups[mat.material_id].name = mat.material_nombre || '';
+        }
+    }
+
+    // Create one label per group, positioned immediately above the topmost box
+    for (const matId of Object.keys(groups)) {
+        const group = groups[matId];
+        if (!group.name) continue;
+        const text = formatLabelText(group.name, group.quantity);
+        const labelY = cellBaseY + group.boxTop + 1.5; // just above the top of the box
+        const pos = new THREE.Vector3(cx, labelY, 0);
+        const sprite = createTextLabel(text, pos);
+        scene.add(sprite);
+        labels.push(sprite);
+    }
+
+    return labels;
+}
+
+/**
+ * Creates an overflow indicator — pulsating red wireframe edges around a cell.
+ * Shown when stacked materials exceed cell height.
+ *
+ * @param {number} cellWidth - Width of the cell
+ * @param {number} cellHeight - Height of the cell
+ * @param {number} cellDepth - Depth of the cell
+ * @returns {THREE.LineSegments} - LineSegments mesh with pulsating material
+ */
+function createOverflowIndicator(cellWidth, cellHeight, cellDepth) {
+    const edgeGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(cellWidth + 2, cellHeight + 2, cellDepth + 2));
+    const edgeMat = new THREE.LineBasicMaterial({
+        color: 0xef4444,
+        transparent: true,
+        opacity: 0.55,
+        linewidth: 3
+    });
+    const indicator = new THREE.LineSegments(edgeGeo, edgeMat);
+    indicator.userData.isPulsating = true;
+    indicator.userData.pulseTime = 0;
+    return indicator;
+}
+
 // Group positions by cell
 const cellMap = {};
 for (const p of DATA.posiciones) {
@@ -439,6 +651,7 @@ for (const p of DATA.posiciones) {
 }
 
 const cells = [];
+const allMaterialBoxes = []; // Collect all material boxes for hover raycasting
 for (let j = 0; j < numNiv; j++) {
   for (let i = 0; i < numSec; i++) {
     const cx = i * sw + sw / 2, cy = j * nh + nh / 2;
@@ -447,10 +660,13 @@ for (let j = 0; j < numNiv; j++) {
     const occ = poses.length > 0;
     const first = poses[0];
 
+    // Cell background color: use tipo_material color for occupied cells, green for empty
     let cellMat;
     if (occ) {
+      const firstTipo = first.tipo_material || 'OTRO';
+      const cellColor = TIPO_COLOR_MAP[firstTipo] || FALLBACK_COLOR;
       cellMat = new THREE.MeshStandardMaterial({
-        color: getColor(first.peso), transparent: true, opacity: getOpacity(first.peso),
+        color: cellColor, transparent: true, opacity: 0.15,
         roughness: 0.7, metalness: 0.05,
       });
     } else {
@@ -463,6 +679,7 @@ for (let j = 0; j < numNiv; j++) {
       nivel: j+1, seccion: i+1,
       codigo: first ? first.codigo : `${j+1}-${i+1}`,
       ocupado: occ, materiales: poses, mboxes: [],
+      layout: null, overflowInfo: null, labels: [],
     };
     scene.add(cell);
     // Cell outline
@@ -472,33 +689,173 @@ for (let j = 0; j < numNiv; j++) {
     scene.add(line);
     cells.push(cell);
 
-    // Material boxes: size based on stock cantidad
-    poses.forEach((pos, idx) => {
-      const total = poses.length;
-      const zOff = total > 1 ? (idx / (total - 1) - 0.5) * cellD * 0.6 : 0;
-      const stock = parseFloat(pos.cantidad) || 0;
-      const sizeFrac = Math.min(Math.max(stock / 10, 0.2), 1);
-      const bw = cellW * 0.85 * sizeFrac;
-      const bh2 = cellH * 0.85 * sizeFrac;
-      const bd = cellD * 0.5;
-      if (bw < 0.5 || bh2 < 0.5) return;
-      const mat = new THREE.MeshStandardMaterial({
-        color: getColor(pos.peso), transparent: true, opacity: Math.max(getOpacity(pos.peso), 0.3),
-        roughness: 0.5, metalness: 0.1,
+    // Stacking-based material rendering
+    if (occ) {
+      const cellDims = { width: cellW, height: cellH, depth: cellD };
+      const layout = computeStackLayout(poses, cellDims);
+      const overflowInfo = detectOverflow(layout, cellH);
+
+      // Store layout and overflow info for tooltip use
+      cell.userData.layout = layout;
+      cell.userData.overflowInfo = overflowInfo;
+
+      // Cell base Y: materials sit ON the shelf (bottom of the cell)
+      // The shelf surface for level j is at j * nh (top of shelf below)
+      // Plus half the shelf thickness to clear it
+      const cellBaseY = j * nh + sh / 2;
+
+      // Create a clipping plane at the top of this cell for overflow boxes
+      const cellTopY = cellBaseY + cellH;
+      const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), cellTopY);
+
+      // Create material boxes at stacked positions
+      layout.forEach((stackedBox) => {
+        const mbox = createMaterialBox(stackedBox);
+        // Position relative to cell: x centered in section, y from base, z centered
+        mbox.position.set(
+          cx,                          // section center X (same as cell)
+          cellBaseY + stackedBox.y,    // base + stacked Y position
+          stackedBox.z                 // centered (always 0)
+        );
+
+        // Apply clipping for overflow boxes
+        if (stackedBox.isOverflow) {
+          // Let overflow boxes be visible (protruding above cell)
+          // The overflow indicator (red border) signals the issue
+        }
+
+        scene.add(mbox);
+        cell.userData.mboxes.push(mbox);
+        allMaterialBoxes.push(mbox);
       });
-      const box = new THREE.Mesh(new THREE.BoxGeometry(bw, bh2, bd), mat);
-      box.position.set(cx, cy, zOff);
-      box.castShadow = true; box.receiveShadow = true;
-      scene.add(box);
-      cell.userData.mboxes.push(box);
-    });
+
+      // Create text labels above each material group
+      cell.userData.labels = createLabelsForCell(cell, cellBaseY, cx);
+
+      // Add overflow indicator (pulsating red border) if cell is overflowing
+      if (overflowInfo.overflow) {
+        const indicator = createOverflowIndicator(cellW, cellH, cellD);
+        indicator.position.set(cx, cy, 0);
+        scene.add(indicator);
+        cell.userData.overflowIndicator = indicator;
+      }
+    }
   }
+}
+
+// --- Animation System ---
+const activeAnimations = new Set(); // track cells being animated (by cellKey "nivel-seccion")
+
+// --- Operation Queue for Concurrent Requests ---
+const operationQueues = {}; // { cellKey: [{type: 'assign'|'remove', data: {...}}] }
+const MAX_QUEUE_SIZE = 5;
+
+/**
+ * Enqueues an operation for a cell that is currently animating.
+ * Returns true if queued successfully, false if queue is full.
+ *
+ * @param {string} cellKey - Cell identifier (e.g. "2-3")
+ * @param {Object} operation - {type: 'assign'|'remove', data: {...}}
+ * @returns {boolean}
+ */
+function enqueueOperation(cellKey, operation) {
+    if (!operationQueues[cellKey]) operationQueues[cellKey] = [];
+    if (operationQueues[cellKey].length >= MAX_QUEUE_SIZE) {
+        console.warn(`Operation queue full for cell ${cellKey}, ignoring.`);
+        return false;
+    }
+    operationQueues[cellKey].push(operation);
+    return true;
+}
+
+/**
+ * Processes the next queued operation for a cell after its animation completes.
+ * Executes assign or remove operations sequentially.
+ *
+ * @param {string} cellKey - Cell identifier (e.g. "2-3")
+ */
+function processNextOperation(cellKey) {
+    if (!operationQueues[cellKey] || operationQueues[cellKey].length === 0) return;
+    const op = operationQueues[cellKey].shift();
+    if (op.type === 'assign') {
+        assignMaterial(op.data.materialId, op.data.materialName, op.data.peso, op.data.anchoVal, op.data.altoVal, op.data.profVal, op.data.stock, op.data.nivel, op.data.seccion);
+    } else if (op.type === 'remove') {
+        // For remove, we need to set selectedCell to the target cell first
+        const cell = cells.find(c => c.userData.nivel === op.data.nivel && c.userData.seccion === op.data.seccion);
+        if (cell) {
+            selectedCell = cell;
+            removeMaterialById(op.data.posId);
+        }
+    }
+}
+
+/**
+ * Interpolates mesh positions from current to target using requestAnimationFrame.
+ * Completes animation within the specified duration (max 300ms).
+ * Disables interactions on the affected cell during animation.
+ *
+ * @param {Array<{mesh: THREE.Mesh, targetPos: THREE.Vector3}>} transitions - meshes to animate
+ * @param {number} duration - animation duration in ms (capped at 300)
+ * @param {string} cellKey - cell identifier (e.g. "2-3") to disable interactions
+ * @param {Function} onComplete - callback when animation finishes
+ */
+function animateTransition(transitions, duration, cellKey, onComplete) {
+    if (!transitions || transitions.length === 0) {
+        if (onComplete) onComplete();
+        return;
+    }
+
+    // Cap duration at 300ms
+    const actualDuration = Math.min(duration, 300);
+    const startTime = performance.now();
+    const startPositions = transitions.map(t => t.mesh.position.clone());
+
+    // Mark cell as animating (disable interactions)
+    activeAnimations.add(cellKey);
+
+    function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / actualDuration, 1);
+        // Ease-out cubic for smooth deceleration
+        const eased = 1 - Math.pow(1 - progress, 3);
+
+        transitions.forEach((t, i) => {
+            t.mesh.position.lerpVectors(startPositions[i], t.targetPos, eased);
+        });
+
+        if (progress < 1) {
+            requestAnimationFrame(step);
+        } else {
+            // Ensure final positions are exact
+            transitions.forEach((t) => {
+                t.mesh.position.copy(t.targetPos);
+            });
+            // Re-enable interactions
+            activeAnimations.delete(cellKey);
+            if (onComplete) onComplete();
+            // Process next queued operation for this cell
+            processNextOperation(cellKey);
+        }
+    }
+
+    requestAnimationFrame(step);
+}
+
+/**
+ * Checks if a cell is currently animating and should block interactions.
+ * @param {Object} cellData - cell.userData with nivel and seccion
+ * @returns {boolean}
+ */
+function isCellAnimating(cellData) {
+    const key = `${cellData.nivel}-${cellData.seccion}`;
+    return activeAnimations.has(key);
 }
 
 // --- Hover ---
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let hovered = null;
+let hoveredMbox = null;
 
 renderer.domElement.addEventListener('mousemove', (e) => {
   const rect = renderer.domElement.getBoundingClientRect();
@@ -511,8 +868,25 @@ renderer.domElement.addEventListener('mousemove', (e) => {
     hovered.material.opacity = hovered.userData.origOpacity;
   }
   hovered = null;
+
+  // Material box hover detection: change opacity on hover
+  if (hoveredMbox) {
+    hoveredMbox.material.opacity = 0.85;
+    hoveredMbox = null;
+  }
+  const mboxHits = raycaster.intersectObjects(allMaterialBoxes);
+  if (mboxHits.length > 0) {
+    hoveredMbox = mboxHits[0].object;
+    hoveredMbox.material.opacity = 1.0;
+  }
+
   if (hits.length > 0) {
     const c = hits[0].object;
+    // Skip hover interaction if cell is animating
+    if (isCellAnimating(c.userData)) {
+      tooltip.style.display = 'none';
+      return;
+    }
     if (c !== selectedCell) {
       if (!c.userData.origColor) c.userData.origColor = c.material.color.clone();
       if (c.userData.origOpacity === undefined) c.userData.origOpacity = c.material.opacity;
@@ -527,6 +901,10 @@ renderer.domElement.addEventListener('mousemove', (e) => {
         html += `<br>📦 ${p.material_nombre} · ${p.cantidad} uds`;
         if (p.peso != null) html += ` · ${p.peso} lb`;
       });
+      // Show overflow percentage if applicable
+      if (d.overflowInfo && d.overflowInfo.overflow) {
+        html += `<br>⚠️ <span style="color:#ef4444;">Desbordamiento: ${d.overflowInfo.percent}%</span>`;
+      }
     } else {
       html += `<br>✅ Vacío · Click para asignar`;
     }
@@ -587,6 +965,8 @@ renderer.domElement.addEventListener('click', (e) => {
   const hits = raycaster.intersectObjects(cells);
   if (hits.length > 0) {
     const cell = hits[0].object;
+    // Skip click interaction if cell is animating
+    if (isCellAnimating(cell.userData)) return;
     showContextMenu(cell, e.clientX, e.clientY);
   }
 });
@@ -639,14 +1019,18 @@ async function searchMaterials(q) {
       const peso = m.peso !== null && m.peso !== undefined ? parseFloat(m.peso) : null;
       const ancho = m.ancho !== null && m.ancho !== undefined ? parseFloat(m.ancho) : null;
       const alto = m.alto !== null && m.alto !== undefined ? parseFloat(m.alto) : null;
+      const profundidad = m.profundidad !== null && m.profundidad !== undefined ? parseFloat(m.profundidad) : null;
       const stock = m.stock !== null && m.stock !== undefined ? parseFloat(m.stock) : 0;
-      const hasDims = ancho !== null && alto !== null;
+      const hasAllDims = ancho !== null && alto !== null && profundidad !== null;
+      const needsInputs = ancho === null || alto === null || profundidad === null;
       let badge = '';
       if (peso !== null) {
         const c = peso > 50 ? '#ef4444' : peso > 30 ? '#f97316' : peso > 10 ? '#eab308' : '#22c55e';
         badge = `<span class="mi-peso" style="background:${c}22;color:${c};">${peso} lb</span>`;
       }
-      const dimStr = hasDims ? `<span style="font-size:11px;color:rgba(255,255,255,0.3);">${ancho}×${alto}cm</span>` : `<span style="font-size:11px;color:#f97316;">sin dimensiones</span>`;
+      const dimStr = hasAllDims
+        ? `<span style="font-size:11px;color:rgba(255,255,255,0.5);">${ancho} × ${alto} × ${profundidad} cm</span>`
+        : `<span style="font-size:11px;color:#f97316;">dimensiones incompletas</span>`;
       const div = document.createElement('div');
       div.className = 'modal-item';
       div.style.flexWrap = 'wrap';
@@ -657,40 +1041,101 @@ async function searchMaterials(q) {
         ${dimStr}
         <span style="font-size:11px;color:rgba(255,255,255,0.3);">stock: ${stock}</span>
       `;
-      // If no dimensions, add inputs below
-      if (!hasDims) {
+      // If any dimension is missing, show input fields for the missing ones
+      if (needsInputs) {
         const dimRow = document.createElement('div');
-        dimRow.style.cssText = 'width:100%;display:flex;gap:6px;padding:4px 0 0;';
-        dimRow.innerHTML = `
-          <input class="mi-dim ancho" type="number" placeholder="Ancho cm" style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);color:#fff;font-size:12px;outline:none;">
-          <input class="mi-dim alto" type="number" placeholder="Alto cm" style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);color:#fff;font-size:12px;outline:none;">
-        `;
+        dimRow.style.cssText = 'width:100%;display:flex;gap:6px;padding:4px 0 0;flex-wrap:wrap;';
+        const inputStyle = 'flex:1;min-width:80px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);color:#fff;font-size:12px;outline:none;';
+        if (ancho === null) dimRow.innerHTML += `<input class="mi-dim ancho" type="number" step="0.01" min="0.01" placeholder="Ancho (cm)" style="${inputStyle}">`;
+        if (alto === null) dimRow.innerHTML += `<input class="mi-dim alto" type="number" step="0.01" min="0.01" placeholder="Alto (cm)" style="${inputStyle}">`;
+        if (profundidad === null) dimRow.innerHTML += `<input class="mi-dim prof" type="number" step="0.01" min="0.01" placeholder="Profundidad (cm)" style="${inputStyle}">`;
         div.appendChild(dimRow);
       }
+      // Add quantity row
+      const qtyRow = document.createElement('div');
+      qtyRow.style.cssText = 'width:100%;display:flex;align-items:center;gap:6px;padding:4px 0 0;';
+      qtyRow.innerHTML = `
+        <span style="font-size:11px;color:rgba(255,255,255,0.5);">Cantidad:</span>
+        <input class="mi-qty" type="number" min="1" step="1" value="1" style="width:70px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);color:#fff;font-size:12px;text-align:center;outline:none;">
+      `;
+      div.appendChild(qtyRow);
       // Add button row
       const btnRow = document.createElement('div');
-      btnRow.style.cssText = 'width:100%;display:flex;justify-content:flex-end;padding:4px 0 0;gap:6px;';
+      btnRow.style.cssText = 'width:100%;display:flex;justify-content:flex-end;align-items:center;padding:4px 0 0;gap:6px;';
       const cancelBtn = document.createElement('button');
       cancelBtn.textContent = 'Cancelar';
       cancelBtn.type = 'button';
       cancelBtn.style.cssText = 'padding:4px 12px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.5);cursor:pointer;font-size:11px;';
       cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); modalResults.innerHTML = '<div id="modal-empty">Escribe para buscar materiales...</div>'; });
+
+      // Hint message shown when dimensions are missing
+      const hintMsg = document.createElement('span');
+      hintMsg.style.cssText = 'font-size:11px;color:#f97316;display:none;';
+      hintMsg.textContent = 'Debes ingresar dimensiones';
+
       const addBtn = document.createElement('button');
       addBtn.textContent = 'Agregar';
       addBtn.type = 'button';
       addBtn.style.cssText = 'padding:4px 16px;border-radius:4px;border:none;background:#2563eb;color:#fff;cursor:pointer;font-size:12px;font-weight:600;';
+
+      // Helper: validate a single dimension value (numeric, positive, up to 2 decimals)
+      const isValidDim = (val) => {
+        if (val == null || val === '') return false;
+        const n = parseFloat(val);
+        if (isNaN(n) || n <= 0) return false;
+        // Check up to 2 decimals
+        const parts = String(val).split('.');
+        if (parts.length === 2 && parts[1].length > 2) return false;
+        return true;
+      };
+
+      // Function to check all dims and update button state
+      const updateAddBtnState = () => {
+        const anchoInput = div.querySelector('.mi-dim.ancho');
+        const altoInput = div.querySelector('.mi-dim.alto');
+        const profInput = div.querySelector('.mi-dim.prof');
+        const an = anchoInput ? anchoInput.value : ancho;
+        const al = altoInput ? altoInput.value : alto;
+        const pr = profInput ? profInput.value : profundidad;
+        const allValid = isValidDim(an) && isValidDim(al) && isValidDim(pr);
+        addBtn.disabled = !allValid;
+        if (!allValid) {
+          addBtn.style.opacity = '0.4';
+          addBtn.style.cursor = 'not-allowed';
+          hintMsg.style.display = 'inline';
+        } else {
+          addBtn.style.opacity = '1';
+          addBtn.style.cursor = 'pointer';
+          hintMsg.style.display = 'none';
+        }
+      };
+
+      // If inputs are required, disable button initially and listen for input events
+      if (needsInputs) {
+        // Initial state: disabled if any required field is empty
+        updateAddBtnState();
+        const dimInputs = div.querySelectorAll('.mi-dim');
+        dimInputs.forEach(inp => inp.addEventListener('input', updateAddBtnState));
+      }
+
       addBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const dims = div.querySelectorAll('.mi-dim');
-        const an = dims.length ? (parseFloat(dims[0].value) || null) : (hasDims ? ancho : null);
-        const al = dims.length ? (parseFloat(dims[1].value) || null) : (hasDims ? alto : null);
-        if (!hasDims && (!an || !al)) {
-          alert('Debes ingresar Ancho y Alto del material para asignarlo al rack.');
+        const anchoInput = div.querySelector('.mi-dim.ancho');
+        const altoInput = div.querySelector('.mi-dim.alto');
+        const profInput = div.querySelector('.mi-dim.prof');
+        const qtyInput = div.querySelector('.mi-qty');
+        const an = anchoInput ? parseFloat(anchoInput.value) : ancho;
+        const al = altoInput ? parseFloat(altoInput.value) : alto;
+        const pr = profInput ? parseFloat(profInput.value) : profundidad;
+        const qty = qtyInput ? (parseInt(qtyInput.value) || 1) : 1;
+        // Final validation: all three must be positive with up to 2 decimals
+        if (!an || an <= 0 || !al || al <= 0 || !pr || pr <= 0) {
           return;
         }
-        assignMaterial(m.id, m.nombre, peso, an, al, stock);
+        assignMaterial(m.id, m.nombre, peso, an, al, pr, qty);
       });
       btnRow.appendChild(cancelBtn);
+      btnRow.appendChild(hintMsg);
       btnRow.appendChild(addBtn);
       div.appendChild(btnRow);
       modalResults.appendChild(div);
@@ -700,18 +1145,32 @@ async function searchMaterials(q) {
   }
 }
 
-async function assignMaterial(materialId, materialName, peso, anchoVal, altoVal, stock) {
-  const nivel = parseInt(modalOverlay.dataset.nivel);
-  const seccion = parseInt(modalOverlay.dataset.seccion);
+async function assignMaterial(materialId, materialName, peso, anchoVal, altoVal, profVal, cantidad, _queuedNivel, _queuedSeccion) {
+  const nivel = _queuedNivel || parseInt(modalOverlay.dataset.nivel);
+  const seccion = _queuedSeccion || parseInt(modalOverlay.dataset.seccion);
   if (!nivel || !seccion) { alert('Error: posición no seleccionada'); return; }
   const cell = cells.find(c => c.userData.nivel === nivel && c.userData.seccion === seccion);
   if (!cell) { alert('Error: celda no encontrada'); return; }
-  const d = cell.userData;
-  const cantidad = stock || 0;
 
-  const body = { nivel, seccion, material_id: materialId, cantidad };
+  // Check if cell is currently animating — enqueue if so
+  const cellKey = `${nivel}-${seccion}`;
+  if (activeAnimations.has(cellKey)) {
+    const queued = enqueueOperation(cellKey, {
+      type: 'assign',
+      data: { materialId, materialName, peso, anchoVal, altoVal, profVal, stock: cantidad, nivel, seccion }
+    });
+    if (!queued) alert('Demasiadas operaciones en cola');
+    closeModal();
+    hideContextMenu();
+    return;
+  }
+
+  const d = cell.userData;
+
+  const body = { nivel, seccion, material_id: materialId, cantidad: cantidad || 1 };
   if (anchoVal != null) body.ancho = anchoVal;
   if (altoVal != null) body.alto = altoVal;
+  if (profVal != null) body.profundidad = profVal;
 
   try {
     const res = await fetch(API_ASSIGN, {
@@ -719,44 +1178,107 @@ async function assignMaterial(materialId, materialName, peso, anchoVal, altoVal,
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
       body: JSON.stringify(body),
     });
+    if (!res.ok) { showToast('Error: la operación no se completó'); return; }
     const data = await res.json();
-    if (data.status !== 'ok') { alert('Error: ' + (data.error || 'desconocido')); return; }
+    if (data.status !== 'ok') { showToast('Error: la operación no se completó'); return; }
     const pos = data.posicion;
 
-    // Append to cell's materiales list
+    // Ensure material_id is set for computeStackLayout compatibility
+    if (!pos.material_id) pos.material_id = materialId;
+
+    // Append to cell's materiales list (pos already includes profundidad and tipo_material from API)
     d.materiales.push(pos);
     d.ocupado = true;
 
-    // Update cell color using first material's peso
+    // Update cell color using first material's tipo
     const first = d.materiales[0];
     selectedCell = cell;
     selectedCell.material.dispose();
-    const wc = first ? { color: getColor(first.peso), opacity: getOpacity(first.peso) } : { color: 0x22c55e, opacity: 0.08 };
-    selectedCell.material = new THREE.MeshStandardMaterial({ color: wc.color, transparent: true, opacity: wc.opacity, roughness: 0.7, metalness: 0.05 });
+    const firstTipo = first.tipo_material || 'OTRO';
+    const cellColor = TIPO_COLOR_MAP[firstTipo] || FALLBACK_COLOR;
+    selectedCell.material = new THREE.MeshStandardMaterial({ color: cellColor, transparent: true, opacity: 0.15, roughness: 0.7, metalness: 0.05 });
     selectedCell.userData.origColor = selectedCell.material.color.clone();
     selectedCell.userData.origOpacity = selectedCell.material.opacity;
 
-    // Create new material box
-    const total = d.materiales.length;
-    const idx = total - 1;
-    const zOff = total > 1 ? (idx / (total - 1) - 0.5) * cellD * 0.6 : 0;
-    const cx = cell.position.x, cy = cell.position.y;
-    const stock = parseFloat(pos.cantidad) || 0;
-    const sizeFrac = Math.min(Math.max(stock / 10, 0.2), 1);
-    const bw = cellW * 0.85 * sizeFrac, bh2 = cellH * 0.85 * sizeFrac, bd = cellD * 0.5;
-    const mbox = new THREE.Mesh(new THREE.BoxGeometry(bw, bh2, bd), new THREE.MeshStandardMaterial({
-      color: getColor(pos.peso), transparent: true, opacity: Math.max(getOpacity(pos.peso), 0.3),
-      roughness: 0.5, metalness: 0.1,
-    }));
-    mbox.position.set(cx, cy, zOff);
-    mbox.castShadow = true; mbox.receiveShadow = true;
-    d.mboxes.push(mbox);
-    scene.add(mbox);
+    // Compute new layout
+    const cellDims = { width: cellW, height: cellH, depth: cellD };
+    const layout = computeStackLayout(d.materiales, cellDims);
+    const overflowInfo = detectOverflow(layout, cellH);
+    d.layout = layout;
+    d.overflowInfo = overflowInfo;
+
+    // Cell base Y: materials sit ON the shelf
+    const nivel_idx = d.nivel - 1;
+    const cellBaseY = nivel_idx * nh + sh / 2;
+    const cellTopY = cellBaseY + cellH;
+    const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), cellTopY);
+    const cx = cell.position.x;
+
+    // Save old meshes positions for animated transition
+    const oldMboxes = d.mboxes.slice();
+
+    // Create new meshes starting at old positions (or cell base for new ones)
+    const newMboxes = [];
+    const transitions = [];
+
+    layout.forEach((stackedBox, idx) => {
+      const mbox = createMaterialBox(stackedBox);
+      const targetPos = new THREE.Vector3(cx, cellBaseY + stackedBox.y, stackedBox.z);
+
+      // Start from old position if available, otherwise from cell base
+      if (idx < oldMboxes.length) {
+        mbox.position.copy(oldMboxes[idx].position);
+      } else {
+        mbox.position.set(cx, cellBaseY, stackedBox.z);
+      }
+
+      if (stackedBox.isOverflow) {
+        // Overflow boxes are visible (protruding above cell)
+      }
+
+      scene.add(mbox);
+      newMboxes.push(mbox);
+      allMaterialBoxes.push(mbox);
+      transitions.push({ mesh: mbox, targetPos: targetPos });
+    });
+
+    // Remove old meshes from scene
+    oldMboxes.forEach(mb => {
+      scene.remove(mb); mb.geometry?.dispose(); mb.material?.dispose();
+      const idx2 = allMaterialBoxes.indexOf(mb);
+      if (idx2 >= 0) allMaterialBoxes.splice(idx2, 1);
+    });
+    d.mboxes = newMboxes;
+
+    // Remove old labels
+    if (d.labels) {
+      d.labels.forEach(lbl => { scene.remove(lbl); lbl.material.map?.dispose(); lbl.material.dispose(); });
+    }
+    d.labels = [];
+
+    // Animate transition (300ms, ease-out cubic)
+    animateTransition(transitions, 300, cellKey, () => {
+      // Recreate text labels after animation completes
+      d.labels = createLabelsForCell(cell, cellBaseY, cx);
+
+      // Update overflow indicator after animation
+      if (overflowInfo.overflow && !d.overflowIndicator) {
+        const indicator = createOverflowIndicator(cellW, cellH, cellD);
+        indicator.position.copy(cell.position);
+        scene.add(indicator);
+        d.overflowIndicator = indicator;
+      } else if (!overflowInfo.overflow && d.overflowIndicator) {
+        scene.remove(d.overflowIndicator);
+        d.overflowIndicator.geometry.dispose();
+        d.overflowIndicator.material.dispose();
+        d.overflowIndicator = null;
+      }
+    });
 
     closeModal();
     hideContextMenu();
   } catch (err) {
-    alert('Error: ' + (err.message || err));
+    showToast('Error: la operación no se completó');
   }
 }
 
@@ -764,55 +1286,145 @@ async function removeMaterialById(posId) {
   const cell = selectedCell;
   if (!cell) return;
   const d = cell.userData;
+
+  // Check if cell is currently animating — enqueue if so
+  const cellKey = `${d.nivel}-${d.seccion}`;
+  if (activeAnimations.has(cellKey)) {
+    const queued = enqueueOperation(cellKey, {
+      type: 'remove',
+      data: { posId, nivel: d.nivel, seccion: d.seccion }
+    });
+    if (!queued) console.warn('Operation queue full, ignoring remove.');
+    return;
+  }
+
   try {
     const res = await fetch(API_REMOVE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
       body: JSON.stringify({ pos_id: posId }),
     });
+    if (!res.ok) { showToast('Error: la operación no se completó'); return; }
     const data = await res.json();
-    if (data.status !== 'ok') { alert('Error al quitar'); return; }
+    if (data.status !== 'ok') { showToast('Error: la operación no se completó'); return; }
 
-    // Find and remove the matching mbox
+    // Find and remove the matching material from the list
     const idx = d.materiales.findIndex(p => p.id === posId);
     if (idx >= 0) {
-      const mbox = d.mboxes[idx];
-      if (mbox) { scene.remove(mbox); mbox.geometry?.dispose(); mbox.material?.dispose(); }
       d.materiales.splice(idx, 1);
-      d.mboxes.splice(idx, 1);
     }
     d.ocupado = d.materiales.length > 0;
 
-    // Rebuild all material boxes with correct Z positions
-    d.mboxes.forEach(mb => { scene.remove(mb); mb.geometry?.dispose(); mb.material?.dispose(); });
-    d.mboxes = [];
-    const total = d.materiales.length;
-    d.materiales.forEach((pos, i) => {
-      const zOff = total > 1 ? (i / (total - 1) - 0.5) * cellD * 0.6 : 0;
-      const cx = cell.position.x, cy = cell.position.y;
-      const stock = parseFloat(pos.cantidad) || 0;
-      const sizeFrac = Math.min(Math.max(stock / 10, 0.2), 1);
-      const bw = cellW * 0.85 * sizeFrac, bh2 = cellH * 0.85 * sizeFrac, bd = cellD * 0.5;
-      const mbox = new THREE.Mesh(new THREE.BoxGeometry(bw, bh2, bd), new THREE.MeshStandardMaterial({
-        color: getColor(pos.peso), transparent: true, opacity: Math.max(getOpacity(pos.peso), 0.3),
-        roughness: 0.5, metalness: 0.1,
-      }));
-      mbox.position.set(cx, cy, zOff);
-      mbox.castShadow = true; mbox.receiveShadow = true;
-      d.mboxes.push(mbox); scene.add(mbox);
-    });
+    // Rebuild material boxes with animated transition
+    // Save old meshes positions
+    const oldMboxes = d.mboxes.slice();
+
+    // Remove old labels
+    if (d.labels) {
+      d.labels.forEach(lbl => { scene.remove(lbl); lbl.material.map?.dispose(); lbl.material.dispose(); });
+    }
+    d.labels = [];
+
+    if (d.ocupado) {
+      const cellDims = { width: cellW, height: cellH, depth: cellD };
+      const layout = computeStackLayout(d.materiales, cellDims);
+      const overflowInfo = detectOverflow(layout, cellH);
+      d.layout = layout;
+      d.overflowInfo = overflowInfo;
+
+      // Cell base Y: materials sit ON the shelf
+      const nivel_idx = d.nivel - 1;
+      const cellBaseY = nivel_idx * nh + sh / 2;
+      const cellTopY = cellBaseY + cellH;
+      const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), cellTopY);
+      const cx = cell.position.x;
+
+      // Create new meshes starting at old positions (collapse downward animation)
+      const newMboxes = [];
+      const transitions = [];
+
+      layout.forEach((stackedBox, idx) => {
+        const mbox = createMaterialBox(stackedBox);
+        const targetPos = new THREE.Vector3(cx, cellBaseY + stackedBox.y, stackedBox.z);
+
+        // Start from old position if available, otherwise from target
+        if (idx < oldMboxes.length) {
+          mbox.position.copy(oldMboxes[idx].position);
+        } else {
+          mbox.position.copy(targetPos);
+        }
+
+        if (stackedBox.isOverflow) {
+          // Overflow boxes are visible (protruding above cell)
+        }
+
+        scene.add(mbox);
+        newMboxes.push(mbox);
+        allMaterialBoxes.push(mbox);
+        transitions.push({ mesh: mbox, targetPos: targetPos });
+      });
+
+      // Remove old meshes from scene
+      oldMboxes.forEach(mb => {
+        scene.remove(mb); mb.geometry?.dispose(); mb.material?.dispose();
+        const idx2 = allMaterialBoxes.indexOf(mb);
+        if (idx2 >= 0) allMaterialBoxes.splice(idx2, 1);
+      });
+      d.mboxes = newMboxes;
+
+      // Animate transition (300ms, ease-out cubic) — remaining boxes collapse downward
+      animateTransition(transitions, 300, cellKey, () => {
+        // Recreate text labels after animation
+        d.labels = createLabelsForCell(cell, cellBaseY, cx);
+
+        // Update overflow indicator after animation
+        if (overflowInfo.overflow && !d.overflowIndicator) {
+          const indicator = createOverflowIndicator(cellW, cellH, cellD);
+          indicator.position.copy(cell.position);
+          scene.add(indicator);
+          d.overflowIndicator = indicator;
+        } else if (!overflowInfo.overflow && d.overflowIndicator) {
+          scene.remove(d.overflowIndicator);
+          d.overflowIndicator.geometry.dispose();
+          d.overflowIndicator.material.dispose();
+          d.overflowIndicator = null;
+        }
+      });
+    } else {
+      // Cell is now empty — remove old meshes immediately (no animation needed)
+      oldMboxes.forEach(mb => {
+        scene.remove(mb); mb.geometry?.dispose(); mb.material?.dispose();
+        const idx2 = allMaterialBoxes.indexOf(mb);
+        if (idx2 >= 0) allMaterialBoxes.splice(idx2, 1);
+      });
+      d.mboxes = [];
+      d.layout = null;
+      d.overflowInfo = null;
+      // Remove overflow indicator if cell is now empty
+      if (d.overflowIndicator) {
+        scene.remove(d.overflowIndicator);
+        d.overflowIndicator.geometry.dispose();
+        d.overflowIndicator.material.dispose();
+        d.overflowIndicator = null;
+      }
+    }
 
     // Update cell color
     const first = d.materiales[0] || null;
     cell.material.dispose();
-    const wc2 = first ? { color: getColor(first.peso), opacity: getOpacity(first.peso) } : { color: 0x22c55e, opacity: 0.08 };
-    cell.material = new THREE.MeshStandardMaterial({ color: wc2.color, transparent: true, opacity: wc2.opacity, roughness: 0.7, metalness: 0.05 });
+    if (first) {
+      const firstTipo = first.tipo_material || 'OTRO';
+      const cellColor = TIPO_COLOR_MAP[firstTipo] || FALLBACK_COLOR;
+      cell.material = new THREE.MeshStandardMaterial({ color: cellColor, transparent: true, opacity: 0.15, roughness: 0.7, metalness: 0.05 });
+    } else {
+      cell.material = new THREE.MeshStandardMaterial({ color: 0x22c55e, transparent: true, opacity: 0.25, roughness: 0.7, metalness: 0.05 });
+    }
     cell.userData.origColor = cell.material.color.clone();
     cell.userData.origOpacity = cell.material.opacity;
 
     hideContextMenu();
   } catch (err) {
-    alert('Error de red');
+    showToast('Error: la operación no se completó');
   }
 }
 
@@ -837,6 +1449,31 @@ window.addEventListener('resize', () => {
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+
+  // Pulse overflow indicators (~1.5 Hz, opacity 0.4–0.7)
+  const now = performance.now();
+  cells.forEach(cell => {
+    if (cell.userData.overflowIndicator) {
+      const indicator = cell.userData.overflowIndicator;
+      // Handle fade-in transition (within 500ms of state change)
+      if (cell.userData.overflowIndicatorFadeIn) {
+        const elapsed = now - cell.userData.overflowIndicatorFadeIn;
+        if (elapsed < 500) {
+          // Fade in from 0 to pulse range over 500ms
+          const fadeProgress = elapsed / 500;
+          indicator.material.opacity = fadeProgress * 0.55;
+          return;
+        } else {
+          // Fade-in complete, switch to normal pulsation
+          delete cell.userData.overflowIndicatorFadeIn;
+        }
+      }
+      // Normal pulsation: opacity oscillates between 0.4 and 0.7 at ~1.5 Hz
+      const t = now * 0.003; // ~1.5 Hz frequency
+      indicator.material.opacity = 0.4 + 0.3 * Math.sin(t);
+    }
+  });
+
   renderer.render(scene, camera);
 }
 animate();

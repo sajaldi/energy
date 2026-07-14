@@ -83,6 +83,22 @@
                   overflow-y: auto; flex-shrink: 0; display: flex;
                   flex-direction: column; }
     #pins-panel.hidden { display: none; }
+    #areas-panel { width: 272px; background: #333; border-left: 1px solid #4a4a4a;
+                   overflow-y: auto; flex-shrink: 0; display: flex;
+                   flex-direction: column; }
+    #areas-panel.hidden { display: none; }
+    .area-list-item { padding: 9px 10px; border-radius: 4px; cursor: pointer;
+                      border: 1px solid transparent; margin: 0 6px 4px;
+                      transition: background .12s, border-color .12s; display: flex;
+                      align-items: center; gap: 8px; }
+    .area-list-item:hover { background: #444; border-color: #555; }
+    .area-list-item.active { background: #1a4a6b; border-color: #0696d7; }
+    .area-list-item .ali-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+    .area-list-item .ali-name { font-size: 11px; color: #ccc; flex: 1; overflow: hidden;
+                                text-overflow: ellipsis; white-space: nowrap; }
+    .area-list-item .ali-page { font-size: 10px; color: #808080; }
+    #areas-list { padding: 6px 0; overflow-y: auto; }
+    #area-detail { border-top: 1px solid #4a4a4a; }
     .panel-header { padding: 12px 14px; border-bottom: 1px solid #4a4a4a;
                     display: flex; align-items: center; gap: 8px; }
     .panel-title { font-size: 12px; font-weight: 600; color: #e0e0e0; flex: 1; }
@@ -133,6 +149,14 @@
     #context-menu .ctx-item { padding: 8px 14px; font-size: 12px; color: #d4d4d4;
                               cursor: pointer; transition: background .1s; }
     #context-menu .ctx-item:hover { background: #0696d7; color: #fff; }
+    #area-context-menu { position: fixed; z-index: 9000; background: #3c3c3c;
+                    border: 1px solid #555; border-radius: 4px;
+                    box-shadow: 0 6px 24px rgba(0,0,0,.5); padding: 4px 0;
+                    min-width: 180px; }
+    #area-context-menu .ctx-item { padding: 8px 14px; font-size: 12px; color: #d4d4d4;
+                              cursor: pointer; transition: background .1s; }
+    #area-context-menu .ctx-item:hover { background: #0696d7; color: #fff; }
+    #area-layer .area-rect.dragging { opacity: 0.6; cursor: grabbing; }
 
     /* Modal overlay shared */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6);
@@ -245,6 +269,7 @@
   <button class="tb-btn" id="btn-thumbs">Páginas</button>
   <div class="tb-div"></div>
   <button class="tb-btn" id="btn-pins-panel">&#128204; Pines</button>
+  <button class="tb-btn" id="btn-areas-panel">&#9634; Áreas</button>
   <div class="tb-div"></div>
   <a class="tb-btn primary" href="{% url 'proyectos:download_plano' proyecto.pk plano.pk %}" download>Descargar</a>
 </div>
@@ -272,12 +297,51 @@
     </div>
     <div id="pins-list"></div>
   </div>
+  <!-- PANEL LATERAL: Detalle de Área -->
+  <div id="areas-panel" class="hidden">
+    <div class="panel-header">
+      <span class="panel-title">&#9634; Áreas</span>
+      <span class="panel-count" id="areas-count">0</span>
+    </div>
+    <div id="areas-list"></div>
+    <div id="area-detail" style="display:none; padding:14px; border-top:1px solid #4a4a4a;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div id="area-detail-color" style="width:16px;height:16px;border-radius:3px;flex-shrink:0;"></div>
+        <span id="area-detail-nombre" style="font-size:13px;font-weight:600;color:#e0e0e0;flex:1;"></span>
+      </div>
+      <div style="font-size:11px;color:#808080;margin-bottom:14px;">
+        Página <span id="area-detail-pagina"></span>
+      </div>
+      <label style="font-size:11px;color:#999;display:block;margin-bottom:4px;">Nombre</label>
+      <input type="text" id="area-detail-edit-nombre" style="width:100%;background:#2d2d2d;border:1px solid #555;border-radius:4px;color:#d4d4d4;padding:8px 10px;font-size:12px;margin-bottom:10px;">
+      <label style="font-size:11px;color:#999;display:block;margin-bottom:4px;">Color</label>
+      <div class="color-palette" id="area-detail-color-palette" style="margin-bottom:14px;">
+        <div class="color-swatch" data-color="#3B82F6" style="background:#3B82F6"></div>
+        <div class="color-swatch" data-color="#EF4444" style="background:#EF4444"></div>
+        <div class="color-swatch" data-color="#10B981" style="background:#10B981"></div>
+        <div class="color-swatch" data-color="#F59E0B" style="background:#F59E0B"></div>
+        <div class="color-swatch" data-color="#A855F7" style="background:#A855F7"></div>
+        <div class="color-swatch" data-color="#EC4899" style="background:#EC4899"></div>
+      </div>
+      <div id="area-detail-error" style="display:none;color:#f87171;font-size:11px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="tb-btn primary" id="btn-area-detail-save" style="font-size:11px;">Guardar</button>
+        <button class="btn-danger" id="btn-area-detail-delete" style="font-size:11px;">&#128465; Eliminar</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- CONTEXT MENU -->
 <div id="context-menu" class="context-menu" style="display:none">
   <div class="ctx-item" id="ctx-add-pin">&#128204; Agregar Pin de Observación</div>
   <div class="ctx-item" id="ctx-add-area">&#9634; Agregar Área</div>
+</div>
+
+<!-- CONTEXT MENU: Área -->
+<div id="area-context-menu" class="context-menu" style="display:none">
+  <div class="ctx-item" id="ctx-move-area">&#9995; Mover Área</div>
+  <div class="ctx-item" id="ctx-delete-area" style="color:#f87171;">&#128465; Eliminar Área</div>
 </div>
 
 <!-- MODAL: Crear Pin -->
@@ -432,6 +496,7 @@
   var scale = 1, base = 1, cssW = 0, cssH = 0;
   var tx = 0, ty = 0;
   var panning = false, px0, py0, tx0, ty0;
+  var areaDragMode = false;
   var thumbsOn = false;
   var areaCreationMode = false;
 
@@ -500,6 +565,11 @@
     if (!pdfDoc) return Promise.resolve();
     return pdfDoc.getPage(n).then(function(page) {
       var RENDER_FACTOR = 4;
+      // Store intrinsic PDF page dimensions (scale=1) — constant regardless of screen
+      var vpIntrinsic = page.getViewport({ scale: 1 });
+      pdfPageWidth = vpIntrinsic.width;
+      pdfPageHeight = vpIntrinsic.height;
+
       var vp = page.getViewport({ scale: base * RENDER_FACTOR });
       canvas.width  = vp.width;
       canvas.height = vp.height;
@@ -526,8 +596,56 @@
 
   // ─── Pin rendering ───────────────────────────────────────────────────
   var pinLayer = document.getElementById('pin-layer');
+  var pdfPageWidth = 0, pdfPageHeight = 0; // Dimensiones intrínsecas de la página PDF (scale=1)
+  var pinesLegacyChecked = false;
+
+  /**
+   * Detección y corrección de pines con coordenadas legacy (píxeles absolutos del canvas CSS).
+   * Los pines del sistema nuevo están en coordenadas intrínsecas del PDF (scale=1),
+   * típicamente 0-2000 puntos para la mayoría de documentos.
+   * Los pines legacy se guardaron como coordenada_intrinseca * base_del_momento.
+   * Como no conocemos el base original, usamos la heurística de que las coordenadas deben
+   * estar dentro de las dimensiones de la página (0 a pdfPageWidth / pdfPageHeight).
+   * Si no exceden, asumimos que ya son coordenadas intrínsecas válidas.
+   * NOTA: Los pines legacy que se guardaron con base ~1 serán indistinguibles y se mostrarán
+   * en posiciones cercanas (pero no exactas) a su ubicación original.
+   */
+  function checkLegacyPines() {
+    if (pinesLegacyChecked || !pdfPageWidth || !pdfPageHeight) return;
+    pinesLegacyChecked = true;
+    var hasLegacy = false;
+    PINES_DATA.forEach(function(pin) {
+      // Si las coordenadas están fuera del rango de la página, son legacy (se usó base != 1)
+      // No podemos recuperar el base original, así que escalamos con base actual como mejor estimación
+      if (pin.x > pdfPageWidth * 1.05 || pin.y > pdfPageHeight * 1.05) {
+        hasLegacy = true;
+        // Los pines legacy se guardaron como: canvasCSS_px = intrinsic * base_original
+        // Dividimos por base actual como mejor aproximación
+        pin.x = pin.x / base;
+        pin.y = pin.y / base;
+      }
+    });
+    // Also check areas for legacy coordinates
+    AREAS_DATA.forEach(function(area) {
+      if (area.x1 > pdfPageWidth * 1.05 || area.y1 > pdfPageHeight * 1.05 ||
+          area.x2 > pdfPageWidth * 1.05 || area.y2 > pdfPageHeight * 1.05) {
+        hasLegacy = true;
+        area.x1 = area.x1 / base;
+        area.y1 = area.y1 / base;
+        area.x2 = area.x2 / base;
+        area.y2 = area.y2 / base;
+      }
+    });
+    if (hasLegacy) {
+      console.warn('[Visor] Se detectaron pines/áreas con coordenadas legacy. Se convirtieron automáticamente. ' +
+        'Reposicione los elementos si la ubicación no es exacta.');
+    }
+  }
 
   function renderizarPines(pagina) {
+    // Check and convert legacy pin coordinates on first render
+    checkLegacyPines();
+
     // Clear existing pin markers
     pinLayer.innerHTML = '';
 
@@ -548,9 +666,10 @@
       }
       marker.setAttribute('title', tooltipText);
 
-      // Position at stored coordinates (stage transform handles zoom/pan)
-      marker.style.left = pin.x + 'px';
-      marker.style.top = pin.y + 'px';
+      // Position: x/y are stored in PDF intrinsic coordinates (scale=1, constant).
+      // Multiply by 'base' to convert to current canvas CSS pixel position.
+      marker.style.left = (pin.x * base) + 'px';
+      marker.style.top = (pin.y * base) + 'px';
 
       // SVG teardrop/pin shape with the pin's color
       var color = pin.color || '#EF4444';
@@ -587,6 +706,7 @@
   viewer.addEventListener('mousedown', function(e) {
     if (e.button !== 0) return;
     if (areaCreationMode) return;
+    if (areaDragMode) return;
     panning = true; px0 = e.clientX; py0 = e.clientY; tx0 = tx; ty0 = ty;
     viewer.classList.add('grabbing');
   });
@@ -596,6 +716,7 @@
   viewer.addEventListener('mousemove', function(e) {
     if (!panning) return;
     if (areaCreationMode) return;
+    if (areaDragMode) return;
     tx = tx0 + (e.clientX - px0);
     ty = ty0 + (e.clientY - py0);
     xform();
@@ -769,7 +890,7 @@
 
   // ─── Context Menu & Pin Creation (Task 7.1) ─────────────────────────────────
   var ctxMenu = document.getElementById('context-menu');
-  var ctxX = 0, ctxY = 0; // Coordenadas relativas al canvas (sin transformación)
+  var ctxX = 0, ctxY = 0; // Coordenadas en espacio intrínseco del PDF (scale=1, constante)
 
   function hideContextMenu() {
     ctxMenu.style.display = 'none';
@@ -777,10 +898,13 @@
 
   viewer.addEventListener('contextmenu', function(e) {
     e.preventDefault();
-    // Calcular coordenadas relativas al canvas (deshacer transform del stage)
+    // Calcular coordenadas en el espacio intrínseco del PDF (scale=1, constante)
     var rect = viewer.getBoundingClientRect();
-    ctxX = (e.clientX - rect.left - tx) / scale;
-    ctxY = (e.clientY - rect.top - ty) / scale;
+    var canvasX = (e.clientX - rect.left - tx) / scale;
+    var canvasY = (e.clientY - rect.top - ty) / scale;
+    // canvasX está en píxeles del canvas CSS = pdfX * base, así que dividimos por base
+    ctxX = canvasX / base;
+    ctxY = canvasY / base;
     // Posicionar menú contextual en pantalla (evitar desbordamiento)
     ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - 240) + 'px';
     ctxMenu.style.top = Math.min(e.clientY, window.innerHeight - 60) + 'px';
@@ -1141,11 +1265,16 @@
       dragMoved = true;
     }
     if (dragMoved) {
-      // Move marker visually (in pin-layer coordinates, unscaled since stage handles transform)
-      var newX = dragPin.x + dx / scale;
-      var newY = dragPin.y + dy / scale;
-      dragMarker.style.left = newX + 'px';
-      dragMarker.style.top = newY + 'px';
+      // Convert pixel delta to PDF intrinsic coordinates: divide by (scale) to get canvas px, then by base
+      // But scale IS base when at fit-to-window, or scale can differ when zoomed.
+      // The stage transform applies 'scale' so marker coords are in stage-local space (= canvas CSS px).
+      // canvas CSS px = pdfIntrinsic * base, so pdfIntrinsic = canvasPx / base.
+      // Delta in canvas CSS px = dx / scale. Delta in pdfIntrinsic = dx / scale / base.
+      // But marker.style.left is in canvas CSS px = pin.x * base.
+      var newX = dragPin.x + dx / scale / base;
+      var newY = dragPin.y + dy / scale / base;
+      dragMarker.style.left = (newX * base) + 'px';
+      dragMarker.style.top = (newY * base) + 'px';
     }
   });
 
@@ -1155,14 +1284,14 @@
     if (dragMoved && dragPin) {
       var dx = e.clientX - dragStartX;
       var dy = e.clientY - dragStartY;
-      var newX = dragPin.x + dx / scale;
-      var newY = dragPin.y + dy / scale;
+      var newX = dragPin.x + dx / scale / base;
+      var newY = dragPin.y + dy / scale / base;
       var _marker = dragMarker, _pin = dragPin;
 
       if (!confirm('¿Mover este pin a la nueva posición?')) {
         // Revert position
-        _marker.style.left = _pin.x + 'px';
-        _marker.style.top = _pin.y + 'px';
+        _marker.style.left = (_pin.x * base) + 'px';
+        _marker.style.top = (_pin.y * base) + 'px';
         dragPin = null;
         dragMarker = null;
         return;
@@ -1181,13 +1310,13 @@
           _pin.x = d.x;
           _pin.y = d.y;
         } else {
-          _marker.style.left = _pin.x + 'px';
-          _marker.style.top = _pin.y + 'px';
+          _marker.style.left = (_pin.x * base) + 'px';
+          _marker.style.top = (_pin.y * base) + 'px';
         }
       })
       .catch(function() {
-        _marker.style.left = _pin.x + 'px';
-        _marker.style.top = _pin.y + 'px';
+        _marker.style.left = (_pin.x * base) + 'px';
+        _marker.style.top = (_pin.y * base) + 'px';
       });
     }
     dragPin = null;
@@ -1511,10 +1640,11 @@
       div.className = 'area-rect';
       div.setAttribute('data-area-id', area.id);
       div.setAttribute('title', area.nombre);
-      div.style.left = area.x1 + 'px';
-      div.style.top = area.y1 + 'px';
-      div.style.width = (area.x2 - area.x1) + 'px';
-      div.style.height = (area.y2 - area.y1) + 'px';
+      // Coordinates are in PDF intrinsic space; multiply by base for CSS pixels
+      div.style.left = (area.x1 * base) + 'px';
+      div.style.top = (area.y1 * base) + 'px';
+      div.style.width = ((area.x2 - area.x1) * base) + 'px';
+      div.style.height = ((area.y2 - area.y1) * base) + 'px';
       var c = area.color || '#3B82F6';
       div.style.backgroundColor = c + '26'; // ~15% opacity hex
       div.style.border = '2px solid ' + c + 'B3'; // ~70% opacity hex
@@ -1541,13 +1671,14 @@
     e.preventDefault();
     e.stopPropagation();
     var rect = viewer.getBoundingClientRect();
-    areaStartX = (e.clientX - rect.left - tx) / scale;
-    areaStartY = (e.clientY - rect.top - ty) / scale;
-    // Create preview element
+    // Convert to PDF intrinsic coordinates
+    areaStartX = (e.clientX - rect.left - tx) / scale / base;
+    areaStartY = (e.clientY - rect.top - ty) / scale / base;
+    // Create preview element (positioned in stage space = intrinsic * base)
     areaPreview = document.createElement('div');
     areaPreview.className = 'area-preview';
-    areaPreview.style.left = areaStartX + 'px';
-    areaPreview.style.top = areaStartY + 'px';
+    areaPreview.style.left = (areaStartX * base) + 'px';
+    areaPreview.style.top = (areaStartY * base) + 'px';
     areaPreview.style.width = '0px';
     areaPreview.style.height = '0px';
     stage.appendChild(areaPreview);
@@ -1556,23 +1687,23 @@
   document.addEventListener('mousemove', function(e) {
     if (!areaCreationMode || !areaPreview) return;
     var rect = viewer.getBoundingClientRect();
-    var curX = (e.clientX - rect.left - tx) / scale;
-    var curY = (e.clientY - rect.top - ty) / scale;
+    var curX = (e.clientX - rect.left - tx) / scale / base;
+    var curY = (e.clientY - rect.top - ty) / scale / base;
     var left = Math.min(areaStartX, curX);
     var top = Math.min(areaStartY, curY);
     var w = Math.abs(curX - areaStartX);
     var h = Math.abs(curY - areaStartY);
-    areaPreview.style.left = left + 'px';
-    areaPreview.style.top = top + 'px';
-    areaPreview.style.width = w + 'px';
-    areaPreview.style.height = h + 'px';
+    areaPreview.style.left = (left * base) + 'px';
+    areaPreview.style.top = (top * base) + 'px';
+    areaPreview.style.width = (w * base) + 'px';
+    areaPreview.style.height = (h * base) + 'px';
   });
 
   document.addEventListener('mouseup', function(e) {
     if (!areaCreationMode || !areaPreview) return;
     var rect = viewer.getBoundingClientRect();
-    var endX = (e.clientX - rect.left - tx) / scale;
-    var endY = (e.clientY - rect.top - ty) / scale;
+    var endX = (e.clientX - rect.left - tx) / scale / base;
+    var endY = (e.clientY - rect.top - ty) / scale / base;
     // Remove preview
     if (areaPreview.parentNode) areaPreview.parentNode.removeChild(areaPreview);
     areaPreview = null;
@@ -1583,7 +1714,7 @@
     var y1 = Math.min(areaStartY, endY), y2 = Math.max(areaStartY, endY);
 
     if ((x2 - x1) < 10 || (y2 - y1) < 10) {
-      alert('El área es demasiado pequeña (mínimo 10x10 píxeles).');
+      alert('El área es demasiado pequeña (mínimo 10x10 puntos).');
       return;
     }
 
@@ -1719,25 +1850,50 @@
     document.getElementById('area-nombre').focus();
   });
 
-  // Right-click on area to delete
+  // Right-click on area: show area context menu
+  var areaCtxMenu = document.getElementById('area-context-menu');
+  var areaCtxTarget = null; // The area data being acted upon
+
+  function hideAreaContextMenu() {
+    areaCtxMenu.style.display = 'none';
+  }
+
   areaLayer.addEventListener('contextmenu', function(e) {
     var areaEl = e.target.closest('.area-rect');
     if (!areaEl) return;
     e.preventDefault();
     e.stopPropagation();
     var areaId = parseInt(areaEl.getAttribute('data-area-id'));
-    var areaData = null;
+    areaCtxTarget = null;
     for (var i = 0; i < AREAS_DATA.length; i++) {
-      if (AREAS_DATA[i].id === areaId) { areaData = AREAS_DATA[i]; break; }
+      if (AREAS_DATA[i].id === areaId) { areaCtxTarget = AREAS_DATA[i]; break; }
     }
-    if (!areaData) return;
-    if (!confirm('¿Eliminar el área "' + areaData.nombre + '"?')) return;
-    var delUrl = AREA_CREATE_URL.replace('crear/', areaId + '/eliminar/');
+    if (!areaCtxTarget) return;
+    // Position the area context menu
+    areaCtxMenu.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+    areaCtxMenu.style.top = Math.min(e.clientY, window.innerHeight - 80) + 'px';
+    areaCtxMenu.style.display = 'block';
+    // Hide the main context menu if open
+    hideContextMenu();
+  });
+
+  // Hide area context menu on click/escape
+  document.addEventListener('click', function() { hideAreaContextMenu(); });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') hideAreaContextMenu();
+  });
+
+  // Delete area from context menu
+  document.getElementById('ctx-delete-area').addEventListener('click', function() {
+    hideAreaContextMenu();
+    if (!areaCtxTarget) return;
+    if (!confirm('¿Eliminar el área "' + areaCtxTarget.nombre + '"?')) return;
+    var delUrl = AREA_CREATE_URL.replace('crear/', areaCtxTarget.id + '/eliminar/');
     fetch(delUrl, { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } })
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (d.status === 'success') {
-        AREAS_DATA = AREAS_DATA.filter(function(a) { return a.id !== areaId; });
+        AREAS_DATA = AREAS_DATA.filter(function(a) { return a.id !== areaCtxTarget.id; });
         renderizarAreas(curPage);
       } else {
         alert('Error: ' + (d.message || 'No se pudo eliminar.'));
@@ -1745,6 +1901,321 @@
     })
     .catch(function(err) { alert('Error: ' + err.message); });
   });
+
+  // ── Move area (drag) from context menu ──────────────────────────────────────
+  var areaDragData = null; // { area, startMouseX, startMouseY, origX1, origY1, origX2, origY2 }
+
+  document.getElementById('ctx-move-area').addEventListener('click', function() {
+    hideAreaContextMenu();
+    if (!areaCtxTarget) return;
+    areaDragMode = true;
+    areaDragData = {
+      area: areaCtxTarget,
+      startMouseX: null,
+      startMouseY: null,
+      origX1: areaCtxTarget.x1,
+      origY1: areaCtxTarget.y1,
+      origX2: areaCtxTarget.x2,
+      origY2: areaCtxTarget.y2
+    };
+    viewer.style.cursor = 'move';
+    // Highlight the area being moved
+    var el = areaLayer.querySelector('[data-area-id="' + areaCtxTarget.id + '"]');
+    if (el) el.classList.add('dragging');
+  });
+
+  viewer.addEventListener('mousedown', function(e) {
+    if (!areaDragMode || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    areaDragData.startMouseX = e.clientX;
+    areaDragData.startMouseY = e.clientY;
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!areaDragMode || !areaDragData || areaDragData.startMouseX === null) return;
+    var dx = (e.clientX - areaDragData.startMouseX) / scale / base;
+    var dy = (e.clientY - areaDragData.startMouseY) / scale / base;
+    var newX1 = areaDragData.origX1 + dx;
+    var newY1 = areaDragData.origY1 + dy;
+    var newX2 = areaDragData.origX2 + dx;
+    var newY2 = areaDragData.origY2 + dy;
+    // Update visual position
+    var el = areaLayer.querySelector('[data-area-id="' + areaDragData.area.id + '"]');
+    if (el) {
+      el.style.left = (newX1 * base) + 'px';
+      el.style.top = (newY1 * base) + 'px';
+    }
+  });
+
+  document.addEventListener('mouseup', function(e) {
+    if (!areaDragMode || !areaDragData) return;
+    var el = areaLayer.querySelector('[data-area-id="' + areaDragData.area.id + '"]');
+    if (el) el.classList.remove('dragging');
+    viewer.style.cursor = 'grab';
+
+    if (areaDragData.startMouseX === null) {
+      // No mousedown happened yet (user clicked elsewhere to cancel)
+      areaDragMode = false;
+      areaDragData = null;
+      return;
+    }
+
+    var dx = (e.clientX - areaDragData.startMouseX) / scale / base;
+    var dy = (e.clientY - areaDragData.startMouseY) / scale / base;
+
+    // If barely moved, cancel
+    if (Math.abs(dx) < 2 && Math.abs(dy) < 2) {
+      renderizarAreas(curPage);
+      areaDragMode = false;
+      areaDragData = null;
+      return;
+    }
+
+    var newX1 = areaDragData.origX1 + dx;
+    var newY1 = areaDragData.origY1 + dy;
+    var newX2 = areaDragData.origX2 + dx;
+    var newY2 = areaDragData.origY2 + dy;
+
+    // Save reference before clearing state (fetch is async)
+    var _dragArea = areaDragData.area;
+    var _oldX1 = _dragArea.x1, _oldY1 = _dragArea.y1;
+    var _oldX2 = _dragArea.x2, _oldY2 = _dragArea.y2;
+
+    // Optimistically update local data
+    _dragArea.x1 = newX1;
+    _dragArea.y1 = newY1;
+    _dragArea.x2 = newX2;
+    _dragArea.y2 = newY2;
+
+    // Persist to server
+    var editUrl = AREA_CREATE_URL.replace('crear/', _dragArea.id + '/editar/');
+    fetch(editUrl, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre: _dragArea.nombre,
+        color: _dragArea.color,
+        x1: newX1, y1: newY1, x2: newX2, y2: newY2
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === 'success') {
+        _dragArea.x1 = d.area.x1;
+        _dragArea.y1 = d.area.y1;
+        _dragArea.x2 = d.area.x2;
+        _dragArea.y2 = d.area.y2;
+      } else {
+        // Revert on error
+        _dragArea.x1 = _oldX1; _dragArea.y1 = _oldY1;
+        _dragArea.x2 = _oldX2; _dragArea.y2 = _oldY2;
+      }
+      renderizarAreas(curPage);
+    })
+    .catch(function() {
+      // Revert on network error
+      _dragArea.x1 = _oldX1; _dragArea.y1 = _oldY1;
+      _dragArea.x2 = _oldX2; _dragArea.y2 = _oldY2;
+      renderizarAreas(curPage);
+    });
+
+    areaDragMode = false;
+    areaDragData = null;
+  });
+
+  // Escape cancels area drag
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && areaDragMode) {
+      areaDragMode = false;
+      var el = areaDragData ? areaLayer.querySelector('[data-area-id="' + areaDragData.area.id + '"]') : null;
+      if (el) el.classList.remove('dragging');
+      areaDragData = null;
+      viewer.style.cursor = 'grab';
+      renderizarAreas(curPage);
+    }
+  });
+
+  // ─── Panel Lateral de Áreas ─────────────────────────────────────────────────
+  var areasPanel = document.getElementById('areas-panel');
+  var areasList = document.getElementById('areas-list');
+  var areasCount = document.getElementById('areas-count');
+  var areaDetail = document.getElementById('area-detail');
+  var areasPanelOn = false;
+  var selectedAreaDetailId = null;
+  var areaDetailColor = '#3B82F6';
+
+  function buildAreasList() {
+    areasCount.textContent = AREAS_DATA.length;
+    areasList.innerHTML = '';
+    areaDetail.style.display = 'none';
+    selectedAreaDetailId = null;
+
+    AREAS_DATA.forEach(function(area) {
+      var item = document.createElement('div');
+      item.className = 'area-list-item';
+      item.setAttribute('data-area-id', area.id);
+      item.innerHTML =
+        '<div class="ali-dot" style="background:' + (area.color || '#3B82F6') + '"></div>' +
+        '<span class="ali-name">' + (area.nombre || '(Sin nombre)') + '</span>' +
+        '<span class="ali-page">Pág. ' + area.pagina + '</span>';
+
+      item.addEventListener('click', function() {
+        // Mark active
+        areasList.querySelectorAll('.area-list-item').forEach(function(li) { li.classList.remove('active'); });
+        item.classList.add('active');
+        showAreaDetail(area);
+        // Navigate to page if different
+        if (curPage !== area.pagina) renderPage(area.pagina);
+        // Highlight area on the canvas
+        var rects = areaLayer.querySelectorAll('.area-rect');
+        rects.forEach(function(r) { r.classList.remove('highlight'); });
+        var target = areaLayer.querySelector('[data-area-id="' + area.id + '"]');
+        if (target) {
+          target.classList.add('highlight');
+          setTimeout(function() { target.classList.remove('highlight'); }, 2000);
+        }
+      });
+
+      areasList.appendChild(item);
+    });
+  }
+
+  function showAreaDetail(area) {
+    selectedAreaDetailId = area.id;
+    areaDetail.style.display = 'block';
+    document.getElementById('area-detail-color').style.background = area.color || '#3B82F6';
+    document.getElementById('area-detail-nombre').textContent = area.nombre;
+    document.getElementById('area-detail-pagina').textContent = area.pagina;
+    document.getElementById('area-detail-edit-nombre').value = area.nombre;
+    document.getElementById('area-detail-error').style.display = 'none';
+    // Set color palette
+    areaDetailColor = area.color || '#3B82F6';
+    document.querySelectorAll('#area-detail-color-palette .color-swatch').forEach(function(s) {
+      s.classList.toggle('selected', s.dataset.color === areaDetailColor);
+    });
+  }
+
+  // Color palette in detail panel
+  document.querySelectorAll('#area-detail-color-palette .color-swatch').forEach(function(sw) {
+    sw.addEventListener('click', function() {
+      document.querySelectorAll('#area-detail-color-palette .color-swatch').forEach(function(s) { s.classList.remove('selected'); });
+      sw.classList.add('selected');
+      areaDetailColor = sw.dataset.color;
+    });
+  });
+
+  // Save area detail (name/color)
+  document.getElementById('btn-area-detail-save').addEventListener('click', function() {
+    if (!selectedAreaDetailId) return;
+    var nombre = document.getElementById('area-detail-edit-nombre').value.trim();
+    var errorEl = document.getElementById('area-detail-error');
+    if (!nombre) {
+      errorEl.textContent = 'El nombre es obligatorio.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    errorEl.style.display = 'none';
+    var editUrl = AREA_CREATE_URL.replace('crear/', selectedAreaDetailId + '/editar/');
+    fetch(editUrl, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: nombre, color: areaDetailColor })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === 'success') {
+        for (var i = 0; i < AREAS_DATA.length; i++) {
+          if (AREAS_DATA[i].id === selectedAreaDetailId) {
+            AREAS_DATA[i].nombre = d.area.nombre;
+            AREAS_DATA[i].color = d.area.color;
+            showAreaDetail(AREAS_DATA[i]);
+            break;
+          }
+        }
+        buildAreasList();
+        renderizarAreas(curPage);
+        // Re-select the item
+        var activeItem = areasList.querySelector('[data-area-id="' + selectedAreaDetailId + '"]');
+        if (activeItem) activeItem.classList.add('active');
+        areaDetail.style.display = 'block';
+      } else {
+        errorEl.textContent = d.message || 'Error al guardar.';
+        errorEl.style.display = 'block';
+      }
+    })
+    .catch(function(err) { errorEl.textContent = 'Error: ' + err.message; errorEl.style.display = 'block'; });
+  });
+
+  // Delete area from detail panel
+  document.getElementById('btn-area-detail-delete').addEventListener('click', function() {
+    if (!selectedAreaDetailId) return;
+    var areaData = null;
+    for (var i = 0; i < AREAS_DATA.length; i++) {
+      if (AREAS_DATA[i].id === selectedAreaDetailId) { areaData = AREAS_DATA[i]; break; }
+    }
+    if (!areaData) return;
+    if (!confirm('¿Eliminar el área "' + areaData.nombre + '"?')) return;
+    var delUrl = AREA_CREATE_URL.replace('crear/', selectedAreaDetailId + '/eliminar/');
+    fetch(delUrl, { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === 'success') {
+        AREAS_DATA = AREAS_DATA.filter(function(a) { return a.id !== selectedAreaDetailId; });
+        selectedAreaDetailId = null;
+        areaDetail.style.display = 'none';
+        buildAreasList();
+        renderizarAreas(curPage);
+      } else {
+        alert('Error: ' + (d.message || 'No se pudo eliminar.'));
+      }
+    })
+    .catch(function(err) { alert('Error: ' + err.message); });
+  });
+
+  // Toggle areas panel from toolbar button
+  document.getElementById('btn-areas-panel').addEventListener('click', function() {
+    areasPanelOn = !areasPanelOn;
+    areasPanel.classList.toggle('hidden', !areasPanelOn);
+    if (areasPanelOn) buildAreasList();
+  });
+
+  // Click on area in canvas opens panel and shows detail
+  areaLayer.addEventListener('click', function(e) {
+    var areaEl = e.target.closest('.area-rect');
+    if (!areaEl) return;
+    e.stopPropagation();
+    var areaId = parseInt(areaEl.getAttribute('data-area-id'));
+    var areaData = null;
+    for (var i = 0; i < AREAS_DATA.length; i++) {
+      if (AREAS_DATA[i].id === areaId) { areaData = AREAS_DATA[i]; break; }
+    }
+    if (!areaData) return;
+    // Open panel if closed
+    if (!areasPanelOn) {
+      areasPanelOn = true;
+      areasPanel.classList.remove('hidden');
+    }
+    buildAreasList();
+    // Select the area in the list
+    var item = areasList.querySelector('[data-area-id="' + areaId + '"]');
+    if (item) item.classList.add('active');
+    showAreaDetail(areaData);
+    // Highlight on canvas
+    var rects = areaLayer.querySelectorAll('.area-rect');
+    rects.forEach(function(r) { r.classList.remove('highlight'); });
+    areaEl.classList.add('highlight');
+    setTimeout(function() { areaEl.classList.remove('highlight'); }, 2000);
+  });
+
+  // Rebuild areas list when areas change (hook into renderizarAreas)
+  var _origRenderAreas = renderizarAreas;
+  renderizarAreas = function(pagina) {
+    _origRenderAreas(pagina);
+    if (areasPanelOn) {
+      areasCount.textContent = AREAS_DATA.length;
+    }
+  };
 
   // Load PDF via PDF.js CDN
   function loadPdf() {

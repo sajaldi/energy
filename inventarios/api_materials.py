@@ -33,7 +33,7 @@ def api_list_materials(request):
 
     materials = Material.objects.select_related('categoria', 'unidad_medida').only(
         'id', 'nombre', 'sku', 'descripcion', 'unidad_medida', 'precio_estimado',
-        'categoria', 'tipo_material', 'imagen', 'ancho', 'alto', 'peso'
+        'categoria', 'tipo_material', 'imagen', 'ancho', 'alto', 'peso', 'profundidad'
     ).annotate(
         stock_total=Coalesce(stock_total_expr, Decimal('0.00'))
     ).order_by('nombre')
@@ -100,6 +100,7 @@ def api_list_materials(request):
             'ancho': float(m.ancho) if m.ancho else None,
             'alto': float(m.alto) if m.alto else None,
             'peso': float(m.peso) if m.peso else None,
+            'profundidad': float(m.profundidad) if m.profundidad else None,
             'categoria': m.categoria.nombre if m.categoria else 'General',
             'tipo_material': m.get_tipo_material_display() if hasattr(m, 'get_tipo_material_display') else m.tipo_material,
             'image_url': image_url,

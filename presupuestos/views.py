@@ -2494,7 +2494,14 @@ def requisicion_documento_proxy(request, doc_id):
         file_handle = doc.archivo.open("rb")
         content_type, _ = mimetypes.guess_type(doc.archivo.name)
         response = FileResponse(file_handle, content_type=content_type)
-        response["Content-Disposition"] = f"inline; filename=\"{doc.archivo.name.split('/')[-1]}\""
+        filename = doc.archivo.name.split('/')[-1]
+        
+        # Si se solicita descarga forzada
+        if request.GET.get('download') == '1':
+            response["Content-Disposition"] = f"attachment; filename=\"{filename}\""
+        else:
+            response["Content-Disposition"] = f"inline; filename=\"{filename}\""
+        
         # Cabeceras de seguridad
         response["X-Frame-Options"] = "SAMEORIGIN"
         response["Content-Security-Policy"] = "frame-ancestors 'self'"

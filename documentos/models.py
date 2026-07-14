@@ -578,20 +578,29 @@ class ComentarioBiblioteca(models.Model):
 
 
 class GroqApiKey(models.Model):
+    PROVEEDORES = (
+        ('groq', 'Groq'),
+        ('google', 'Google (Gemini)'),
+        ('cohere', 'Cohere'),
+        ('openrouter', 'OpenRouter'),
+    )
+    
     alias = models.CharField("Nombre", max_length=100, help_text="Ej: Producción, Desarrollo, Cliente A")
+    proveedor = models.CharField("Proveedor", max_length=20, choices=PROVEEDORES, default='groq')
     api_key = models.CharField("API Key", max_length=200)
-    modelo = models.CharField("Modelo", max_length=100, default="llama-3.3-70b-versatile")
+    modelo = models.CharField("Modelo", max_length=100, default="llama-3.3-70b-versatile",
+        help_text="Groq: llama-3.3-70b-versatile | Google: gemini-1.5-flash | Cohere: command-r-08-2024")
     is_active = models.BooleanField("Activa", default=True)
     orden = models.PositiveIntegerField("Orden", default=0, help_text="Las claves activas se rotan en orden")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "API Key de Groq"
-        verbose_name_plural = "API Keys de Groq"
+        verbose_name = "API Key de IA"
+        verbose_name_plural = "API Keys de IA"
         ordering = ['orden', 'created_at']
 
     def __str__(self):
-        return f"{self.alias} ({self.modelo})"
+        return f"{self.alias} ({self.get_proveedor_display()} - {self.modelo})"
 
 
 # Importar modelos del sistema de firmas electrónicas

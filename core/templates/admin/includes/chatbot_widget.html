@@ -451,12 +451,12 @@
                 messagesContainer.innerHTML = `
                     <div class="message bot">
                         <div class="message-content">
-                            Hola, soy tu asistente administrativo basado en <strong>n8n</strong>. ¿En qué puedo ayudarte hoy?
+                            Hola, soy tu asistente administrativo. ¿En qué puedo ayudarte hoy?
                         </div>
                     </div>
                 `;
+                conversationHistory = [];
                 localStorage.removeItem(STORAGE_KEY);
-                // Reset state in case it was open
                 saveChatState();
             }
         });
@@ -487,6 +487,9 @@
         });
 
         // Send Message
+        // Historial de conversación para mantener contexto
+        let conversationHistory = [];
+
         async function sendMessage() {
             const text = input.value.trim();
             if (!text) return;
@@ -506,7 +509,10 @@
                         'Content-Type': 'application/json',
                         'X-CSRFToken': getCookie('csrftoken')
                     },
-                    body: JSON.stringify({ mensaje: text })
+                    body: JSON.stringify({ 
+                        mensaje: text,
+                        historial: conversationHistory
+                    })
                 });
 
                 const data = await response.json();
@@ -515,6 +521,13 @@
                 document.getElementById(loadingId).remove();
 
                 if (data.status === 'success') {
+                    // Guardar en historial
+                    conversationHistory.push({role: 'user', content: text});
+                    conversationHistory.push({role: 'assistant', content: data.respuesta});
+                    // Mantener solo últimos 10 mensajes para no exceder tokens
+                    if (conversationHistory.length > 20) {
+                        conversationHistory = conversationHistory.slice(-20);
+                    }
                     appendMessage(data.respuesta, 'bot');
                 } else {
                     appendMessage('Error: ' + data.message, 'bot');

@@ -225,10 +225,11 @@ def chatbot_asistente(request):
         try:
             data = json.loads(request.body)
             pregunta = data.get('mensaje')
+            historial = data.get('historial', [])  # [{role: 'user'|'assistant', content: '...'}]
             if not pregunta:
                 return JsonResponse({'status': 'error', 'message': 'Mensaje vacío'}, status=400)
             
-            respuesta = ask_gemini(pregunta)
+            respuesta = ask_gemini(pregunta, historial=historial)
             return JsonResponse({'status': 'success', 'respuesta': respuesta})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -1341,13 +1342,32 @@ def editar_area_plano_api(request, pk, plano_id, area_id):
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({'status': 'error', 'message': 'JSON inválido.'}, status=400)
 
+    update_fields = []
+
+    # Update name/color if provided
     nombre = (data.get('nombre') or '').strip()
-    if not nombre:
+    if nombre:
+        area.nombre = nombre
+        update_fields.append('nombre')
+    elif 'nombre' in data:
         return JsonResponse({'status': 'error', 'message': 'El nombre del área es obligatorio.'}, status=400)
 
-    area.nombre = nombre
-    area.color = data.get('color', area.color)
-    area.save(update_fields=['nombre', 'color'])
+    if 'color' in data:
+        area.color = data['color']
+        update_fields.append('color')
+
+    # Update coordinates if provided (for move/resize)
+    if 'x1' in data and 'y1' in data and 'x2' in data and 'y2' in data:
+        area.x1 = float(data['x1'])
+        area.y1 = float(data['y1'])
+        area.x2 = float(data['x2'])
+        area.y2 = float(data['y2'])
+        update_fields.extend(['x1', 'y1', 'x2', 'y2'])
+
+    if not update_fields:
+        return JsonResponse({'status': 'error', 'message': 'No se proporcionaron campos para actualizar.'}, status=400)
+
+    area.save(update_fields=update_fields)
     return JsonResponse({'status': 'success', 'area': {
         'id': area.id, 'nombre': area.nombre, 'color': area.color,
         'x1': area.x1, 'y1': area.y1, 'x2': area.x2, 'y2': area.y2, 'pagina': area.pagina

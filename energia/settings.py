@@ -169,9 +169,11 @@ else:
 
 # --- AI & Embeddings Configuration ---
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+COHERE_API_KEY = os.environ.get('COHERE_API_KEY', '')
+
 # Si no hay key de Gemini, loguear advertencia pero no detener el sistema
 if not GEMINI_API_KEY:
-    print("[WARNING] GEMINI_API_KEY no encontrada. La búsqueda semántica usará Ollama si está disponible.")
+    print("[WARNING] GEMINI_API_KEY no encontrada. Se usará Cohere para embeddings si está disponible.")
 
 # --- Ollama Configuration (Local AI) ---
 OLLAMA_URL = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
@@ -514,10 +516,6 @@ JAZZMIN_SETTINGS = {
         {"name": "Inicio", "url": "admin:index", "permissions": ["auth.view_user"]},
         {"name": "❓ Ayuda", "url": "/ayuda/", "new_window": True},
     ],
-    "show_sidebar": True,
-    "navigation_expanded": False,
-    "hide_apps": [],
-    "hide_models": [],
     "icons": {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
@@ -619,10 +617,6 @@ JAZZMIN_SETTINGS = {
         "iot", "courses",
         "auth", "servicios", "ayuda", "plantillas", "django_celery_results"
     ],
-    "show_sidebar": True,
-    "navigation_expanded": False,
-    "hide_apps": [],
-    "hide_models": [],
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",
     "related_modal_active": False,
@@ -630,6 +624,10 @@ JAZZMIN_SETTINGS = {
     "custom_js": "core/js/admin_search.js",
     "use_google_fonts_cdn": True,
     "show_ui_builder": True,
+    "show_sidebar": True,
+    "navigation_expanded": False,
+    "hide_apps": [],
+    "hide_models": [],
     "custom_links": {
         "courses": [
             {
@@ -758,7 +756,7 @@ JAZZMIN_UI_TWEAKS = {
     "layout_boxed": False,
     "footer_fixed": False,
     "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-primary",
+    "sidebar": "sidebar-light-primary",
     "sidebar_nav_small_text": False,
     "sidebar_disable_expand": False,
     "sidebar_collapse": False,

@@ -314,12 +314,38 @@
                 <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">Documentos Locales</h4>
                 {{ documento_formset.management_form }}
                 {% for d_form in documento_formset %}
-                <div class="document-row inline-row formset-row" style="grid-template-columns: 2fr 2fr 40px;">
+                <div class="document-row inline-row formset-row" style="grid-template-columns: 2fr 2fr auto;">
                     {{ d_form.id }}
-                    <div>{{ d_form.archivo }}</div>
+                    <div>
+                        {% if d_form.instance.pk and d_form.instance.archivo %}
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="document-preview-item" 
+                                  data-url="{% url 'presupuestos:requisicion_documento_proxy' d_form.instance.pk %}"
+                                  data-name="{{ d_form.instance.nombre|default:d_form.instance.archivo.name }}"
+                                  style="cursor: pointer; color: var(--primary); font-weight: 500; display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: #f8fafc; transition: all 0.2s;"
+                                  title="Clic para vista previa">
+                                {% with ext=d_form.instance.archivo.name|lower %}
+                                {% if ".pdf" in ext %}📕
+                                {% elif ".doc" in ext or ".docx" in ext %}📘
+                                {% elif ".xls" in ext or ".xlsx" in ext or ".csv" in ext %}📗
+                                {% elif ".jpg" in ext or ".jpeg" in ext or ".png" in ext or ".gif" in ext %}🖼️
+                                {% else %}📄
+                                {% endif %}
+                                {% endwith %}
+                                {{ d_form.instance.nombre|default:d_form.instance.archivo.name|truncatechars:40 }}
+                            </span>
+                        </div>
+                        {% else %}
+                        {{ d_form.archivo }}
+                        {% endif %}
+                    </div>
                     <div>{{ d_form.nombre }}</div>
-                    <div style="text-align: right;">
-                        {% if d_form.instance.pk %}
+                    <div style="text-align: right; display: flex; gap: 6px; justify-content: flex-end; align-items: center;">
+                        {% if d_form.instance.pk and d_form.instance.archivo %}
+                        <a href="{% url 'presupuestos:requisicion_documento_proxy' d_form.instance.pk %}?download=1" download
+                           class="btn-custom btn-outline-custom"
+                           style="padding: 6px 10px; font-size: 0.75rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"
+                           title="Descargar archivo">⬇️ Descargar</a>
                         <div style="display:none">{{ d_form.DELETE }}</div>
                         <button type="button" class="btn-custom btn-danger-custom delete-row"
                             style="padding: 8px;">🗑️</button>
@@ -559,10 +585,24 @@
                 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                     {% if instance.pk %}
                     {% for doc in instance.documentos.all %}
-                    <div class="document-preview-item" data-url="{{ doc.get_proxy_url }}"
+                    <div class="document-preview-item" data-url="{% url 'presupuestos:requisicion_documento_proxy' doc.id %}"
                         data-name="{{ doc.nombre|default:doc.archivo.name }}"
-                        style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem; background: #f8fafc; cursor: pointer; transition: all 0.2s;">
-                        📄 {{ doc.nombre|default:doc.archivo.name }}</div>
+                        style="padding: 10px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; background: #f8fafc; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;">
+                        {% with ext=doc.archivo.name|lower %}
+                        {% if ".pdf" in ext %}📕
+                        {% elif ".doc" in ext or ".docx" in ext %}📘
+                        {% elif ".xls" in ext or ".xlsx" in ext or ".csv" in ext %}📗
+                        {% elif ".jpg" in ext or ".jpeg" in ext or ".png" in ext or ".gif" in ext %}🖼️
+                        {% else %}📄
+                        {% endif %}
+                        {% endwith %}
+                        <span>{{ doc.nombre|default:doc.archivo.name }}</span>
+                        <a href="{% url 'presupuestos:requisicion_documento_proxy' doc.id %}?download=1" 
+                           class="doc-download-link"
+                           style="margin-left: 6px; font-size: 0.75rem; color: var(--primary); text-decoration: none; padding: 2px 6px; border: 1px solid var(--primary); border-radius: 4px;"
+                           title="Descargar" 
+                           onclick="event.stopPropagation();">⬇️</a>
+                    </div>
                     {% empty %}
                     <p style="color: var(--text-muted); font-style: italic;">Sin documentos adjuntos.</p>
                     {% endfor %}

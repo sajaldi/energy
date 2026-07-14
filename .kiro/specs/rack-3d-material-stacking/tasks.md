@@ -49,11 +49,11 @@ Transform the 3D rack view to render materials with their real physical dimensio
     - Test validation rejects profundidad ≤ 0
     - _Requirements: 7.2, 7.5_
 
-- [~] 4. Checkpoint - Backend complete
+- [x] 4. Checkpoint - Backend complete
   - Ensure all backend tests pass, ask the user if questions arise.
 
-- [ ] 5. Frontend: Implement Stacking Engine
-  - [ ] 5.1 Create the `computeStackLayout` function
+- [x] 5. Frontend: Implement Stacking Engine
+  - [x] 5.1 Create the `computeStackLayout` function
     - Implement in `inventarios/templates/inventarios/rack_3d.html` as an inline module (or separate `<script>` block)
     - Implement the sorting by position ID ascending
     - Apply default dimensions (10 cm) when values are null
@@ -113,8 +113,8 @@ Transform the 3D rack view to render materials with their real physical dimensio
     - **Property 11: Type-change gap logic**
     - **Validates: Requirements 5.2**
 
-- [ ] 6. Frontend: Implement Overflow Detector
-  - [~] 6.1 Create the `detectOverflow` function
+- [x] 6. Frontend: Implement Overflow Detector
+  - [x] 6.1 Create the `detectOverflow` function
     - Implement detection logic: overflow = totalHeight > cellHeight
     - Calculate percent = Math.round(((totalHeight - cellH) / cellH) × 100) when overflow
     - Return {overflow: boolean, percent: number}
@@ -126,8 +126,8 @@ Transform the 3D rack view to render materials with their real physical dimensio
     - **Property 9: Overflow percentage computation**
     - **Validates: Requirements 4.4**
 
-- [ ] 7. Frontend: Box Factory and Color Map
-  - [~] 7.1 Implement color map and box creation
+- [x] 7. Frontend: Box Factory and Color Map
+  - [x] 7.1 Implement color map and box creation
     - Define `TIPO_COLOR_MAP` with 7 distinct colors as specified in design
     - Create mesh factory that generates BoxGeometry with dimensions from StackedBox
     - Apply MeshStandardMaterial with color from tipo_material mapping
@@ -141,8 +141,8 @@ Transform the 3D rack view to render materials with their real physical dimensio
     - **Property 10: Deterministic color mapping**
     - **Validates: Requirements 5.1**
 
-- [ ] 8. Frontend: Integrate stacking into the render pipeline
-  - [~] 8.1 Replace existing material rendering with stacking-based rendering
+- [x] 8. Frontend: Integrate stacking into the render pipeline
+  - [x] 8.1 Replace existing material rendering with stacking-based rendering
     - Remove the old `sizeFrac = stock / 10` logic and Z-axis distribution
     - For each cell, call `computeStackLayout` with position data and cell dimensions
     - Create meshes via Box Factory using StackedBox results
@@ -150,18 +150,18 @@ Transform the 3D rack view to render materials with their real physical dimensio
     - Apply clipping planes (`localClippingEnabled`) at cell top boundary for overflow boxes
     - _Requirements: 2.1, 3.1, 3.6, 4.3_
 
-  - [~] 8.2 Implement Overflow Indicator
+  - [x] 8.2 Implement Overflow Indicator
     - For each cell, call `detectOverflow` after computing layout
     - When overflow is true, render a pulsating red border (opacity 0.4–0.7, frequency 1–2 Hz, border width 2–4 units)
     - Show/hide indicator within 500ms of state change
     - Include overflow percentage in cell tooltip
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [~] 9. Checkpoint - Core rendering complete
+- [x] 9. Checkpoint - Core rendering complete
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. Frontend: Labels and hover interactions
-  - [~] 10.1 Implement text labels and hover effects
+- [x] 10. Frontend: Labels and hover interactions
+  - [x] 10.1 Implement text labels and hover effects
     - Create text sprite labels above each material group showing: material name (max 30 chars, truncated with "…") and quantity
     - Implement raycasting for hover detection on Material_Boxes
     - On hover: change opacity from 0.85 to 1.0
@@ -180,29 +180,29 @@ Transform the 3D rack view to render materials with their real physical dimensio
     - **Property 13: Dimension format string**
     - **Validates: Requirements 7.3**
 
-- [ ] 11. Frontend: Animation System
-  - [~] 11.1 Implement `animateTransition` for stacking updates
+- [x] 11. Frontend: Animation System
+  - [x] 11.1 Implement `animateTransition` for stacking updates
     - Interpolate mesh positions from current to target using requestAnimationFrame
     - Complete animation within 300ms maximum
     - Disable interactions (click, hover, assign/remove) on the affected cell during animation
     - Call onComplete callback when animation finishes
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-  - [~] 11.2 Implement operation queue for concurrent requests
+  - [x] 11.2 Implement operation queue for concurrent requests
     - Queue new assign/remove operations that arrive during an active animation
     - Process queued operations sequentially after current animation completes
     - Limit queue to 5 operations maximum; ignore additional operations above limit
     - _Requirements: 6.6_
 
-- [ ] 12. Frontend: Dynamic update on assign/remove
-  - [~] 12.1 Wire API responses to re-render pipeline
+- [x] 12. Frontend: Dynamic update on assign/remove
+  - [x] 12.1 Wire API responses to re-render pipeline
     - On successful assign: parse response (including profundidad, tipo_material), recompute layout for affected cell, trigger animated transition
     - On successful remove: recompute layout, animate remaining boxes collapsing downward
     - On API failure: maintain previous visual state, show toast notification "Error: la operación no se completó"
     - _Requirements: 6.1, 6.2, 6.5_
 
-- [ ] 13. Frontend: Modal integration for profundidad field
-  - [~] 13.1 Update assignment modal to handle profundidad
+- [x] 13. Frontend: Modal integration for profundidad field
+  - [x] 13.1 Update assignment modal to handle profundidad
     - When a Material lacks profundidad value, show an input field "Profundidad (cm)" alongside Ancho and Alto fields
     - When all three dimensions exist, display them as "ancho × alto × profundidad cm" (read-only) instead of input fields
     - Validate profundidad input: numeric, positive, up to 2 decimals, reject ≤ 0
@@ -210,7 +210,7 @@ Transform the 3D rack view to render materials with their real physical dimensio
     - Send profundidad value in API assign request body
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [~] 14. Final checkpoint - All features integrated
+- [x] 14. Final checkpoint - All features integrated
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
