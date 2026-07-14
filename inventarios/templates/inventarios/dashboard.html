@@ -1,4 +1,4 @@
-{% extends "admin/base_site.html" %}
+{% extends "inventarios/base_inventarios.html" %}
 {% load i18n static %}
 
 {% block extrahead %}
@@ -644,7 +644,7 @@
 <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 {% endblock %}
 
-{% block content %}
+{% block inventarios_content %}
 <div class="inventory-dashboard">
     <div class="hero-section">
         <div class="hero-title">
@@ -742,6 +742,12 @@
             <h2>Administración</h2>
             <p>Gestiona categorías, ubicaciones físicas y parámetros del sistema.</p>
         </a>
+
+        <div class="menu-card" id="btn-racks" style="border-color: #8b5cf6; cursor: pointer;">
+            <ion-icon name="layers-outline" style="color: #8b5cf6;"></ion-icon>
+            <h2>Racks / Estanterías</h2>
+            <p>Visualiza en 3D la distribución de racks, niveles y secciones por bodega.</p>
+        </div>
     </div>
 </div>
 <!-- El modal de Gestión de Salidas ahora se hereda de base_site.html para evitar duplicidad -->
@@ -1045,6 +1051,90 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- RACKS 3D MODAL -->
+<div class="modal-overlay" id="racks-modal" style="z-index: 10001; background: rgba(15,23,42,0.6);">
+    <div class="modal-window" style="max-width: 900px; height: auto; max-height: 90vh; border-radius: 12px; margin: auto;">
+        <div class="modal-header" style="padding: 20px 30px; background: #f8fafc;">
+            <h3 style="margin:0; font-weight:800; display:flex; align-items:center; gap:12px;">
+                <div style="background:#e0e7ff; width:44px; height:44px; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#8b5cf6;">
+                    <ion-icon name="layers-outline" style="font-size:1.4rem;"></ion-icon>
+                </div>
+                Racks / Estanterías — Vista 3D
+            </h3>
+            <button class="close-btn" id="close-racks" style="width:40px; height:40px; font-size:1.2rem;">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 30px;">
+            <div style="display:flex; gap:16px; margin-bottom:24px;">
+                <div style="flex:1;">
+                    <label class="form-label">Filtrar por Bodega</label>
+                    <select id="rack-bodega-filter" class="form-control">
+                        <option value="">Todas las Bodegas</option>
+                        {% for u in ubicaciones %}
+                        <option value="{{ u.id }}">{{ u.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display:flex; align-items:flex-end;">
+                    <a href="/admin/inventarios/rack/" class="btn-submit" style="margin:0; padding:12px 20px; font-size:0.85rem; background:#475569; text-decoration:none;">
+                        <ion-icon name="settings-outline"></ion-icon> Administrar Racks
+                    </a>
+                </div>
+            </div>
+
+            <div id="rack-list">
+                {% regroup racks by bodega as racks_por_bodega %}
+                {% for grupo in racks_por_bodega %}
+                <div class="rack-group" data-bodega="{{ grupo.grouper.id }}" style="margin-bottom:20px;">
+                    <h4 style="font-weight:700; color:#1e293b; margin:0 0 12px; display:flex; align-items:center; gap:8px;">
+                        <ion-icon name="business-outline"></ion-icon> {{ grupo.grouper.nombre }}
+                        <span style="font-weight:400; font-size:0.8rem; color:#64748b;">({{ grupo.list|length }} racks)</span>
+                    </h4>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px;">
+                        {% for rack in grupo.list %}
+                        <div class="rack-card" data-rack-id="{{ rack.id }}"
+                             style="background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:16px; display:flex; flex-direction:column; gap:8px; transition:all 0.2s;">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                <div>
+                                    <div style="font-weight:700; color:#0f172a; font-size:1rem;">{{ rack.nombre }}</div>
+                                    <div style="font-size:0.78rem; color:#64748b;">
+                                        {{ rack.largo }}cm × {{ rack.alto }}cm · {{ rack.num_niveles }} niv × {{ rack.num_secciones }} sec
+                                    </div>
+                                </div>
+                                <div style="background:#f1f5f9; border-radius:4px; padding:4px 10px; font-size:0.75rem; font-weight:700; color:#475569;">
+                                    {{ rack.total_posiciones }} pos
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <span style="background:#e0e7ff; color:#4338ca; padding:2px 8px; border-radius:3px; font-size:0.7rem; font-weight:600;">
+                                    {{ rack.num_niveles }} niveles
+                                </span>
+                                <span style="background:#fce7f3; color:#be185d; padding:2px 8px; border-radius:3px; font-size:0.7rem; font-weight:600;">
+                                    {{ rack.num_secciones }} secciones
+                                </span>
+                            </div>
+                            <a href="{% url 'inventarios:rack_3d' rack.id %}" target="_blank"
+                               style="display:flex; align-items:center; justify-content:center; gap:6px; background:#8b5cf6; color:#fff; border:none; border-radius:4px; padding:8px; font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:none; margin-top:4px;">
+                                <ion-icon name="cube-outline"></ion-icon> Ver en 3D
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% empty %}
+                <div style="text-align:center; padding:60px 20px; color:#94a3b8;">
+                    <ion-icon name="layers-outline" style="font-size:4rem; display:block; margin:0 auto 16px; opacity:0.4;"></ion-icon>
+                    <div style="font-size:1.1rem; font-weight:600; margin-bottom:6px;">No hay racks configurados</div>
+                    <p style="font-size:0.9rem;">Crea racks desde el panel de administración para visualizarlos en 3D.</p>
+                    <a href="/admin/inventarios/rack/add/" class="btn-submit" style="display:inline-flex; margin-top:12px; padding:10px 24px; font-size:0.9rem; background:#8b5cf6; text-decoration:none;">
+                        <ion-icon name="add-outline"></ion-icon> Crear Rack
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </div>
@@ -1750,6 +1840,21 @@
             }
         }
 
+
+        // Racks Modal
+        $('#btn-racks').on('click', () => $('#racks-modal').addClass('active'));
+        $('#close-racks').on('click', () => $('#racks-modal').removeClass('active'));
+
+        $('#rack-bodega-filter').on('change', function() {
+            const val = $(this).val();
+            $('.rack-group').each(function() {
+                if (!val || $(this).data('bodega') == val) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
 
         // El botón #btn-gestion-salidas ahora es manejado por base_site.html
 

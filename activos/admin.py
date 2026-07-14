@@ -707,6 +707,10 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
         ('Detalles', {
             'fields': ('descripcion',)
         }),
+        ('Área (Bodegas)', {
+            'fields': (('ancho_m', 'largo_m'),),
+            'description': 'Dimensiones del piso del almacén en metros (solo para ubicaciones tipo BODEGA).',
+        }),
         ('Mantenimiento Programado', {
             'fields': ('rutinas_mantenimiento',),
             'description': 'Rutinas de mantenimiento asociadas a la categoría de esta ubicación.'

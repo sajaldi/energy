@@ -1,0 +1,120 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cómo funciona el Dashboard de Tickets</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f5f6f7; color: #1d2d3e; padding: 2rem; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; color: #1a1c1e; }
+        h2 { font-size: 1.2rem; margin: 2rem 0 0.5rem; color: #0070f2; border-bottom: 2px solid #e5e5e5; padding-bottom: 0.3rem; }
+        p { color: #32363a; margin: 0.5rem 0; }
+        ul { padding-left: 1.5rem; }
+        li { margin: 0.4rem 0; color: #32363a; }
+        code { background: #f0f2f4; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+        .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 1.2rem; margin: 1rem 0; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .card h3 { margin: 0 0 0.5rem; color: #1d2d3e; }
+        .tag { display: inline-block; background: #e1f0ff; color: #0056b3; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+        .url { font-family: monospace; background: #f0f2f4; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+        .step { display: flex; gap: 1rem; align-items: flex-start; margin: 1rem 0; }
+        .step-num { background: #0070f2; color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+        .step-body { flex: 1; }
+        .step-body h3 { margin: 0 0 0.2rem; font-size: 1rem; }
+        .step-body p { margin: 0; color: #6a6d70; font-size: 0.9rem; }
+        .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e5e5e5; font-size: 0.85rem; color: #6a6d70; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Dashboard de Tickets</h1>
+    <p style="color:#6a6d70;margin-bottom:2rem;">Acceso: <span class="url">/callcenter/dashboard/</span></p>
+
+    <div class="card">
+        <h3>¿Qué hace?</h3>
+        <p>Panel principal del Call Center para monitorear, agrupar y analizar tickets de soporte. Combina dos vistas: <strong>Clusters Inteligentes</strong> y <strong>Dashboard por Ubicaciones</strong>.</p>
+    </div>
+
+    <h2>Pestaña 1 — Explorador de Clusters</h2>
+
+    <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+            <h3>Filtro por fechas</h3>
+            <p>Selecciona un rango de fechas. Por defecto muestra los últimos 30 días. Todos los KPIs y datos se ajustan al rango.</p>
+        </div>
+    </div>
+
+    <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+            <h3>KPIs globales</h3>
+            <p>4 tarjetas muestran: Total Tickets, Cerrados, En Gestión (abiertos) y Grupos Activos (clusters).</p>
+        </div>
+    </div>
+
+    <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+            <h3>Búsqueda inteligente</h3>
+            <p>Modo <strong>IA</strong>: búsqueda semántica con embeddings + palabras clave. Modo <strong>Filtros</strong>: redirige al listado del admin.</p>
+        </div>
+    </div>
+
+    <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+            <h3>Clusters por departamento</h3>
+            <p>Los tickets se agrupan en clusters (GrupoTicket). Cada departamento muestra sus 4 clusters más recientes; los demás se colapsan en "Históricos". Cada cluster tiene barra de progreso y stats.</p>
+        </div>
+    </div>
+
+    <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+            <h3>Dashboard por Ubicaciones</h3>
+            <p>Árbol jerárquico Departamento → Falla → Ubicación. Cada nodo muestra total/abiertos/cerrados. Al hacer clic en "Ver Tickets" se abre un panel lateral con los tickets de ese nodo vía AJAX.</p>
+        </div>
+    </div>
+
+    <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+            <h3>Gráficos</h3>
+            <p>Gráfico polar por categoría de ubicación y gráfico de dona por diagnóstico vs falla. Se actualizan al cambiar de pestaña o seleccionar una falla.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Acceso rápido</h3>
+        <p><span class="url">/callcenter/dashboard/</span> — <span class="tag">staff</span></p>
+        <p style="margin-top:0.5rem;">Filtros por URL: <code>?fecha_inicio=2025-01-01&fecha_fin=2025-12-31</code></p>
+    </div>
+
+    <h2>KPIs principales</h2>
+    <div class="card">
+        <p><strong>Total Tickets</strong> — Todos los tickets en el rango de fechas.</p>
+        <p><strong>Cerrados</strong> — Tickets con <code>fecha_cierre</code> o <code>cierre_enviado=True</code>.</p>
+        <p><strong>En Gestión</strong> — Abiertos = total - cerrados.</p>
+        <p><strong>Grupos Activos</strong> — Clusters (GrupoTicket) con tickets abiertos.</p>
+    </div>
+
+    <h2>Sincronización con SIG</h2>
+    <p>El dashboard muestra la última sincronización con el sistema SIG. Puedes disparar una sincronización manual con el botón "Sincronizar con SIG". Los datos cacheados expiran cada 5 minutos.</p>
+
+    <h2>Endpoints AJAX</h2>
+    <ul>
+        <li><code>GET /callcenter/dashboard/node-tickets/</code> — Tickets de un nodo del árbol (depto/falla/ubicación)</li>
+        <li><code>POST /callcenter/dashboard/trigger-sync/</code> — Dispara sincronización con SIG</li>
+        <li><code>POST /callcenter/dashboard/create-cluster-manual/</code> — Crea cluster manual</li>
+    </ul>
+
+    <div class="footer">
+        SoftCom CCG — Dashboard de Tickets v1.0
+    </div>
+</div>
+</body>
+</html>

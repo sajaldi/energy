@@ -191,7 +191,7 @@
                 </div>
 
                 <!-- Section 2: Filters -->
-                <div style="flex: 1; min-width: 300px; background: #f8f9fa; padding: 12px 20px; border-radius: 12px; border: 1px solid #eee;">
+                <div style="flex: 1; min-width: 300px; background: #f8f9fa; padding: 12px 20px; border-radius: 0; border: 1px solid #eee;">
                     <form method="get" id="filter-form" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                         {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
                         
@@ -199,31 +199,31 @@
                         <div style="position: relative; flex: 1; min-width: 200px;">
                             <i class="ph ph-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #999;"></i>
                             <input type="text" name="q" value="{{ q }}" placeholder="Folio o solicitante..." 
-                                   style="padding: 0 12px 0 35px; height: 40px; border: 1px solid var(--sap-border); border-radius: 8px; font-size: 0.875rem; width: 100%; outline: none; background: white; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
+                                   style="padding: 0 12px 0 35px; height: 40px; border: 1px solid var(--sap-border); border-radius: 0; font-size: 0.875rem; width: 100%; outline: none; background: white; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
                         </div>
 
                         <!-- Folio Filter (Ultradinámico) -->
                         <div style="position: relative; min-width: 220px;">
                             <i class="ph ph-hash" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6366f1; font-size: 1.1rem;"></i>
                             <input type="text" id="folio-filter-input" placeholder="Folios exactos (separados por coma o espacio)" 
-                                   style="padding: 0 12px 0 38px; height: 40px; border: 1.5px solid #c7d2fe; border-radius: 8px; font-size: 0.875rem; width: 100%; outline: none; background: #f8faff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.04); transition: border-color 0.15s; box-sizing: border-box;"
+                                   style="padding: 0 12px 0 38px; height: 40px; border: 1.5px solid #c7d2fe; border-radius: 0; font-size: 0.875rem; width: 100%; outline: none; background: #f8faff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.04); transition: border-color 0.15s; box-sizing: border-box;"
                                    onfocus="this.style.borderColor='#6366f1'; this.style.background='#fff'"
                                    onblur="this.style.borderColor='#c7d2fe'; this.style.background='#f8faff'"
                                    oninput="filterByFolios(this.value)">
-                            <div id="folio-count" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; color: #6366f1; font-weight: 700; background: #eef2ff; padding: 2px 8px; border-radius: 10px; pointer-events: none; display: none;"></div>
+                            <div id="folio-count" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; color: #6366f1; font-weight: 700; background: #eef2ff; padding: 2px 8px; border-radius: 0; pointer-events: none; display: none;"></div>
                         </div>
 
                         <!-- Dropdowns Group -->
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <!-- Status Filter -->
-                            <select name="status" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 130px;">
+                            <select name="status" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 0; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 130px;">
                                 <option value="">Todos los Estados</option>
                                 <option value="abiertos" {% if request.GET.status == 'abiertos' %}selected{% endif %}>🟢 Solo Abiertos</option>
                                 <option value="cerrados" {% if request.GET.status == 'cerrados' %}selected{% endif %}>🔴 Solo Cerrados</option>
                             </select>
 
                             <!-- Filtros Especiales -->
-                            <select name="filtro_especial" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 180px;">
+                            <select name="filtro_especial" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 0; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 180px;">
                                 <option value="">Todos los Tickets</option>
                                 <option value="interno" {% if request.GET.filtro_especial == 'interno' %}selected{% endif %}>🏠 Solo Internos</option>
                                 <option value="externo" {% if request.GET.filtro_especial == 'externo' %}selected{% endif %}>🌐 Solo Externos</option>
@@ -232,14 +232,14 @@
                             </select>
 
                             <!-- Correo de Cierre Filter -->
-                            <select name="correo_cierre" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 180px;">
+                            <select name="correo_cierre" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 0; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; min-width: 180px;">
                                 <option value="">Correo de Cierre</option>
                                 <option value="con" {% if request.GET.correo_cierre == 'con' %}selected{% endif %}>📧 Con correo de cierre</option>
                                 <option value="sin" {% if request.GET.correo_cierre == 'sin' %}selected{% endif %}>🚫 Sin correo de cierre</option>
                             </select>
 
                             <!-- Falla Filter -->
-                            <select name="falla" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; max-width: 250px;">
+                            <select name="falla" onchange="this.form.submit()" style="height: 40px; padding: 0 12px; border-radius: 0; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; max-width: 250px;">
                                 <option value="">Todas las Fallas</option>
                                 {% for f in fallas_opciones %}
                                     <option value="{{ f.id }}" {% if request.GET.falla == f.id|stringformat:"s" %}selected{% endif %}>
@@ -299,34 +299,34 @@
         <div id="tab-analisis">
             <!-- Dynamic Metric Cards Row -->
             <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(59,130,246,0.05); transition: transform 0.2s;">
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; border-radius: 0; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(59,130,246,0.05); transition: transform 0.2s;">
                     <span style="font-size: 0.75rem; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-ticket" style="margin-right: 4px;"></i>Total en Filtro</span>
                     <div id="dynamic-total" style="font-size: 1.75rem; font-weight: 800; color: #1d4ed8; margin-top: 4px;">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fef3c7; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(245,158,11,0.05); transition: transform 0.2s;">
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fef3c7; border-radius: 0; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(245,158,11,0.05); transition: transform 0.2s;">
                     <span style="font-size: 0.75rem; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-clock" style="margin-right: 4px;"></i>Abiertos</span>
                     <div id="dynamic-abiertos" style="font-size: 1.75rem; font-weight: 800; color: #d97706; margin-top: 4px;">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(16,185,129,0.05); transition: transform 0.2s;">
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; border-radius: 0; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(16,185,129,0.05); transition: transform 0.2s;">
                     <span style="font-size: 0.75rem; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-check-circle" style="margin-right: 4px;"></i>Cerrados</span>
                     <div id="dynamic-cerrados" style="font-size: 1.75rem; font-weight: 800; color: #15803d; margin-top: 4px;">0</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #fdf2f8, #fce7f3); border: 1px solid #fbcfe8; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(219,39,119,0.05); transition: transform 0.2s;">
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #fdf2f8, #fce7f3); border: 1px solid #fbcfe8; border-radius: 0; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(219,39,119,0.05); transition: transform 0.2s;">
                     <span style="font-size: 0.75rem; font-weight: 700; color: #9d174d; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-currency-usd" style="margin-right: 4px;"></i>Total Deductiva en Filtro</span>
                     <div id="dynamic-deductiva-total" style="font-size: 1.75rem; font-weight: 800; color: #db2777; margin-top: 4px;">$0.00</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #fffaf0, #ffedd5); border: 1px solid #fed7aa; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(234,88,12,0.05); transition: transform 0.2s;">
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #fffaf0, #ffedd5); border: 1px solid #fed7aa; border-radius: 0; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(234,88,12,0.05); transition: transform 0.2s;">
                     <span style="font-size: 0.75rem; font-weight: 700; color: #c2410c; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-currency-usd" style="margin-right: 4px;"></i>Deductiva Abiertos</span>
                     <div id="dynamic-deductiva-abiertos" style="font-size: 1.75rem; font-weight: 800; color: #ea580c; margin-top: 4px;">$0.00</div>
                 </div>
-                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(22,163,74,0.05); transition: transform 0.2s;">
+                <div style="flex: 1; min-width: 150px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; border-radius: 0; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(22,163,74,0.05); transition: transform 0.2s;">
                     <span style="font-size: 0.75rem; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;"><i class="ph ph-currency-usd" style="margin-right: 4px;"></i>Deductiva Cerrados</span>
                     <div id="dynamic-deductiva-cerrados" style="font-size: 1.75rem; font-weight: 800; color: #16a34a; margin-top: 4px;">$0.00</div>
                 </div>
             </div>
 
             <!-- Badge de filtro activo -->
-            <div id="filter-badge" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; padding: 8px 16px; background: linear-gradient(135deg, #ebf5ff, #f0f0ff); border: 1px solid #c0d8f0; border-radius: 8px; font-size: 0.9rem; color: #333;">
+            <div id="filter-badge" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; padding: 8px 16px; background: linear-gradient(135deg, #ebf5ff, #f0f0ff); border: 1px solid #c0d8f0; border-radius: 0; font-size: 0.9rem; color: #333;">
                 <i class="ph ph-funnel" style="color: var(--sap-primary); margin-right: 4px;"></i>
                 <span style="font-weight: 600; color: #555; margin-right: 8px;">Filtros Activos:</span>
                 <div id="active-filter-chips" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
@@ -335,65 +335,8 @@
                 </button>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
-                <div class="chart-card">
-                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Distribución por Tipo de Falla</h3>
-                    <div style="position: relative; height: 300px; width: 100%;">
-                        <canvas id="chartFallas"></canvas>
-                    </div>
-                </div>
-
-                <div class="chart-card">
-                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Estado de los Tickets (Abiertos vs Cerrados)</h3>
-                    <div style="position: relative; height: 300px; width: 100%;">
-                        <canvas id="chartEstado"></canvas>
-                    </div>
-                </div>
-                
-                <div class="chart-card">
-                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Tiempos de Resolución Promedio (Horas)</h3>
-                    <div style="position: relative; height: 300px; width: 100%;">
-                        <canvas id="chartTiempos"></canvas>
-                    </div>
-                </div>
-                
-                <div class="chart-card">
-                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Pareto de Monto Deductiva por Falla</h3>
-                    <div style="position: relative; height: 300px; width: 100%;">
-                        <canvas id="chartPareto"></canvas>
-                    </div>
-                </div>
-                
-                <div class="chart-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">
-                        <h3 style="margin: 0; color: #444; font-size: 1.1rem;">Diagnósticos del Catálogo por Falla</h3>
-                        <select id="diagFallaSelector" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.85rem; color: #333; outline: none; cursor: pointer;">
-                            <option value="">-- Mostrar Todo --</option>
-                        </select>
-                    </div>
-                    <div style="position: relative; height: 300px; width: 100%;">
-                        <canvas id="chartDiagnostics"></canvas>
-                        <div id="noDiagDataMessage" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: #888; font-size: 0.9rem; padding: 1rem; pointer-events: none; display: none;">
-                            Selecciona una falla o haz clic en una falla en la gráfica de Distribución por Falla para ver sus diagnósticos.
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="chart-card" style="grid-column: 1 / -1;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">
-                        <h3 style="margin: 0; color: #444; font-size: 1.1rem;" id="ubicaciones-title">Ubicaciones principales con más fallas</h3>
-                        <button id="btn-back-ubicaciones" class="btn-fiori ghost" style="display: none; height: 30px; padding: 0 10px; font-size: 0.8rem;" onclick="ubicacionesGoBack()">
-                            <i class="ph ph-arrow-left"></i> Volver
-                        </button>
-                    </div>
-                    <div style="position: relative; height: 350px; width: 100%;">
-                        <canvas id="chartUbicaciones"></canvas>
-                    </div>
-                </div>
-            </div>
-
             <!-- Listado de Tickets Integrado al Análisis -->
-            <div class="list-container" style="margin-top: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden;">
+            <div class="list-container" style="margin-top: 0; margin-bottom: 2rem; background: white; border-radius: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden;">
                 <div style="padding: 1rem 1.5rem; border-bottom: 1px solid #eee; background: #fafafa;">
                     <h3 style="margin: 0; color: #444; font-size: 1.1rem;"><i class="ph ph-list-dashes"></i> Listado de Tickets Filtrados</h3>
                 </div>
@@ -563,13 +506,70 @@
             </table>
         </div>
 
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                <div class="chart-card">
+                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Distribución por Tipo de Falla</h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="chartFallas"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Estado de los Tickets (Abiertos vs Cerrados)</h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="chartEstado"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Tiempos de Resolución Promedio (Horas)</h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="chartTiempos"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Pareto de Monto Deductiva por Falla</h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="chartPareto"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; color: #444; font-size: 1.1rem;">Diagnósticos del Catálogo por Falla</h3>
+                        <select id="diagFallaSelector" style="padding: 4px 8px; border-radius: 0; border: 1px solid #ccc; font-size: 0.85rem; color: #333; outline: none; cursor: pointer;">
+                            <option value="">-- Mostrar Todo --</option>
+                        </select>
+                    </div>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="chartDiagnostics"></canvas>
+                        <div id="noDiagDataMessage" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: #888; font-size: 0.9rem; padding: 1rem; pointer-events: none; display: none;">
+                            Selecciona una falla o haz clic en una falla en la gráfica de Distribución por Falla para ver sus diagnósticos.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-card" style="grid-column: 1 / -1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; color: #444; font-size: 1.1rem;" id="ubicaciones-title">Ubicaciones principales con más fallas</h3>
+                        <button id="btn-back-ubicaciones" class="btn-fiori ghost" style="display: none; height: 30px; padding: 0 10px; font-size: 0.8rem;" onclick="ubicacionesGoBack()">
+                            <i class="ph ph-arrow-left"></i> Volver
+                        </button>
+                    </div>
+                    <div style="position: relative; height: 350px; width: 100%;">
+                        <canvas id="chartUbicaciones"></canvas>
+                    </div>
+                </div>
+            </div>
+
         <!-- Tab Edición de Deductivas -->
         <div id="tab-deductivas" class="list-container" style="display: none;">
-            <div style="background: #f8f9fa; border: 1px solid var(--sap-border); padding: 16px 24px; border-radius: 8px; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+            <div style="background: #f8f9fa; border: 1px solid var(--sap-border); padding: 16px 24px; border-radius: 0; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
                 <div>
                     <h3 style="margin: 0; color: #444; font-size: 1.1rem;"><i class="ph ph-currency-usd" style="color: var(--sap-primary);"></i> Edición de Deductivas del Cluster</h3>
                     <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--sap-text-muted);">
-                        Introduce los montos de deductiva directamente en la tabla. Los cambios se guardan automáticamente al presionar <kbd style="background: #eee; padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.75rem;">Enter</kbd> o al salir del campo (<kbd style="background: #eee; padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.75rem;">Tab</kbd> / clic fuera).
+                        Introduce los montos de deductiva directamente en la tabla. Los cambios se guardan automáticamente al presionar <kbd style="background: #eee; padding: 2px 4px; border-radius: 0; border: 1px solid #ccc; font-size: 0.75rem;">Enter</kbd> o al salir del campo (<kbd style="background: #eee; padding: 2px 4px; border-radius: 0; border: 1px solid #ccc; font-size: 0.75rem;">Tab</kbd> / clic fuera).
                     </p>
                 </div>
             </div>
@@ -629,14 +629,14 @@
                                        class="deductiva-input" 
                                        data-id="{{ t.id_unlocalized }}"
                                        id="input-deductiva-{{ t.id_unlocalized }}"
-                                       style="width: 120px; padding: 6px 10px; border: 1px solid var(--sap-border); border-radius: 4px; outline: none; font-size: 0.9rem; font-weight: 600; text-align: right; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);"
+                                       style="width: 120px; padding: 6px 10px; border: 1px solid var(--sap-border); border-radius: 0; outline: none; font-size: 0.9rem; font-weight: 600; text-align: right; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);"
                                        onkeydown="if(event.key === 'Enter') saveDeductiva('{{ t.id_unlocalized }}')"
                                        onblur="saveDeductiva('{{ t.id_unlocalized }}')">
                                 <button class="btn-fiori" 
                                         onclick="saveDeductiva('{{ t.id_unlocalized }}')" 
                                         id="btn-save-{{ t.id_unlocalized }}"
                                         title="Guardar Deductiva" 
-                                        style="cursor: pointer; padding: 4px 8px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background: var(--sap-primary); color: white; border-radius: 4px; border: none;">
+                                        style="cursor: pointer; padding: 4px 8px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background: var(--sap-primary); color: white; border-radius: 0; border: none;">
                                     <i class="ph ph-floppy-disk" style="font-size: 1.1rem;"></i>
                                 </button>
                                 <div id="status-icon-{{ t.id_unlocalized }}" style="display: none; align-items: center; justify-content: center; width: 32px; height: 32px;">
@@ -660,12 +660,12 @@
 
     <!-- Ticket Details Modal — SAP Fiori Premium -->
     <div id="ticket-modal" style="display: none; position: fixed; inset: 0; background: rgba(10,15,30,0.55); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 1rem;">
-        <div id="ticket-modal-inner" style="background: #fff; width: 100%; max-width: 1100px; max-height: 92vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.22); transform: scale(0.97); transition: transform 0.22s cubic-bezier(0.16,1,0.3,1);">
+        <div id="ticket-modal-inner" style="background: #fff; width: 100%; max-width: 1100px; max-height: 92vh; border-radius: 0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.22); transform: scale(0.97); transition: transform 0.22s cubic-bezier(0.16,1,0.3,1);">
 
             <!-- Modal Header -->
             <div id="tm-header" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 28px 14px; border-bottom: 1px solid #edf0f3; background: linear-gradient(135deg, #0057b7, #0078d4); flex-shrink: 0;">
                 <div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
-                    <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 10px;">
+                    <div style="background: rgba(255,255,255,0.15); border-radius: 0; padding: 8px 10px;">
                         <i class="ph ph-ticket" style="font-size: 1.5rem; color: white;"></i>
                     </div>
                     <div style="min-width: 0;">
@@ -676,20 +676,20 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: 16px;">
                     <!-- Action Buttons -->
-                    <a id="tm-btn-sync" href="#" target="_blank" title="Sincronizar SIG" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; font-size: 0.78rem; font-weight: 600; text-decoration: none; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+                    <a id="tm-btn-sync" href="#" target="_blank" title="Sincronizar SIG" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 0; color: white; font-size: 0.78rem; font-weight: 600; text-decoration: none; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
                         <i class="ph ph-arrows-clockwise"></i> Sincronizar
                     </a>
-                    <a id="tm-btn-visual" href="#" target="_blank" title="Cierre Visual" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; font-size: 0.78rem; font-weight: 600; text-decoration: none; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+                    <a id="tm-btn-visual" href="#" target="_blank" title="Cierre Visual" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 0; color: white; font-size: 0.78rem; font-weight: 600; text-decoration: none; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
                         <i class="ph ph-eye"></i> Cierre Visual
                     </a>
-                    <a id="tm-btn-admin" href="#" target="_blank" title="Abrir en Admin" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; font-size: 0.78rem; font-weight: 600; text-decoration: none; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+                    <a id="tm-btn-admin" href="#" target="_blank" title="Abrir en Admin" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); border-radius: 0; color: white; font-size: 0.78rem; font-weight: 600; text-decoration: none; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
                         <i class="ph ph-arrows-out"></i> Admin
                     </a>
                     <!-- Editar Button - toggle -->
-                    <button id="tm-btn-editar" onclick="enterEditMode()" title="Editar Ticket" style="display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; background: #ffffff; border: none; border-radius: 6px; color: #0057b7; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);" onmouseover="this.style.background='#f0f7ff'; this.style.boxShadow='0 2px 8px rgba(0,87,183,0.2)';" onmouseout="this.style.background='#ffffff'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.15)';">
+                    <button id="tm-btn-editar" onclick="enterEditMode()" title="Editar Ticket" style="display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; background: #ffffff; border: none; border-radius: 0; color: #0057b7; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);" onmouseover="this.style.background='#f0f7ff'; this.style.boxShadow='0 2px 8px rgba(0,87,183,0.2)';" onmouseout="this.style.background='#ffffff'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.15)';">
                         <i class="ph ph-pencil-simple" style="font-size: 1rem;"></i> Editar
                     </button>
-                    <button onclick="closeTicketModal()" style="padding: 7px 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: white; font-size: 1rem; cursor: pointer; transition: background 0.15s; display: flex;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                    <button onclick="closeTicketModal()" style="padding: 7px 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 0; color: white; font-size: 1rem; cursor: pointer; transition: background 0.15s; display: flex;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
                         <i class="ph ph-x"></i>
                     </button>
                 </div>
@@ -710,7 +710,7 @@
                     <button class="tm-tab" data-panel="tm-panel-desc" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-chat-text"></i> Descripción</button>
                     <button class="tm-tab" data-panel="tm-panel-tecnico" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-wrench"></i> Seguimiento Técnico</button>
                     <button class="tm-tab" data-panel="tm-panel-financiero" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-currency-dollar"></i> Financiero</button>
-                    <button id="tm-tab-tiempos" class="tm-tab" data-panel="tm-panel-tiempos" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-calendar-check"></i> Tiempos Acordados <span id="tm-tiempos-badge" style="background: #0078d4; color: white; border-radius: 10px; padding: 1px 7px; font-size: 0.7rem; display: none;"></span></button>
+                    <button id="tm-tab-tiempos" class="tm-tab" data-panel="tm-panel-tiempos" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-calendar-check"></i> Tiempos Acordados <span id="tm-tiempos-badge" style="background: #0078d4; color: white; border-radius: 0; padding: 1px 7px; font-size: 0.7rem; display: none;"></span></button>
                     <button class="tm-tab" data-panel="tm-panel-historial" style="padding: 13px 18px; font-size: 0.83rem; font-weight: 600; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-clock-counter-clockwise"></i> Historial</button>
                 </div>
 
@@ -740,7 +740,7 @@
                             <div class="tm-field" style="grid-column: span 2;"><span class="tm-label">Activo / Equipo</span><span id="tm-activo" class="tm-value">—</span></div>
                         </div>
                         <!-- Restricción -->
-                        <div id="tm-restriccion-block" style="display: none; margin-top: 20px; background: linear-gradient(135deg, #fff0f6, #ffe4f0); border: 1px solid #ffadd2; border-left: 4px solid #e7327d; border-radius: 8px; padding: 16px 20px;">
+                        <div id="tm-restriccion-block" style="display: none; margin-top: 20px; background: linear-gradient(135deg, #fff0f6, #ffe4f0); border: 1px solid #ffadd2; border-left: 4px solid #e7327d; border-radius: 0; padding: 16px 20px;">
                             <div style="font-size: 0.75rem; font-weight: 700; color: #e7327d; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;"><i class="ph ph-lock-simple"></i> Restricción de Acceso</div>
                             <div style="display: flex; gap: 24px; flex-wrap: wrap;">
                                 <div class="tm-field"><span class="tm-label">Folio RA</span><span id="tm-ra-folio" class="tm-value" style="color: #e7327d;">—</span></div>
@@ -754,11 +754,11 @@
                     <div id="tm-panel-desc" class="tm-panel" style="display: none;">
                         <div style="margin-bottom: 20px;">
                             <div class="tm-label" style="margin-bottom: 8px;">Solicitud / Problema Reportado</div>
-                            <div id="tm-solicitud-desc" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #334155; min-height: 60px; white-space: pre-wrap;">—</div>
+                            <div id="tm-solicitud-desc" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #334155; min-height: 60px; white-space: pre-wrap;">—</div>
                         </div>
                         <div style="margin-bottom: 20px;">
                             <div class="tm-label" style="margin-bottom: 8px;">Falla Detectada</div>
-                            <div id="tm-falla-desc" style="background: #fff8f0; border: 1px solid #fed7aa; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #92400e; min-height: 40px; white-space: pre-wrap;">—</div>
+                            <div id="tm-falla-desc" style="background: #fff8f0; border: 1px solid #fed7aa; border-radius: 0; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #92400e; min-height: 40px; white-space: pre-wrap;">—</div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px;">
                             <div class="tm-field"><span class="tm-label">Clasificación de Falla</span><span id="tm-falla-clas" class="tm-value">—</span></div>
@@ -771,30 +771,30 @@
                     <div id="tm-panel-tecnico" class="tm-panel" style="display: none;">
                         <div style="margin-bottom: 20px;">
                             <div class="tm-label" style="margin-bottom: 8px;"><i class="ph ph-stethoscope" style="margin-right: 4px;"></i> Diagnóstico Catálogo</div>
-                            <div id="tm-diagnostico-catalogo" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; font-size: 0.9rem; font-weight: 600; color: #1e293b; min-height: 20px;">—</div>
+                            <div id="tm-diagnostico-catalogo" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0; padding: 12px 16px; font-size: 0.9rem; font-weight: 600; color: #1e293b; min-height: 20px;">—</div>
                         </div>
                         <div style="margin-bottom: 20px;">
                             <div class="tm-label" style="margin-bottom: 8px;"><i class="ph ph-stethoscope" style="margin-right: 4px;"></i> Diagnóstico Detalle</div>
-                            <div id="tm-diagnostico" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #166534; min-height: 60px; white-space: pre-wrap;"></div>
+                            <div id="tm-diagnostico" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #166534; min-height: 60px; white-space: pre-wrap;"></div>
                         </div>
                         <div style="margin-bottom: 20px;">
                             <div class="tm-label" style="margin-bottom: 8px;"><i class="ph ph-list-checks" style="margin-right: 4px;"></i> Actividades Realizadas</div>
-                            <div id="tm-actividades" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #1e40af; min-height: 60px; white-space: pre-wrap;"></div>
+                            <div id="tm-actividades" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #1e40af; min-height: 60px; white-space: pre-wrap;"></div>
                         </div>
                         <div style="margin-bottom: 20px;">
                             <div class="tm-label" style="margin-bottom: 8px;"><i class="ph ph-note" style="margin-right: 4px;"></i> Observaciones</div>
-                            <div id="tm-observaciones" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #334155; min-height: 40px; white-space: pre-wrap;"></div>
+                            <div id="tm-observaciones" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #334155; min-height: 40px; white-space: pre-wrap;"></div>
                         </div>
                         <div id="tm-comentarios-block" style="display: none; margin-bottom: 20px;">
                             <div class="tm-label" style="margin-bottom: 8px;"><i class="ph ph-chat-centered-text" style="margin-right: 4px; color: #0984e3;"></i> Comentarios Internos</div>
-                            <div id="tm-comentarios" style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #92400e; white-space: pre-wrap;"></div>
+                            <div id="tm-comentarios" style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 0; padding: 16px; font-size: 0.9rem; line-height: 1.7; color: #92400e; white-space: pre-wrap;"></div>
                         </div>
                     </div>
 
                     <!-- Panel: Financiero -->
                     <div id="tm-panel-financiero" class="tm-panel" style="display: none;">
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 24px;">
-                            <div style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 1px solid #fed7aa; border-radius: 10px; padding: 20px; text-align: center;">
+                            <div style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 1px solid #fed7aa; border-radius: 0; padding: 20px; text-align: center;">
                                 <div style="font-size: 0.72rem; font-weight: 700; color: #c2410c; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;"><i class="ph ph-currency-dollar"></i> Deductiva</div>
                                 <div id="tm-deductiva" style="font-size: 2rem; font-weight: 800; color: #ea580c;">$0.00</div>
                             </div>
@@ -804,7 +804,7 @@
                         </div>
                         <!-- Evidencias Preview -->
                         <div style="border-top: 1px solid #f1f5f9; padding-top: 18px;">
-                            <div class="tm-label" style="margin-bottom: 12px;"><i class="ph ph-images" style="margin-right: 4px;"></i> Evidencias Adjuntas <span id="tm-ev-count" style="background: #e2e8f0; border-radius: 10px; padding: 1px 8px; font-size: 0.72rem;">0</span></div>
+                            <div class="tm-label" style="margin-bottom: 12px;"><i class="ph ph-images" style="margin-right: 4px;"></i> Evidencias Adjuntas <span id="tm-ev-count" style="background: #e2e8f0; border-radius: 0; padding: 1px 8px; font-size: 0.72rem;">0</span></div>
                             <div id="tm-ev-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px;"></div>
                             <div id="tm-ev-empty" style="display: none; text-align: center; padding: 20px; color: #94a3b8; font-size: 0.85rem;"><i class="ph ph-image" style="font-size: 1.5rem; display: block; margin-bottom: 6px;"></i> Sin evidencias adjuntas</div>
                         </div>
@@ -840,8 +840,8 @@
                     <span style="font-weight: 700; color: #b45309; font-size: 0.9rem;">Modo Edición</span>
                     <span style="font-size: 0.8rem; color: #92400e;">— Modifica los campos y haz clic en Guardar</span>
                     <div style="margin-left: auto; display: flex; gap: 8px;">
-                        <button onclick="exitEditMode()" style="padding: 8px 18px; border-radius: 6px; border: 1px solid #d1d5db; background: white; color: #374151; font-weight: 600; font-size: 0.82rem; cursor: pointer;"><i class="ph ph-x"></i> Cancelar</button>
-                        <button id="tm-save-btn" onclick="saveTmEdit()" style="padding: 8px 18px; border-radius: 6px; border: none; background: #0078d4; color: white; font-weight: 700; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-floppy-disk"></i> Guardar Cambios</button>
+                        <button onclick="exitEditMode()" style="padding: 8px 18px; border-radius: 0; border: 1px solid #d1d5db; background: white; color: #374151; font-weight: 600; font-size: 0.82rem; cursor: pointer;"><i class="ph ph-x"></i> Cancelar</button>
+                        <button id="tm-save-btn" onclick="saveTmEdit()" style="padding: 8px 18px; border-radius: 0; border: none; background: #0078d4; color: white; font-weight: 700; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"><i class="ph ph-floppy-disk"></i> Guardar Cambios</button>
                     </div>
                 </div>
                 <!-- Edit form -->
@@ -892,7 +892,7 @@
                                 <input type="checkbox" id="te-correo-cierre" style="width: 18px; height: 18px; cursor: pointer; accent-color: #0078d4;">
                                 <span style="font-size: 0.72rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Correo Cierre Enviado</span>
                             </label>
-                            <button id="btn-verify-correo-cierre" onclick="verifyCorreoCierre()" style="padding: 5px 14px; border-radius: 6px; border: 1px solid #0284c7; background: #f0f9ff; color: #0369a1; font-weight: 600; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f9ff'">
+                            <button id="btn-verify-correo-cierre" onclick="verifyCorreoCierre()" style="padding: 5px 14px; border-radius: 0; border: 1px solid #0284c7; background: #f0f9ff; color: #0369a1; font-weight: 600; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f9ff'">
                                 <i class="ph ph-magnifying-glass" style="font-size:0.85rem;"></i> Verificar
                             </button>
                         </div>
@@ -923,7 +923,7 @@
 
     <!-- ===== MODAL DE PREVIEW CORREO DE CIERRE ===== -->
     <div id="email-preview-modal" style="display: none; position: fixed; inset: 0; background: rgba(10,15,30,0.65); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 1rem;">
-        <div style="background: #fff; width: 100%; max-width: 900px; max-height: 92vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.25); transform: scale(1); transition: transform 0.22s cubic-bezier(0.16,1,0.3,1);">
+        <div style="background: #fff; width: 100%; max-width: 900px; max-height: 92vh; border-radius: 0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.25); transform: scale(1); transition: transform 0.22s cubic-bezier(0.16,1,0.3,1);">
             <!-- Header -->
             <div style="display: flex; align-items: center; gap: 12px; padding: 16px 24px; background: linear-gradient(135deg, #055f28, #0a8438); color: white; flex-shrink: 0;">
                 <i class="ph ph-check-circle" style="font-size: 1.6rem;"></i>
@@ -941,7 +941,7 @@
             </div>
             <!-- Footer -->
             <div style="display: flex; justify-content: flex-end; padding: 12px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; flex-shrink: 0;">
-                <button onclick="closeEmailPreview()" style="padding: 9px 22px; border-radius: 6px; border: none; background: #055f28; color: white; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <button onclick="closeEmailPreview()" style="padding: 9px 22px; border-radius: 0; border: none; background: #055f28; color: white; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                     <i class="ph ph-check"></i> Cerrar
                 </button>
             </div>
@@ -954,20 +954,20 @@
         .tm-value { font-size: 0.9rem; font-weight: 600; color: #1e293b; }
         .tm-tab:hover { color: #0078d4 !important; }
         .tm-tab.active { color: #0078d4 !important; border-bottom-color: #0078d4 !important; }
-        .tm-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .tm-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 0; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
         /* Edit Form Styles */
         .tm-edit-group { display: flex; flex-direction: column; gap: 6px; }
         .tm-edit-label { font-size: 0.72rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 5px; }
-        .tm-edit-input { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #1e293b; background: #fff; box-sizing: border-box; transition: border-color 0.15s, box-shadow 0.15s; outline: none; font-family: inherit; }
+        .tm-edit-input { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 0; font-size: 0.9rem; color: #1e293b; background: #fff; box-sizing: border-box; transition: border-color 0.15s, box-shadow 0.15s; outline: none; font-family: inherit; }
         .tm-edit-input:focus { border-color: #0078d4; box-shadow: 0 0 0 3px rgba(0,120,212,0.1); }
-        .tm-edit-textarea { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; color: #1e293b; background: #fff; box-sizing: border-box; resize: vertical; transition: border-color 0.15s, box-shadow 0.15s; outline: none; font-family: inherit; line-height: 1.6; }
+        .tm-edit-textarea { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 0; font-size: 0.9rem; color: #1e293b; background: #fff; box-sizing: border-box; resize: vertical; transition: border-color 0.15s, box-shadow 0.15s; outline: none; font-family: inherit; line-height: 1.6; }
         .tm-edit-textarea:focus { border-color: #0078d4; box-shadow: 0 0 0 3px rgba(0,120,212,0.1); }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         /* Timeline */
         .historial-timeline { position: relative; padding: 0; }
         .historial-timeline::before {
             content: ''; position: absolute; left: 20px; top: 8px; bottom: 8px;
-            width: 2px; background: #e2e8f0; border-radius: 2px;
+            width: 2px; background: #e2e8f0; border-radius: 0;
         }
         .ht-item { position: relative; padding: 0 0 20px 52px; }
         .ht-item:last-child { padding-bottom: 0; }
@@ -987,7 +987,7 @@
         .ht-dot.comentario { background: #d97706; box-shadow: 0 0 0 2px #d97706, 0 2px 4px rgba(217,119,6,0.2); }
         .ht-dot.cierre_visual { background: #16a34a; box-shadow: 0 0 0 2px #16a34a, 0 2px 4px rgba(22,163,74,0.2); }
         .ht-dot.actualizado { background: #64748b; box-shadow: 0 0 0 2px #64748b, 0 2px 4px rgba(100,116,139,0.2); }
-        .ht-content { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; transition: background 0.15s; }
+        .ht-content { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0; padding: 10px 14px; transition: background 0.15s; }
         .ht-content:hover { background: #f1f5f9; }
         .ht-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
         .ht-action { font-size: 0.82rem; font-weight: 700; color: #1e293b; }
@@ -1349,7 +1349,7 @@
                     evGrid.style.display = 'grid';
                     d.evidencias.forEach(ev => {
                         const box = document.createElement('div');
-                        box.style.cssText = 'aspect-ratio: 1; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8f9fa; cursor: pointer;';
+                        box.style.cssText = 'aspect-ratio: 1; border-radius: 0; overflow: hidden; border: 1px solid #e2e8f0; background: #f8f9fa; cursor: pointer;';
                         if (ev.es_imagen && ev.url) {
                             box.innerHTML = `<img src="${ev.url}" style="width:100%;height:100%;object-fit:cover;" title="${ev.descripcion}">`;
                             box.onclick = () => window.open(ev.url, '_blank');
@@ -1377,7 +1377,7 @@
                     emptyEl.style.display = 'none';
                     d.tiempos_acordados.forEach(ta => {
                         const card = document.createElement('div');
-                        card.style.cssText = 'background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0078d4; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px;';
+                        card.style.cssText = 'background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0078d4; border-radius: 0; padding: 14px 18px; margin-bottom: 12px;';
                         card.innerHTML = `
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                 <span style="font-weight:700;color:#0078d4;font-size:0.95rem;">${ta.folio}</span>
@@ -1723,7 +1723,7 @@
         const contextMenu = document.createElement('div');
         contextMenu.style.cssText = `
             position: absolute; display: none; background: white; border: 1px solid var(--sap-border);
-            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; min-width: 220px;
+            border-radius: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; min-width: 220px;
             overflow: hidden; padding: 4px 0; font-family: 'Inter', sans-serif;
         `;
         contextMenu.innerHTML = `
@@ -2586,7 +2586,7 @@
             if (selectedFalla) {
                 hasFilters = true;
                 const chip = document.createElement('span');
-                chip.style = 'display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; border: 1px solid #bae6fd; color: #0369a1; padding: 4px 8px; border-radius: 16px; font-size: 0.8rem; font-weight: 600;';
+                chip.style = 'display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; border: 1px solid #bae6fd; color: #0369a1; padding: 4px 8px; border-radius: 0; font-size: 0.8rem; font-weight: 600;';
                 chip.innerHTML = `Falla: ${selectedFalla} <i class="ph ph-x-circle" style="cursor: pointer; font-size: 1rem; color: #0284c7;" onclick="clearFallaFilter()"></i>`;
                 container.appendChild(chip);
             }
@@ -2596,8 +2596,8 @@
                 const chip = document.createElement('span');
                 const isAbierto = selectedEstado === 'abierto';
                 chip.style = isAbierto 
-                    ? 'display: inline-flex; align-items: center; gap: 6px; background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 16px; font-size: 0.8rem; font-weight: 600;'
-                    : 'display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 4px 8px; border-radius: 16px; font-size: 0.8rem; font-weight: 600;';
+                    ? 'display: inline-flex; align-items: center; gap: 6px; background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 0; font-size: 0.8rem; font-weight: 600;'
+                    : 'display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 4px 8px; border-radius: 0; font-size: 0.8rem; font-weight: 600;';
                 chip.innerHTML = `Estado: ${selectedEstado.toUpperCase()} <i class="ph ph-x-circle" style="cursor: pointer; font-size: 1rem; color: ${isAbierto ? '#d97706' : '#16a34a'};" onclick="clearEstadoFilter()"></i>`;
                 container.appendChild(chip);
             }
@@ -2605,7 +2605,7 @@
             if (currentUbicacionPath.length > 0) {
                 hasFilters = true;
                 const chip = document.createElement('span');
-                chip.style = 'display: inline-flex; align-items: center; gap: 6px; background: #f3e8ff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 4px 8px; border-radius: 16px; font-size: 0.8rem; font-weight: 600;';
+                chip.style = 'display: inline-flex; align-items: center; gap: 6px; background: #f3e8ff; border: 1px solid #e9d5ff; color: #6b21a8; padding: 4px 8px; border-radius: 0; font-size: 0.8rem; font-weight: 600;';
                 chip.innerHTML = `Ubicación: ${currentUbicacionPath.join(' → ')} <i class="ph ph-x-circle" style="cursor: pointer; font-size: 1rem; color: #8b5cf6;" onclick="clearUbicacionFilter()"></i>`;
                 container.appendChild(chip);
             }
@@ -3480,13 +3480,13 @@
                 html: `
                     <div style="text-align: left; font-size: 0.9rem; color: #555;">
                         <p style="margin-bottom: 12px;">Sube el archivo <strong>Excel (.xlsx)</strong> exportado desde este dashboard o usando la plantilla. El sistema buscará la columna <strong>"Deductiva (USD)"</strong> y actualizará los montos.</p>
-                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0; padding: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
                             <div>
                                 <strong style="color: #15803d;"><i class="ph ph-info"></i> Tip:</strong> Puedes descargar la plantilla base aquí:
                             </div>
-                            <a href="{% url 'callcenter:download_deductivas_template' %}" style="text-decoration: none; background: #fff; border: 1px solid #107e3e; color: #107e3e; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: 600;"><i class="ph ph-download-simple"></i> Plantilla</a>
+                            <a href="{% url 'callcenter:download_deductivas_template' %}" style="text-decoration: none; background: #fff; border: 1px solid #107e3e; color: #107e3e; padding: 4px 10px; border-radius: 0; font-size: 0.8rem; font-weight: 600;"><i class="ph ph-download-simple"></i> Plantilla</a>
                         </div>
-                        <input type="file" id="swal-import-file" accept=".xlsx" style="width: 100%; padding: 10px; border: 2px dashed #ccc; border-radius: 8px; cursor: pointer; background: #fafafa;">
+                        <input type="file" id="swal-import-file" accept=".xlsx" style="width: 100%; padding: 10px; border: 2px dashed #ccc; border-radius: 0; cursor: pointer; background: #fafafa;">
                     </div>
                 `,
                 showCancelButton: true,
@@ -3542,7 +3542,7 @@
                             // Construir resumen visual
                             let detailsHtml = '';
                             if (data.details && data.details.length > 0) {
-                                detailsHtml = '<div style="max-height: 250px; overflow-y: auto; text-align: left; margin-top: 12px; border: 1px solid #e5e7eb; border-radius: 8px;">';
+                                detailsHtml = '<div style="max-height: 250px; overflow-y: auto; text-align: left; margin-top: 12px; border: 1px solid #e5e7eb; border-radius: 0;">';
                                 detailsHtml += '<table style="width: 100%; font-size: 0.8rem; border-collapse: collapse;">';
                                 detailsHtml += '<thead><tr style="background: #f9fafb; position: sticky; top: 0;"><th style="padding: 6px 10px; text-align: left; border-bottom: 1px solid #e5e7eb;">Folio</th><th style="padding: 6px 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">Deductiva</th><th style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #e5e7eb;">Resultado</th></tr></thead>';
                                 detailsHtml += '<tbody>';
@@ -3560,19 +3560,19 @@
                                 title: '¡Importación Completada!',
                                 html: `
                                     <div style="display: flex; gap: 16px; justify-content: center; margin: 12px 0;">
-                                        <div style="text-align: center; padding: 10px 15px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
+                                        <div style="text-align: center; padding: 10px 15px; background: #eff6ff; border-radius: 0; border: 1px solid #bfdbfe;">
                                             <div style="font-size: 1.5rem; font-weight: 700; color: #1d4ed8;">${data.agregados || 0}</div>
                                             <div style="font-size: 0.75rem; color: #666;">Agregados al Cluster</div>
                                         </div>
-                                        <div style="text-align: center; padding: 10px 15px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+                                        <div style="text-align: center; padding: 10px 15px; background: #f0fdf4; border-radius: 0; border: 1px solid #bbf7d0;">
                                             <div style="font-size: 1.5rem; font-weight: 700; color: #107e3e;">${data.updated}</div>
                                             <div style="font-size: 0.75rem; color: #666;">Actualizados</div>
                                         </div>
-                                        <div style="text-align: center; padding: 10px 15px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                                        <div style="text-align: center; padding: 10px 15px; background: #f9fafb; border-radius: 0; border: 1px solid #e5e7eb;">
                                             <div style="font-size: 1.5rem; font-weight: 700; color: #999;">${data.skipped}</div>
                                             <div style="font-size: 0.75rem; color: #666;">Sin cambio</div>
                                         </div>
-                                        <div style="text-align: center; padding: 10px 15px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
+                                        <div style="text-align: center; padding: 10px 15px; background: #fef2f2; border-radius: 0; border: 1px solid #fecaca;">
                                             <div style="font-size: 1.5rem; font-weight: 700; color: #b81d24;">${data.errors}</div>
                                             <div style="font-size: 0.75rem; color: #666;">Errores (No existen)</div>
                                         </div>
@@ -3622,11 +3622,11 @@
                 modal.style.transition = 'opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
                 
                 modal.innerHTML = `
-                    <div style="background: #ffffff; width: 90vw; height: 85vh; max-width: 1300px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); display: flex; flex-direction: column; overflow: hidden; transform: scale(0.95); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+                    <div style="background: #ffffff; width: 90vw; height: 85vh; max-width: 1300px; border-radius: 0; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); display: flex; flex-direction: column; overflow: hidden; transform: scale(0.95); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
                         <!-- Header -->
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2rem; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
                             <h3 id="chartMaximizeTitle" style="margin: 0; color: #0f172a; font-size: 1.3rem; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;"></h3>
-                            <button onclick="closeMaximizedChart()" style="padding: 8px 16px; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; border: 1px solid #e2e8f0; font-weight: 600; font-size: 0.875rem; color: #475569; background: #ffffff; transition: all 0.15s ease-in-out; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1';" onmouseout="this.style.background='#ffffff'; this.style.borderColor='#e2e8f0';">
+                            <button onclick="closeMaximizedChart()" style="padding: 8px 16px; border-radius: 0; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; border: 1px solid #e2e8f0; font-weight: 600; font-size: 0.875rem; color: #475569; background: #ffffff; transition: all 0.15s ease-in-out; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);" onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1';" onmouseout="this.style.background='#ffffff'; this.style.borderColor='#e2e8f0';">
                                 <i class="ph ph-x" style="font-size: 1.15rem;"></i> Cerrar
                             </button>
                         </div>
@@ -3766,7 +3766,7 @@
         position: fixed;
         z-index: 99999;
         background: #fff;
-        border-radius: 4px;
+        border-radius: 0;
         padding: 0;
         width: 960px;
         max-height: 90vh;
@@ -3789,7 +3789,7 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        border-radius: 4px 4px 0 0;
+        border-radius: 0;
     }
     .desc-tooltip .dt-header i {
         font-size: 1.3rem;
@@ -3827,7 +3827,7 @@
     .desc-tooltip .dt-desc-box {
         background: #f5f6f7;
         border: 1px solid #e9ecef;
-        border-radius: 4px;
+        border-radius: 0;
         padding: 18px;
         margin-top: 12px;
     }

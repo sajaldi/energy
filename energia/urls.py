@@ -6,6 +6,7 @@ from django.urls import re_path
 from django.views.static import serve
 from core.views_proxy import media_proxy
 from core.views import global_search
+from core.views_nav import menu_config_view
 from presupuestos.views_webhook import requisicion_webhook_update
 from invitaciones.views import complete_registration
 from django.contrib.auth import views as auth_views
@@ -95,6 +96,7 @@ urlpatterns = [
     path('admin/reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(success_url='/admin/reset/done/', template_name='registration/password_reset_confirm.html'),  name='password_reset_confirm'),
     path('admin/reset/done/',             auth_views.PasswordResetCompleteView.as_view(template_name='registration/password_reset_complete.html'), name='password_reset_complete'),
     # La ruta del admin oficial de Django (debe ir DESPUÉS de las rutas de reset)
+    path('admin/menu-config/', menu_config_view, name='menu_config'),
     path('admin/', admin.site.urls),
     # Proxy de medios para MinIO (Solución a Mixed Content)
     path('media-proxy/<path:path>', media_proxy, name='media_proxy'),

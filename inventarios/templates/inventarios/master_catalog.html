@@ -90,7 +90,7 @@
 
     .grid-header {
         display: grid;
-        grid-template-columns: 100px 2.5fr 1fr 1fr 1fr 1fr 80px;
+        grid-template-columns: 100px 1.8fr 1.2fr 1fr 1fr 1fr 1fr 80px;
         gap: 20px; padding: 0 1.5rem; margin-bottom: 8px;
         font-size: 0.7rem; font-weight: 800; color: var(--text-muted);
         text-transform: uppercase; letter-spacing: 1px;
@@ -102,7 +102,7 @@
         border-radius: var(--radius-sm);
         border: 1px solid var(--sap-border);
         display: grid;
-        grid-template-columns: 100px 2.5fr 1fr 1fr 1fr 1fr 80px;
+        grid-template-columns: 100px 1.8fr 1.2fr 1fr 1fr 1fr 1fr 80px;
         gap: 20px; align-items: center;
         padding: 10px 1.5rem;
         transition: background 0.2s, box-shadow 0.2s;
@@ -128,6 +128,18 @@
         font-size: 0.75rem; padding: 4px 8px; border-radius: 4px;
         background: #f0f2f5; color: var(--text-muted); font-weight: 600;
         text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .col-ubicacion { min-width: 0; }
+    .ubicacion-tag {
+        display: inline-block;
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: #e8f0fe;
+        color: #0a6ed1;
+        font-weight: 600;
+        white-space: nowrap;
     }
 
     .stock-val { font-weight: 800; color: var(--text-main); font-size: 1rem; }
@@ -166,6 +178,7 @@
             grid-template-columns: 80px 1fr 1fr; 
             grid-template-areas: 
                 "img title title"
+                "img ubicacion ubicacion"
                 "img cat type"
                 "img price stock"
                 "img qr qr";
@@ -173,6 +186,7 @@
         }
         .mat-card .card-img { grid-area: img; width: 70px; height: 70px; }
         .mat-info-main { grid-area: title; }
+        .col-ubicacion { grid-area: ubicacion; }
         .col-cat { grid-area: cat; }
         .col-type { grid-area: type; }
         .col-price { grid-area: price; }
@@ -192,12 +206,14 @@
             grid-template-areas: 
                 "img title"
                 "img sku"
+                "img ubicacion"
                 "cat type"
                 "stock price";
             padding: 12px;
         }
         .mat-card .card-img { width: 50px; height: 50px; }
         .mat-sku { grid-area: sku; }
+        .col-ubicacion { grid-area: ubicacion; }
         .col-cat, .col-type { font-size: 0.7rem; }
         .qr-container { display: none; } /* Ocultar QR en lista móvil para ahorrar espacio */
         .stock-val { font-size: 0.9rem; }
@@ -264,6 +280,7 @@
     <div class="grid-header">
         <div>Imagen</div>
         <div>Producto / SKU</div>
+        <div>Ubicación</div>
         <div>Categoría</div>
         <div>Tipo</div>
         <div>Stock</div>
@@ -291,6 +308,7 @@
             <button class="sap-tab" onclick="switchTab('tab-locations', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Bodegas</button>
             <button class="sap-tab" onclick="switchTab('tab-history', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Historial</button>
             <button class="sap-tab" onclick="switchTab('tab-print', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Etiquetas</button>
+            <button class="sap-tab" onclick="switchTab('tab-requisiciones', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Requisiciones</button>
         </div>
         <div id="modal-content" style="flex:1; overflow-y:auto; padding: 24px;">
             <!-- Dynamic content -->
@@ -418,13 +436,14 @@
                         <div class="mat-info-main">
                             <div class="mat-title">${m.nombre}</div>
                             <div class="mat-sku">${m.sku}</div>
+                        </div>
+                        <div class="col-ubicacion">
                             ${m.bodegas && m.bodegas.length > 0 ? `
-                                <div style="font-size:0.7rem; color:var(--sap-blue); margin-top:4px; display:flex; align-items:center; gap:4px; font-weight:700;">
-                                    <ion-icon name="business-outline"></ion-icon>
-                                    <span>${m.bodegas.join(', ')}</span>
+                                <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                                    ${m.bodegas.map(b => `<span class="ubicacion-tag">${b}</span>`).join('')}
                                 </div>
                             ` : `
-                                <div style="font-size:0.7rem; color:var(--text-muted); margin-top:4px; font-style:italic;">Sin ubicación registrada</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">—</div>
                             `}
                         </div>
                         <div class="col-cat">
@@ -645,6 +664,47 @@
                         <input type="number" id="print-qty" value="1" min="1" class="sap-input" style="width:80px; text-align:center;">
                         <button onclick="printMaterialLabel(${data.id})" style="background:var(--sap-blue); color:white; border:none; padding:10px 24px; font-weight:700; cursor:pointer; border-radius:4px;">Imprimir PDF</button>
                     </div>
+                </div>
+                <div id="tab-requisiciones" class="tab-content" style="display:none;">
+                    ${isOffline ? '<div class="sap-loading">Datos de requisiciones no disponibles offline.</div>' : `
+                    ${data.requisiciones && data.requisiciones.length > 0 ? `
+                    <div style="margin-bottom:15px; font-size:0.8rem; font-weight:700; color:var(--sap-blue); display:flex; align-items:center; gap:8px;">
+                        <ion-icon name="document-text-outline"></ion-icon> MATERIAL SOLICITADO EN REQUISICIONES
+                    </div>
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead>
+                            <tr style="border-bottom:2px solid #ddd; text-align:left;">
+                                <th style="padding:12px;">Requisición</th>
+                                <th style="padding:12px;">Asunto</th>
+                                <th style="padding:12px;">Estado</th>
+                                <th style="padding:12px;">Solicitante</th>
+                                <th style="padding:12px; text-align:right;">Cantidad</th>
+                                <th style="padding:12px;">Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.requisiciones.map(r => `
+                                <tr style="border-bottom:1px solid #eee;">
+                                    <td style="padding:12px; font-weight:700; font-size:0.85rem;">${r.requisicion_numero}</td>
+                                    <td style="padding:12px; font-size:0.85rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${r.requisicion_asunto}">${r.requisicion_asunto}</td>
+                                    <td style="padding:12px;">
+                                        <span style="background:${r.estado === 'AUTORIZADO' ? '#e6f4ea' : r.estado === 'RECHAZADO' || r.estado === 'CANCELADO' ? '#fdeded' : '#fff7ed'}; color:${r.estado === 'AUTORIZADO' ? '#1e7e34' : r.estado === 'RECHAZADO' || r.estado === 'CANCELADO' ? '#d32f2f' : '#c2410c'}; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:700; white-space:nowrap;">${r.estado}</span>
+                                    </td>
+                                    <td style="padding:12px; font-size:0.85rem;">${r.solicitante}</td>
+                                    <td style="padding:12px; text-align:right; font-weight:800; color:var(--sap-blue);">${r.cantidad} ${data.unidad}</td>
+                                    <td style="padding:12px; font-size:0.85rem; color:var(--text-muted);">${r.fecha}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ` : `
+                    <div style="background:#f1f5f9; border-radius:12px; padding:3rem 1.5rem; text-align:center; border:2px dashed #cbd5e1;">
+                        <ion-icon name="document-outline" style="font-size:3.5rem; color:#94a3b8; margin-bottom:1rem;"></ion-icon>
+                        <div style="font-weight:800; color:#475569; font-size:1.1rem;">Sin Requisiciones</div>
+                        <p style="margin:5px 0 0 0; color:#64748b; font-size:0.9rem;">Este material no ha sido solicitado en ninguna requisición.</p>
+                    </div>
+                    `}
+                    `}
                 </div>
             `);
         }

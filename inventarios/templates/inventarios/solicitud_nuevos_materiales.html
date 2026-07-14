@@ -1,0 +1,498 @@
+{% extends "inventarios/base_inventarios.html" %}
+{% load i18n static %}
+
+{% block extrahead %}{{ block.super }}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<style>
+  :root {
+    --sap-blue: #0a6ed1;
+    --sap-blue-hover: #0854a0;
+    --sap-green: #107e3e;
+    --sap-orange: #e9730c;
+    --sap-red: #bb0000;
+    --sap-bg: #f3f5f7;
+    --sap-card: #ffffff;
+    --sap-border: #d9d9d9;
+    --sap-shell: #354a5f;
+    --sap-text: #32363a;
+    --sap-text-muted: #6a6d70;
+  }
+  * { box-sizing: border-box; }
+  .nm-page { padding: 0; }
+
+  .nm-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
+  }
+  .nm-header h1 {
+    margin: 0; font-size: 1.6rem; font-weight: 700; color: #1e293b;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .nm-header h1 ion-icon { color: var(--sap-blue); font-size: 1.8rem; }
+
+  .nm-stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; margin-bottom: 28px;
+  }
+  .nm-stat {
+    background: var(--sap-card); border: 1px solid var(--sap-border);
+    border-radius: 6px; padding: 20px; text-align: center;
+  }
+  .nm-stat .num { font-size: 1.8rem; font-weight: 700; }
+  .nm-stat .label { font-size: 0.7rem; color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-top: 4px; }
+  .nm-stat.pendientes .num { color: var(--sap-orange); }
+  .nm-stat.vinculados .num { color: var(--sap-green); }
+  .nm-stat.total .num { color: var(--sap-blue); }
+
+  .nm-section { margin-bottom: 32px; }
+  .nm-section-title {
+    font-weight: 700; color: #1e293b; margin: 0 0 14px; padding-bottom: 10px;
+    border-bottom: 2px solid #f1f5f9;
+    display: flex; align-items: center; gap: 8px; font-size: 1.1rem;
+  }
+  .nm-section-title .badge {
+    font-size: 0.65rem; font-weight: 700; padding: 2px 10px; border-radius: 12px; margin-left: 8px;
+  }
+  .nm-section-title .badge.warn { background: #fff7ed; color: #c2410c; }
+  .nm-section-title .badge.ok { background: #e6f4ea; color: #1e7e34; }
+
+  .nm-table {
+    width: 100%; border-collapse: collapse; background: var(--sap-card);
+    border-radius: 6px; overflow: hidden; border: 1px solid var(--sap-border);
+  }
+  .nm-table thead { background: #f8fafc; }
+  .nm-table th {
+    padding: 12px 14px; font-size: 0.7rem; font-weight: 700; color: var(--sap-text-muted);
+    text-transform: uppercase; letter-spacing: 0.3px; text-align: left;
+    border-bottom: 2px solid var(--sap-border);
+  }
+  .nm-table td {
+    padding: 12px 14px; font-size: 0.84rem; border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+  .nm-table tr:hover { background: #f8fafc; }
+  .nm-table tr:last-child td { border-bottom: none; }
+
+  .badge-status {
+    display: inline-block; padding: 3px 10px; border-radius: 4px;
+    font-size: 0.68rem; font-weight: 700; white-space: nowrap;
+  }
+  .badge-status.blue { background: #e8f0fe; color: var(--sap-blue); }
+  .badge-status.orange { background: #fff7ed; color: #c2410c; }
+  .badge-status.green { background: #e6f4ea; color: #1e7e34; }
+  .badge-status.red { background: #fdeded; color: #b91c1c; }
+
+  .nm-empty {
+    text-align: center; padding: 60px 20px; color: #94a3b8;
+    background: var(--sap-card); border-radius: 6px; border: 2px dashed #e2e8f0;
+  }
+  .nm-empty ion-icon { font-size: 3.5rem; display: block; margin: 0 auto 14px; opacity: 0.4; }
+  .nm-empty h3 { font-size: 1.1rem; font-weight: 700; color: #64748b; margin-bottom: 6px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px;
+    border-radius: 4px; font-size: 0.82rem; font-weight: 600;
+    border: none; cursor: pointer; text-decoration: none; transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--sap-blue); color: #fff; }
+  .btn-primary:hover { background: var(--sap-blue-hover); }
+  .btn-success { background: var(--sap-green); color: #fff; }
+  .btn-success:hover { background: #0d6632; }
+  .btn-outline { background: transparent; color: var(--sap-text-muted); border: 1px solid var(--sap-border); }
+  .btn-outline:hover { background: #f8fafc; border-color: #94a3b8; }
+  .btn-sm { padding: 5px 12px; font-size: 0.75rem; }
+  .btn-xs { padding: 3px 8px; font-size: 0.68rem; }
+
+  /* SAP FIORI MODAL */
+  .fiori-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(44, 58, 72, 0.85); backdrop-filter: blur(4px);
+    z-index: 10000; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.25s;
+  }
+  .fiori-overlay.active { display: flex; opacity: 1; }
+  .fiori-dialog {
+    background: #fff; width: 640px; max-width: 94vw; max-height: 92vh;
+    border-radius: 8px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    display: flex; flex-direction: column; transform: translateY(20px);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  .fiori-overlay.active .fiori-dialog { transform: translateY(0); }
+  .fiori-dialog-header {
+    background: var(--sap-shell); padding: 16px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .fiori-dialog-header h2 {
+    margin: 0; color: #fff; font-size: 1rem; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .fiori-dialog-header h2 ion-icon { font-size: 1.2rem; color: #89c3f8; }
+  .fiori-close {
+    background: none; border: none; color: rgba(255,255,255,0.7);
+    font-size: 1.3rem; cursor: pointer; padding: 4px; line-height: 1;
+  }
+  .fiori-close:hover { color: #fff; }
+  .fiori-dialog-body { padding: 24px; overflow-y: auto; flex: 1; }
+  .fiori-dialog-footer {
+    padding: 16px 24px; border-top: 1px solid var(--sap-border);
+    display: flex; justify-content: flex-end; gap: 10px;
+  }
+
+  /* SAP FIORI FORM */
+  .fiori-form { display: flex; flex-direction: column; gap: 18px; }
+  .fiori-field { display: flex; flex-direction: column; gap: 4px; }
+  .fiori-field label {
+    font-size: 0.75rem; font-weight: 600; color: var(--sap-text-muted);
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .fiori-field label .req { color: var(--sap-red); margin-left: 2px; }
+  .fiori-input, .fiori-select {
+    height: 36px; padding: 0 10px; border: 1px solid var(--sap-border);
+    border-radius: 4px; font-size: 0.88rem; font-family: inherit;
+    background: #fdfdfd; transition: border-color 0.15s;
+    width: 100%;
+  }
+  .fiori-input:focus, .fiori-select:focus {
+    border-color: var(--sap-blue); outline: none; background: #fff;
+    box-shadow: 0 0 0 2px rgba(10, 110, 209, 0.1);
+  }
+  .fiori-textarea {
+    padding: 8px 10px; border: 1px solid var(--sap-border);
+    border-radius: 4px; font-size: 0.88rem; font-family: inherit;
+    background: #fdfdfd; resize: vertical; min-height: 60px;
+    transition: border-color 0.15s;
+  }
+  .fiori-textarea:focus {
+    border-color: var(--sap-blue); outline: none; background: #fff;
+    box-shadow: 0 0 0 2px rgba(10, 110, 209, 0.1);
+  }
+  .fiori-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  .fiori-row-3 {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;
+  }
+  .fiori-help {
+    font-size: 0.7rem; color: var(--sap-text-muted); margin-top: 2px;
+  }
+</style>
+{% endblock %}
+
+{% block inventarios_content %}
+<div class="nm-page">
+  <div class="nm-header">
+    <h1><ion-icon name="cube-outline"></ion-icon> Solicitud de Nuevos Materiales</h1>
+    <div style="display:flex; gap:8px;">
+      <a href="{% url 'inventarios:dashboard' %}" class="btn btn-outline">
+        <ion-icon name="arrow-back-outline"></ion-icon> Volver
+      </a>
+    </div>
+  </div>
+
+  <div class="nm-stats">
+    <div class="nm-stat pendientes">
+      <div class="num">{{ total_pendientes }}</div>
+      <div class="label">Pendientes de Crear</div>
+    </div>
+    <div class="nm-stat vinculados">
+      <div class="num">{{ total_vinculados }}</div>
+      <div class="label">Materiales Vinculados</div>
+    </div>
+    <div class="nm-stat total">
+      <div class="num">{{ total_general }}</div>
+      <div class="label">Total Artículos</div>
+    </div>
+  </div>
+
+  <div class="nm-section">
+    <div class="nm-section-title">
+      <ion-icon name="alert-circle-outline" style="color:var(--sap-orange);"></ion-icon>
+      Pendientes de Creación
+      <span class="badge warn">{{ total_pendientes }} sin material</span>
+    </div>
+    {% if sin_material %}
+    <table class="nm-table">
+      <thead>
+        <tr>
+          <th>Requisición</th>
+          <th>Artículo</th>
+          <th>Cantidad</th>
+          <th>Costo Aprox.</th>
+          <th>Proveedor</th>
+          <th>Solicitante</th>
+          <th>Estado</th>
+          <th style="text-align:center;">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for art in sin_material %}
+        <tr id="req-row-{{ art.cr8ca_itemderequisicionid }}">
+          <td>
+            <strong>{{ art.requisicion.cr8ca_requisicion }}</strong>
+            <div style="font-size:0.75rem; color:var(--sap-text-muted);">{{ art.requisicion.fecha|date:"d/m/Y" }}</div>
+          </td>
+          <td style="max-width:240px;">
+            <div style="font-weight:600; font-size:0.85rem;">{{ art.cr8ca_articulo|truncatechars:60 }}</div>
+          </td>
+          <td><strong>{{ art.cr8ca_cantidad }}</strong></td>
+          <td>{% if art.cr8ca_costoaproximado %}L {{ art.cr8ca_costoaproximado|floatformat:2 }}{% else %}—{% endif %}</td>
+          <td>{{ art.proveedor.nombre|default:"—" }}</td>
+          <td style="font-size:0.82rem;">{{ art.requisicion.usuario_solicitante.get_full_name|default:art.requisicion.usuario_solicitante.username|default:"—" }}</td>
+          <td><span class="badge-status blue">{{ art.requisicion.estado_requisicion }}</span></td>
+          <td style="text-align:center;">
+            <button class="btn btn-primary btn-sm" onclick='openEditor({{ art.js_data|safe }})'>
+              <ion-icon name="add-outline"></ion-icon> Crear
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="nm-empty">
+      <ion-icon name="checkmark-circle-outline"></ion-icon>
+      <h3>No hay artículos pendientes</h3>
+      <p>Todos los artículos de requisiciones tienen material vinculado.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="nm-section">
+    <div class="nm-section-title">
+      <ion-icon name="checkmark-circle-outline" style="color:var(--sap-green);"></ion-icon>
+      Últimos Materiales Vinculados
+      <span class="badge ok">{{ total_vinculados }} vinculados</span>
+    </div>
+    {% if con_material %}
+    <table class="nm-table">
+      <thead>
+        <tr>
+          <th>Requisición</th>
+          <th>Artículo</th>
+          <th>Material Vinculado</th>
+          <th>Cantidad</th>
+          <th>SKU</th>
+          <th>Solicitante</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for art in con_material %}
+        <tr>
+          <td>
+            <strong>{{ art.requisicion.cr8ca_requisicion }}</strong>
+            <div style="font-size:0.75rem; color:var(--sap-text-muted);">{{ art.requisicion.fecha|date:"d/m/Y" }}</div>
+          </td>
+          <td style="max-width:180px;">{{ art.cr8ca_articulo|truncatechars:50 }}</td>
+          <td>
+            <a href="/admin/inventarios/material/{{ art.material.id }}/change/" target="_blank" style="color:var(--sap-blue); font-weight:600; text-decoration:none;">
+              {{ art.material.nombre|truncatechars:40 }}
+            </a>
+          </td>
+          <td><strong>{{ art.cr8ca_cantidad }}</strong></td>
+          <td style="font-family:monospace; font-size:0.8rem; color:var(--sap-blue);">{{ art.material.sku|default:"—" }}</td>
+          <td style="font-size:0.82rem;">{{ art.requisicion.usuario_solicitante.get_full_name|default:art.requisicion.usuario_solicitante.username|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="nm-empty">
+      <ion-icon name="document-outline"></ion-icon>
+      <h3>Sin materiales vinculados</h3>
+      <p>Aún no hay artículos de requisición vinculados a materiales del catálogo.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- SAP FIORI CREATION DIALOG -->
+<div class="fiori-overlay" id="editor-modal">
+  <div class="fiori-dialog">
+    <div class="fiori-dialog-header">
+      <h2><ion-icon name="cube-outline"></ion-icon> <span id="editor-title">Crear Nuevo Material</span></h2>
+      <button class="fiori-close" onclick="closeEditor()">✕</button>
+    </div>
+    <div class="fiori-dialog-body">
+      <form id="material-form" class="fiori-form">
+        <input type="hidden" id="f-articulo-id">
+        <input type="hidden" id="f-requisicion-id">
+
+        <div class="fiori-field">
+          <label>Nombre del Material <span class="req">*</span></label>
+          <input type="text" id="f-nombre" class="fiori-input" required placeholder="Ej: Foco LED 15W, Motor 2HP...">
+        </div>
+
+        <div class="fiori-row">
+          <div class="fiori-field">
+            <label>SKU / Código <span class="req">*</span></label>
+            <input type="text" id="f-sku" class="fiori-input" required placeholder="Ej: FLED-15W-001">
+          </div>
+          <div class="fiori-field">
+            <label>Marca</label>
+            <select id="f-marca" class="fiori-select">
+              <option value="">— Sin marca —</option>
+              {% for m in marcas %}
+              <option value="{{ m.id }}">{{ m.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="fiori-row-3">
+          <div class="fiori-field">
+            <label>Categoría <span class="req">*</span></label>
+            <select id="f-categoria" class="fiori-select" required>
+              <option value="">— Seleccionar —</option>
+              {% for cat in categorias %}
+              <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="fiori-field">
+            <label>Unidad de Medida <span class="req">*</span></label>
+            <select id="f-unidad" class="fiori-select" required>
+              <option value="">— Seleccionar —</option>
+              {% for u in unidades %}
+              <option value="{{ u.id }}">{{ u.nombre }} ({{ u.abreviatura }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="fiori-field">
+            <label>Tipo</label>
+            <select id="f-tipo" class="fiori-select">
+              <option value="INSUMO">Insumo</option>
+              <option value="REPUESTO">Repuesto</option>
+              <option value="CONSUMIBLE">Consumible</option>
+              <option value="HERRAMIENTA">Herramienta</option>
+              <option value="EPP">EPP</option>
+              <option value="OTRO">Otro</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="fiori-field">
+          <label>Descripción</label>
+          <textarea id="f-descripcion" class="fiori-textarea" rows="2" placeholder="Detalles técnicos, especificaciones, notas..."></textarea>
+        </div>
+
+        <div style="border-top:1px solid var(--sap-border); padding-top:18px;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--sap-text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:12px;">Stock Inicial (Opcional)</div>
+          <div class="fiori-row">
+            <div class="fiori-field">
+              <label>Cantidad</label>
+              <input type="number" id="f-stock" class="fiori-input" min="0" step="0.01" placeholder="0">
+            </div>
+            <div class="fiori-field">
+              <label>Bodega</label>
+              <select id="f-ubicacion" class="fiori-select">
+                <option value="">— Sin stock —</option>
+                {% for u in ubicaciones %}
+                <option value="{{ u.id }}">{{ u.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="fiori-help">Si ingresas cantidad, debes seleccionar una bodega para el stock inicial.</div>
+        </div>
+      </form>
+    </div>
+    <div class="fiori-dialog-footer">
+      <button class="btn btn-outline" onclick="closeEditor()">Cancelar</button>
+      <button class="btn btn-primary" onclick="submitMaterial()">
+        <ion-icon name="checkmark-outline"></ion-icon> Crear Material
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let editorData = {};
+
+function openEditor(art) {
+  editorData = art;
+  $('#editor-title').text('Crear Material: ' + (art.articulo || '').substring(0, 40));
+  $('#f-articulo-id').val(art.id);
+  $('#f-requisicion-id').val(art.requisicion_id || '');
+  $('#f-nombre').val(art.articulo || '');
+  $('#f-sku').val('');
+  $('#f-marca').val('');
+  $('#f-categoria').val('');
+  $('#f-unidad').val('');
+  $('#f-tipo').val('INSUMO');
+  $('#f-descripcion').val('');
+  $('#f-stock').val('');
+  $('#f-ubicacion').val('');
+  $('#editor-modal').addClass('active');
+}
+
+function closeEditor() {
+  $('#editor-modal').removeClass('active');
+}
+
+function submitMaterial() {
+  const nombre = $('#f-nombre').val().trim();
+  const sku = $('#f-sku').val().trim();
+  const categoria_id = $('#f-categoria').val();
+  const unidad_id = $('#f-unidad').val();
+
+  if (!nombre) { Swal.fire('Validación', 'El nombre del material es obligatorio.', 'warning'); return; }
+  if (!sku) { Swal.fire('Validación', 'El SKU es obligatorio.', 'warning'); return; }
+  if (!categoria_id) { Swal.fire('Validación', 'Selecciona una categoría.', 'warning'); return; }
+  if (!unidad_id) { Swal.fire('Validación', 'Selecciona una unidad de medida.', 'warning'); return; }
+
+  const stock = parseFloat($('#f-stock').val()) || 0;
+  const ubicacion_id = $('#f-ubicacion').val();
+  if (stock > 0 && !ubicacion_id) {
+    Swal.fire('Validación', 'Si ingresas stock inicial, debes seleccionar una bodega.', 'warning');
+    return;
+  }
+
+  Swal.fire({ title: 'Creando material...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+  const formData = new FormData();
+  formData.append('nombre', nombre);
+  formData.append('sku', sku);
+  formData.append('categoria_id', categoria_id);
+  formData.append('unidad_id', unidad_id);
+  formData.append('stock_inicial', stock.toString());
+  if (ubicacion_id) formData.append('ubicacion_id', ubicacion_id);
+  if ($('#f-marca').val()) formData.append('marca_id', $('#f-marca').val());
+  if ($('#f-tipo').val()) formData.append('tipo_material', $('#f-tipo').val());
+  if ($('#f-descripcion').val()) formData.append('descripcion', $('#f-descripcion').val());
+
+  $.ajax({
+    url: '/inventarios/api/material/quick-create/',
+    method: 'POST',
+    data: formData,
+    processData: false,
+    contentType: false,
+    success: function (resp) {
+      if (resp.status === 'success' || resp.status === 'conflict') {
+        Swal.fire({
+          icon: 'success',
+          title: 'Material creado',
+          text: nombre + ' (' + sku + ')',
+        }).then(() => {
+          closeEditor();
+          location.reload();
+        });
+      } else {
+        Swal.fire('Error', resp.message || 'Error desconocido', 'error');
+      }
+    },
+    error: function (xhr) {
+      let msg = 'Error del servidor';
+      try { const r = JSON.parse(xhr.responseText); msg = r.message || msg; } catch(e) {}
+      Swal.fire('Error', msg, 'error');
+    }
+  });
+}
+
+$(document).on('keydown', function(e) {
+  if (e.key === 'Escape') closeEditor();
+});
+</script>
+{% endblock %}

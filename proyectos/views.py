@@ -1,10 +1,13 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, FileResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
+from django.core.paginator import Paginator
+from django.urls import reverse
 from django import forms
-from .models import Actividad, Proyecto, DocumentoProyecto, ObservacionProyecto
+from django.db import IntegrityError
+from .models import Actividad, Proyecto, DocumentoProyecto, ObservacionProyecto, PlanoProyecto, PinObservacionProyecto, FotoPinObservacion, AreaPlanoProyecto
 from documentos.models import Carpeta, Documento, Revision, TipoDocumento, Disciplina
 import json
 import os
@@ -24,6 +27,22 @@ def crear_actividad_api(request):
             fecha_fin = data.get('fecha_fin')
             predecesora_id = data.get('predecesora_id')
             
+            # Aceptar estado personalizado con validación
+            ESTADOS_VALIDOS = ['PENDIENTE', 'EN_PROGRESO', 'COMPLETADA', 'BLOQUEADA']
+            estado = data.get('estado', 'PENDIENTE')
+            if estado not in ESTADOS_VALIDOS:
+                return JsonResponse({'status': 'error', 'message': f'Estado inválido. Valores permitidos: {", ".join(ESTADOS_VALIDOS)}'}, status=400)
+            
+            # Aceptar asignado_id con fallback a request.user
+            from django.contrib.auth.models import User
+            asignado_id = data.get('asignado_id')
+            if asignado_id:
+                asignado_a = User.objects.filter(pk=asignado_id).first()
+                if not asignado_a:
+                    asignado_a = request.user
+            else:
+                asignado_a = request.user
+            
             if not nombre or not proyecto_id:
                 return JsonResponse({'status': 'error', 'message': 'Faltan datos obligatorios'}, status=400)
             
@@ -40,9 +59,9 @@ def crear_actividad_api(request):
                 proyecto=proyecto,
                 nombre=nombre,
                 prioridad=prioridad,
-                estado='PENDIENTE',
+                estado=estado,
                 orden=orden,
-                asignado_a=request.user,
+                asignado_a=asignado_a,
                 fecha_inicio=fecha_inicio,
                 fecha_fin=fecha_fin,
                 predecesora=predecesora
@@ -59,6 +78,8 @@ def crear_actividad_api(request):
                     'dependencies': [str(actividad.predecesora.id)] if actividad.predecesora else [],
                     'color': actividad.color,
                     'estado': actividad.get_estado_display(),
+                    'asignado_a_id': actividad.asignado_a_id,
+                    'asignado_a_nombre': (actividad.asignado_a.get_full_name() or actividad.asignado_a.username) if actividad.asignado_a else None,
                 }
             })
         except Exception as e:
@@ -405,6 +426,56 @@ def update_actividades_bulk_api(request, pk):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
+@staff_member_required
+def kanban_actividades_api(request, pk):
+    """
+    GET: Retorna actividades del proyecto agrupadas por estado para el tablero Kanban.
+    Incluye lista de responsables que tienen actividades asignadas.
+    """
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    actividades = proyecto.actividades.select_related('asignado_a').all()
+
+    grupos = {
+        'PENDIENTE': [],
+        'EN_PROGRESO': [],
+        'COMPLETADA': [],
+        'BLOQUEADA': [],
+    }
+
+    for act in actividades:
+        grupos[act.estado].append({
+            'id': act.id,
+            'nombre': act.nombre,
+            'estado': act.estado,
+            'prioridad': act.prioridad,
+            'porcentaje_avance': act.porcentaje_avance,
+            'fecha_inicio': act.fecha_inicio.isoformat() if act.fecha_inicio else None,
+            'fecha_fin': act.fecha_fin.isoformat() if act.fecha_fin else None,
+            'asignado_a_id': act.asignado_a_id,
+            'asignado_a_nombre': (act.asignado_a.get_full_name() or act.asignado_a.username) if act.asignado_a else None,
+            'creado_en': act.creado_en.isoformat(),
+        })
+
+    # Ordenar cada grupo: prioridad descendente, fecha de creación ascendente
+    orden_prioridad = {'CRITICA': 0, 'ALTA': 1, 'MEDIA': 2, 'BAJA': 3}
+    for estado, items in grupos.items():
+        items.sort(key=lambda x: (orden_prioridad.get(x['prioridad'], 99), x['creado_en']))
+
+    # Obtener responsables que tienen actividades asignadas
+    from django.contrib.auth.models import User
+    responsables_ids = actividades.values_list('asignado_a', flat=True).distinct()
+    responsables = User.objects.filter(id__in=responsables_ids, is_active=True)
+
+    return JsonResponse({
+        'status': 'success',
+        'actividades': grupos,
+        'responsables': [
+            {'id': u.id, 'nombre': u.get_full_name() or u.username}
+            for u in responsables
+        ]
+    })
+
+
 @csrf_exempt
 @staff_member_required
 def update_proyecto_api(request, pk):
@@ -692,7 +763,9 @@ def crear_observacion_api(request, proyecto_pk):
     try:
         data = json.loads(request.body)
         proyecto = get_object_or_404(Proyecto, pk=proyecto_pk)
-        doc_proy = get_object_or_404(DocumentoProyecto, pk=data['documento_proyecto_id'], proyecto=proyecto)
+        doc_proy = None
+        if data.get('documento_proyecto_id'):
+            doc_proy = get_object_or_404(DocumentoProyecto, pk=data['documento_proyecto_id'], proyecto=proyecto)
         obs = ObservacionProyecto.objects.create(
             proyecto=proyecto,
             documento_proyecto=doc_proy,
@@ -758,3 +831,536 @@ def eliminar_observacion_api(request, proyecto_pk, obs_id):
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
+
+
+# ============================================================
+# Endpoints API de Planos PDF
+# ============================================================
+
+@csrf_exempt
+@staff_member_required
+def listar_planos_api(request, pk):
+    """
+    GET: Retorna lista paginada de planos PDF asociados al proyecto.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    planos_qs = proyecto.planos_pdf.select_related('subido_por').all()
+
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(planos_qs, 20)
+    page_obj = paginator.get_page(page_number)
+
+    planos_data = []
+    for plano in page_obj:
+        usuario_nombre = ''
+        if plano.subido_por:
+            usuario_nombre = plano.subido_por.get_full_name() or plano.subido_por.username
+        planos_data.append({
+            'id': plano.id,
+            'titulo': plano.titulo,
+            'descripcion': plano.descripcion,
+            'fecha_carga': plano.fecha_carga.isoformat(),
+            'usuario_nombre': usuario_nombre,
+            'url_archivo': reverse('proyectos:download_plano', kwargs={'pk': pk, 'plano_id': plano.id}),
+        })
+
+    return JsonResponse({
+        'status': 'success',
+        'data': {
+            'planos': planos_data,
+            'total': paginator.count,
+            'page': page_obj.number,
+            'total_pages': paginator.num_pages,
+        }
+    })
+
+
+@csrf_exempt
+@staff_member_required
+def upload_plano_api(request, pk):
+    """
+    POST: Sube un plano PDF y lo asocia al proyecto.
+    Acepta multipart/form-data con campos: archivo, titulo, descripcion.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+
+    # Validar archivo
+    archivo = request.FILES.get('archivo')
+    if not archivo:
+        return JsonResponse({'status': 'error', 'message': 'No se recibió ningún archivo'}, status=400)
+
+    # Validar extensión .pdf
+    nombre_archivo = archivo.name.lower()
+    if not nombre_archivo.endswith('.pdf'):
+        return JsonResponse({'status': 'error', 'message': 'Solo se aceptan archivos PDF'}, status=400)
+
+    # Validar content-type
+    if archivo.content_type != 'application/pdf':
+        return JsonResponse({'status': 'error', 'message': 'Solo se aceptan archivos PDF'}, status=400)
+
+    # Validar tamaño (50 MB máximo)
+    max_size = 50 * 1024 * 1024
+    if archivo.size > max_size:
+        return JsonResponse({'status': 'error', 'message': 'El archivo excede el tamaño máximo permitido (50 MB)'}, status=400)
+
+    # Validar título
+    titulo = request.POST.get('titulo', '').strip()
+    if not titulo or len(titulo) > 200:
+        return JsonResponse({'status': 'error', 'message': 'El título es obligatorio (máx. 200 caracteres)'}, status=400)
+
+    # Validar descripción
+    descripcion = request.POST.get('descripcion', '').strip()
+    if len(descripcion) > 500:
+        return JsonResponse({'status': 'error', 'message': 'La descripción no puede exceder 500 caracteres'}, status=400)
+
+    # Crear registro
+    try:
+        plano = PlanoProyecto.objects.create(
+            proyecto=proyecto,
+            titulo=titulo,
+            descripcion=descripcion,
+            archivo=archivo,
+            subido_por=request.user,
+        )
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Plano cargado exitosamente',
+            'data': {
+                'id': plano.id,
+                'titulo': plano.titulo,
+                'fecha_carga': plano.fecha_carga.isoformat(),
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': 'Error al almacenar el archivo. Intente nuevamente.'}, status=500)
+
+
+@csrf_exempt
+@staff_member_required
+def delete_plano_api(request, pk, plano_id):
+    """
+    DELETE o POST: Elimina un plano PDF del proyecto.
+    La señal post_delete se encarga de eliminar el archivo de MinIO.
+    """
+    if request.method not in ('DELETE', 'POST'):
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+
+    try:
+        plano.delete()
+        return JsonResponse({'status': 'success', 'message': 'Plano eliminado exitosamente'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': 'Error al eliminar el archivo. El plano no fue modificado.'}, status=500)
+
+
+@staff_member_required
+def download_plano(request, pk, plano_id):
+    """
+    GET: Descarga el archivo PDF del plano.
+    Retorna FileResponse con Content-Disposition attachment.
+    """
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+
+    # Verificar que el archivo existe en storage
+    if not plano.archivo or not plano.archivo.storage.exists(plano.archivo.name):
+        return JsonResponse({'status': 'error', 'message': 'El archivo no se encuentra disponible'}, status=404)
+
+    try:
+        response = FileResponse(plano.archivo.open('rb'), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{plano.titulo}.pdf"'
+        return response
+    except Exception:
+        return JsonResponse({'status': 'error', 'message': 'El archivo no se encuentra disponible'}, status=404)
+
+
+@staff_member_required
+def visor_plano_proyecto(request, pk, plano_id):
+    """
+    GET: Renderiza el visor de PDF standalone para un plano del proyecto.
+    Inyecta pines existentes y observaciones disponibles como JSON en el contexto.
+    """
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+
+    # Verificar si el archivo existe
+    archivo_disponible = True
+    pdf_url = ''
+    try:
+        if plano.archivo and plano.archivo.storage.exists(plano.archivo.name):
+            pdf_url = plano.archivo.url
+        else:
+            archivo_disponible = False
+    except Exception:
+        archivo_disponible = False
+
+    # Consultar pines del plano actual con datos de observación y usuario
+    pines = PinObservacionProyecto.objects.filter(plano=plano).select_related(
+        'observacion', 'observacion__usuario'
+    ).prefetch_related('fotos')
+
+    # Serializar pines a lista de dicts
+    pines_data = []
+    for pin in pines:
+        obs = pin.observacion
+        pines_data.append({
+            'id': pin.id,
+            'x': pin.coordenada_x,
+            'y': pin.coordenada_y,
+            'pagina': pin.pagina,
+            'color': pin.color,
+            'nota': pin.nota,
+            'observacion_id': obs.id,
+            'observacion_texto': obs.observacion,
+            'observacion_estado': obs.estado,
+            'observacion_usuario': obs.usuario.get_full_name() or obs.usuario.username,
+            'observacion_fecha': obs.fecha_observacion.isoformat() if obs.fecha_observacion else '',
+            'fotos': [{'id': f.id, 'url': f.imagen.url} for f in pin.fotos.all()],
+        })
+
+    # Consultar observaciones del proyecto NO vinculadas al plano actual
+    observaciones_disponibles_qs = ObservacionProyecto.objects.filter(
+        proyecto=proyecto
+    ).exclude(
+        id__in=pines.values_list('observacion_id', flat=True)
+    )
+
+    # Serializar observaciones disponibles
+    observaciones_disponibles_data = []
+    for obs in observaciones_disponibles_qs:
+        observaciones_disponibles_data.append({
+            'id': obs.id,
+            'texto': obs.observacion[:100],
+            'estado': obs.estado,
+        })
+
+    # Consultar áreas del plano
+    areas_qs = AreaPlanoProyecto.objects.filter(plano=plano)
+    areas_data = []
+    for area in areas_qs:
+        areas_data.append({
+            'id': area.id,
+            'nombre': area.nombre,
+            'color': area.color,
+            'x1': area.x1,
+            'y1': area.y1,
+            'x2': area.x2,
+            'y2': area.y2,
+            'pagina': area.pagina,
+        })
+
+    return render(request, 'proyectos/visor_plano_proyecto.html', {
+        'plano': plano,
+        'proyecto': proyecto,
+        'pdf_url': pdf_url,
+        'archivo_disponible': archivo_disponible,
+        'pines_json': json.dumps(pines_data, ensure_ascii=False),
+        'observaciones_disponibles_json': json.dumps(observaciones_disponibles_data, ensure_ascii=False),
+        'areas_json': json.dumps(areas_data, ensure_ascii=False),
+    })
+
+
+@csrf_exempt
+@staff_member_required
+def listar_pines_plano_api(request, pk, plano_id):
+    """
+    GET: Retorna la lista de pines de observación de un plano en formato JSON.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id)
+
+    # Validar que el plano pertenece al proyecto
+    if plano.proyecto_id != proyecto.id:
+        return JsonResponse({'status': 'error', 'message': 'El plano no pertenece a este proyecto.'}, status=404)
+
+    pines = PinObservacionProyecto.objects.filter(plano=plano).select_related(
+        'observacion', 'observacion__usuario'
+    )
+
+    pines_data = []
+    for pin in pines:
+        obs = pin.observacion
+        observacion_usuario = ''
+        if obs.usuario:
+            observacion_usuario = obs.usuario.get_full_name() or obs.usuario.username
+
+        pines_data.append({
+            'id': pin.id,
+            'x': pin.coordenada_x,
+            'y': pin.coordenada_y,
+            'pagina': pin.pagina,
+            'color': pin.color,
+            'nota': pin.nota,
+            'observacion_id': obs.id,
+            'observacion_texto': obs.observacion[:80] if obs.observacion else '',
+            'observacion_estado': obs.estado,
+            'observacion_usuario': observacion_usuario,
+            'observacion_fecha': obs.fecha_observacion.isoformat() if obs.fecha_observacion else '',
+        })
+
+    return JsonResponse({'status': 'success', 'pines': pines_data})
+
+
+@csrf_exempt
+@staff_member_required
+def crear_pin_plano_api(request, pk, plano_id):
+    """
+    POST: Crea un pin de observación vinculado a un plano del proyecto.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido.'}, status=400)
+
+    x = data.get('x')
+    y = data.get('y')
+    pagina = data.get('pagina', 1)
+    observacion_id = data.get('observacion_id')
+    color = data.get('color', '#EF4444')
+    nota = data.get('nota', '')
+
+    # Validar que la observación existe
+    try:
+        observacion = ObservacionProyecto.objects.get(pk=observacion_id)
+    except ObservacionProyecto.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Observación no encontrada.'}, status=400)
+
+    # Validar que la observación pertenece al mismo proyecto que el plano
+    if observacion.proyecto_id != proyecto.id:
+        return JsonResponse({'status': 'error', 'message': 'La observación no pertenece a este proyecto.'}, status=400)
+
+    # Crear el pin, manejando la restricción de unicidad
+    try:
+        pin = PinObservacionProyecto.objects.create(
+            plano=plano,
+            observacion=observacion,
+            coordenada_x=x,
+            coordenada_y=y,
+            pagina=pagina,
+            color=color,
+            nota=nota,
+        )
+    except IntegrityError:
+        return JsonResponse({'status': 'error', 'message': 'Esta observación ya está vinculada a este plano.'}, status=400)
+
+    return JsonResponse({
+        'status': 'success',
+        'pin': {
+            'id': pin.id,
+            'x': pin.coordenada_x,
+            'y': pin.coordenada_y,
+            'pagina': pin.pagina,
+            'color': pin.color,
+            'nota': pin.nota,
+            'observacion_id': observacion.id,
+            'observacion_texto': observacion.observacion[:80] if observacion.observacion else '',
+            'observacion_estado': observacion.estado,
+        }
+    })
+
+
+@csrf_exempt
+@staff_member_required
+def eliminar_pin_plano_api(request, pk, plano_id, pin_id):
+    """
+    POST: Elimina un pin de observación de un plano.
+    Solo elimina el registro PinObservacionProyecto, NO la observación vinculada.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+    pin = get_object_or_404(PinObservacionProyecto, pk=pin_id, plano=plano)
+
+    pin.delete()
+    return JsonResponse({'status': 'success'})
+
+
+@csrf_exempt
+@staff_member_required
+def mover_pin_plano_api(request, pk, plano_id, pin_id):
+    """
+    POST: Mueve un pin a nuevas coordenadas (x, y) en el plano.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+    pin = get_object_or_404(PinObservacionProyecto, pk=pin_id, plano=plano)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido.'}, status=400)
+
+    x = data.get('x')
+    y = data.get('y')
+
+    if x is None or y is None:
+        return JsonResponse({'status': 'error', 'message': 'Coordenadas x, y son requeridas.'}, status=400)
+
+    pin.coordenada_x = float(x)
+    pin.coordenada_y = float(y)
+    pin.save(update_fields=['coordenada_x', 'coordenada_y'])
+
+    return JsonResponse({'status': 'success', 'x': pin.coordenada_x, 'y': pin.coordenada_y})
+
+
+@csrf_exempt
+@staff_member_required
+def subir_fotos_pin_api(request, pk, plano_id, pin_id):
+    """
+    POST multipart/form-data: Sube una o más fotos a un pin existente.
+    Campo de archivos: 'fotos' (múltiple). Máximo 5 fotos por pin.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+    pin = get_object_or_404(PinObservacionProyecto, pk=pin_id, plano=plano)
+
+    archivos = request.FILES.getlist('fotos')
+    if not archivos:
+        return JsonResponse({'status': 'error', 'message': 'No se enviaron archivos.'}, status=400)
+
+    # Validar límite de 5 fotos
+    fotos_actuales = pin.fotos.count()
+    if fotos_actuales + len(archivos) > 5:
+        disponibles = 5 - fotos_actuales
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Solo puede agregar {disponibles} foto(s) más. El pin ya tiene {fotos_actuales}.'
+        }, status=400)
+
+    # Validar MIME de cada archivo
+    MIMES_VALIDOS = {'image/jpeg', 'image/png'}
+    for archivo in archivos:
+        if archivo.content_type not in MIMES_VALIDOS:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Solo se permiten archivos JPG o PNG.'
+            }, status=400)
+
+    # Guardar fotos
+    fotos_creadas = []
+    for archivo in archivos:
+        foto = FotoPinObservacion(pin=pin, imagen=archivo)
+        foto.save()
+        fotos_creadas.append({'id': foto.id, 'url': foto.imagen.url})
+
+    return JsonResponse({'status': 'success', 'fotos': fotos_creadas})
+
+
+@csrf_exempt
+@staff_member_required
+def eliminar_foto_pin_api(request, pk, plano_id, pin_id, foto_id):
+    """
+    POST: Elimina una foto específica de un pin de observación.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+    pin = get_object_or_404(PinObservacionProyecto, pk=pin_id, plano=plano)
+    foto = get_object_or_404(FotoPinObservacion, pk=foto_id, pin=pin)
+
+    foto.delete()
+    return JsonResponse({'status': 'success'})
+
+
+# ─── Áreas de Plano ─────────────────────────────────────────────────────────────
+
+@csrf_exempt
+@staff_member_required
+def crear_area_plano_api(request, pk, plano_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido.'}, status=400)
+
+    xa, ya = float(data.get('x1', 0)), float(data.get('y1', 0))
+    xb, yb = float(data.get('x2', 0)), float(data.get('y2', 0))
+    x1, x2 = min(xa, xb), max(xa, xb)
+    y1, y2 = min(ya, yb), max(ya, yb)
+
+    if (x2 - x1) < 10 or (y2 - y1) < 10:
+        return JsonResponse({'status': 'error', 'message': 'El área es demasiado pequeña (mínimo 10x10 píxeles).'}, status=400)
+
+    nombre = (data.get('nombre') or '').strip()
+    if not nombre:
+        return JsonResponse({'status': 'error', 'message': 'El nombre del área es obligatorio.'}, status=400)
+
+    color = data.get('color', '#3B82F6')
+    pagina = int(data.get('pagina', 1))
+
+    area = AreaPlanoProyecto.objects.create(
+        plano=plano, nombre=nombre, color=color,
+        x1=x1, y1=y1, x2=x2, y2=y2, pagina=pagina
+    )
+    return JsonResponse({'status': 'success', 'area': {
+        'id': area.id, 'nombre': area.nombre, 'color': area.color,
+        'x1': area.x1, 'y1': area.y1, 'x2': area.x2, 'y2': area.y2, 'pagina': area.pagina
+    }})
+
+
+@csrf_exempt
+@staff_member_required
+def editar_area_plano_api(request, pk, plano_id, area_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+    area = get_object_or_404(AreaPlanoProyecto, pk=area_id, plano=plano)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido.'}, status=400)
+
+    nombre = (data.get('nombre') or '').strip()
+    if not nombre:
+        return JsonResponse({'status': 'error', 'message': 'El nombre del área es obligatorio.'}, status=400)
+
+    area.nombre = nombre
+    area.color = data.get('color', area.color)
+    area.save(update_fields=['nombre', 'color'])
+    return JsonResponse({'status': 'success', 'area': {
+        'id': area.id, 'nombre': area.nombre, 'color': area.color,
+        'x1': area.x1, 'y1': area.y1, 'x2': area.x2, 'y2': area.y2, 'pagina': area.pagina
+    }})
+
+
+@csrf_exempt
+@staff_member_required
+def eliminar_area_plano_api(request, pk, plano_id, area_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+    area = get_object_or_404(AreaPlanoProyecto, pk=area_id, plano=plano)
+    area.delete()
+    return JsonResponse({'status': 'success'})

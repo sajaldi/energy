@@ -1,0 +1,362 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Configurar menú | {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 900px; margin: 0 auto; padding: 2rem 0;">
+    <div class="card">
+        <div class="card-header d-flex align-items-center gap-3">
+            <div style="background: #e1f0ff; width: 48px; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #0064d2; font-size: 1.3rem;">
+                <i class="fas fa-sliders-h"></i>
+            </div>
+            <div>
+                <h2 style="margin:0; font-weight:700;">Personalizar menú</h2>
+                <small style="color:#556b82;">Personaliza completamente los menús del header: oculta, edita items, agrega links propios</small>
+            </div>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+
+                <h5 style="font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-check-circle" style="color:#107e3e;"></i> Menús por defecto
+                </h5>
+                <p style="color:#556b82; font-size:0.85rem; margin-bottom:1.5rem;">
+                    Haz clic en un menú para expandirlo y personalizar sus items. Desmarca para ocultarlo.
+                </p>
+
+                <div id="default-menus-container">
+                    {% for menu in defaults %}
+                    {% if not menu.superuser_only or user.is_superuser %}
+                    {% with mn=menu.name %}
+                    <div class="default-menu-card" data-name="{{ mn }}"
+                         style="background:white; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:12px; overflow:hidden;">
+                        <div class="default-menu-header" style="display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer; user-select:none; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+                            <input type="checkbox" name="hidden_menus" value="{{ mn }}"
+                                   id="chk_{{ mn|slugify }}"
+                                   {% if mn in hidden_menus %}checked{% endif %}
+                                   style="width:18px; height:18px; margin:0;">
+                            <i class="{{ menu.icon }}" style="color:{{ menu.color }}; width:20px; text-align:center;"></i>
+                            <span style="font-weight:600; flex:1;">{{ mn }}</span>
+                            <span class="badge" style="background:#e1f0ff; color:#0064d2; font-weight:600;">
+                                {{ menu.columns|length }} columna{{ menu.columns|length|pluralize:",s" }}
+                            </span>
+                            <small style="color:#556b82;" class="toggle-label">▼ Personalizar</small>
+                        </div>
+                        <div class="default-menu-body" style="display:none; padding:16px; background:white;">
+                            <p style="color:#94a3b8; font-size:0.8rem; margin-bottom:12px;">
+                                Edita los items de este menú. Los cambios solo afectan tu vista personal.
+                            </p>
+                            <div class="default-columns-container" data-menu="{{ mn }}"></div>
+                            <button type="button" class="btn btn-sm btn-outline-primary add-default-col" data-menu="{{ mn }}">+ Columna</button>
+                        </div>
+                    </div>
+                    {% endwith %}
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                <hr style="margin:2rem 0;">
+
+                <h5 style="font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-plus-circle" style="color:#0064d2;"></i> Mis accesos directos
+                </h5>
+                <p style="color:#556b82; font-size:0.85rem; margin-bottom:1.5rem;">
+                    Agrega menús personalizados con tus propios links.
+                </p>
+
+                <div id="custom-menus-container">
+                    <div class="mb-3 text-center" style="color:#94a3b8; padding:2rem;" id="no-custom-msg">
+                        <i class="fas fa-link" style="font-size:2rem; display:block; margin-bottom:8px;"></i>
+                        No tienes accesos directos personalizados todavía.
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-outline-primary mb-3" id="add-custom-menu-btn">
+                    <i class="fas fa-plus"></i> Agregar menú personalizado
+                </button>
+
+                <textarea name="custom_menus_json" id="custom_menus_json" class="d-none">{{ custom_menus_json }}</textarea>
+                <textarea name="customized_menus_json" id="customized_menus_json" class="d-none">{{ customized_menus_json }}</textarea>
+
+                <hr style="margin:2rem 0;">
+
+                <div class="d-flex gap-3">
+                    <button type="submit" class="btn btn-primary" style="flex:1; height:48px; font-weight:700;">
+                        <i class="fas fa-save"></i> Guardar configuración
+                    </button>
+                    <a href="{% url 'admin:index' %}" class="btn btn-secondary" style="height:48px; font-weight:600;">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+{{ block.super }}
+<script>
+(function() {
+    // ====== INIT DATA ======
+    const defaultsData = {{ defaults_json|safe }};
+    const customizedTextarea = document.getElementById('customized_menus_json');
+    const customTextarea = document.getElementById('custom_menus_json');
+
+    let customized = {};
+    try { customized = JSON.parse(customizedTextarea.value || '{}'); } catch(e) { customized = {}; }
+
+    let customMenus = [];
+    try { customMenus = JSON.parse(customTextarea.value || '[]'); } catch(e) { customMenus = []; }
+
+    // ====== SAVE HELPER ======
+    function saveAll() {
+        customizedTextarea.value = JSON.stringify(customized);
+        customTextarea.value = JSON.stringify(customMenus);
+    }
+
+    // ====== DEFAULT MENUS ======
+    function getDefaultMenuData(name) {
+        return defaultsData.find(function(m) { return m.name === name; });
+    }
+
+    function getEffectiveColumns(menuName) {
+        // Use customized version if available, otherwise defaults
+        if (customized[menuName] && customized[menuName].columns) {
+            return JSON.parse(JSON.stringify(customized[menuName].columns));
+        }
+        var def = getDefaultMenuData(menuName);
+        return def ? JSON.parse(JSON.stringify(def.columns)) : [];
+    }
+
+    function renderDefaultMenu(menuName) {
+        var container = document.querySelector('.default-columns-container[data-menu="' + menuName + '"]');
+        if (!container) return;
+
+        var cols = getEffectiveColumns(menuName);
+        if (cols.length === 0) {
+            container.innerHTML = '<div style="color:#94a3b8; text-align:center; padding:1rem;">Sin columnas. Agrega una.</div>';
+            return;
+        }
+
+        var html = '';
+        cols.forEach(function(col, ci) {
+            var itemsHtml = (col.items || []).map(function(item, ii) {
+                return `
+                    <div style="display:flex; gap:8px; margin-bottom:6px; align-items:center;">
+                        <span style="color:#94a3b8; cursor:grab; font-size:0.8rem;">⠿</span>
+                        <input type="text" class="form-control form-control-sm" placeholder="Nombre" value="${escapeHtml(item.name)}" style="flex:1;" data-menu="${menuName}" data-ci="${ci}" data-ii="${ii}" data-field="name">
+                        <input type="text" class="form-control form-control-sm" placeholder="URL" value="${escapeHtml(item.url)}" style="flex:2;" data-menu="${menuName}" data-ci="${ci}" data-ii="${ii}" data-field="url">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-default-item" data-menu="${menuName}" data-ci="${ci}" data-ii="${ii}" title="Eliminar">&times;</button>
+                    </div>
+                `;
+            }).join('');
+
+            html += `
+                <div style="background:#f8fafc; border-radius:6px; padding:12px; margin-bottom:10px; border:1px solid #e2e8f0;">
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                        <input type="text" class="form-control form-control-sm" placeholder="Encabezado de columna" value="${escapeHtml(col.heading || '')}" style="flex:1; font-weight:600;" data-menu="${menuName}" data-ci="${ci}" data-field="heading">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-default-col" data-menu="${menuName}" data-ci="${ci}">Eliminar columna</button>
+                    </div>
+                    ${itemsHtml}
+                    <button type="button" class="btn btn-sm btn-outline-success add-default-item" data-menu="${menuName}" data-ci="${ci}">+ Item</button>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        saveAll();
+    }
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function ensureCustomized(menuName) {
+        if (!customized[menuName]) {
+            var def = getDefaultMenuData(menuName);
+            customized[menuName] = { columns: def ? JSON.parse(JSON.stringify(def.columns)) : [] };
+        }
+    }
+
+    function getMenuColumn(menuName, ci) {
+        ensureCustomized(menuName);
+        if (!customized[menuName].columns[ci]) {
+            customized[menuName].columns[ci] = { heading: '', items: [] };
+        }
+        return customized[menuName].columns[ci];
+    }
+
+    // ====== TOGGLE DEFAULT MENU EXPAND ======
+    document.querySelectorAll('.default-menu-header').forEach(function(header) {
+        header.addEventListener('click', function(e) {
+            if (e.target.closest('input[type="checkbox"]')) return;
+            var body = this.nextElementSibling;
+            var label = this.querySelector('.toggle-label');
+            if (body.style.display === 'none') {
+                body.style.display = 'block';
+                label.textContent = '▲ Cerrar';
+                // Render columns
+                var card = this.closest('.default-menu-card');
+                var name = card.dataset.name;
+                renderDefaultMenu(name);
+            } else {
+                body.style.display = 'none';
+                label.textContent = '▼ Personalizar';
+            }
+        });
+    });
+
+    // ====== EVENT DELEGATION FOR DEFAULT MENUS ======
+    document.getElementById('default-menus-container').addEventListener('click', function(e) {
+        var btn = e.target.closest('button');
+        if (!btn) return;
+
+        var menu = btn.dataset.menu;
+        var ci = btn.dataset.ci !== undefined ? parseInt(btn.dataset.ci) : null;
+        var ii = btn.dataset.ii !== undefined ? parseInt(btn.dataset.ii) : null;
+
+        if (btn.classList.contains('add-default-col')) {
+            ensureCustomized(menu);
+            customized[menu].columns.push({heading: '', items: [{name: '', url: ''}]});
+            renderDefaultMenu(menu);
+        }
+        else if (btn.classList.contains('remove-default-col')) {
+            ensureCustomized(menu);
+            customized[menu].columns.splice(ci, 1);
+            renderDefaultMenu(menu);
+        }
+        else if (btn.classList.contains('add-default-item')) {
+            getMenuColumn(menu, ci).items.push({name: '', url: ''});
+            renderDefaultMenu(menu);
+        }
+        else if (btn.classList.contains('remove-default-item')) {
+            ensureCustomized(menu);
+            customized[menu].columns[ci].items.splice(ii, 1);
+            renderDefaultMenu(menu);
+        }
+    });
+
+    document.getElementById('default-menus-container').addEventListener('input', function(e) {
+        var el = e.target;
+        var menu = el.dataset.menu;
+        if (!menu) return;
+
+        var ci = el.dataset.ci !== undefined ? parseInt(el.dataset.ci) : null;
+        var ii = el.dataset.ii !== undefined ? parseInt(el.dataset.ii) : null;
+        var field = el.dataset.field;
+
+        ensureCustomized(menu);
+        if (ci !== null && ii !== null) {
+            // Item field
+            if (!customized[menu].columns[ci]) customized[menu].columns[ci] = {heading: '', items: []};
+            if (!customized[menu].columns[ci].items[ii]) customized[menu].columns[ci].items[ii] = {name: '', url: ''};
+            customized[menu].columns[ci].items[ii][field] = el.value;
+        } else if (ci !== null) {
+            // Column field
+            if (!customized[menu].columns[ci]) customized[menu].columns[ci] = {heading: '', items: []};
+            customized[menu].columns[ci][field] = el.value;
+        }
+        saveAll();
+    });
+
+    // ====== CUSTOM MENUS ====== (existing logic adapted)
+    const customContainer = document.getElementById('custom-menus-container');
+
+    function renderCustom() {
+        var html = '';
+        customMenus.forEach(function(menu, idx) {
+            var colsHtml = (menu.columns || []).map(function(col, ci) {
+                var itemsHtml = (col.items || []).map(function(item, ii) {
+                    return `
+                        <div style="display:flex; gap:8px; margin-bottom:6px; align-items:center;">
+                            <input type="text" class="form-control form-control-sm" placeholder="Nombre" value="${escapeHtml(item.name)}" style="flex:1;" data-idx="${idx}" data-ci="${ci}" data-ii="${ii}" data-field="name">
+                            <input type="text" class="form-control form-control-sm" placeholder="URL" value="${escapeHtml(item.url)}" style="flex:2;" data-idx="${idx}" data-ci="${ci}" data-ii="${ii}" data-field="url">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-custom-item" data-idx="${idx}" data-ci="${ci}" data-ii="${ii}">&times;</button>
+                        </div>
+                    `;
+                }).join('');
+                return `
+                    <div style="background:#f8fafc; border-radius:6px; padding:12px; margin-bottom:10px; border:1px solid #e2e8f0;">
+                        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                            <input type="text" class="form-control form-control-sm" placeholder="Encabezado (opcional)" value="${escapeHtml(col.heading || '')}" style="flex:1;" data-idx="${idx}" data-ci="${ci}" data-field="heading">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-custom-col" data-idx="${idx}" data-ci="${ci}">Eliminar</button>
+                        </div>
+                        ${itemsHtml}
+                        <button type="button" class="btn btn-sm btn-outline-success add-custom-item" data-idx="${idx}" data-ci="${ci}">+ Item</button>
+                    </div>
+                `;
+            }).join('');
+            html += `
+                <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:16px; margin-bottom:16px;">
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+                        <input type="text" class="form-control" placeholder="Nombre del menú" value="${escapeHtml(menu.name)}" style="flex:2; font-weight:600;" data-idx="${idx}" data-field="name">
+                        <input type="text" class="form-control" placeholder="Icono (fas fa-star)" value="${escapeHtml(menu.icon || 'fas fa-star')}" style="flex:1;" data-idx="${idx}" data-field="icon">
+                        <input type="color" class="form-control form-control-color" value="${menu.color || '#f59e0b'}" style="width:50px;" data-idx="${idx}" data-field="color">
+                        <button type="button" class="btn btn-sm btn-danger remove-custom-menu" data-idx="${idx}"><i class="fas fa-trash"></i></button>
+                    </div>
+                    ${colsHtml}
+                    <button type="button" class="btn btn-sm btn-outline-primary add-custom-col" data-idx="${idx}">+ Columna</button>
+                </div>
+            `;
+        });
+        if (customMenus.length === 0) {
+            customContainer.innerHTML = '<div class="mb-3 text-center" style="color:#94a3b8; padding:2rem;"><i class="fas fa-link" style="font-size:2rem; display:block; margin-bottom:8px;"></i>No tienes accesos directos personalizados todavía.</div>';
+        } else {
+            customContainer.innerHTML = html;
+        }
+        saveAll();
+    }
+
+    customContainer.addEventListener('click', function(e) {
+        var btn = e.target.closest('button');
+        if (!btn) return;
+        var idx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx) : null;
+        var ci = btn.dataset.ci !== undefined ? parseInt(btn.dataset.ci) : null;
+        var ii = btn.dataset.ii !== undefined ? parseInt(btn.dataset.ii) : null;
+
+        if (btn.classList.contains('remove-custom-menu') && idx !== null) {
+            customMenus.splice(idx, 1); renderCustom();
+        } else if (btn.classList.contains('add-custom-col') && idx !== null) {
+            if (!customMenus[idx].columns) customMenus[idx].columns = [];
+            customMenus[idx].columns.push({heading: '', items: [{name: '', url: ''}]}); renderCustom();
+        } else if (btn.classList.contains('remove-custom-col') && idx !== null && ci !== null) {
+            customMenus[idx].columns.splice(ci, 1); renderCustom();
+        } else if (btn.classList.contains('add-custom-item') && idx !== null && ci !== null) {
+            customMenus[idx].columns[ci].items.push({name: '', url: ''}); renderCustom();
+        } else if (btn.classList.contains('remove-custom-item') && idx !== null && ci !== null && ii !== null) {
+            customMenus[idx].columns[ci].items.splice(ii, 1); renderCustom();
+        }
+    });
+
+    customContainer.addEventListener('input', function(e) {
+        var el = e.target;
+        var idx = el.dataset.idx !== undefined ? parseInt(el.dataset.idx) : null;
+        if (idx === null) return;
+        var ci = el.dataset.ci !== undefined ? parseInt(el.dataset.ci) : null;
+        var ii = el.dataset.ii !== undefined ? parseInt(el.dataset.ii) : null;
+        var field = el.dataset.field;
+        if (ci === null) {
+            customMenus[idx][field] = el.value;
+        } else if (ii === null) {
+            if (!customMenus[idx].columns[ci]) customMenus[idx].columns[ci] = {heading: '', items: []};
+            customMenus[idx].columns[ci][field] = el.value;
+        } else {
+            if (!customMenus[idx].columns[ci].items[ii]) customMenus[idx].columns[ci].items[ii] = {name: '', url: ''};
+            customMenus[idx].columns[ci].items[ii][field] = el.value;
+        }
+        saveAll();
+    });
+
+    document.getElementById('add-custom-menu-btn').addEventListener('click', function() {
+        customMenus.push({name: 'Mis Links', icon: 'fas fa-star', color: '#f59e0b', columns: [{heading: '', items: [{name: '', url: ''}]}]});
+        renderCustom();
+    });
+
+    // ====== INIT ======
+    renderCustom();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rack 3D: {{ rack.nombre }}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; }
+  canvas { display: block; }
+
+  #info {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(8px);
+    color: #fff; padding: 14px 28px; border-radius: 10px;
+    z-index: 100; text-align: center;
+    border: 1px solid rgba(255,255,255,0.08);
+    pointer-events: none;
+  }
+  #info h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.3px; }
+  #info p { font-size: 12px; opacity: 0.65; margin-top: 3px; }
+
+  #tooltip {
+    position: fixed; display: none;
+    background: rgba(0,0,0,0.88); backdrop-filter: blur(6px);
+    color: #fff; padding: 10px 16px; border-radius: 8px;
+    font-size: 13px; z-index: 200; pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    line-height: 1.5;
+  }
+
+  #controls-hint {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.3); font-size: 12px;
+    z-index: 100; text-align: center;
+    background: rgba(0,0,0,0.4); padding: 8px 18px; border-radius: 20px;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+  }
+
+  #back-btn {
+    position: fixed; top: 18px; right: 18px; z-index: 100;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    color: #fff; border: 1px solid rgba(255,255,255,0.12);
+    padding: 9px 18px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; text-decoration: none; transition: all 0.2s;
+    font-family: inherit; display: flex; align-items: center; gap: 6px;
+  }
+  #back-btn:hover { background: rgba(255,255,255,0.15); }
+
+  #stats-bar {
+    position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+    z-index: 100;
+    display: flex; gap: 12px;
+  }
+  .stat-pill {
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+    color: #fff; padding: 6px 14px; border-radius: 16px;
+    font-size: 11px; display: flex; align-items: center; gap: 5px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .stat-pill .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* Context Menu */
+  #ctx-menu {
+    position: fixed; display: none;
+    background: rgba(20,20,30,0.95); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 6px; z-index: 500;
+    min-width: 200px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  #ctx-menu .ctx-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 6px;
+    color: #e2e8f0; cursor: pointer; font-size: 13px;
+    transition: all 0.15s; border: none; background: none;
+    width: 100%; text-align: left; font-family: inherit;
+  }
+  #ctx-menu .ctx-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  #ctx-menu .ctx-item.danger:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
+  #ctx-menu .ctx-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 8px; }
+  #ctx-menu .ctx-header {
+    padding: 8px 14px 4px; font-size: 11px; color: rgba(255,255,255,0.35);
+    text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
+  }
+
+  /* Material Search Modal */
+  #modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    z-index: 1000; display: none; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+  }
+  #modal-overlay.active { display: flex; }
+  #modal-box {
+    background: #1a1a2e; border-radius: 14px; width: 440px; max-height: 80vh;
+    overflow: hidden; display: flex; flex-direction: column;
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  #modal-head {
+    padding: 18px 22px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #modal-head h3 { color: #fff; font-size: 15px; font-weight: 600; }
+  #modal-close {
+    background: none; border: none; color: rgba(255,255,255,0.4);
+    font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 4px;
+  }
+  #modal-close:hover { color: #fff; background: rgba(255,255,255,0.1); }
+  #modal-search {
+    padding: 12px 22px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  #modal-search input {
+    width: 100%; padding: 10px 14px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3);
+    color: #fff; font-size: 14px; outline: none; font-family: inherit;
+  }
+  #modal-search input:focus { border-color: #6366f1; }
+  #modal-search input::placeholder { color: rgba(255,255,255,0.25); }
+  #modal-results {
+    flex: 1; overflow-y: auto; padding: 8px;
+    min-height: 200px; max-height: 400px;
+  }
+  .modal-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    color: #cbd5e1; transition: all 0.15s; font-size: 13px;
+  }
+  .modal-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+  .modal-item .mi-name { flex: 1; font-weight: 500; }
+  .modal-item .mi-sku { color: rgba(255,255,255,0.3); font-size: 11px; font-family: monospace; }
+  .modal-item .mi-peso { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+  .modal-item .mi-qty {
+    width: 60px; padding: 4px 6px; border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3);
+    color: #fff; font-size: 12px; text-align: center; outline: none;
+  }
+  .modal-item .mi-qty:focus { border-color: #6366f1; }
+  #modal-empty {
+    text-align: center; padding: 50px 20px; color: rgba(255,255,255,0.3);
+    font-size: 14px;
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div id="info">
+  <h1>{{ rack.nombre }}</h1>
+  <p>{{ rack.bodega.nombre }} · {{ rack.largo }}cm × {{ rack.alto }}cm · {{ rack.num_niveles }} niveles · {{ rack.num_secciones }} secciones</p>
+</div>
+
+<a id="back-btn" href="{% url 'inventarios:racks_list' %}">← Volver</a>
+
+<div id="tooltip"></div>
+
+<!-- Context Menu -->
+<div id="ctx-menu">
+  <div class="ctx-header" id="ctx-header">Posición</div>
+  <div id="ctx-items-list"></div>
+  <div class="ctx-divider"></div>
+  <button class="ctx-item" id="ctx-add">📦 Agregar material</button>
+  <button class="ctx-item danger" id="ctx-remove">✕ Quitar último</button>
+</div>
+
+<!-- Material Search Modal -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div id="modal-head">
+      <h3 id="modal-title">Seleccionar material</h3>
+      <button id="modal-close">✕</button>
+    </div>
+    <div id="modal-search">
+      <input id="modal-input" type="text" placeholder="Buscar por nombre o SKU..." autofocus>
+    </div>
+    <div id="modal-results"></div>
+  </div>
+</div>
+
+<div id="stats-bar">
+  <span class="stat-pill"><span class="dot" style="background:#22c55e;"></span> Liviano ≤10lb</span>
+  <span class="stat-pill"><span class="dot" style="background:#eab308;"></span> Ligero 10-30lb</span>
+  <span class="stat-pill"><span class="dot" style="background:#f97316;"></span> Medio 30-50lb</span>
+  <span class="stat-pill"><span class="dot" style="background:#ef4444;"></span> Pesado >50lb</span>
+  <span class="stat-pill"><span class="dot" style="background:#22c55e; opacity:0.2;"></span> Vacío</span>
+  <span class="stat-pill"><span class="dot" style="background:#3b82f6;"></span> {{ rack.num_niveles }} niv</span>
+  <span class="stat-pill"><span class="dot" style="background:#a855f7;"></span> {{ rack.num_secciones }} sec</span>
+</div>
+
+<div id="controls-hint">Click en celda para asignar material · Arrastra para rotar · Scroll para zoom</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script>
+// Global functions accessible from module scope
+const RACK_ID = {{ rack.id }};
+const API_ASSIGN = `/inventarios/api/racks/${RACK_ID}/position/assign/`;
+const API_REMOVE = `/inventarios/api/racks/${RACK_ID}/position/remove/`;
+let selectedCell = null;
+
+function getCSRF() {
+  const m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? m[1] : '';
+}
+
+// --- Stacking Engine ---
+const DEFAULTS = {
+    ANCHO: 10,           // cm
+    ALTO: 10,            // cm
+    PROFUNDIDAD: 10,     // cm
+    GAP_DIFF_TYPE: 0.5,  // cm separador entre tipos diferentes
+};
+
+/**
+ * Calcula el layout de materiales apilados en una celda.
+ * Ordena por position ID ascendente, aplica defaults cuando dimensiones son null,
+ * escala uniformemente si el material excede los límites de la celda,
+ * apila de abajo hacia arriba con gap entre tipos diferentes.
+ *
+ * @param {Array} positions - Lista de objetos con campos:
+ *   {id, ancho, alto, profundidad, cantidad, material_id, tipo_material}
+ * @param {Object} cellDims - {width, height, depth} dimensiones de la celda en cm
+ * @returns {Array<StackedBox>} - Lista de objetos:
+ *   {x, y, z, w, h, d, materialId, positionId, tipo, isOverflow, instanceIndex}
+ */
+function computeStackLayout(positions, cellDims) {
+    // Sort by position ID ascending
+    const sortedPositions = [...positions].sort((a, b) => a.id - b.id);
+    const layout = [];
+    let currentY = 0;
+    let prevTipo = null;
+
+    for (const pos of sortedPositions) {
+        // Apply defaults for null dimensions
+        const ancho = (pos.ancho != null) ? pos.ancho : DEFAULTS.ANCHO;
+        const alto = (pos.alto != null) ? pos.alto : DEFAULTS.ALTO;
+        const prof = (pos.profundidad != null) ? pos.profundidad : DEFAULTS.PROFUNDIDAD;
+
+        // Calculate uniform scale if material exceeds cell bounds in X or Z
+        const scaleX = (cellDims.width * 0.95) / ancho;
+        const scaleZ = (cellDims.depth * 0.95) / prof;
+        let scale = 1.0;
+        if (scaleX < 1 || scaleZ < 1) {
+            scale = Math.min(scaleX, scaleZ);
+        }
+
+        const finalW = ancho * scale;
+        const finalH = alto * scale;
+        const finalD = prof * scale;
+
+        // Insert gap between different tipo_material groups
+        if (prevTipo != null && prevTipo !== pos.tipo_material) {
+            currentY += DEFAULTS.GAP_DIFF_TYPE * scale;
+        }
+
+        // Expand by quantity: render N instances stacked
+        const cantidad = Math.max(Math.floor(pos.cantidad) || 0, 0);
+        for (let i = 0; i < cantidad; i++) {
+            const boxY = currentY + finalH / 2; // center Y of the box
+            const isOverflow = (currentY + finalH) > cellDims.height;
+            layout.push({
+                x: 0,
+                y: boxY,
+                z: 0,
+                w: finalW,
+                h: finalH,
+                d: finalD,
+                materialId: pos.material_id,
+                positionId: pos.id,
+                tipo: pos.tipo_material,
+                isOverflow: isOverflow,
+                instanceIndex: i,
+            });
+            currentY += finalH;
+            // No gap between instances of the same material
+        }
+
+        prevTipo = pos.tipo_material;
+    }
+
+    return layout;
+}
+
+// Export for testing (Node.js environment)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { computeStackLayout, DEFAULTS };
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const DATA = {{ rack_data|safe }};
+const tooltip = document.getElementById('tooltip');
+const ctxMenu = document.getElementById('ctx-menu');
+const ctxHeader = document.getElementById('ctx-header');
+const ctxAdd = document.getElementById('ctx-add');
+const modalOverlay = document.getElementById('modal-overlay');
+const modalInput = document.getElementById('modal-input');
+const modalResults = document.getElementById('modal-results');
+const modalClose = document.getElementById('modal-close');
+const modalTitle = document.getElementById('modal-title');
+
+// --- Scene setup (same as before) ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe2e8f0);
+
+const maxDim = Math.max(DATA.largo, DATA.alto);
+const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, maxDim * 20);
+const dist = maxDim * 1.8;
+camera.position.set(dist * 0.7, dist * 0.6, dist);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.prepend(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(DATA.largo / 2, DATA.alto / 2, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = maxDim * 0.3;
+controls.maxDistance = maxDim * 6;
+controls.update();
+
+// Lights
+const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambient);
+const hemi = new THREE.HemisphereLight(0x8ab4f8, 0xcbd5e1, 0.4);
+scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffffff, 1.5);
+key.position.set(DATA.largo * 0.8, DATA.alto * 1.8, DATA.largo * 1.2);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 1;
+key.shadow.camera.far = maxDim * 5;
+key.shadow.camera.left = -maxDim;
+key.shadow.camera.right = maxDim;
+key.shadow.camera.top = maxDim;
+key.shadow.camera.bottom = -maxDim;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.5);
+fill.position.set(-DATA.largo, DATA.alto * 0.3, -DATA.largo);
+scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.3);
+rim.position.set(0, -DATA.alto * 0.5, -DATA.largo * 1.5);
+scene.add(rim);
+
+// Ground
+const groundGeo = new THREE.PlaneGeometry(maxDim * 8, maxDim * 8);
+const groundMat = new THREE.ShadowMaterial({ opacity: 0.15 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.set(DATA.largo / 2, -5, 0);
+ground.receiveShadow = true;
+scene.add(ground);
+const grid = new THREE.GridHelper(maxDim * 4, 30, 0x94a3b8, 0xcbd5e1);
+grid.position.set(DATA.largo / 2, -4, 0);
+scene.add(grid);
+
+// --- Rack Builder ---
+const l = DATA.largo, h = DATA.alto, numNiv = DATA.num_niveles, numSec = DATA.num_secciones;
+const sw = l / numSec, nh = h / numNiv, d = l * 0.35, hd = d / 2, pw = l * 0.022;
+
+const steelMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, metalness: 0.3, roughness: 0.5 });
+const beamMat = new THREE.MeshStandardMaterial({ color: 0xea580c, metalness: 0.2, roughness: 0.6 });
+const shelfMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.2, roughness: 0.5, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
+const divMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.2, roughness: 0.5, transparent: true, opacity: 0.1 });
+
+function box(w, ht, de, mat, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, ht, de), mat);
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+
+// Vertical posts
+for (const dx of [pw/2, l - pw/2])
+  for (const dz of [-hd + pw/2, hd - pw/2])
+    scene.add(box(pw, h, pw, steelMat, dx, h/2, dz));
+
+// Beams
+const bh = nh * 0.12;
+for (const yPos of [bh/2, h - bh/2]) {
+  for (const dz of [-hd, hd]) scene.add(box(l, bh, bh, beamMat, l/2, yPos, dz));
+  for (const dx of [0, l]) scene.add(box(bh, bh, d, beamMat, dx, yPos, 0));
+}
+
+// Shelves
+const sh = nh * 0.06;
+for (let i = 1; i < numNiv; i++) scene.add(box(l - pw, sh, d - pw, shelfMat, l/2, i * nh, 0));
+
+// Dividers
+const dw = l * 0.012;
+for (let i = 1; i < numSec; i++)
+  for (let j = 0; j < numNiv; j++)
+    scene.add(box(dw, nh - sh, d - pw, divMat, i * sw, j * nh + nh/2, 0));
+
+// --- Cells ---
+const cellW = sw - dw - 0.5, cellH = nh - sh - 0.5, cellD = d - pw - 1;
+const cellGeo = new THREE.BoxGeometry(cellW, cellH, cellD);
+const cellMatEmpty = new THREE.MeshStandardMaterial({ color: 0x22c55e, transparent: true, opacity: 0.25, roughness: 0.7, metalness: 0.05 });
+
+function getColor(peso) {
+  if (peso == null) return 0x22c55e;
+  if (peso > 50) return 0xef4444;
+  if (peso > 30) return 0xf97316;
+  if (peso > 10) return 0xeab308;
+  return 0x22c55e;
+}
+function getOpacity(peso) {
+  if (peso == null) return 0.12;
+  if (peso > 50) return 0.55;
+  if (peso > 30) return 0.45;
+  if (peso > 10) return 0.35;
+  return 0.20;
+}
+
+// Group positions by cell
+const cellMap = {};
+for (const p of DATA.posiciones) {
+  const k = `${p.nivel}-${p.seccion}`;
+  if (!cellMap[k]) cellMap[k] = [];
+  cellMap[k].push(p);
+}
+
+const cells = [];
+for (let j = 0; j < numNiv; j++) {
+  for (let i = 0; i < numSec; i++) {
+    const cx = i * sw + sw / 2, cy = j * nh + nh / 2;
+    const key = `${j+1}-${i+1}`;
+    const poses = cellMap[key] || [];
+    const occ = poses.length > 0;
+    const first = poses[0];
+
+    let cellMat;
+    if (occ) {
+      cellMat = new THREE.MeshStandardMaterial({
+        color: getColor(first.peso), transparent: true, opacity: getOpacity(first.peso),
+        roughness: 0.7, metalness: 0.05,
+      });
+    } else {
+      cellMat = cellMatEmpty.clone();
+    }
+    const cell = new THREE.Mesh(cellGeo, cellMat);
+    cell.position.set(cx, cy, 0);
+    cell.castShadow = true; cell.receiveShadow = true;
+    cell.userData = {
+      nivel: j+1, seccion: i+1,
+      codigo: first ? first.codigo : `${j+1}-${i+1}`,
+      ocupado: occ, materiales: poses, mboxes: [],
+    };
+    scene.add(cell);
+    // Cell outline
+    const edges = new THREE.EdgesGeometry(cellGeo);
+    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.35 }));
+    line.position.copy(cell.position);
+    scene.add(line);
+    cells.push(cell);
+
+    // Material boxes: size based on stock cantidad
+    poses.forEach((pos, idx) => {
+      const total = poses.length;
+      const zOff = total > 1 ? (idx / (total - 1) - 0.5) * cellD * 0.6 : 0;
+      const stock = parseFloat(pos.cantidad) || 0;
+      const sizeFrac = Math.min(Math.max(stock / 10, 0.2), 1);
+      const bw = cellW * 0.85 * sizeFrac;
+      const bh2 = cellH * 0.85 * sizeFrac;
+      const bd = cellD * 0.5;
+      if (bw < 0.5 || bh2 < 0.5) return;
+      const mat = new THREE.MeshStandardMaterial({
+        color: getColor(pos.peso), transparent: true, opacity: Math.max(getOpacity(pos.peso), 0.3),
+        roughness: 0.5, metalness: 0.1,
+      });
+      const box = new THREE.Mesh(new THREE.BoxGeometry(bw, bh2, bd), mat);
+      box.position.set(cx, cy, zOff);
+      box.castShadow = true; box.receiveShadow = true;
+      scene.add(box);
+      cell.userData.mboxes.push(box);
+    });
+  }
+}
+
+// --- Hover ---
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hovered = null;
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(cells);
+  if (hovered && hovered !== selectedCell) {
+    hovered.material.color.copy(hovered.userData.origColor);
+    hovered.material.opacity = hovered.userData.origOpacity;
+  }
+  hovered = null;
+  if (hits.length > 0) {
+    const c = hits[0].object;
+    if (c !== selectedCell) {
+      if (!c.userData.origColor) c.userData.origColor = c.material.color.clone();
+      if (c.userData.origOpacity === undefined) c.userData.origOpacity = c.material.opacity;
+      c.material.color.setHex(0x60a5fa);
+      c.material.opacity = 0.5;
+    }
+    hovered = c;
+    const d = c.userData;
+    let html = `<b>${d.codigo}</b><br>Nivel ${d.nivel} · Sección ${d.seccion}`;
+    if (d.ocupado) {
+      d.materiales.forEach(p => {
+        html += `<br>📦 ${p.material_nombre} · ${p.cantidad} uds`;
+        if (p.peso != null) html += ` · ${p.peso} lb`;
+      });
+    } else {
+      html += `<br>✅ Vacío · Click para asignar`;
+    }
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 16) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+// --- Context Menu ---
+function showContextMenu(cell, x, y) {
+  selectedCell = cell;
+  const d = cell.userData;
+  ctxHeader.textContent = `${d.codigo} — Nivel ${d.nivel} · Sección ${d.seccion}`;
+  const itemsDiv = document.getElementById('ctx-items-list');
+  itemsDiv.innerHTML = '';
+  d.materiales.forEach((pos, idx) => {
+    const item = document.createElement('div');
+    item.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px;color:#e2e8f0;font-size:12px;';
+    const name = document.createElement('span');
+    name.style.flex = '1';
+    name.textContent = `${pos.material_nombre} ×${pos.cantidad}`;
+    item.appendChild(name);
+    const rmBtn = document.createElement('button');
+    rmBtn.textContent = '✕';
+    rmBtn.type = 'button';
+    rmBtn.style.cssText = 'padding:2px 8px;border-radius:4px;border:none;background:rgba(239,68,68,0.2);color:#ef4444;cursor:pointer;font-size:11px;';
+    rmBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeMaterialById(pos.id);
+    });
+    item.appendChild(rmBtn);
+    itemsDiv.appendChild(item);
+  });
+  ctxMenu.style.display = 'block';
+  ctxMenu.style.left = Math.min(x, window.innerWidth - 240) + 'px';
+  ctxMenu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+}
+
+function hideContextMenu() {
+  ctxMenu.style.display = 'none';
+  if (selectedCell && selectedCell !== hovered) {
+    selectedCell.material.color.copy(selectedCell.userData.origColor);
+    selectedCell.material.opacity = selectedCell.userData.origOpacity;
+  }
+  selectedCell = null;
+}
+
+renderer.domElement.addEventListener('click', (e) => {
+  if (ctxMenu.style.display === 'block') { hideContextMenu(); return; }
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(cells);
+  if (hits.length > 0) {
+    const cell = hits[0].object;
+    showContextMenu(cell, e.clientX, e.clientY);
+  }
+});
+
+// --- Modal (material search) ---
+function openModal(action) {
+  if (!selectedCell) return;
+  ctxMenu.style.display = 'none';
+  modalOverlay.dataset.nivel = selectedCell.userData.nivel;
+  modalOverlay.dataset.seccion = selectedCell.userData.seccion;
+  modalOverlay.classList.add('active');
+  modalInput.value = '';
+  modalResults.innerHTML = '<div id="modal-empty">Escribe para buscar materiales...</div>';
+  modalInput.focus();
+  modalInput.dataset.action = action;
+  modalTitle.textContent = action === 'add' ? 'Agregar material' : 'Cambiar material';
+}
+
+function closeModal() {
+  modalOverlay.classList.remove('active');
+}
+
+modalClose.addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+
+// Search materials
+let searchTimeout;
+modalInput.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  const q = modalInput.value.trim();
+  if (q.length < 2) {
+    modalResults.innerHTML = '<div id="modal-empty">Escribe al menos 2 caracteres...</div>';
+    return;
+  }
+  searchTimeout = setTimeout(() => searchMaterials(q), 300);
+});
+
+async function searchMaterials(q) {
+  modalResults.innerHTML = '<div id="modal-empty" style="opacity:0.5;">Buscando...</div>';
+  try {
+    const res = await fetch(`/inventarios/api/materials/?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    const items = data.results || [];
+    if (items.length === 0) {
+      modalResults.innerHTML = '<div id="modal-empty">Sin resultados</div>';
+      return;
+    }
+    modalResults.innerHTML = '';
+    items.forEach(m => {
+      const peso = m.peso !== null && m.peso !== undefined ? parseFloat(m.peso) : null;
+      const ancho = m.ancho !== null && m.ancho !== undefined ? parseFloat(m.ancho) : null;
+      const alto = m.alto !== null && m.alto !== undefined ? parseFloat(m.alto) : null;
+      const stock = m.stock !== null && m.stock !== undefined ? parseFloat(m.stock) : 0;
+      const hasDims = ancho !== null && alto !== null;
+      let badge = '';
+      if (peso !== null) {
+        const c = peso > 50 ? '#ef4444' : peso > 30 ? '#f97316' : peso > 10 ? '#eab308' : '#22c55e';
+        badge = `<span class="mi-peso" style="background:${c}22;color:${c};">${peso} lb</span>`;
+      }
+      const dimStr = hasDims ? `<span style="font-size:11px;color:rgba(255,255,255,0.3);">${ancho}×${alto}cm</span>` : `<span style="font-size:11px;color:#f97316;">sin dimensiones</span>`;
+      const div = document.createElement('div');
+      div.className = 'modal-item';
+      div.style.flexWrap = 'wrap';
+      div.innerHTML = `
+        <span class="mi-name">${m.nombre}</span>
+        <span class="mi-sku">${m.sku}</span>
+        ${badge}
+        ${dimStr}
+        <span style="font-size:11px;color:rgba(255,255,255,0.3);">stock: ${stock}</span>
+      `;
+      // If no dimensions, add inputs below
+      if (!hasDims) {
+        const dimRow = document.createElement('div');
+        dimRow.style.cssText = 'width:100%;display:flex;gap:6px;padding:4px 0 0;';
+        dimRow.innerHTML = `
+          <input class="mi-dim ancho" type="number" placeholder="Ancho cm" style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);color:#fff;font-size:12px;outline:none;">
+          <input class="mi-dim alto" type="number" placeholder="Alto cm" style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);color:#fff;font-size:12px;outline:none;">
+        `;
+        div.appendChild(dimRow);
+      }
+      // Add button row
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'width:100%;display:flex;justify-content:flex-end;padding:4px 0 0;gap:6px;';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = 'Cancelar';
+      cancelBtn.type = 'button';
+      cancelBtn.style.cssText = 'padding:4px 12px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.5);cursor:pointer;font-size:11px;';
+      cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); modalResults.innerHTML = '<div id="modal-empty">Escribe para buscar materiales...</div>'; });
+      const addBtn = document.createElement('button');
+      addBtn.textContent = 'Agregar';
+      addBtn.type = 'button';
+      addBtn.style.cssText = 'padding:4px 16px;border-radius:4px;border:none;background:#2563eb;color:#fff;cursor:pointer;font-size:12px;font-weight:600;';
+      addBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const dims = div.querySelectorAll('.mi-dim');
+        const an = dims.length ? (parseFloat(dims[0].value) || null) : (hasDims ? ancho : null);
+        const al = dims.length ? (parseFloat(dims[1].value) || null) : (hasDims ? alto : null);
+        if (!hasDims && (!an || !al)) {
+          alert('Debes ingresar Ancho y Alto del material para asignarlo al rack.');
+          return;
+        }
+        assignMaterial(m.id, m.nombre, peso, an, al, stock);
+      });
+      btnRow.appendChild(cancelBtn);
+      btnRow.appendChild(addBtn);
+      div.appendChild(btnRow);
+      modalResults.appendChild(div);
+    });
+  } catch (err) {
+    modalResults.innerHTML = '<div id="modal-empty">Error al buscar</div>';
+  }
+}
+
+async function assignMaterial(materialId, materialName, peso, anchoVal, altoVal, stock) {
+  const nivel = parseInt(modalOverlay.dataset.nivel);
+  const seccion = parseInt(modalOverlay.dataset.seccion);
+  if (!nivel || !seccion) { alert('Error: posición no seleccionada'); return; }
+  const cell = cells.find(c => c.userData.nivel === nivel && c.userData.seccion === seccion);
+  if (!cell) { alert('Error: celda no encontrada'); return; }
+  const d = cell.userData;
+  const cantidad = stock || 0;
+
+  const body = { nivel, seccion, material_id: materialId, cantidad };
+  if (anchoVal != null) body.ancho = anchoVal;
+  if (altoVal != null) body.alto = altoVal;
+
+  try {
+    const res = await fetch(API_ASSIGN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.status !== 'ok') { alert('Error: ' + (data.error || 'desconocido')); return; }
+    const pos = data.posicion;
+
+    // Append to cell's materiales list
+    d.materiales.push(pos);
+    d.ocupado = true;
+
+    // Update cell color using first material's peso
+    const first = d.materiales[0];
+    selectedCell = cell;
+    selectedCell.material.dispose();
+    const wc = first ? { color: getColor(first.peso), opacity: getOpacity(first.peso) } : { color: 0x22c55e, opacity: 0.08 };
+    selectedCell.material = new THREE.MeshStandardMaterial({ color: wc.color, transparent: true, opacity: wc.opacity, roughness: 0.7, metalness: 0.05 });
+    selectedCell.userData.origColor = selectedCell.material.color.clone();
+    selectedCell.userData.origOpacity = selectedCell.material.opacity;
+
+    // Create new material box
+    const total = d.materiales.length;
+    const idx = total - 1;
+    const zOff = total > 1 ? (idx / (total - 1) - 0.5) * cellD * 0.6 : 0;
+    const cx = cell.position.x, cy = cell.position.y;
+    const stock = parseFloat(pos.cantidad) || 0;
+    const sizeFrac = Math.min(Math.max(stock / 10, 0.2), 1);
+    const bw = cellW * 0.85 * sizeFrac, bh2 = cellH * 0.85 * sizeFrac, bd = cellD * 0.5;
+    const mbox = new THREE.Mesh(new THREE.BoxGeometry(bw, bh2, bd), new THREE.MeshStandardMaterial({
+      color: getColor(pos.peso), transparent: true, opacity: Math.max(getOpacity(pos.peso), 0.3),
+      roughness: 0.5, metalness: 0.1,
+    }));
+    mbox.position.set(cx, cy, zOff);
+    mbox.castShadow = true; mbox.receiveShadow = true;
+    d.mboxes.push(mbox);
+    scene.add(mbox);
+
+    closeModal();
+    hideContextMenu();
+  } catch (err) {
+    alert('Error: ' + (err.message || err));
+  }
+}
+
+async function removeMaterialById(posId) {
+  const cell = selectedCell;
+  if (!cell) return;
+  const d = cell.userData;
+  try {
+    const res = await fetch(API_REMOVE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+      body: JSON.stringify({ pos_id: posId }),
+    });
+    const data = await res.json();
+    if (data.status !== 'ok') { alert('Error al quitar'); return; }
+
+    // Find and remove the matching mbox
+    const idx = d.materiales.findIndex(p => p.id === posId);
+    if (idx >= 0) {
+      const mbox = d.mboxes[idx];
+      if (mbox) { scene.remove(mbox); mbox.geometry?.dispose(); mbox.material?.dispose(); }
+      d.materiales.splice(idx, 1);
+      d.mboxes.splice(idx, 1);
+    }
+    d.ocupado = d.materiales.length > 0;
+
+    // Rebuild all material boxes with correct Z positions
+    d.mboxes.forEach(mb => { scene.remove(mb); mb.geometry?.dispose(); mb.material?.dispose(); });
+    d.mboxes = [];
+    const total = d.materiales.length;
+    d.materiales.forEach((pos, i) => {
+      const zOff = total > 1 ? (i / (total - 1) - 0.5) * cellD * 0.6 : 0;
+      const cx = cell.position.x, cy = cell.position.y;
+      const stock = parseFloat(pos.cantidad) || 0;
+      const sizeFrac = Math.min(Math.max(stock / 10, 0.2), 1);
+      const bw = cellW * 0.85 * sizeFrac, bh2 = cellH * 0.85 * sizeFrac, bd = cellD * 0.5;
+      const mbox = new THREE.Mesh(new THREE.BoxGeometry(bw, bh2, bd), new THREE.MeshStandardMaterial({
+        color: getColor(pos.peso), transparent: true, opacity: Math.max(getOpacity(pos.peso), 0.3),
+        roughness: 0.5, metalness: 0.1,
+      }));
+      mbox.position.set(cx, cy, zOff);
+      mbox.castShadow = true; mbox.receiveShadow = true;
+      d.mboxes.push(mbox); scene.add(mbox);
+    });
+
+    // Update cell color
+    const first = d.materiales[0] || null;
+    cell.material.dispose();
+    const wc2 = first ? { color: getColor(first.peso), opacity: getOpacity(first.peso) } : { color: 0x22c55e, opacity: 0.08 };
+    cell.material = new THREE.MeshStandardMaterial({ color: wc2.color, transparent: true, opacity: wc2.opacity, roughness: 0.7, metalness: 0.05 });
+    cell.userData.origColor = cell.material.color.clone();
+    cell.userData.origOpacity = cell.material.opacity;
+
+    hideContextMenu();
+  } catch (err) {
+    alert('Error de red');
+  }
+}
+
+// Context menu actions
+ctxAdd.addEventListener('click', () => { openModal('add'); });
+
+// Close context menu on outside click
+document.addEventListener('click', (e) => {
+  if (ctxMenu.style.display === 'block' && !ctxMenu.contains(e.target) && e.target.tagName !== 'CANVAS') {
+    hideContextMenu();
+  }
+});
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Animate
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

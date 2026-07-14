@@ -250,6 +250,10 @@ class PerfilUsuario(models.Model):
         default='active',
         verbose_name="Estado de Invitación",
     )
+    nav_config = models.JSONField(
+        default=dict, blank=True, verbose_name="Configuración de navegación",
+        help_text='{"hidden_menus": ["Mantenimiento"], "custom_menus": [{"name": "Mis Links", "icon": "fas fa-star", "color": "#f59e0b", "columns": [{"heading": "", "items": [{"name": "Link", "url": "/url/"}]}]}]}',
+    )
 
     def __str__(self):
         return f"Perfil de {self.usuario.username}"

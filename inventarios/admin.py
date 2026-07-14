@@ -1,13 +1,13 @@
 from django.contrib import admin
 from django.contrib import messages
-from django.urls import path
+from django.urls import path, reverse
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.html import mark_safe
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from import_export.admin import ImportExportModelAdmin
-from .models import Material, StockRecord, MovimientoInventario, CategoriaMaterial, SolicitudMaterial, Lote, UnidadMedida, IngresoInventario
+from .models import Material, StockRecord, MovimientoInventario, CategoriaMaterial, SolicitudMaterial, Lote, UnidadMedida, IngresoInventario, Rack, RackPosition
 from activos.models import Marca
 
 class StockRecordInline(admin.TabularInline):
@@ -214,34 +214,44 @@ class MaterialMovimientoInline(admin.TabularInline):
 @admin.register(Material)
 class MaterialAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/inventarios/material/change_list.html'
+    change_form_template = 'admin/inventarios/material/change_form.html'
     resource_class = MaterialResource
-    list_display = ('sku', 'nombre', 'categoria', 'tipo_material', 'unidad_medida', 'get_stock_total', 'imagen_preview')
-    search_fields = ('nombre', 'sku', 'descripcion')
+    list_display = ('sku', 'nombre', 'categoria', 'tipo_material', 'unidad_medida', 'peso', 'get_stock_total', 'tiene_imagen')
+    search_fields = ('nombre', 'sku')
     list_filter = ('categoria', 'tipo_material', 'unidad_medida')
     list_select_related = ('categoria', 'marca')
     filter_horizontal = ('departamentos',)
-    inlines = [StockRecordInline, MaterialMovimientoInline]
+    inlines = [StockRecordInline]
     readonly_fields = ('imagen_preview',)
 
-    def imagen_preview(self, obj):
+    def tiene_imagen(self, obj):
         if obj.imagen:
-            return mark_safe(f'<img src="{obj.imagen.url}" width="50" height="50" style="object-fit:cover; border-radius:4px;" />')
-        else:
-             fallback_svg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E"
-             return mark_safe(f'<img src="{fallback_svg}" width="50" height="50" style="object-fit:cover; border-radius:4px; opacity:0.6;" />')
-        return "-"
+            return mark_safe('<span style="color:#22c55e;font-weight:700;">✓</span>')
+        return mark_safe('<span style="color:#94a3b8;">—</span>')
+    tiene_imagen.short_description = 'Img'
+
+    def imagen_preview(self, obj):
+        if obj.imagen and hasattr(obj.imagen, 'url'):
+            try:
+                url = obj.imagen.url
+            except Exception:
+                url = None
+            if url:
+                return mark_safe(f'<img src="{url}" width="50" height="50" style="object-fit:cover; border-radius:4px;" />')
+        fallback_svg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E"
+        return mark_safe(f'<img src="{fallback_svg}" width="50" height="50" style="object-fit:cover; border-radius:4px; opacity:0.6;" />')
     imagen_preview.short_description = 'Imagen'
 
     def get_queryset(self, request):
-        from django.db.models import Sum
         qs = super().get_queryset(request)
-        qs = qs.select_related('categoria', 'marca', 'unidad_medida').prefetch_related('departamentos')
-        return qs.annotate(db_stock_total=Sum('existencias__cantidad'))
+        qs = qs.select_related('categoria', 'marca', 'unidad_medida')
+        return qs
 
     def get_stock_total(self, obj):
-        return obj.db_stock_total if obj.db_stock_total is not None else 0
+        from django.db.models import Sum
+        total = obj.existencias.aggregate(total=Sum('cantidad'))['total']
+        return total if total is not None else 0
     get_stock_total.short_description = 'Stock Total'
-    get_stock_total.admin_order_field = 'db_stock_total'
 
     def get_urls(self):
         urls = super().get_urls()
@@ -298,3 +308,41 @@ class MovimientoInventarioAdmin(admin.ModelAdmin):
             self.message_user(request, f"{errores} movimientos no pudieron ser liquidados por falta de stock.", level=messages.WARNING)
 
     liquidar_movimientos.short_description = "Liquidar / Aprobar Movimientos Seleccionados"
+
+
+class RackPositionInline(admin.TabularInline):
+    model = RackPosition
+    extra = 0
+    max_num = 50
+    raw_id_fields = ('material', 'lote')
+    readonly_fields = ('codigo',)
+
+
+@admin.register(Rack)
+class RackAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'bodega', 'largo', 'alto', 'num_niveles', 'num_secciones', 'pos_x_m', 'pos_y_m', 'activo', 'ver_3d')
+    list_filter = ('activo', 'bodega')
+    search_fields = ('nombre', 'bodega__nombre')
+    inlines = [RackPositionInline]
+
+    fieldsets = (
+        (None, {
+            'fields': ('bodega', 'nombre', ('largo', 'alto'), ('num_niveles', 'num_secciones'), 'orden')
+        }),
+        ('Posición en Bodega', {
+            'fields': (('pos_x_m', 'pos_y_m'),),
+            'description': 'Coordenadas en metros dentro del área de la bodega. Origen (0,0) = esquina inferior izquierda.',
+        }),
+    )
+
+    def ver_3d(self, obj):
+        url = reverse('inventarios:rack_3d', args=[obj.pk])
+        return mark_safe(f'<a class="button" href="{url}" target="_blank">🔲 Ver en 3D</a>')
+    ver_3d.short_description = 'Vista 3D'
+
+@admin.register(RackPosition)
+class RackPositionAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'rack', 'nivel', 'seccion', 'material', 'cantidad')
+    list_filter = ('rack__bodega', 'rack')
+    search_fields = ('codigo', 'rack__nombre', 'material__nombre', 'material__sku')
+    raw_id_fields = ('material', 'lote')

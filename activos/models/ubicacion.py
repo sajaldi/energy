@@ -17,6 +17,8 @@ class Ubicacion(models.Model):
     orden = models.PositiveIntegerField(default=0, help_text="Orden de visualización y programación")
     es_almacen = models.BooleanField(default=False, help_text="Marcar si esta ubicación funciona como bodega/almacén de materiales")
     categoria = models.ForeignKey('Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='ubicaciones', help_text="Categoría asociada para rutinas de mantenimiento")
+    ancho_m = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="Ancho (m)", help_text="Ancho del área (solo para Bodegas)")
+    largo_m = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="Largo (m)", help_text="Largo del área (solo para Bodegas)")
 
     def get_ruta_completa(self, separador=' → '):
         """

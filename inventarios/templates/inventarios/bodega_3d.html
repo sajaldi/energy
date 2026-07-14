@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bodega 3D: {{ bodega.nombre }}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1a2e; font-family: 'Segoe UI', system-ui, sans-serif; }
+  canvas { display: block; }
+
+  #info {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(8px);
+    color: #fff; padding: 14px 28px; border-radius: 10px;
+    z-index: 100; text-align: center;
+    border: 1px solid rgba(255,255,255,0.08);
+    pointer-events: none;
+  }
+  #info h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.3px; }
+  #info p { font-size: 12px; opacity: 0.65; margin-top: 3px; }
+
+  #tooltip {
+    position: fixed; display: none;
+    background: rgba(0,0,0,0.88); backdrop-filter: blur(6px);
+    color: #fff; padding: 10px 16px; border-radius: 8px;
+    font-size: 13px; z-index: 200; pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    line-height: 1.5;
+  }
+
+  #controls-hint {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.35); font-size: 12px;
+    z-index: 100; text-align: center;
+    background: rgba(0,0,0,0.5); padding: 8px 18px; border-radius: 20px;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  #back-btn {
+    position: fixed; top: 18px; right: 18px; z-index: 100;
+    background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+    color: #fff; border: 1px solid rgba(255,255,255,0.12);
+    padding: 9px 18px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; text-decoration: none; transition: all 0.2s;
+    font-family: inherit; display: flex; align-items: center; gap: 6px;
+  }
+  #back-btn:hover { background: rgba(255,255,255,0.15); }
+
+  #bodega-label {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.15); font-size: 40px; font-weight: 800;
+    z-index: 0; pointer-events: none; letter-spacing: 2px;
+    white-space: nowrap;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div id="info">
+  <h1>{{ bodega.nombre }}</h1>
+  <p>Arrastra racks para reposicionarlos · Click para ver detalle</p>
+</div>
+
+<a id="back-btn" href="{% url 'inventarios:racks_list' %}">← Volver</a>
+
+<div id="controls-hint">🖱 Arrastra · Rueda zoom · Click rack para detalle</div>
+<div id="bodega-label">{{ bodega.nombre }}</div>
+
+<div id="tooltip"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script>
+const BODEGA_DATA = {{ bodega_data|safe }};
+const RACK_COLORS = [
+  0x2563eb, 0xea580c, 0x16a34a, 0x9333ea,
+  0xdc2626, 0x0891b2, 0xca8a04, 0xdb2777,
+  0x4f46e5, 0x65a30d, 0x0d9488, 0x7c3aed,
+];
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// Scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1e293b);
+
+const { ancho_m, largo_m, racks } = BODEGA_DATA;
+const cx = ancho_m / 2, cz = -largo_m / 2;
+
+// Camera
+const maxDim = Math.max(ancho_m, largo_m);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
+const camDist = maxDim * 1.4 + 5;
+camera.position.set(cx + camDist * 0.5, camDist * 0.7, cz - camDist * 0.7);
+camera.lookAt(cx, 0, cz);
+
+// Renderer
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1;
+document.body.prepend(renderer.domElement);
+
+// Controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(cx, 0, cz);
+controls.enableDamping = true;
+controls.dampingFactor = 0.1;
+controls.minDistance = 3;
+controls.maxDistance = maxDim * 3;
+controls.maxPolarAngle = Math.PI / 2.05;
+controls.update();
+
+// Lights
+const ambient = new THREE.AmbientLight(0x8888cc, 0.9);
+scene.add(ambient);
+const hemi = new THREE.HemisphereLight(0xaaccff, 0x88cc88, 0.8);
+scene.add(hemi);
+const main = new THREE.DirectionalLight(0xffeedd, 2);
+main.position.set(cx + 15, 25, cz - 10);
+main.castShadow = true;
+main.shadow.mapSize.width = 2048;
+main.shadow.mapSize.height = 2048;
+main.shadow.camera.near = 0.5;
+main.shadow.camera.far = 100;
+main.shadow.camera.left = -30;
+main.shadow.camera.right = 30;
+main.shadow.camera.top = 30;
+main.shadow.camera.bottom = -30;
+scene.add(main);
+const fill = new THREE.DirectionalLight(0x6688ff, 0.5);
+fill.position.set(cx - 10, 10, cz + 10);
+scene.add(fill);
+
+// Grid helper
+const gridDivs = Math.max(Math.round(ancho_m / 1), Math.round(largo_m / 1));
+const gridHelper = new THREE.GridHelper(Math.max(ancho_m, largo_m), gridDivs, 0x94a3b8, 0x475569);
+gridHelper.position.set(cx, -0.03, cz);
+scene.add(gridHelper);
+
+// Floor
+const floorGeo = new THREE.PlaneGeometry(ancho_m, largo_m);
+const floorMat = new THREE.MeshStandardMaterial({
+  color: 0x334155, roughness: 0.9, metalness: 0.05, side: THREE.DoubleSide,
+});
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.set(cx, -0.04, cz);
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Floor border
+const borderMat = new THREE.LineBasicMaterial({ color: 0x818cf8, transparent: true, opacity: 0.8 });
+const borderPoints = [
+  new THREE.Vector3(0, 0.02, 0), new THREE.Vector3(ancho_m, 0.02, 0),
+  new THREE.Vector3(ancho_m, 0.02, -largo_m), new THREE.Vector3(0, 0.02, -largo_m),
+  new THREE.Vector3(0, 0.02, 0),
+];
+const borderGeo = new THREE.BufferGeometry().setFromPoints(borderPoints);
+const borderLine = new THREE.Line(borderGeo, borderMat);
+scene.add(borderLine);
+
+// Dimension labels (meter markers)
+const labelMat = new THREE.SpriteMaterial({
+  map: makeLabelCanvas('0m'),
+  depthTest: false, depthWrite: false,
+});
+// We'll add labels via CSS2DRenderer or sprites for simplicity
+function makeLabelCanvas(text, bg = 'rgba(0,0,0,0.6)', fg = '#888') {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 48;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = bg;
+  ctx.roundRect(0, 0, 128, 48, 8);
+  ctx.fill();
+  ctx.fillStyle = fg;
+  ctx.font = 'bold 18px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 64, 26);
+  return c;
+}
+
+  // Corner labels
+for (const [x, z, label] of [[0, 0, '0,0'], [ancho_m, 0, `${ancho_m},0`], [0, -largo_m, `0,${largo_m}`], [ancho_m, -largo_m, `${ancho_m},${largo_m}`]]) {
+  const spriteMat = new THREE.SpriteMaterial({ map: makeLabelCanvas(label), depthTest: false, depthWrite: false, transparent: true, opacity: 0.6 });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.position.set(x, 0.1, z);
+  sprite.scale.set(1.5, 0.56, 1);
+  scene.add(sprite);
+}
+
+// Axis arrows
+const axisLen = 1.5;
+const arrowMat = new THREE.MeshStandardMaterial({ color: 0x6366f1 });
+const arrowCone = new THREE.ConeGeometry(0.15, 0.4, 8);
+const arrowCyl = new THREE.CylinderGeometry(0.04, 0.04, axisLen);
+// X-axis arrow
+const xCyl = new THREE.Mesh(arrowCyl, new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+xCyl.position.set(axisLen / 2, 0.3, 0);
+xCyl.rotation.z = -Math.PI / 2;
+scene.add(xCyl);
+const xCone = new THREE.Mesh(arrowCone, new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+xCone.position.set(axisLen + 0.2, 0.3, 0);
+xCone.rotation.z = -Math.PI / 2;
+scene.add(xCone);
+// Z-axis arrow
+const zCyl = new THREE.Mesh(arrowCyl, new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
+zCyl.position.set(0, 0.3, -axisLen / 2);
+zCyl.rotation.x = Math.PI / 2;
+scene.add(zCyl);
+const zCone = new THREE.Mesh(arrowCone, new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
+zCone.position.set(0, 0.3, -axisLen - 0.2);
+zCone.rotation.x = Math.PI / 2;
+scene.add(zCone);
+
+// Rack materials cache
+const rackMeshes = [];
+const tooltip = document.getElementById('tooltip');
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+function buildRack3D(rackData, color) {
+  const { id, nombre, num_niveles, num_secciones } = rackData;
+  const largo = rackData.largo / 100; // cm → m
+  const alto = rackData.alto / 100;
+  const pw = largo * 0.04;
+  const d = largo * 0.35;
+  const sw = (largo - pw * 2) / num_secciones;
+  const nh = (alto - pw * 2) / num_niveles;
+
+  const group = new THREE.Group();
+  group.userData = { rackId: id, nombre, rackData };
+
+  // Posts
+  const postMat = new THREE.MeshStandardMaterial({ color, metalness: 0.3, roughness: 0.5 });
+  for (const dx of [pw / 2, largo - pw / 2])
+    for (const dz of [-d / 2 + pw / 2, d / 2 - pw / 2]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(pw, alto, pw), postMat);
+      post.position.set(dx, alto / 2, dz);
+      post.castShadow = true;
+      group.add(post);
+    }
+
+  // Beams
+  const beamMat = new THREE.MeshStandardMaterial({ color: 0x666688, metalness: 0.2, roughness: 0.6 });
+  const bh = nh * 0.12;
+  for (const yPos of [bh / 2, alto - bh / 2]) {
+    for (const dz of [-d / 2, d / 2]) {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(largo, bh, bh), beamMat);
+      beam.position.set(largo / 2, yPos, dz);
+      beam.castShadow = true;
+      group.add(beam);
+    }
+    for (const dx of [0, largo]) {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(bh, bh, d), beamMat);
+      beam.position.set(dx, yPos, 0);
+      beam.castShadow = true;
+      group.add(beam);
+    }
+  }
+
+  // Shelves
+  const shelfMat = new THREE.MeshStandardMaterial({ color, metalness: 0.15, roughness: 0.5, transparent: true, opacity: 0.12, side: THREE.DoubleSide });
+  const sh = nh * 0.06;
+  for (let i = 1; i < num_niveles; i++) {
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(largo - pw, sh, d - pw), shelfMat);
+    shelf.position.set(largo / 2, i * nh, 0);
+    group.add(shelf);
+  }
+
+  // Dividers
+  const divMat = new THREE.MeshStandardMaterial({ color, metalness: 0.15, roughness: 0.5, transparent: true, opacity: 0.08 });
+  const dw = largo * 0.012;
+  for (let i = 1; i < num_secciones; i++)
+    for (let j = 0; j < num_niveles; j++) {
+      const div = new THREE.Mesh(new THREE.BoxGeometry(dw, nh - sh, d - pw), divMat);
+      div.position.set(i * sw, j * nh + nh / 2, 0);
+      group.add(div);
+    }
+
+  // Material boxes inside cells (multiple per cell, stacked front-to-back)
+  const occupied = {};
+  for (const p of (rackData.posiciones || [])) {
+    const k = `${p.nivel}-${p.seccion}`;
+    if (!occupied[k]) occupied[k] = [];
+    occupied[k].push(p);
+  }
+  function getWColor(peso) {
+    if (peso == null) return 0x22c55e;
+    if (peso > 50) return 0xef4444;
+    if (peso > 30) return 0xf97316;
+    if (peso > 10) return 0xeab308;
+    return 0x22c55e;
+  }
+  const cellW = sw - dw - 0.05, cellH = nh - sh - 0.05, cellD = d - pw - 0.05;
+  for (let j = 0; j < num_niveles; j++) {
+    for (let i = 0; i < num_secciones; i++) {
+      const key = `${j+1}-${i+1}`;
+      const poses = occupied[key] || [];
+      if (poses.length === 0) continue;
+      const total = poses.length;
+      poses.forEach((pos, idx) => {
+        const hasDim = pos.ancho && pos.alto;
+        const matW = hasDim ? Math.min(((pos.ancho / 100) / sw) * cellW, cellW * 0.95) : cellW * 0.7;
+        const matH = hasDim ? Math.min(((pos.alto / 100) / nh) * cellH, cellH * 0.95) : cellH * 0.7;
+        const matD = cellD * 0.5;
+        const c = getWColor(pos.peso);
+        const mMat = new THREE.MeshStandardMaterial({
+          color: c, transparent: true, opacity: hasDim ? 0.6 : 0.35,
+          roughness: 0.5, metalness: 0.1,
+        });
+        const cx = i * sw + sw / 2, cy = j * nh + nh / 2;
+        const zOffset = total > 1 ? (idx / (total - 1) - 0.5) * cellD * 0.6 : 0;
+        const mbox = new THREE.Mesh(new THREE.BoxGeometry(matW, matH, matD), mMat);
+        mbox.position.set(cx, cy, zOffset);
+        mbox.castShadow = true; mbox.receiveShadow = true;
+        group.add(mbox);
+      });
+    }
+  }
+
+  // Name label (sprite)
+  const labelCanvas = document.createElement('canvas');
+  labelCanvas.width = 512; labelCanvas.height = 128;
+  const ctx = labelCanvas.getContext('2d');
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.roundRect(0, 0, 512, 128, 16);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(nombre, 256, 60);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '20px sans-serif';
+  ctx.fillText(`${largo.toFixed(1)}×${alto.toFixed(1)}m · ${num_secciones}×${num_niveles}`, 256, 100);
+  const labelMat2 = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(labelCanvas), depthTest: false, depthWrite: false, transparent: true, opacity: 0.85 });
+  const label = new THREE.Sprite(labelMat2);
+  label.position.set(largo / 2, alto + 0.8, 0);
+  label.scale.set(largo * 1.5, largo * 0.375, 1);
+  group.add(label);
+
+  // Position the group
+  group.position.set(pos_x_m, 0, -pos_y_m);
+  return group;
+}
+
+// Build all racks
+racks.forEach((r, i) => {
+  const color = RACK_COLORS[i % RACK_COLORS.length];
+  const group = buildRack3D(r, color);
+  rackMeshes.push(group);
+  scene.add(group);
+});
+
+// Tooltip follow
+renderer.domElement.addEventListener('mousemove', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(rackMeshes, true);
+  if (hits.length > 0) {
+    let obj = hits[0].object;
+    while (obj.parent && !obj.parent.userData.rackId) obj = obj.parent;
+    const rackInfo = obj.parent?.userData;
+    if (rackInfo) {
+      const d = rackInfo.rackData;
+      renderer.domElement.style.cursor = 'pointer';
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 15) + 'px';
+      tooltip.style.top = (e.clientY + 15) + 'px';
+      tooltip.innerHTML = `<b>${d.nombre}</b><br><span style="opacity:0.6;font-size:11px;">${(d.largo/100).toFixed(1)}×${(d.alto/100).toFixed(1)}m · ${d.num_secciones}×${d.num_niveles} · ${d.posiciones.length} ocupadas</span>`;
+      return;
+    }
+  }
+  renderer.domElement.style.cursor = 'default';
+  tooltip.style.display = 'none';
+});
+
+// Click to open rack 3D view
+renderer.domElement.addEventListener('click', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(rackMeshes, true);
+  if (hits.length > 0) {
+    let obj = hits[0].object;
+    while (obj.parent && !obj.parent.userData.rackId) obj = obj.parent;
+    const rackId = obj.parent?.userData?.rackId;
+    if (rackId) {
+      window.open(`/inventarios/racks/${rackId}/3d/`, '_blank');
+      return;
+    }
+  }
+});
+
+// Drag to reposition
+let dragTarget = null;
+let dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+let dragOffset = new THREE.Vector3();
+let dragIntersect = new THREE.Vector3();
+let dragMoved = false;
+
+function getRackGroup(obj) {
+  while (obj) {
+    if (obj.userData && obj.userData.rackId !== undefined) return obj;
+    obj = obj.parent;
+  }
+  return null;
+}
+
+renderer.domElement.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(rackMeshes, true);
+  if (hits.length > 0) {
+    const rack = getRackGroup(hits[0].object);
+    if (rack) {
+      dragTarget = rack;
+      dragMoved = false;
+      controls.enabled = false;
+      const pt = new THREE.Vector3();
+      if (raycaster.ray.intersectPlane(dragPlane, pt)) {
+        dragOffset.copy(pt).sub(dragTarget.position);
+      }
+      return;
+    }
+  }
+  dragTarget = null;
+});
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  if (!dragTarget) return;
+  dragMoved = true;
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const pt = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(dragPlane, pt)) return;
+  // Snap to 0.5m grid
+  const snappedX = Math.round((pt.x - dragOffset.x) * 2) / 2;
+  const snappedZ = Math.round((pt.z - dragOffset.z) * 2) / 2;
+  // Clamp to bodega bounds
+  const rackData = dragTarget.userData.rackData;
+  const halfL = rackData.largo / 2;
+  const halfD = rackData.alto / 2;
+  const clampedX = Math.max(halfL, Math.min(ancho_m - halfL, snappedX));
+  const clampedZ = Math.max(-largo_m + halfD, Math.min(-halfD, snappedZ));
+  dragTarget.position.x = clampedX;
+  dragTarget.position.z = clampedZ;
+  // Update labels
+  const rd = dragTarget.userData.rackData;
+  const px = parseFloat(clampedX.toFixed(2));
+  const py = parseFloat((-clampedZ).toFixed(2));
+  dragTarget.children.forEach(child => {
+    if (child.isSprite) {
+      const c = child.material.map.image;
+      const ctx2 = c.getContext('2d');
+      ctx2.clearRect(0, 0, c.width, c.height);
+      ctx2.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx2.roundRect(0, 0, 512, 128, 16);
+      ctx2.fill();
+      ctx2.fillStyle = '#fff';
+      ctx2.font = 'bold 36px sans-serif';
+      ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+      ctx2.fillText(rd.nombre, 256, 50);
+      ctx2.fillStyle = '#818cf8';
+      ctx2.font = '22px sans-serif';
+      ctx2.fillText(`${px.toFixed(1)}, ${py.toFixed(1)}m`, 256, 96);
+      child.material.map.needsUpdate = true;
+    }
+  });
+});
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style, {
+    position:'fixed', bottom:'70px', left:'50%', transform:'translateX(-50%)',
+    background:'rgba(0,0,0,0.8)', color:'#fff', padding:'10px 22px',
+    borderRadius:'8px', fontSize:'13px', zIndex:999,
+    transition:'opacity 0.3s', fontFamily:'inherit',
+  });
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2000);
+}
+
+document.addEventListener('mouseup', async () => {
+  if (!dragTarget) return;
+  const rd = dragTarget.userData.rackData;
+  const px = parseFloat(dragTarget.position.x.toFixed(2));
+  const py = parseFloat((-dragTarget.position.z).toFixed(2));
+  rd.pos_x_m = px;
+  rd.pos_y_m = py;
+  controls.enabled = true;
+  const rackId = rd.id;
+  if (!dragMoved) { dragTarget = null; return; }
+  dragTarget = null;
+  try {
+    const res = await fetch(`/inventarios/api/racks/${rackId}/position/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pos_x_m: px, pos_y_m: py }),
+    });
+    const data = await res.json();
+    if (data.status === 'ok') showToast(`✅ ${rd.nombre}: ${px.toFixed(1)}, ${py.toFixed(1)}m`);
+    else showToast('❌ Error al guardar posición');
+  } catch (err) {
+    showToast('❌ Error de red al guardar');
+  }
+});
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Animation loop
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

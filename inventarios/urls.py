@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from .views import mobile_crear_solicitud
-from .api_materials import api_list_materials, api_list_categories, api_master_sync
+from .api_materials import api_list_materials, api_list_categories, api_master_sync, api_precios_historicos
 
 app_name = 'inventarios'
 
@@ -22,6 +22,8 @@ urlpatterns = [
     path('api/materials/', api_list_materials, name='api_list_materials'),
     path('api/categories/', api_list_categories, name='api_list_categories'),
     path('catalogo/', views.master_catalog, name='master_catalog'),
+    path('nuevos-materiales/', views.solicitud_nuevos_materiales, name='solicitud_nuevos_materiales'),
+    path('admin-catalogos/', views.admin_catalogos, name='admin_catalogos'),
 
     # Mobile Views
     path('mobile/dashboard/', views.mobile_inventario_dashboard, name='mobile_dashboard'),
@@ -57,10 +59,20 @@ urlpatterns = [
     path('api/discrepancy/resolve/', views.api_resolver_discrepancia, name='api_resolver_discrepancia'),
     path('api/sync-master/', api_master_sync, name='api_master_sync'),
     path('api/check-ot-solicitud/<int:ot_id>/', views.api_check_ot_solicitud, name='api_check_ot_solicitud'),
+    path('api/material/<int:material_id>/precios-historicos/', api_precios_historicos, name='api_precios_historicos'),
     path('api/solicitudes/<int:pk>/update-items/', views.api_solicitud_update_items, name='api_solicitud_update_items'),
     path('api/solicitudes/<int:pk>/resend-webhook/', views.api_resolicitud_webhook, name='api_resolicitud_webhook'),
     path('api/recalcular-stock/<int:material_id>/', views.api_recalcular_stock, name='api_recalcular_stock'),
     path('registrar-salida/', views.registrar_salida_view, name='registrar_salida'),
     path('manifest.json', views.pwa_manifest, name='pwa_manifest'),
     path('sw.js', views.pwa_sw, name='pwa_sw'),
+
+    # Racks
+    path('racks/', views.rack_list_view, name='racks_list'),
+    path('racks/<int:pk>/3d/', views.rack_3d_view, name='rack_3d'),
+    path('api/racks/<int:rack_id>/position/assign/', views.api_rack_assign_position, name='api_rack_assign'),
+    path('api/racks/<int:rack_id>/position/remove/', views.api_rack_remove_position, name='api_rack_remove'),
+    path('api/racks/<int:rack_id>/position/', views.api_rack_update_position, name='api_rack_position'),
+    path('api/bodega/<int:bodega_id>/racks/', views.api_bodega_racks, name='api_bodega_racks'),
+    path('bodega/<int:pk>/3d/', views.bodega_3d_view, name='bodega_3d'),
 ]

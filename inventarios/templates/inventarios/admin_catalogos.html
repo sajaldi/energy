@@ -1,0 +1,332 @@
+{% extends "inventarios/base_inventarios.html" %}
+{% load i18n static %}
+
+{% block extrahead %}{{ block.super }}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<style>
+  :root {
+    --sap-blue: #0a6ed1; --sap-blue-hover: #0854a0;
+    --sap-green: #107e3e; --sap-orange: #e9730c;
+    --sap-red: #bb0000; --sap-bg: #f3f5f7;
+    --sap-card: #ffffff; --sap-border: #d9d9d9;
+    --sap-shell: #354a5f;
+    --sap-text: #32363a; --sap-text-muted: #6a6d70;
+  }
+  * { box-sizing: border-box; }
+  .ac-page { padding: 0; }
+
+  .ac-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
+  }
+  .ac-header h1 {
+    margin: 0; font-size: 1.5rem; font-weight: 700; color: #1e293b;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .ac-header h1 ion-icon { color: var(--sap-blue); font-size: 1.6rem; }
+
+  .ac-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+  }
+  .ac-card {
+    background: var(--sap-card); border: 1px solid var(--sap-border);
+    border-radius: 8px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .ac-card-header {
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--sap-border);
+    font-weight: 700; font-size: 0.95rem; color: #1e293b;
+  }
+  .ac-card-header ion-icon { font-size: 1.3rem; }
+  .ac-card-header .h-icon-blue { color: var(--sap-blue); }
+  .ac-card-header .h-icon-green { color: var(--sap-green); }
+  .ac-card-header .h-icon-orange { color: var(--sap-orange); }
+
+  .ac-card-body { padding: 16px 20px; flex: 1; overflow-y: auto; max-height: 320px; }
+
+  .ac-table { width: 100%; border-collapse: collapse; }
+  .ac-table th {
+    padding: 8px 6px 8px 0; font-size: 0.68rem; font-weight: 700;
+    color: var(--sap-text-muted); text-transform: uppercase; letter-spacing: 0.3px;
+    text-align: left; border-bottom: 2px solid var(--sap-border);
+  }
+  .ac-table td {
+    padding: 8px 6px 8px 0; font-size: 0.84rem;
+    border-bottom: 1px solid #f1f5f9; vertical-align: middle;
+  }
+  .ac-table tr:last-child td { border-bottom: none; }
+  .ac-table .del-btn {
+    background: none; border: none; color: #94a3b8; cursor: pointer;
+    font-size: 1rem; padding: 2px; line-height: 1;
+  }
+  .ac-table .del-btn:hover { color: var(--sap-red); }
+
+  .ac-card-footer {
+    padding: 14px 20px; border-top: 1px solid var(--sap-border);
+    background: #fafbfc;
+  }
+  .ac-inline-form {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end;
+  }
+  .ac-inline-form .ifield {
+    display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 100px;
+  }
+  .ac-inline-form .ifield label {
+    font-size: 0.65rem; font-weight: 600; color: var(--sap-text-muted);
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .ac-inline-form .ifield input,
+  .ac-inline-form .ifield select {
+    height: 32px; padding: 0 8px; border: 1px solid var(--sap-border);
+    border-radius: 4px; font-size: 0.82rem; font-family: inherit;
+    background: #fff; width: 100%;
+  }
+  .ac-inline-form .ifield input:focus,
+  .ac-inline-form .ifield select:focus {
+    border-color: var(--sap-blue); outline: none;
+    box-shadow: 0 0 0 2px rgba(10,110,209,0.1);
+  }
+  .ac-inline-form .ifield input { width: 100%; }
+  .ac-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 32px; padding: 0 14px; border-radius: 4px;
+    font-size: 0.78rem; font-weight: 600; border: none; cursor: pointer;
+    font-family: inherit; transition: background 0.15s; white-space: nowrap;
+  }
+  .ac-btn-blue { background: var(--sap-blue); color: #fff; }
+  .ac-btn-blue:hover { background: var(--sap-blue-hover); }
+  .ac-btn-green { background: var(--sap-green); color: #fff; }
+  .ac-btn-green:hover { background: #0d6632; }
+
+  .ac-empty {
+    text-align: center; padding: 24px 10px; color: #94a3b8;
+    font-size: 0.85rem;
+  }
+  .ac-empty ion-icon { font-size: 2rem; display: block; margin: 0 auto 8px; opacity: 0.4; }
+
+  .ac-link-bar {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;
+    padding: 16px 20px; background: var(--sap-card);
+    border: 1px solid var(--sap-border); border-radius: 8px;
+    align-items: center;
+  }
+  .ac-link-bar span {
+    font-size: 0.78rem; font-weight: 600; color: var(--sap-text-muted);
+  }
+  .ac-link-bar a {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.78rem; font-weight: 600; color: var(--sap-blue);
+    text-decoration: none; padding: 6px 12px;
+    border: 1px solid var(--sap-border); border-radius: 4px;
+  }
+  .ac-link-bar a:hover { background: #f0f7ff; border-color: var(--sap-blue); }
+</style>
+{% endblock %}
+
+{% block inventarios_content %}
+<div class="ac-page">
+  <div class="ac-header">
+    <h1><ion-icon name="settings-outline"></ion-icon> Administrar Catálogos</h1>
+    <a href="{% url 'inventarios:dashboard' %}" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:6px; padding:8px 18px; border-radius:4px; font-size:0.82rem; font-weight:600; border:1px solid var(--sap-border); cursor:pointer; text-decoration:none; color:var(--sap-text-muted);">
+      <ion-icon name="arrow-back-outline"></ion-icon> Volver
+    </a>
+  </div>
+
+  <div class="ac-link-bar">
+    <span><ion-icon name="link-outline"></ion-icon> Acceso directo a administración Django:</span>
+    <a href="/admin/inventarios/categoriamaterial/" target="_blank"><ion-icon name="folder-outline"></ion-icon> Categorías</a>
+    <a href="/admin/inventarios/unidadmedida/" target="_blank"><ion-icon name="resize-outline"></ion-icon> Unidades</a>
+    <a href="/admin/activos/marca/" target="_blank"><ion-icon name="pricetag-outline"></ion-icon> Marcas</a>
+    <a href="/admin/inventarios/material/" target="_blank"><ion-icon name="cube-outline"></ion-icon> Materiales</a>
+    <a href="/admin/inventarios/" target="_blank"><ion-icon name="grid-outline"></ion-icon> Admin Inventarios</a>
+  </div>
+
+  <div class="ac-grid">
+    <!-- CATEGORÍAS -->
+    <div class="ac-card">
+      <div class="ac-card-header">
+        <ion-icon name="folder-outline" class="h-icon-blue"></ion-icon>
+        Categorías de Materiales
+        <span style="margin-left:auto; font-size:0.7rem; font-weight:600; color:var(--sap-text-muted); background:#f1f5f9; padding:2px 10px; border-radius:12px;">{{ categorias|length }}</span>
+      </div>
+      <div class="ac-card-body">
+        {% if categorias %}
+        <table class="ac-table">
+          <thead><tr><th>Nombre</th><th>Padre</th><th style="width:30px;"></th></tr></thead>
+          <tbody>
+            {% for c in categorias %}
+            <tr>
+              <td style="font-weight:600;">{{ c.nombre }}</td>
+              <td style="color:var(--sap-text-muted); font-size:0.78rem;">{{ c.padre.nombre|default:"—" }}</td>
+              <td><button class="del-btn" onclick="deleteItem('categoria', {{ c.id }})" title="Eliminar">✕</button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="ac-empty"><ion-icon name="folder-open-outline"></ion-icon>Sin categorías</div>
+        {% endif %}
+      </div>
+      <div class="ac-card-footer">
+        <form class="ac-inline-form" onsubmit="return addItem(event, 'add_categoria')">{% csrf_token %}
+          <div class="ifield" style="flex:2;">
+            <label>Nombre</label>
+            <input type="text" name="nombre" required placeholder="Ej: Eléctricos">
+          </div>
+          <div class="ifield">
+            <label>Padre (opcional)</label>
+            <select name="padre_id">
+              <option value="">— Ninguno —</option>
+              {% for c in categorias %}
+              <option value="{{ c.id }}">{{ c.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="ac-btn ac-btn-blue"><ion-icon name="add-outline"></ion-icon> Agregar</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- UNIDADES DE MEDIDA -->
+    <div class="ac-card">
+      <div class="ac-card-header">
+        <ion-icon name="resize-outline" class="h-icon-green"></ion-icon>
+        Unidades de Medida
+        <span style="margin-left:auto; font-size:0.7rem; font-weight:600; color:var(--sap-text-muted); background:#f1f5f9; padding:2px 10px; border-radius:12px;">{{ unidades|length }}</span>
+      </div>
+      <div class="ac-card-body">
+        {% if unidades %}
+        <table class="ac-table">
+          <thead><tr><th>Nombre</th><th>Abreviatura</th><th style="width:30px;"></th></tr></thead>
+          <tbody>
+            {% for u in unidades %}
+            <tr>
+              <td style="font-weight:600;">{{ u.nombre }}</td>
+              <td><code style="background:#f1f5f9; padding:2px 8px; border-radius:3px; font-size:0.78rem;">{{ u.abreviatura }}</code></td>
+              <td><button class="del-btn" onclick="deleteItem('unidad', {{ u.id }})" title="Eliminar">✕</button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="ac-empty"><ion-icon name="eye-off-outline"></ion-icon>Sin unidades</div>
+        {% endif %}
+      </div>
+      <div class="ac-card-footer">
+        <form class="ac-inline-form" onsubmit="return addItem(event, 'add_unidad')">{% csrf_token %}
+          <div class="ifield">
+            <label>Nombre</label>
+            <input type="text" name="nombre" required placeholder="Ej: Kilogramo">
+          </div>
+          <div class="ifield">
+            <label>Abreviatura</label>
+            <input type="text" name="abreviatura" required placeholder="Ej: kg">
+          </div>
+          <button class="ac-btn ac-btn-green"><ion-icon name="add-outline"></ion-icon> Agregar</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MARCAS -->
+    <div class="ac-card">
+      <div class="ac-card-header">
+        <ion-icon name="pricetag-outline" class="h-icon-orange"></ion-icon>
+        Marcas
+        <span style="margin-left:auto; font-size:0.7rem; font-weight:600; color:var(--sap-text-muted); background:#f1f5f9; padding:2px 10px; border-radius:12px;">{{ marcas|length }}</span>
+      </div>
+      <div class="ac-card-body">
+        {% if marcas %}
+        <table class="ac-table">
+          <thead><tr><th>Nombre</th><th style="width:30px;"></th></tr></thead>
+          <tbody>
+            {% for m in marcas %}
+            <tr>
+              <td style="font-weight:600;">{{ m.nombre }}</td>
+              <td><button class="del-btn" onclick="deleteItem('marca', {{ m.id }})" title="Eliminar">✕</button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="ac-empty"><ion-icon name="pricetag-outline"></ion-icon>Sin marcas</div>
+        {% endif %}
+      </div>
+      <div class="ac-card-footer">
+        <form class="ac-inline-form" onsubmit="return addItem(event, 'add_marca')">{% csrf_token %}
+          <div class="ifield" style="flex:2;">
+            <label>Nombre</label>
+            <input type="text" name="nombre" required placeholder="Ej: Siemens">
+          </div>
+          <button class="ac-btn ac-btn-blue" style="background:var(--sap-orange);"><ion-icon name="add-outline"></ion-icon> Agregar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function getCSRF() {
+  return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+}
+
+function addItem(event, action) {
+  event.preventDefault();
+  const form = event.target;
+  const data = new FormData(form);
+  data.append('action', action);
+
+  $.ajax({
+    url: window.location.pathname,
+    method: 'POST',
+    data: data,
+    processData: false,
+    contentType: false,
+    success: function(resp) {
+      if (resp.status === 'success') {
+        Swal.fire({ icon: 'success', title: 'Creado', text: resp.nombre, timer: 1500, showConfirmButton: false });
+        setTimeout(() => location.reload(), 800);
+      } else {
+        Swal.fire('Error', resp.message || 'Error desconocido', 'error');
+      }
+    },
+    error: function(xhr) {
+      let msg = 'Error del servidor';
+      try { const r = JSON.parse(xhr.responseText); msg = r.message || msg; } catch(e) {}
+      Swal.fire('Error', msg, 'error');
+    }
+  });
+  return false;
+}
+
+function deleteItem(type, pk) {
+  const labels = { categoria: 'categoría', unidad: 'unidad de medida', marca: 'marca' };
+  Swal.fire({
+    title: '¿Eliminar?',
+    text: `Esta acción eliminará la ${labels[type] || type}.`,
+    icon: 'warning', showCancelButton: true, confirmButtonColor: '#bb0000',
+    confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
+  }).then(result => {
+    if (!result.isConfirmed) return;
+    $.ajax({
+      url: window.location.pathname,
+      method: 'POST',
+      data: { action: 'delete_' + type, pk: pk, csrfmiddlewaretoken: getCSRF() },
+      success: function(resp) {
+        if (resp.status === 'success') {
+          Swal.fire({ icon: 'success', title: 'Eliminado', timer: 1200, showConfirmButton: false });
+          setTimeout(() => location.reload(), 600);
+        } else {
+          Swal.fire('Error', resp.message || 'Error desconocido', 'error');
+        }
+      },
+      error: function() { Swal.fire('Error', 'Error del servidor', 'error'); }
+    });
+  });
+}
+</script>
+{% endblock %}

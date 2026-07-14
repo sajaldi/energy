@@ -1,0 +1,46 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}{{ block.super }}
+<style>
+.inventarios-tabs {
+  display: flex; gap: 0; margin: 0px 0 30px; padding: 0;
+  background: #fff; border-bottom: 2px solid #e2e8f0;
+  border-radius: 4px 4px 0 0;
+}
+.inventarios-tabs a {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 32px; font-size: 0.9rem; font-weight: 600;
+  color: #64748b; text-decoration: none;
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  transition: all 0.2s;
+}
+.inventarios-tabs a:hover { color: #0a6ed1; background: #f8fafc; }
+.inventarios-tabs a.active {
+  color: #0a6ed1; border-bottom-color: #0a6ed1;
+  background: #f0f7ff;
+}
+.inventarios-tabs a ion-icon { font-size: 1.3rem; }
+.inventarios-tab-content { padding: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inventarios-tabs">
+  <a href="{% url 'inventarios:dashboard' %}" class="{% if active_tab == 'dashboard' %}active{% endif %}">
+    <ion-icon name="grid-outline"></ion-icon> Dashboard
+  </a>
+  <a href="{% url 'inventarios:racks_list' %}" class="{% if active_tab == 'racks' %}active{% endif %}">
+    <ion-icon name="layers-outline"></ion-icon> Racks / Estanterías
+  </a>
+  <a href="{% url 'inventarios:solicitud_nuevos_materiales' %}" class="{% if active_tab == 'nuevos_materiales' %}active{% endif %}">
+    <ion-icon name="add-circle-outline"></ion-icon> Nuevos Materiales
+  </a>
+  <a href="{% url 'inventarios:admin_catalogos' %}" class="{% if active_tab == 'admin_catalogos' %}active{% endif %}">
+    <ion-icon name="settings-outline"></ion-icon> Admin Catálogos
+  </a>
+</div>
+<div class="inventarios-tab-content">
+{% block inventarios_content %}{% endblock %}
+</div>
+{% endblock %}

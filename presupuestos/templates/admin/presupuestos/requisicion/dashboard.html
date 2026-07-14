@@ -7,6 +7,52 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>if(typeof Swal==='undefined'){document.write('<script src="https://unpkg.com/sweetalert2@11"><\\/script>')}</script>
 <style>
+    /* Context Menu */
+    #req-context-menu {
+        position: fixed;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        padding: 4px 0;
+        min-width: 200px;
+        z-index: 99999;
+        display: none;
+        font-family: 'Inter', sans-serif;
+    }
+    #req-context-menu .ctx-header {
+        padding: 8px 14px 4px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #6a6d70;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    #req-context-menu .ctx-item {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        color: #1e293b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.1s;
+    }
+    #req-context-menu .ctx-item:hover {
+        background: #f1f5f9;
+    }
+    #req-context-menu .ctx-item.danger {
+        color: #dc2626;
+    }
+    #req-context-menu .ctx-item.danger:hover {
+        background: #fef2f2;
+    }
+    #req-context-menu .ctx-sep {
+        height: 1px;
+        background: #f1f5f9;
+        margin: 4px 0;
+    }
     :root {
         --primary: #10b981;
         --primary-dark: #059669;
@@ -1513,7 +1559,68 @@
                 dropdown.appendChild(item);
             }
         });
-        dropdown.style.display = has ? 'block' : 'none';
-    }
-</script>
+                dropdown.style.display = has ? 'block' : 'none';
+            }
+
+    // --- Right-click context menu for requisition numbers ---
+    (function() {
+        var menu = document.createElement('div');
+        menu.id = 'req-context-menu';
+        menu.innerHTML =
+            '<div class="ctx-header">Requisición</div>' +
+            '<div class="ctx-item ctx-generar-pago"><span>💵</span> Generar Pago</div>' +
+            '<div class="ctx-sep"></div>' +
+            '<div class="ctx-item ctx-item-danger ctx-copiar" style="color:#dc2626;"><span>📋</span> Copiar número</div>';
+        document.body.appendChild(menu);
+
+        var currentReqPk = null;
+        var currentReqNum = null;
+
+        function hideMenu() {
+            menu.style.display = 'none';
+            currentReqPk = null;
+            currentReqNum = null;
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!menu.contains(e.target)) hideMenu();
+        });
+
+        document.addEventListener('contextmenu', function(e) {
+            var link = e.target.closest('.req-link');
+            if (link) {
+                e.preventDefault();
+                currentReqPk = link.dataset.pk;
+                currentReqNum = link.dataset.req;
+                menu.style.left = e.clientX + 'px';
+                menu.style.top = e.clientY + 'px';
+                menu.style.display = 'block';
+            }
+        });
+
+        menu.querySelector('.ctx-generar-pago').addEventListener('click', function() {
+            if (currentReqNum) {
+                hideMenu();
+                window.open('/presupuestos/pagos/dashboard/?q=' + encodeURIComponent(currentReqNum), '_blank');
+            }
+        });
+
+        menu.querySelector('.ctx-copiar').addEventListener('click', function() {
+            if (currentReqNum) {
+                navigator.clipboard.writeText(currentReqNum).then(function() {
+                    Swal.fire({ icon: 'success', title: 'Copiado', text: currentReqNum + ' copiado al portapapeles.', timer: 1500, showConfirmButton: false });
+                }).catch(function() {
+                    var ta = document.createElement('textarea');
+                    ta.value = currentReqNum;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    Swal.fire({ icon: 'success', title: 'Copiado', text: currentReqNum + ' copiado al portapapeles.', timer: 1500, showConfirmButton: false });
+                });
+            }
+            hideMenu();
+        });
+    })();
+    </script>
 {% endblock %}

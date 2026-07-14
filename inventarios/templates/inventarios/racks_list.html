@@ -1,0 +1,184 @@
+{% extends "inventarios/base_inventarios.html" %}
+{% load i18n static %}
+
+{% block extrahead %}{{ block.super }}
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<style>
+  .racks-page { padding: 0; }
+  .racks-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 30px; flex-wrap: wrap; gap: 16px;
+  }
+  .racks-header h1 {
+    margin: 0; font-size: 1.8rem; font-weight: 800; color: #0f172a;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .racks-header h1 ion-icon { color: #8b5cf6; font-size: 2rem; }
+  .racks-stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px; margin-bottom: 32px;
+  }
+  .racks-stat {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;
+    padding: 20px; text-align: center;
+  }
+  .racks-stat .num { font-size: 1.8rem; font-weight: 800; color: #0a6ed1; }
+  .racks-stat .label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-top: 4px; }
+  .rack-group { margin-bottom: 28px; }
+  .rack-group h3 {
+    font-weight: 700; color: #1e293b; margin: 0 0 14px; padding-bottom: 10px;
+    border-bottom: 2px solid #f1f5f9;
+    display: flex; align-items: center; gap: 8px; font-size: 1.1rem;
+  }
+  .rack-group h3 span { font-weight: 400; color: #94a3b8; font-size: 0.85rem; }
+  .rack-cards {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .rack-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+    padding: 20px; transition: all 0.2s;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .rack-card:hover { border-color: #8b5cf6; box-shadow: 0 4px 12px rgba(139,92,246,0.1); transform: translateY(-2px); }
+  .rack-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .rack-card-name { font-weight: 700; color: #0f172a; font-size: 1.05rem; }
+  .rack-card-dims { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+  .rack-card-badge {
+    background: #f1f5f9; border-radius: 4px; padding: 4px 10px;
+    font-size: 0.72rem; font-weight: 700; color: #475569; white-space: nowrap;
+  }
+  .rack-card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .rack-card-tag {
+    padding: 3px 10px; border-radius: 3px; font-size: 0.7rem; font-weight: 600;
+  }
+  .rack-card-tag.niv { background: #ede9fe; color: #6d28d9; }
+  .rack-card-tag.sec { background: #fce7f3; color: #be185d; }
+  .rack-card-tag.activo { background: #dcfce7; color: #15803d; }
+  .rack-card-tag.inactivo { background: #fee2e2; color: #b91c1c; }
+  .rack-card-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: #8b5cf6; color: #fff; border: none; border-radius: 5px;
+    padding: 9px 0; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+    text-decoration: none; margin-top: 4px; transition: background 0.2s;
+  }
+  .rack-card-btn:hover { background: #7c3aed; }
+  .rack-empty {
+    text-align: center; padding: 80px 20px; color: #94a3b8;
+  }
+  .rack-empty ion-icon { font-size: 4rem; display: block; margin: 0 auto 16px; opacity: 0.4; }
+  .rack-empty h3 { font-size: 1.2rem; font-weight: 700; color: #64748b; margin-bottom: 8px; }
+  .filter-bar {
+    display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .filter-bar select, .filter-bar a {
+    padding: 10px 18px; border: 1px solid #e2e8f0; border-radius: 5px;
+    font-size: 0.85rem; background: #fff;
+  }
+  .filter-bar a {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #475569; color: #fff; text-decoration: none; font-weight: 600;
+  }
+</style>
+{% endblock %}
+
+{% block inventarios_content %}
+<div class="racks-page">
+  <div class="racks-header">
+    <h1><ion-icon name="layers-outline"></ion-icon> Racks / Estanterías</h1>
+    <div style="display:flex; gap:10px;">
+      <a href="/admin/inventarios/rack/add/" class="btn-submit" style="margin:0; padding:10px 20px; font-size:0.85rem; background:#8b5cf6; text-decoration:none;">
+        <ion-icon name="add-outline"></ion-icon> Nuevo Rack
+      </a>
+      <a href="/admin/inventarios/rack/" class="btn-submit" style="margin:0; padding:10px 20px; font-size:0.85rem; background:#475569; text-decoration:none;">
+        <ion-icon name="settings-outline"></ion-icon> Administrar
+      </a>
+    </div>
+  </div>
+
+  <div class="racks-stats">
+    <div class="racks-stat">
+      <div class="num">{{ total_racks }}</div>
+      <div class="label">Racks</div>
+    </div>
+    <div class="racks-stat">
+      <div class="num">{{ total_posiciones }}</div>
+      <div class="label">Posiciones</div>
+    </div>
+    <div class="racks-stat">
+      <div class="num">{{ bodegas_con_racks }}</div>
+      <div class="label">Bodegas</div>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <select id="filter-bodega">
+      <option value="">Todas las Bodegas</option>
+      {% for u in ubicaciones %}
+      <option value="{{ u.id }}">{{ u.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div id="racks-container">
+    {% regroup racks by bodega as racks_por_bodega %}
+    {% for grupo in racks_por_bodega %}
+    <div class="rack-group" data-bodega="{{ grupo.grouper.id }}">
+      <h3>
+        <ion-icon name="business-outline"></ion-icon>
+        {{ grupo.grouper.nombre }}
+        <span>({{ grupo.list|length }} racks)</span>
+        <a href="{% url 'inventarios:bodega_3d' grupo.grouper.id %}" target="_blank" style="margin-left:auto; font-size:0.75rem; font-weight:600; background:#475569; color:#fff; padding:5px 12px; border-radius:4px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+          🏭 Vista 3D
+        </a>
+      </h3>
+      <div class="rack-cards">
+        {% for rack in grupo.list %}
+        <div class="rack-card">
+          <div class="rack-card-top">
+            <div>
+              <div class="rack-card-name">{{ rack.nombre }}</div>
+              <div class="rack-card-dims">{{ rack.largo }}cm × {{ rack.alto }}cm · {{ rack.total_posiciones }} posiciones</div>
+            </div>
+            <div class="rack-card-badge">{{ rack.total_posiciones }} pos</div>
+          </div>
+          <div class="rack-card-tags">
+            <span class="rack-card-tag niv">{{ rack.num_niveles }} niv</span>
+            <span class="rack-card-tag sec">{{ rack.num_secciones }} sec</span>
+            {% if rack.activo %}
+            <span class="rack-card-tag activo">activo</span>
+            {% else %}
+            <span class="rack-card-tag inactivo">inactivo</span>
+            {% endif %}
+          </div>
+          <a href="{% url 'inventarios:rack_3d' rack.id %}" target="_blank" class="rack-card-btn">
+            <ion-icon name="cube-outline"></ion-icon> Ver en 3D
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="rack-empty">
+      <ion-icon name="layers-outline"></ion-icon>
+      <h3>No hay racks configurados</h3>
+      <p style="font-size:0.9rem; margin-bottom:16px;">Crea racks desde el panel de administración para visualizarlos en 3D.</p>
+      <a href="/admin/inventarios/rack/add/" class="btn-submit" style="display:inline-flex; padding:10px 24px; font-size:0.9rem; background:#8b5cf6; text-decoration:none;">
+        <ion-icon name="add-outline"></ion-icon> Crear primer Rack
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  $('#filter-bodega').on('change', function() {
+    const val = $(this).val();
+    $('.rack-group').each(function() {
+      $(this).toggle(!val || $(this).data('bodega') == val);
+    });
+  });
+</script>
+{% endblock %}

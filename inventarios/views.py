@@ -14,6 +14,7 @@ import time
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.cache import cache
 from core.decorators import mobile_permission_required
+from presupuestos.models import ArticuloRequisicion
 from django.core.files.storage import default_storage
 from celery.result import AsyncResult
 from .tasks import import_materiales_task
@@ -27,7 +28,7 @@ def inventario_dashboard(request):
     Menú interactivo y centro de control para la aplicación de Inventarios.
     """
     from activos.models import Ubicacion
-    from .models import CategoriaMaterial
+    from .models import CategoriaMaterial, Rack
     
     # Datos para el menú/dashboard
     from django.db.models import Q
@@ -49,6 +50,8 @@ def inventario_dashboard(request):
         except OrdenTrabajo.DoesNotExist:
             pass
 
+    racks = Rack.objects.filter(activo=True).select_related('bodega').order_by('bodega__nombre', 'orden')
+
     context = {
         'ubicaciones': ubicaciones,
         'categorias': categorias,
@@ -56,6 +59,8 @@ def inventario_dashboard(request):
         'pedidos_pendientes': pedidos_pendientes,
         'es_almacen': es_almacen,
         'ot_pre': ot_pre,
+        'racks': racks,
+        'active_tab': 'dashboard',
         'title': 'Gestión de Inventarios'
     }
     return render(request, 'inventarios/dashboard.html', context)
@@ -155,44 +160,48 @@ def api_get_material_stock(request, material_id):
     Retorna los niveles de stock por ubicación para un material dado,
     incluyendo detalles completos del material.
     """
+    from django.db.models import Sum
     material = get_object_or_404(Material, id=material_id)
-    
-    # Obtener stock detallado por ubicación
-    existencias = material.existencias.select_related('ubicacion').values(
-        'ubicacion__nombre', 'cantidad', 'ubicacion_especifica'
-    )
     
     image_url = ""
     if hasattr(material, 'imagen') and material.imagen:
         image_url = material.imagen.url
     else:
-        # SVG de respaldo
-        image_url = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E"
+        image_url = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/polyline%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E"
 
-    # Clasificación de Stock (Nuevo vs Usado)
+    # Una sola consulta para existencias + stock total
+    existencias_qs = material.existencias.select_related('ubicacion').values(
+        'ubicacion__nombre', 'cantidad', 'ubicacion_especifica'
+    )
+    existencias = list(existencias_qs)
+    stock_total = sum(float(e['cantidad']) for e in existencias)
+
+    # Clasificación de Stock (Nuevo vs Usado) — sin get_stock_total()
     stock_nuevo = Decimal('0.00')
     stock_usado = Decimal('0.00')
-    
+
     if material.sku.endswith('-USADO'):
         base_sku = material.sku.replace('-USADO', '')
         original = Material.objects.filter(sku=base_sku).first()
-        stock_usado = material.get_stock_total()
-        stock_nuevo = original.get_stock_total() if original else Decimal('0.00')
+        stock_usado = stock_total
+        if original:
+            stock_nuevo = float(original.existencias.aggregate(total=Sum('cantidad'))['total'] or 0)
     else:
         variant_sku = f"{material.sku}-USADO"
         variant = Material.objects.filter(sku=variant_sku).first()
-        stock_nuevo = material.get_stock_total()
-        stock_usado = variant.get_stock_total() if variant else Decimal('0.00')
+        stock_nuevo = stock_total
+        if variant:
+            stock_usado = float(variant.existencias.aggregate(total=Sum('cantidad'))['total'] or 0)
 
     # Obtener últimos movimientos
     from .models import MovimientoInventario
     movimientos_qs = MovimientoInventario.objects.filter(material=material).select_related(
-        'usuario', 'ubicacion_origen', 'ubicacion_destino', 'solicitud', 'orden_trabajo', 'devolucion', 'ingreso'
+        'usuario', 'ubicacion_origen', 'ubicacion_destino', 'solicitud', 'solicitud__usuario', 'orden_trabajo', 'devolucion', 'ingreso'
     ).order_by('-fecha_movimiento')
-    movimientos = movimientos_qs[:15]
+    movimientos = list(movimientos_qs[:15])
     
-    # Movimientos pendientes (para avisar al usuario)
-    pendientes = movimientos_qs.filter(estado='PENDIENTE').select_related('ubicacion_destino', 'ubicacion_origen', 'usuario')
+    # Movimientos pendientes
+    pendientes = [m for m in movimientos if m.estado == 'PENDIENTE']
     mov_pendientes = [
         {
             'fecha': p.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
@@ -215,7 +224,7 @@ def api_get_material_stock(request, material_id):
         'stock_minimo': float(material.stock_minimo),
         'tipo_material': material.get_tipo_material_display() if hasattr(material, 'get_tipo_material_display') else "N/A",
         'image_url': image_url,
-        'stock_total': float(material.get_stock_total()),
+        'stock_total': stock_total,
         'stock_nuevo': float(stock_nuevo),
         'stock_usado': float(stock_usado),
         'categoria_id': material.categoria_id,
@@ -258,7 +267,27 @@ def api_get_material_stock(request, material_id):
                 'valor_nuevo': c.valor_nuevo,
             } for c in material.historial_cambios.select_related('usuario').order_by('-fecha')[:20]
         ] if hasattr(material, 'historial_cambios') else [],
-        'movimientos_pendientes': mov_pendientes
+        'movimientos_pendientes': mov_pendientes,
+        'requisiciones': [
+            {
+                'id': str(art.cr8ca_itemderequisicionid),
+                'requisicion_numero': art.requisicion.cr8ca_requisicion,
+                'requisicion_asunto': art.requisicion.cr8ca_asunto,
+                'estado': art.requisicion.estado_requisicion,
+                'fecha': art.requisicion.fecha.strftime('%d/%m/%Y') if art.requisicion.fecha else '',
+                'solicitante': art.requisicion.usuario_solicitante.get_full_name() or art.requisicion.usuario_solicitante.username if art.requisicion.usuario_solicitante else '',
+                'articulo': art.cr8ca_articulo,
+                'cantidad': float(art.cr8ca_cantidad),
+                'costo_aproximado': float(art.cr8ca_costoaproximado) if art.cr8ca_costoaproximado else 0,
+                'proveedor': art.proveedor.nombre if art.proveedor else '',
+            } for art in ArticuloRequisicion.objects.filter(
+                material=material
+            ).select_related(
+                'requisicion',
+                'requisicion__usuario_solicitante',
+                'proveedor'
+            ).order_by('-requisicion__fecha')
+        ],
     })
 
 @csrf_exempt
@@ -1831,6 +1860,10 @@ def api_create_material(request):
             except (ValueError, InvalidOperation, NameError):
                 stock_inicial = Decimal('0')
 
+            marca_id = request.POST.get('marca_id')
+            tipo_material = request.POST.get('tipo_material', 'INSUMO')
+            descripcion = request.POST.get('descripcion', '')
+
             if not nombre or not sku:
                 return JsonResponse({'status': 'error', 'message': 'Nombre y SKU son obligatorios'}, status=400)
 
@@ -1838,6 +1871,7 @@ def api_create_material(request):
             categoria_id = int(categoria_id) if categoria_id and str(categoria_id).isdigit() else None
             unidad_id = int(unidad_id) if unidad_id and str(unidad_id).isdigit() else None
             ubicacion_id = int(ubicacion_id) if ubicacion_id and str(ubicacion_id).isdigit() else None
+            marca_id = int(marca_id) if marca_id and str(marca_id).isdigit() else None
 
             force_update = request.POST.get('force_update') == 'true'
             
@@ -1857,6 +1891,9 @@ def api_create_material(request):
                     existing_material.nombre = nombre
                     if categoria_id: existing_material.categoria_id = categoria_id
                     if unidad_id: existing_material.unidad_medida_id = unidad_id
+                    if marca_id: existing_material.marca_id = marca_id
+                    if descripcion: existing_material.descripcion = descripcion
+                    existing_material.tipo_material = tipo_material if tipo_material in dict(Material.TIPO_MATERIAL_CHOICES) else 'INSUMO'
                     existing_material.save()
                     material = existing_material
                     created = False
@@ -1866,7 +1903,10 @@ def api_create_material(request):
                         sku=sku,
                         nombre=nombre,
                         categoria_id=categoria_id if categoria_id else None,
-                        unidad_medida_id=unidad_id if unidad_id else None
+                        unidad_medida_id=unidad_id if unidad_id else None,
+                        marca_id=marca_id,
+                        tipo_material=tipo_material if tipo_material in dict(Material.TIPO_MATERIAL_CHOICES) else 'INSUMO',
+                        descripcion=descripcion,
                     )
                     created = True
 
@@ -2566,3 +2606,335 @@ def formulario_aprobacion_solicitud(request, pk, token):
         'ya_procesada': ya_procesada,
         'token': token,
     })
+
+
+from .models import Rack, RackPosition
+from django.db.models import Sum
+import json
+
+@staff_member_required
+def rack_list_view(request):
+    racks = Rack.objects.filter(activo=True).select_related('bodega').order_by('bodega__nombre', 'orden')
+    total_posiciones = sum(r.total_posiciones for r in racks)
+    bodegas_con_racks = racks.values_list('bodega', flat=True).distinct().count()
+    from activos.models import Ubicacion
+    from django.db.models import Q
+    ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
+    return render(request, 'inventarios/racks_list.html', {
+        'racks': racks,
+        'total_racks': racks.count(),
+        'total_posiciones': total_posiciones,
+        'bodegas_con_racks': bodegas_con_racks,
+        'ubicaciones': ubicaciones,
+        'active_tab': 'racks',
+        'title': 'Racks / Estanterías',
+    })
+
+@staff_member_required
+def rack_3d_view(request, pk):
+    rack = get_object_or_404(Rack.objects.select_related('bodega'), pk=pk)
+    posiciones = rack.posiciones.select_related('material').all()
+    rack_data = {
+        'nombre': rack.nombre,
+        'bodega': rack.bodega.nombre,
+        'largo': float(rack.largo),
+        'alto': float(rack.alto),
+        'num_niveles': rack.num_niveles,
+        'num_secciones': rack.num_secciones,
+        'posiciones': [
+            {
+                'id': p.id,
+                'nivel': p.nivel,
+                'seccion': p.seccion,
+                'codigo': p.codigo,
+                'material_nombre': p.material.nombre if p.material else None,
+                'cantidad': float(p.cantidad),
+                'peso': float(p.material.peso) if p.material and p.material.peso else None,
+                'ancho': float(p.material.ancho) if p.material and p.material.ancho else None,
+                'alto': float(p.material.alto) if p.material and p.material.alto else None,
+                'profundidad': float(p.material.profundidad) if p.material and p.material.profundidad else None,
+                'tipo_material': p.material.tipo_material if p.material else None,
+            }
+            for p in posiciones
+        ],
+    }
+    return render(request, 'inventarios/rack_3d.html', {
+        'rack': rack,
+        'rack_data': json.dumps(rack_data),
+    })
+
+
+@csrf_exempt
+def api_rack_assign_position(request, rack_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    rack = get_object_or_404(Rack, pk=rack_id)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+    nivel = data.get('nivel')
+    seccion = data.get('seccion')
+    material_id = data.get('material_id')
+    cantidad = data.get('cantidad', 1)
+    if not nivel or not seccion:
+        return JsonResponse({'error': 'nivel y seccion son requeridos'}, status=400)
+    from .models import Material
+    material = get_object_or_404(Material, pk=material_id)
+    profundidad = data.get('profundidad')
+    if profundidad is not None:
+        try:
+            profundidad_val = float(profundidad)
+        except (TypeError, ValueError):
+            return JsonResponse({'error': 'profundidad debe ser mayor a 0'}, status=400)
+        if profundidad_val <= 0:
+            return JsonResponse({'error': 'profundidad debe ser mayor a 0'}, status=400)
+    ancho = data.get('ancho')
+    alto = data.get('alto')
+    update_fields = []
+    if ancho is not None and material.ancho != ancho:
+        material.ancho = ancho
+        update_fields.append('ancho')
+    if alto is not None and material.alto != alto:
+        material.alto = alto
+        update_fields.append('alto')
+    if profundidad is not None:
+        material.profundidad = profundidad_val
+        update_fields.append('profundidad')
+    if update_fields:
+        material.save(update_fields=update_fields)
+    count = RackPosition.objects.filter(rack=rack, nivel=nivel, seccion=seccion).count()
+    codigo = f"{rack.nombre}-{nivel}-{seccion}-{count + 1}"
+    pos = RackPosition.objects.create(
+        rack=rack, nivel=nivel, seccion=seccion,
+        material=material, cantidad=cantidad, codigo=codigo,
+    )
+    return JsonResponse({
+        'status': 'ok',
+        'posicion': {
+            'id': pos.id,
+            'codigo': pos.codigo,
+            'nivel': pos.nivel,
+            'seccion': pos.seccion,
+            'material_nombre': pos.material.nombre if pos.material else None,
+            'cantidad': float(pos.cantidad),
+            'peso': float(pos.material.peso) if pos.material and pos.material.peso else None,
+            'ancho': float(pos.material.ancho) if pos.material and pos.material.ancho else None,
+            'alto': float(pos.material.alto) if pos.material and pos.material.alto else None,
+            'profundidad': float(pos.material.profundidad) if pos.material and pos.material.profundidad else None,
+            'tipo_material': pos.material.tipo_material if pos.material else None,
+        },
+    })
+
+
+@csrf_exempt
+def api_rack_remove_position(request, rack_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    rack = get_object_or_404(Rack, pk=rack_id)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+    pos_id = data.get('pos_id')
+    if not pos_id:
+        return JsonResponse({'error': 'pos_id es requerido'}, status=400)
+    deleted, _ = RackPosition.objects.filter(rack=rack, pk=pos_id).delete()
+    return JsonResponse({'status': 'ok', 'deleted': deleted})
+
+
+def bodega_3d_view(request, pk):
+    bodega = get_object_or_404(Ubicacion, pk=pk, tipo='BODEGA')
+    racks = Rack.objects.filter(bodega=bodega, activo=True).order_by('orden', 'nombre')
+    racks_data = []
+    for r in racks:
+        posiciones = r.posiciones.select_related('material').all()
+        racks_data.append({
+            'id': r.id,
+            'nombre': r.nombre,
+            'largo': float(r.largo),
+            'alto': float(r.alto),
+            'num_niveles': r.num_niveles,
+            'num_secciones': r.num_secciones,
+            'pos_x_m': float(r.pos_x_m) if r.pos_x_m else 0,
+            'pos_y_m': float(r.pos_y_m) if r.pos_y_m else 0,
+            'posiciones': [
+                {
+                    'id': p.id,
+                    'nivel': p.nivel, 'seccion': p.seccion, 'codigo': p.codigo,
+                    'material_nombre': p.material.nombre if p.material else None,
+                    'cantidad': float(p.cantidad),
+                    'peso': float(p.material.peso) if p.material and p.material.peso else None,
+                    'ancho': float(p.material.ancho) if p.material and p.material.ancho else None,
+                    'alto': float(p.material.alto) if p.material and p.material.alto else None,
+                }
+                for p in posiciones
+            ],
+        })
+    ancho_m = float(bodega.ancho_m) if bodega.ancho_m is not None else 10
+    largo_m = float(bodega.largo_m) if bodega.largo_m is not None else 10
+    return render(request, 'inventarios/bodega_3d.html', {
+        'bodega': bodega,
+        'racks': racks,
+        'bodega_data': json.dumps({'ancho_m': ancho_m, 'largo_m': largo_m, 'racks': racks_data}),
+    })
+
+
+@csrf_exempt
+def api_bodega_racks(request, bodega_id):
+    from .models import Rack
+    bodega = get_object_or_404(Ubicacion, pk=bodega_id, tipo='BODEGA')
+    racks = Rack.objects.filter(bodega=bodega, activo=True).order_by('orden', 'nombre')
+    data = [{'id': r.id, 'nombre': r.nombre, 'pos_x_m': float(r.pos_x_m or 0), 'pos_y_m': float(r.pos_y_m or 0),
+             'largo': float(r.largo), 'alto': float(r.alto), 'num_niveles': r.num_niveles, 'num_secciones': r.num_secciones}
+            for r in racks]
+    return JsonResponse({'status': 'ok', 'racks': data, 'ancho_m': float(bodega.ancho_m or 10), 'largo_m': float(bodega.largo_m or 10)})
+
+
+@csrf_exempt
+def api_rack_update_position(request, rack_id):
+    from .models import Rack
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    rack = get_object_or_404(Rack, pk=rack_id)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+    pos_x = data.get('pos_x_m')
+    pos_y = data.get('pos_y_m')
+    if pos_x is not None:
+        rack.pos_x_m = pos_x
+    if pos_y is not None:
+        rack.pos_y_m = pos_y
+    rack.save(update_fields=['pos_x_m', 'pos_y_m'])
+    return JsonResponse({'status': 'ok', 'pos_x_m': float(rack.pos_x_m or 0), 'pos_y_m': float(rack.pos_y_m or 0)})
+
+@login_required
+def solicitud_nuevos_materiales(request):
+    from presupuestos.models import ArticuloRequisicion, Requisicion
+    from django.db.models import Q, Count
+    from .models import CategoriaMaterial, UnidadMedida
+    from activos.models import Ubicacion, Marca
+
+    # Artículos de requisición sin material vinculado (nuevos)
+    import json
+    sin_material_qs = ArticuloRequisicion.objects.filter(
+        material__isnull=True
+    ).select_related(
+        'requisicion',
+        'requisicion__usuario_solicitante',
+        'proveedor'
+    ).order_by('-requisicion__fecha')
+
+    sin_material = []
+    for art in sin_material_qs:
+        art.js_data = json.dumps({
+            'id': str(art.cr8ca_itemderequisicionid),
+            'articulo': art.cr8ca_articulo,
+            'requisicion_id': str(art.requisicion.cr8ca_requisicionid),
+            'requisicion_numero': art.requisicion.cr8ca_requisicion,
+            'cantidad': float(art.cr8ca_cantidad),
+            'proveedor': art.proveedor.nombre if art.proveedor else '',
+        })
+        sin_material.append(art)
+
+    # Artículos con material ya vinculado (histórico)
+    con_material = ArticuloRequisicion.objects.filter(
+        material__isnull=False
+    ).select_related(
+        'requisicion',
+        'requisicion__usuario_solicitante',
+        'proveedor',
+        'material'
+    ).order_by('-requisicion__fecha')[:50]
+
+    categorias = CategoriaMaterial.objects.all().order_by('nombre')
+    unidades = UnidadMedida.objects.all().order_by('nombre')
+    ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
+    marcas = Marca.objects.all().order_by('nombre')
+
+    total_sin = len(sin_material)
+    total_con = ArticuloRequisicion.objects.filter(material__isnull=False).count()
+    context = {
+        'sin_material': sin_material,
+        'con_material': con_material,
+        'total_pendientes': total_sin,
+        'total_vinculados': total_con,
+        'total_general': total_sin + total_con,
+        'categorias': categorias,
+        'unidades': unidades,
+        'ubicaciones': ubicaciones,
+        'marcas': marcas,
+        'active_tab': 'nuevos_materiales',
+        'title': 'Solicitud de Nuevos Materiales',
+    }
+    return render(request, 'inventarios/solicitud_nuevos_materiales.html', context)
+
+@login_required
+@staff_member_required
+def admin_catalogos(request):
+    from .models import CategoriaMaterial, UnidadMedida
+    from activos.models import Marca
+    from django.db.models import Q
+    from django.contrib import messages
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action == 'add_categoria':
+                nombre = request.POST.get('nombre', '').strip()
+                padre_id = request.POST.get('padre_id') or None
+                descripcion = request.POST.get('descripcion', '').strip()
+                if not nombre:
+                    return JsonResponse({'status': 'error', 'message': 'El nombre es obligatorio'})
+                padre = CategoriaMaterial.objects.filter(id=padre_id).first() if padre_id else None
+                cat = CategoriaMaterial.objects.create(nombre=nombre, padre=padre, descripcion=descripcion)
+                return JsonResponse({'status': 'success', 'id': cat.id, 'nombre': str(cat)})
+
+            elif action == 'add_unidad':
+                nombre = request.POST.get('nombre', '').strip()
+                abreviatura = request.POST.get('abreviatura', '').strip()
+                if not nombre or not abreviatura:
+                    return JsonResponse({'status': 'error', 'message': 'Nombre y abreviatura son obligatorios'})
+                uni = UnidadMedida.objects.create(nombre=nombre, abreviatura=abreviatura)
+                return JsonResponse({'status': 'success', 'id': uni.id, 'nombre': str(uni)})
+
+            elif action == 'add_marca':
+                nombre = request.POST.get('nombre', '').strip()
+                if not nombre:
+                    return JsonResponse({'status': 'error', 'message': 'El nombre es obligatorio'})
+                marca = Marca.objects.create(nombre=nombre)
+                return JsonResponse({'status': 'success', 'id': marca.id, 'nombre': marca.nombre})
+
+            elif action == 'delete_categoria':
+                pk = request.POST.get('pk')
+                CategoriaMaterial.objects.filter(id=pk).delete()
+                return JsonResponse({'status': 'success'})
+
+            elif action == 'delete_unidad':
+                pk = request.POST.get('pk')
+                UnidadMedida.objects.filter(id=pk).delete()
+                return JsonResponse({'status': 'success'})
+
+            elif action == 'delete_marca':
+                pk = request.POST.get('pk')
+                Marca.objects.filter(id=pk).delete()
+                return JsonResponse({'status': 'success'})
+
+            return JsonResponse({'status': 'error', 'message': 'Acción no válida'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+
+    categorias = CategoriaMaterial.objects.all().order_by('nombre')
+    unidades = UnidadMedida.objects.all().order_by('nombre')
+    marcas = Marca.objects.all().order_by('nombre')
+
+    context = {
+        'categorias': categorias,
+        'unidades': unidades,
+        'marcas': marcas,
+        'active_tab': 'admin_catalogos',
+        'title': 'Administrar Catálogos',
+    }
+    return render(request, 'inventarios/admin_catalogos.html', context)

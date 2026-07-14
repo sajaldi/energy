@@ -250,6 +250,243 @@
         .clickable-row { cursor: pointer; transition: background 0.2s; }
         .clickable-row:hover { background: #f0f7ff !important; }
         .swal-image-full { max-width: 100%; height: auto; max-height: 80vh; object-fit: contain; }
+
+        /* ==================== KANBAN BOARD ==================== */
+        .kanban-filters {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .kanban-filters .form-select-sm {
+            width: auto;
+            min-width: 180px;
+        }
+        .kanban-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+        }
+        .kanban-board {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding-bottom: 16px;
+            min-height: 400px;
+        }
+        .kanban-column {
+            flex: 0 0 280px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 300px);
+            min-height: 200px;
+        }
+        .kanban-column.drag-over {
+            border: 2px solid var(--fiori-info, #0066cc);
+            background: #e8f4fd;
+        }
+        .kanban-column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            background: inherit;
+            border-radius: 12px 12px 0 0;
+            z-index: 1;
+        }
+        .kanban-column-header .column-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #333;
+        }
+        .kanban-column-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 12px;
+            min-height: 50px;
+        }
+        .kanban-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 12px 12px 12px 16px;
+            margin-bottom: 10px;
+            cursor: grab;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            position: relative;
+            transition: box-shadow 0.2s, opacity 0.2s;
+            border: 1px solid #e9ecef;
+        }
+        .kanban-card:hover {
+            box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+        }
+        .kanban-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .kanban-card .card-priority-indicator {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            border-radius: 8px 0 0 8px;
+        }
+        .kanban-card .card-title {
+            font-weight: 500;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+        }
+        .kanban-card .card-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-bottom: 6px;
+        }
+        .kanban-card .card-meta .card-date.overdue {
+            color: #cc0000;
+            font-weight: 600;
+        }
+        .kanban-card .card-progress {
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .kanban-card .card-progress .progress-bar {
+            height: 100%;
+            background: var(--fiori-info, #0066cc);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .kanban-add-btn {
+            display: block;
+            width: calc(100% - 24px);
+            padding: 10px;
+            background: transparent;
+            border: 1px dashed #ced4da;
+            border-radius: 8px;
+            color: #6c757d;
+            cursor: pointer;
+            margin: 8px 12px 12px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .kanban-add-btn:hover {
+            background: #e9ecef;
+            color: #333;
+        }
+        .kanban-column-no-results {
+            text-align: center;
+            padding: 20px 10px;
+            color: #adb5bd;
+            font-size: 0.8rem;
+        }
+        @media (max-width: 768px) {
+            .kanban-column {
+                flex: 0 0 260px;
+            }
+        }
+
+        /* ==================== PLANOS PDF ==================== */
+        .planos-dropzone {
+            border: 2px dashed #ced4da;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+        .planos-dropzone:hover {
+            border-color: #999;
+        }
+        .planos-dropzone.drag-over {
+            border-color: var(--fiori-primary);
+            background: #e8f4fd;
+        }
+        .planos-upload-form {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .planos-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .planos-table th,
+        .planos-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .planos-table th {
+            text-align: left;
+            font-size: 0.8125rem;
+            color: var(--fiori-text-secondary);
+            font-weight: 500;
+            border-bottom: 1px solid var(--fiori-border);
+        }
+        .planos-table td {
+            font-size: 0.875rem;
+        }
+        .planos-empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .planos-pagination {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .btn-plano-ver {
+            background: #0070f2;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.7rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        .btn-plano-ver:hover {
+            background: #0058c4;
+        }
+        .btn-plano-download {
+            background: #107e3e;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.7rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        .btn-plano-download:hover {
+            background: #0c6330;
+        }
+        .btn-plano-delete {
+            background: #bb0000;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.7rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        .btn-plano-delete:hover {
+            background: #990000;
+        }
     </style>
 </head>
 <body id="pageBody">
@@ -294,10 +531,12 @@
         <div class="sap-tab" data-target="actividades">Cronograma / Actividades</div>
         <div class="sap-tab" data-target="gantt-section">Diagrama de Gantt</div>
         <div class="sap-tab" data-target="documentos">Documentos vinculados</div>
+        <div class="sap-tab" data-target="planos-pdf">Planos PDF</div>
         <div class="sap-tab" data-target="visor">Órdenes de Trabajo</div>
         <div class="sap-tab" data-target="financiero">Requisiciones</div>
         <div class="sap-tab" data-target="cotizaciones">Cotizaciones</div>
         <div class="sap-tab" data-target="observaciones">Observaciones</div>
+        <div class="sap-tab" data-target="tareas">Tareas</div>
     </nav>
 
     <!-- SECTION: GENERAL -->
@@ -946,6 +1185,260 @@
         </div>
     </section>
 
+    <!-- SECTION: PLANOS PDF -->
+    <section id="planos-pdf" class="sap-section">
+        <div class="sap-card">
+            <div class="sap-card-title">Planos PDF del Proyecto</div>
+
+            <!-- Input file oculto (fuera del dropzone para evitar que se destruya al cambiar innerHTML) -->
+            <input type="file" id="planos-file-input" accept=".pdf" style="display: none;">
+
+            <!-- Dropzone de carga -->
+            <div class="planos-dropzone" id="planos-dropzone" onclick="document.getElementById('planos-file-input').click()">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 2.5rem; color: #6c757d; margin-bottom: 12px; display: block;"></i>
+                <p style="margin: 0; color: var(--fiori-text-secondary); font-size: 0.9rem;">Arrastra archivos PDF aquí o haz clic para seleccionar</p>
+            </div>
+
+            <!-- Formulario de upload -->
+            <div class="planos-upload-form" id="planos-upload-form" style="display: none;">
+                <div class="sap-field" style="flex: 1; min-width: 200px;">
+                    <label for="plano-titulo">Título *</label>
+                    <input type="text" id="plano-titulo" maxlength="200" required placeholder="Título del plano">
+                </div>
+                <div class="sap-field" style="flex: 2; min-width: 200px;">
+                    <label for="plano-descripcion">Descripción</label>
+                    <textarea id="plano-descripcion" maxlength="500" rows="1" placeholder="Descripción opcional (máx. 500 caracteres)"></textarea>
+                </div>
+                <button class="sap-btn sap-btn-primary" id="planos-upload-btn" onclick="PlanosManager.submitUpload()">
+                    <i class="fas fa-upload"></i> Subir Plano
+                </button>
+            </div>
+
+            <!-- Tabla de planos -->
+            <div id="planos-table-container" style="margin-top: 1.5rem;">
+                <table class="planos-table" id="planos-table">
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Fecha de carga</th>
+                            <th>Subido por</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="planos-table-body">
+                        <!-- Se llena dinámicamente con JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Estado vacío -->
+            <div class="planos-empty-state" id="planos-empty-state" style="display: none;">
+                <i class="fas fa-file-pdf" style="font-size: 3rem; color: #ced4da; margin-bottom: 16px; display: block;"></i>
+                <p style="color: var(--fiori-text-secondary); margin-bottom: 16px;">No hay planos asociados a este proyecto</p>
+                <button class="sap-btn sap-btn-primary" onclick="document.getElementById('planos-file-input').click()">
+                    <i class="fas fa-upload"></i> Subir primer plano
+                </button>
+            </div>
+
+            <!-- Paginación -->
+            <div class="planos-pagination" id="planos-pagination" style="display: none;">
+                <button class="sap-btn" id="planos-prev-btn" onclick="PlanosManager.prevPage()">
+                    <i class="fas fa-chevron-left"></i> Anterior
+                </button>
+                <span id="planos-page-indicator" style="align-self: center; font-size: 0.875rem; color: var(--fiori-text-secondary);">Página 1 de 1</span>
+                <button class="sap-btn" id="planos-next-btn" onclick="PlanosManager.nextPage()">
+                    Siguiente <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION: TAREAS (Tablero Kanban) -->
+    <section id="tareas" class="sap-section">
+      <!-- Barra de filtros -->
+      <div class="kanban-filters">
+        <select id="filtro-responsable" class="form-select form-select-sm">
+          <option value="">Todos los responsables</option>
+        </select>
+        <select id="filtro-prioridad" class="form-select form-select-sm">
+          <option value="">Todas las prioridades</option>
+          <option value="BAJA">Baja</option>
+          <option value="MEDIA">Media</option>
+          <option value="ALTA">Alta</option>
+          <option value="CRITICA">Crítica</option>
+        </select>
+        <button id="btn-limpiar-filtros" class="btn btn-outline-secondary btn-sm">Limpiar filtros</button>
+      </div>
+
+      <!-- Estado vacío -->
+      <div id="kanban-empty-state" class="kanban-empty-state" style="display:none;">
+        <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+        <p class="text-muted">No hay tareas registradas en este proyecto.</p>
+        <button class="btn btn-primary" onclick="KanbanBoard.openCreateModal('PENDIENTE')">Crear primera tarea</button>
+      </div>
+
+      <!-- Tablero Kanban -->
+      <div class="kanban-board" id="kanban-board">
+        <div class="kanban-column" data-estado="PENDIENTE">
+          <div class="kanban-column-header">
+            <span class="column-title">Pendiente</span>
+            <span class="column-counter badge bg-secondary">0</span>
+          </div>
+          <div class="kanban-column-body"></div>
+          <button class="kanban-add-btn" onclick="KanbanBoard.openCreateModal('PENDIENTE')">+ Agregar Tarea</button>
+        </div>
+        <div class="kanban-column" data-estado="EN_PROGRESO">
+          <div class="kanban-column-header">
+            <span class="column-title">En Progreso</span>
+            <span class="column-counter badge bg-secondary">0</span>
+          </div>
+          <div class="kanban-column-body"></div>
+          <button class="kanban-add-btn" onclick="KanbanBoard.openCreateModal('EN_PROGRESO')">+ Agregar Tarea</button>
+        </div>
+        <div class="kanban-column" data-estado="COMPLETADA">
+          <div class="kanban-column-header">
+            <span class="column-title">Completada</span>
+            <span class="column-counter badge bg-secondary">0</span>
+          </div>
+          <div class="kanban-column-body"></div>
+          <button class="kanban-add-btn" onclick="KanbanBoard.openCreateModal('COMPLETADA')">+ Agregar Tarea</button>
+        </div>
+        <div class="kanban-column" data-estado="BLOQUEADA">
+          <div class="kanban-column-header">
+            <span class="column-title">Bloqueada</span>
+            <span class="column-counter badge bg-secondary">0</span>
+          </div>
+          <div class="kanban-column-body"></div>
+          <button class="kanban-add-btn" onclick="KanbanBoard.openCreateModal('BLOQUEADA')">+ Agregar Tarea</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal Crear Tarea Kanban -->
+    <div class="modal fade" id="modalCrearTareaKanban" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Nueva Tarea</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="kanban-create-estado" value="PENDIENTE">
+            <div class="mb-3">
+              <label for="kanban-create-nombre" class="form-label">Nombre *</label>
+              <input type="text" class="form-control" id="kanban-create-nombre" maxlength="200" required>
+              <div class="invalid-feedback">El nombre de la tarea es obligatorio</div>
+            </div>
+            <div class="mb-3">
+              <label for="kanban-create-descripcion" class="form-label">Descripción</label>
+              <textarea class="form-control" id="kanban-create-descripcion" maxlength="2000" rows="3"></textarea>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="kanban-create-prioridad" class="form-label">Prioridad</label>
+                <select class="form-select" id="kanban-create-prioridad">
+                  <option value="BAJA">Baja</option>
+                  <option value="MEDIA" selected>Media</option>
+                  <option value="ALTA">Alta</option>
+                  <option value="CRITICA">Crítica</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="kanban-create-responsable" class="form-label">Responsable</label>
+                <select class="form-select" id="kanban-create-responsable">
+                  <option value="">Sin asignar</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="kanban-create-fecha-inicio" class="form-label">Fecha inicio</label>
+                <input type="date" class="form-control" id="kanban-create-fecha-inicio">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="kanban-create-fecha-fin" class="form-label">Fecha fin</label>
+                <input type="date" class="form-control" id="kanban-create-fecha-fin">
+                <div class="invalid-feedback">La fecha de fin debe ser posterior a la fecha de inicio</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="KanbanBoard.submitCreate()">Crear Tarea</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel Edición Tarea Kanban -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="panelEditarTareaKanban" style="width: 420px;">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title">Editar Tarea</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+      </div>
+      <div class="offcanvas-body">
+        <input type="hidden" id="kanban-edit-id">
+        <div class="mb-3">
+          <label for="kanban-edit-nombre" class="form-label">Nombre *</label>
+          <input type="text" class="form-control" id="kanban-edit-nombre" maxlength="200" required>
+        </div>
+        <div class="mb-3">
+          <label for="kanban-edit-descripcion" class="form-label">Descripción</label>
+          <textarea class="form-control" id="kanban-edit-descripcion" maxlength="2000" rows="3"></textarea>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="kanban-edit-estado" class="form-label">Estado</label>
+            <select class="form-select" id="kanban-edit-estado">
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="EN_PROGRESO">En Progreso</option>
+              <option value="COMPLETADA">Completada</option>
+              <option value="BLOQUEADA">Bloqueada</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label for="kanban-edit-prioridad" class="form-label">Prioridad</label>
+            <select class="form-select" id="kanban-edit-prioridad">
+              <option value="BAJA">Baja</option>
+              <option value="MEDIA">Media</option>
+              <option value="ALTA">Alta</option>
+              <option value="CRITICA">Crítica</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label for="kanban-edit-responsable" class="form-label">Responsable</label>
+          <select class="form-select" id="kanban-edit-responsable">
+            <option value="">Sin asignar</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="kanban-edit-fecha-inicio" class="form-label">Fecha inicio</label>
+            <input type="date" class="form-control" id="kanban-edit-fecha-inicio">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label for="kanban-edit-fecha-fin" class="form-label">Fecha fin</label>
+            <input type="date" class="form-control" id="kanban-edit-fecha-fin">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label for="kanban-edit-avance" class="form-label">Avance: <span id="kanban-edit-avance-value">0</span>%</label>
+          <input type="range" class="form-range" id="kanban-edit-avance" min="0" max="100" value="0">
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between">
+          <button type="button" class="btn btn-danger btn-sm" onclick="KanbanBoard.confirmDelete()">
+            <i class="fas fa-trash"></i> Eliminar
+          </button>
+          <div>
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="offcanvas">Cancelar</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="KanbanBoard.submitEdit()">Guardar cambios</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- FOOTER BAR (Only visible in edit mode) -->
     <footer class="sap-footer edit-mode" id="footerBar">
         <button class="sap-btn" onclick="toggleEdit()">Cancelar</button>
@@ -1497,11 +1990,13 @@
         // Tab switching
         document.querySelectorAll('.sap-tab').forEach(tab => {
             tab.addEventListener('click', () => {
+                const target = tab.dataset.target;
+
                 document.querySelectorAll('.sap-tab, .sap-section').forEach(el => el.classList.remove('active'));
                 tab.classList.add('active');
-                const target = document.getElementById(tab.dataset.target);
-                target.classList.add('active');
-                if (tab.dataset.target === 'gantt-section') {
+                const section = document.getElementById(target);
+                section.classList.add('active');
+                if (target === 'gantt-section') {
                     // Redraw gantt because it needs visibility for calculation
                     if (!gantt) initGantt();
                 }
@@ -2148,6 +2643,964 @@
                 row.style.display = !q || text.includes(q) ? '' : 'none';
             });
         }
+
+        // Kanban Edit Panel: range slider live update
+        (function() {
+            const rangeInput = document.getElementById('kanban-edit-avance');
+            const rangeLabel = document.getElementById('kanban-edit-avance-value');
+            if (rangeInput && rangeLabel) {
+                rangeInput.addEventListener('input', function() {
+                    rangeLabel.textContent = this.value;
+                });
+            }
+        })();
+    </script>
+
+    <!-- PlanosManager Module -->
+    <script>
+        const PlanosManager = {
+            state: { proyectoId: null, currentPage: 1, totalPages: 1, loaded: false, selectedFile: null },
+
+            init(proyectoId) {
+                this.state.proyectoId = proyectoId;
+                this.bindEvents();
+            },
+
+            bindEvents() {
+                // Lazy load on tab click
+                const planosTab = document.querySelector('.sap-tab[data-target="planos-pdf"]');
+                if (planosTab) {
+                    planosTab.addEventListener('click', () => {
+                        if (!this.state.loaded) {
+                            this.loadPlanos(1);
+                        }
+                    });
+                }
+            },
+
+            async loadPlanos(page = 1) {
+                try {
+                    const response = await fetch(`/proyectos/proyecto/${this.state.proyectoId}/planos/?page=${page}`);
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        this.state.currentPage = data.data.page;
+                        this.state.totalPages = data.data.total_pages;
+                        this.state.loaded = true;
+                        this.renderTable(data.data);
+                    }
+                } catch (error) {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Error al cargar los planos', showConfirmButton: false, timer: 5000 });
+                }
+            },
+
+            renderTable(data) {
+                const tbody = document.getElementById('planos-table-body');
+                const tableContainer = document.getElementById('planos-table-container');
+                const emptyState = document.getElementById('planos-empty-state');
+                const pagination = document.getElementById('planos-pagination');
+
+                if (data.planos.length === 0 && data.total === 0) {
+                    tableContainer.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    pagination.style.display = 'none';
+                    return;
+                }
+
+                tableContainer.style.display = 'block';
+                emptyState.style.display = 'none';
+
+                tbody.innerHTML = data.planos.map(plano => {
+                    const fecha = new Date(plano.fecha_carga).toLocaleDateString('es-CL', {day:'2-digit', month:'2-digit', year:'numeric'});
+                    return `<tr>
+                        <td><strong>${plano.titulo}</strong>${plano.descripcion ? '<br><small style="color:#6c757d">' + plano.descripcion + '</small>' : ''}</td>
+                        <td>${fecha}</td>
+                        <td>${plano.usuario_nombre}</td>
+                        <td>
+                            <a href="/proyectos/proyecto/${this.state.proyectoId}/planos/${plano.id}/visor/" target="_blank" class="btn-plano-ver" title="Ver"><i class="fas fa-eye"></i></a>
+                            <a href="${plano.url_archivo}" class="btn-plano-download" title="Descargar"><i class="fas fa-download"></i></a>
+                            <button class="btn-plano-delete" title="Eliminar" onclick="PlanosManager.deletePlano(${plano.id}, '${plano.titulo.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>`;
+                }).join('');
+
+                // Pagination
+                if (data.total_pages > 1) {
+                    pagination.style.display = 'flex';
+                    document.getElementById('planos-page-indicator').textContent = `Página ${data.page} de ${data.total_pages}`;
+                    document.getElementById('planos-prev-btn').disabled = data.page <= 1;
+                    document.getElementById('planos-next-btn').disabled = data.page >= data.total_pages;
+                } else {
+                    pagination.style.display = 'none';
+                }
+            },
+
+            renderPagination(total, page, totalPages) { /* handled in renderTable */ },
+            prevPage() { if (this.state.currentPage > 1) this.loadPlanos(this.state.currentPage - 1); },
+            nextPage() { if (this.state.currentPage < this.state.totalPages) this.loadPlanos(this.state.currentPage + 1); },
+
+            // === Upload with dropzone ===
+            initDropzone() {
+                const dropzone = document.getElementById('planos-dropzone');
+                const fileInput = document.getElementById('planos-file-input');
+
+                dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+                dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('drag-over'); });
+                dropzone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('drag-over');
+                    const file = e.dataTransfer.files[0];
+                    if (file) this.handleFileSelect(file);
+                });
+
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files[0]) this.handleFileSelect(e.target.files[0]);
+                });
+            },
+
+            handleFileSelect(file) {
+                // Client-side validation
+                if (!file.name.toLowerCase().endsWith('.pdf')) {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Solo se aceptan archivos PDF', showConfirmButton: false, timer: 4000 });
+                    return;
+                }
+                if (file.size > 50 * 1024 * 1024) {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'El archivo excede el tamaño máximo (50 MB)', showConfirmButton: false, timer: 4000 });
+                    return;
+                }
+                this.state.selectedFile = file;
+                document.getElementById('planos-upload-form').style.display = 'flex';
+                document.getElementById('planos-dropzone').innerHTML = `<i class="fas fa-file-pdf" style="font-size:2rem;color:#cc0000;display:block;margin-bottom:8px;"></i><p style="margin:0;font-size:0.85rem;">${file.name} (${(file.size/1024/1024).toFixed(1)} MB)</p>`;
+            },
+
+            async submitUpload() {
+                const file = this.state.selectedFile;
+                if (!file) return;
+
+                const titulo = document.getElementById('plano-titulo').value.trim();
+                const descripcion = document.getElementById('plano-descripcion').value.trim();
+
+                if (!titulo) {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'El título es obligatorio', showConfirmButton: false, timer: 3000 });
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('archivo', file);
+                formData.append('titulo', titulo);
+                formData.append('descripcion', descripcion);
+
+                const btn = document.getElementById('planos-upload-btn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subiendo...';
+
+                try {
+                    const response = await fetch(`/proyectos/proyecto/${this.state.proyectoId}/planos/upload/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: formData,
+                    });
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Plano cargado exitosamente', showConfirmButton: false, timer: 3000 });
+                        this.resetUploadForm();
+                        this.loadPlanos(1);
+                    } else {
+                        throw new Error(data.message);
+                    }
+                } catch (error) {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: error.message || 'Error al subir el plano', showConfirmButton: false, timer: 5000 });
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-upload"></i> Subir Plano';
+                }
+            },
+
+            resetUploadForm() {
+                this.state.selectedFile = null;
+                document.getElementById('plano-titulo').value = '';
+                document.getElementById('plano-descripcion').value = '';
+                document.getElementById('planos-upload-form').style.display = 'none';
+                document.getElementById('planos-file-input').value = '';
+                const dropzone = document.getElementById('planos-dropzone');
+                dropzone.innerHTML = '<i class="fas fa-cloud-upload-alt" style="font-size:2.5rem;color:#6c757d;margin-bottom:12px;display:block;"></i><p style="margin:0;color:var(--fiori-text-secondary);font-size:0.9rem;">Arrastra archivos PDF aquí o haz clic para seleccionar</p>';
+            },
+
+            // === Delete ===
+            async deletePlano(planoId, titulo) {
+                const result = await Swal.fire({
+                    title: '¿Eliminar plano?',
+                    html: `Se eliminará el plano <strong>"${titulo}"</strong>. Esta acción no se puede deshacer.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#bb0000',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar',
+                });
+
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`/proyectos/proyecto/${this.state.proyectoId}/planos/${planoId}/delete/`, {
+                            method: 'DELETE',
+                            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+                        });
+                        const data = await response.json();
+
+                        if (data.status === 'success') {
+                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Plano eliminado', showConfirmButton: false, timer: 3000 });
+                            this.loadPlanos(this.state.currentPage);
+                        } else {
+                            throw new Error(data.message);
+                        }
+                    } catch (error) {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Error al eliminar el plano', showConfirmButton: false, timer: 5000 });
+                    }
+                }
+            },
+        };
+
+        // Initialize PlanosManager
+        PlanosManager.init({{ proyecto.pk }});
+        PlanosManager.initDropzone();
+    </script>
+
+    <!-- KanbanBoard Module -->
+    <script>
+        const KanbanBoard = {
+            state: {
+                actividades: {},       // {PENDIENTE: [], EN_PROGRESO: [], COMPLETADA: [], BLOQUEADA: []}
+                filtros: { responsable: null, prioridad: null },
+                responsables: [],
+                proyectoId: null,
+                loaded: false,
+                dirty: false,          // true when kanban made changes that should refresh other tabs
+            },
+
+            init(proyectoId) {
+                this.state.proyectoId = proyectoId;
+                this.bindTabEvent();
+            },
+
+            bindTabEvent() {
+                // The tab system uses data-target. We listen for when "tareas" tab is activated.
+                // Lazy load: only fetch data the first time the tab is shown.
+                // If dirty (Kanban made changes), always re-fetch to ensure fresh data.
+                const tareasTab = document.querySelector('.sap-tab[data-target="tareas"]');
+                if (tareasTab) {
+                    tareasTab.addEventListener('click', () => {
+                        if (!this.state.loaded || this.state.dirty) {
+                            this.loadActividades();
+                            this.state.dirty = false;
+                        }
+                    });
+                }
+
+                // When "Cronograma / Actividades" tab is activated and Kanban made changes,
+                // refresh the actividades table to reflect updated data (Req 8.2, 8.3)
+                const actividadesTab = document.querySelector('.sap-tab[data-target="actividades"]');
+                if (actividadesTab) {
+                    actividadesTab.addEventListener('click', () => {
+                        if (this.state.dirty) {
+                            this.refreshActividadesTable();
+                        }
+                    });
+                }
+
+                // When "Diagrama de Gantt" tab is activated and Kanban made changes,
+                // refresh the Gantt data. The Gantt uses a server-rendered JSON, so we
+                // fetch the page and re-parse it. Also refresh the actividades table.
+                const ganttTab = document.querySelector('.sap-tab[data-target="gantt-section"]');
+                if (ganttTab) {
+                    ganttTab.addEventListener('click', () => {
+                        if (this.state.dirty) {
+                            this.refreshGanttData();
+                        }
+                    });
+                }
+
+                // Bind filter events
+                document.getElementById('filtro-responsable').addEventListener('change', () => this.applyFilters());
+                document.getElementById('filtro-prioridad').addEventListener('change', () => this.applyFilters());
+                document.getElementById('btn-limpiar-filtros').addEventListener('click', () => this.clearFilters());
+            },
+
+            /**
+             * Refreshes the "Cronograma / Actividades" table by fetching the current
+             * page via AJAX and replacing the table body with fresh server-rendered content.
+             * This ensures coherence between Kanban changes and the actividades table (Req 8.2, 8.3, 8.4).
+             */
+            async refreshActividadesTable() {
+                try {
+                    const response = await fetch(window.location.href, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const html = await response.text();
+
+                    // Parse the fetched HTML and extract the updated table body
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newTbody = doc.querySelector('#actividadesTable tbody');
+                    const currentTbody = document.querySelector('#actividadesTable tbody');
+
+                    if (newTbody && currentTbody) {
+                        currentTbody.innerHTML = newTbody.innerHTML;
+                        // Re-attach click handlers for the activity modal on new rows
+                        currentTbody.querySelectorAll('.actividad-row[data-id]').forEach(row => {
+                            const actId = row.dataset.id;
+                            if (actId) {
+                                row.setAttribute('onclick', `openActividadModal(${actId})`);
+                            }
+                        });
+                    }
+
+                    // Note: dirty flag stays true so other tabs (Gantt) also refresh if needed.
+                    // It gets reset when the user returns to the Tareas tab.
+                } catch (error) {
+                    console.error('Error refreshing actividades table:', error);
+                    // Silently fail - user can manually reload if needed
+                }
+            },
+
+            /**
+             * Refreshes the Gantt chart by fetching updated tasks JSON from the server.
+             * Also refreshes the actividades table for consistency.
+             */
+            async refreshGanttData() {
+                try {
+                    const response = await fetch(window.location.href, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const html = await response.text();
+
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    // Update Gantt tasks data and reinitialize
+                    const newTasksScript = doc.querySelector('#tasks-data');
+                    if (newTasksScript && typeof Gantt !== 'undefined') {
+                        const newTasks = JSON.parse(newTasksScript.textContent);
+                        if (newTasks.length) {
+                            // Reinitialize the global gantt with fresh data
+                            gantt = new Gantt("#gantt_chart", newTasks, {
+                                on_date_change: function (task, start, end) {
+                                    saveActivityDates(task.id, start, end);
+                                },
+                                on_click: function (task) {
+                                    if (isLinkMode) {
+                                        handleGanttLinking(task);
+                                    }
+                                },
+                                view_mode: 'Week',
+                                language: 'es'
+                            });
+                        }
+                    }
+
+                    // Also refresh actividades table
+                    const newTbody = doc.querySelector('#actividadesTable tbody');
+                    const currentTbody = document.querySelector('#actividadesTable tbody');
+                    if (newTbody && currentTbody) {
+                        currentTbody.innerHTML = newTbody.innerHTML;
+                        currentTbody.querySelectorAll('.actividad-row[data-id]').forEach(row => {
+                            const actId = row.dataset.id;
+                            if (actId) {
+                                row.setAttribute('onclick', `openActividadModal(${actId})`);
+                            }
+                        });
+                    }
+
+                    // dirty flag stays true; reset happens when user returns to Tareas tab
+                } catch (error) {
+                    console.error('Error refreshing Gantt data:', error);
+                }
+            },
+
+            getApiUrl() {
+                return `/proyectos/proyecto/${this.state.proyectoId}/kanban/api/`;
+            },
+
+            async loadActividades() {
+                try {
+                    const response = await fetch(this.getApiUrl());
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        this.state.actividades = data.actividades;
+                        this.state.responsables = data.responsables;
+                        this.state.loaded = true;
+                        this.render();
+                    } else {
+                        throw new Error(data.message || 'Error desconocido');
+                    }
+                } catch (error) {
+                    console.error('Error loading kanban:', error);
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'error',
+                        title: 'Error al cargar las tareas',
+                        showConfirmButton: true,
+                        confirmButtonText: 'Reintentar',
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.loadActividades();
+                        }
+                    });
+                }
+            },
+
+            render() {
+                const board = document.getElementById('kanban-board');
+                const emptyState = document.getElementById('kanban-empty-state');
+
+                // Check if there are any activities
+                const totalActividades = Object.values(this.state.actividades).reduce((sum, arr) => sum + arr.length, 0);
+
+                if (totalActividades === 0) {
+                    board.style.display = 'none';
+                    emptyState.style.display = 'flex';
+                    document.querySelector('.kanban-filters').style.display = 'none';
+                } else {
+                    board.style.display = 'flex';
+                    emptyState.style.display = 'none';
+                    document.querySelector('.kanban-filters').style.display = 'flex';
+                }
+
+                // Populate responsables filter
+                const filtroResp = document.getElementById('filtro-responsable');
+                filtroResp.innerHTML = '<option value="">Todos los responsables</option>';
+                this.state.responsables.forEach(r => {
+                    filtroResp.innerHTML += `<option value="${r.id}">${r.nombre}</option>`;
+                });
+
+                // Also populate responsables in create modal and edit panel
+                const createResp = document.getElementById('kanban-create-responsable');
+                const editResp = document.getElementById('kanban-edit-responsable');
+                const respOptions = '<option value="">Sin asignar</option>' +
+                    this.state.responsables.map(r => `<option value="${r.id}">${r.nombre}</option>`).join('');
+                if (createResp) createResp.innerHTML = respOptions;
+                if (editResp) editResp.innerHTML = respOptions;
+
+                // Render each column
+                ['PENDIENTE', 'EN_PROGRESO', 'COMPLETADA', 'BLOQUEADA'].forEach(estado => {
+                    this.renderColumn(estado, this.state.actividades[estado] || []);
+                });
+            },
+            // Helper: truncate name to maxLen characters (57 + "..." if exceeds)
+            truncateName(nombre, maxLen = 60) {
+                if (!nombre) return '';
+                return nombre.length > maxLen ? nombre.substring(0, maxLen - 3) + '...' : nombre;
+            },
+
+            // Helper: map priority to color
+            getPriorityColor(prioridad) {
+                const colors = {
+                    'BAJA': '#0066cc',
+                    'MEDIA': '#f0ab00',
+                    'ALTA': '#e67700',
+                    'CRITICA': '#cc0000',
+                };
+                return colors[prioridad] || '#6c757d';
+            },
+
+            // Helper: check if activity is overdue
+            isOverdue(fechaFin, estado) {
+                if (!fechaFin || estado === 'COMPLETADA') return false;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const fin = new Date(fechaFin);
+                return fin < today;
+            },
+
+            renderColumn(estado, items) {
+                const column = document.querySelector(`.kanban-column[data-estado="${estado}"]`);
+                if (!column) return;
+
+                const body = column.querySelector('.kanban-column-body');
+                const counter = column.querySelector('.column-counter');
+
+                body.innerHTML = '';
+
+                // Apply filters
+                const filteredItems = items.filter(act => {
+                    const { responsable, prioridad } = this.state.filtros;
+                    if (responsable && act.asignado_a_id != responsable) return false;
+                    if (prioridad && act.prioridad !== prioridad) return false;
+                    return true;
+                });
+
+                // Update counter with filtered count
+                counter.textContent = filteredItems.length;
+
+                if (filteredItems.length === 0 && items.length > 0) {
+                    body.innerHTML = '<div class="kanban-column-no-results">No hay tarjetas que coincidan con los filtros</div>';
+                } else {
+                    filteredItems.forEach(act => {
+                        body.innerHTML += this.renderCard(act);
+                    });
+                }
+
+                // Bind drag events to new cards
+                body.querySelectorAll('.kanban-card').forEach(card => {
+                    card.addEventListener('dragstart', (e) => this.handleDragStart(e, card));
+                    card.addEventListener('dragend', (e) => this.handleDragEnd(e, card));
+                    card.addEventListener('click', (e) => {
+                        if (!e.target.closest('.kanban-card').classList.contains('dragging')) {
+                            this.openEditPanel(card.dataset.id);
+                        }
+                    });
+                });
+
+                // Bind drop zone events on column body
+                body.addEventListener('dragover', (e) => this.handleDragOver(e, column));
+                body.addEventListener('dragleave', (e) => this.handleDragLeave(e, column));
+                body.addEventListener('drop', (e) => this.handleDrop(e, column));
+            },
+
+            renderCard(actividad) {
+                const color = this.getPriorityColor(actividad.prioridad);
+                const nombre = this.truncateName(actividad.nombre);
+                const responsable = actividad.asignado_a_nombre || 'Sin asignar';
+                const overdue = this.isOverdue(actividad.fecha_fin, actividad.estado);
+
+                let fechaHtml = '';
+                if (actividad.fecha_fin) {
+                    const fecha = new Date(actividad.fecha_fin);
+                    const fechaStr = fecha.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    fechaHtml = `<span class="card-date ${overdue ? 'overdue' : ''}"><i class="fas fa-calendar"></i> ${fechaStr}</span>`;
+                }
+
+                return `
+                    <div class="kanban-card" draggable="true" data-id="${actividad.id}" data-prioridad="${actividad.prioridad}" data-responsable="${actividad.asignado_a_id || ''}">
+                        <div class="card-priority-indicator" style="background: ${color}"></div>
+                        <div class="card-content">
+                            <div class="card-title">${nombre}</div>
+                            <div class="card-meta">
+                                <span class="card-assignee"><i class="fas fa-user"></i> ${responsable}</span>
+                                ${fechaHtml}
+                            </div>
+                            <div class="card-progress">
+                                <div class="progress-bar" style="width: ${actividad.porcentaje_avance || 0}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+            openCreateModal(estado) {
+                document.getElementById('kanban-create-estado').value = estado;
+                document.getElementById('kanban-create-nombre').value = '';
+                document.getElementById('kanban-create-descripcion').value = '';
+                document.getElementById('kanban-create-prioridad').value = 'MEDIA';
+                document.getElementById('kanban-create-responsable').value = '';
+                document.getElementById('kanban-create-fecha-inicio').value = '';
+                document.getElementById('kanban-create-fecha-fin').value = '';
+                // Remove validation states
+                document.getElementById('kanban-create-nombre').classList.remove('is-invalid');
+                document.getElementById('kanban-create-fecha-fin').classList.remove('is-invalid');
+
+                const modal = new bootstrap.Modal(document.getElementById('modalCrearTareaKanban'));
+                modal.show();
+            },
+
+            async submitCreate() {
+                const nombre = document.getElementById('kanban-create-nombre').value.trim();
+                const descripcion = document.getElementById('kanban-create-descripcion').value.trim();
+                const prioridad = document.getElementById('kanban-create-prioridad').value;
+                const estado = document.getElementById('kanban-create-estado').value;
+                const responsable = document.getElementById('kanban-create-responsable').value;
+                const fechaInicio = document.getElementById('kanban-create-fecha-inicio').value;
+                const fechaFin = document.getElementById('kanban-create-fecha-fin').value;
+
+                // Validation: nombre obligatorio
+                if (!nombre) {
+                    document.getElementById('kanban-create-nombre').classList.add('is-invalid');
+                    return;
+                }
+                document.getElementById('kanban-create-nombre').classList.remove('is-invalid');
+
+                // Validation: fecha_fin >= fecha_inicio
+                if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
+                    document.getElementById('kanban-create-fecha-fin').classList.add('is-invalid');
+                    return;
+                }
+                document.getElementById('kanban-create-fecha-fin').classList.remove('is-invalid');
+
+                const payload = {
+                    proyecto_id: this.state.proyectoId,
+                    nombre: nombre,
+                    descripcion: descripcion,
+                    prioridad: prioridad,
+                    estado: estado,
+                    fecha_inicio: fechaInicio || null,
+                    fecha_fin: fechaFin || null,
+                    asignado_id: responsable ? parseInt(responsable) : null,
+                };
+
+                try {
+                    const response = await fetch('/proyectos/api/crear-actividad/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        // Close modal
+                        bootstrap.Modal.getInstance(document.getElementById('modalCrearTareaKanban')).hide();
+                        // Mark dirty so other tabs refresh when activated
+                        this.state.dirty = true;
+                        // Reload data to reflect changes
+                        await this.loadActividades();
+
+                        Swal.fire({
+                            toast: true, position: 'top-end', icon: 'success',
+                            title: 'Tarea creada exitosamente', showConfirmButton: false, timer: 3000,
+                        });
+                    } else {
+                        throw new Error(data.message || 'Error al crear la tarea');
+                    }
+                } catch (error) {
+                    Swal.fire({
+                        toast: true, position: 'top-end', icon: 'error',
+                        title: error.message || 'Error al crear la tarea',
+                        showConfirmButton: false, timer: 5000, timerProgressBar: true,
+                    });
+                }
+            },
+            async openEditPanel(actividadId) {
+                try {
+                    const response = await fetch(`/proyectos/api/actividad/${actividadId}/detalle/`);
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        const act = data.actividad;
+                        document.getElementById('kanban-edit-id').value = act.id;
+                        document.getElementById('kanban-edit-nombre').value = act.nombre || '';
+                        document.getElementById('kanban-edit-descripcion').value = act.descripcion || '';
+                        document.getElementById('kanban-edit-estado').value = act.estado || 'PENDIENTE';
+                        document.getElementById('kanban-edit-prioridad').value = act.prioridad || 'MEDIA';
+                        document.getElementById('kanban-edit-fecha-inicio').value = act.fecha_inicio || '';
+                        document.getElementById('kanban-edit-fecha-fin').value = act.fecha_fin || '';
+                        document.getElementById('kanban-edit-avance').value = act.porcentaje_avance || 0;
+                        document.getElementById('kanban-edit-avance-value').textContent = act.porcentaje_avance || 0;
+
+                        // Populate responsable selector
+                        const selResp = document.getElementById('kanban-edit-responsable');
+                        selResp.innerHTML = '<option value="">Sin asignar</option>';
+                        this.state.responsables.forEach(r => {
+                            selResp.innerHTML += `<option value="${r.id}">${r.nombre}</option>`;
+                        });
+                        selResp.value = act.asignado_a_id || '';
+
+                        // Remove any prior validation states
+                        document.getElementById('kanban-edit-nombre').classList.remove('is-invalid');
+                        document.getElementById('kanban-edit-fecha-fin').classList.remove('is-invalid');
+
+                        const offcanvas = new bootstrap.Offcanvas(document.getElementById('panelEditarTareaKanban'));
+                        offcanvas.show();
+                    } else {
+                        throw new Error(data.message || 'Error al obtener detalle');
+                    }
+                } catch (error) {
+                    Swal.fire({
+                        toast: true, position: 'top-end', icon: 'error',
+                        title: 'Error al abrir la tarea',
+                        showConfirmButton: false, timer: 5000, timerProgressBar: true,
+                    });
+                }
+            },
+
+            async submitEdit() {
+                const actividadId = document.getElementById('kanban-edit-id').value;
+                const nombre = document.getElementById('kanban-edit-nombre').value.trim();
+                const descripcion = document.getElementById('kanban-edit-descripcion').value.trim();
+                const estado = document.getElementById('kanban-edit-estado').value;
+                const prioridad = document.getElementById('kanban-edit-prioridad').value;
+                const responsable = document.getElementById('kanban-edit-responsable').value;
+                const fechaInicio = document.getElementById('kanban-edit-fecha-inicio').value;
+                const fechaFin = document.getElementById('kanban-edit-fecha-fin').value;
+                const avance = document.getElementById('kanban-edit-avance').value;
+
+                // Validation: nombre obligatorio
+                if (!nombre) {
+                    document.getElementById('kanban-edit-nombre').classList.add('is-invalid');
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'El nombre es obligatorio', showConfirmButton: false, timer: 3000 });
+                    return;
+                }
+                document.getElementById('kanban-edit-nombre').classList.remove('is-invalid');
+
+                // Validation: fecha_fin >= fecha_inicio
+                if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
+                    document.getElementById('kanban-edit-fecha-fin').classList.add('is-invalid');
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'La fecha de fin debe ser posterior a la fecha de inicio', showConfirmButton: false, timer: 3000 });
+                    return;
+                }
+                document.getElementById('kanban-edit-fecha-fin').classList.remove('is-invalid');
+
+                const payload = {
+                    nombre: nombre,
+                    descripcion: descripcion,
+                    estado: estado,
+                    prioridad: prioridad,
+                    fecha_inicio: fechaInicio || null,
+                    fecha_fin: fechaFin || null,
+                    porcentaje_avance: parseInt(avance),
+                    asignado_id: responsable ? parseInt(responsable) : null,
+                };
+
+                try {
+                    const response = await fetch(`/proyectos/api/actualizar-actividad/${actividadId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        // Close panel
+                        bootstrap.Offcanvas.getInstance(document.getElementById('panelEditarTareaKanban')).hide();
+                        // Mark dirty so other tabs refresh when activated
+                        this.state.dirty = true;
+                        // Reload to reflect changes (reubicates card if estado changed, updates counters)
+                        await this.loadActividades();
+
+                        Swal.fire({
+                            toast: true, position: 'top-end', icon: 'success',
+                            title: 'Tarea actualizada', showConfirmButton: false, timer: 3000,
+                        });
+                    } else {
+                        throw new Error(data.message || 'Error al actualizar');
+                    }
+                } catch (error) {
+                    Swal.fire({
+                        toast: true, position: 'top-end', icon: 'error',
+                        title: error.message || 'Error al guardar los cambios',
+                        showConfirmButton: false, timer: 5000, timerProgressBar: true,
+                    });
+                }
+            },
+            async confirmDelete() {
+                const actividadId = document.getElementById('kanban-edit-id').value;
+                const nombre = document.getElementById('kanban-edit-nombre').value;
+
+                const result = await Swal.fire({
+                    title: '¿Eliminar tarea?',
+                    html: `Se eliminará la tarea <strong>"${nombre}"</strong>. Esta acción no se puede deshacer.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#bb0000',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar',
+                });
+
+                if (result.isConfirmed) {
+                    try {
+                        const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+                        const token = csrf ? csrf.value : '{{ csrf_token }}';
+
+                        const response = await fetch(`/proyectos/proyecto/${this.state.proyectoId}/actividades/${actividadId}/delete/`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': token,
+                            },
+                        });
+                        const data = await response.json();
+
+                        if (data.status === 'success') {
+                            // Close edit panel
+                            const offcanvasEl = document.getElementById('panelEditarTareaKanban');
+                            const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                            if (offcanvasInstance) offcanvasInstance.hide();
+
+                            // Mark dirty so other tabs refresh when activated
+                            this.state.dirty = true;
+
+                            // Remove card with animation (max 300ms)
+                            const card = document.querySelector(`.kanban-card[data-id="${actividadId}"]`);
+                            if (card) {
+                                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                                card.style.opacity = '0';
+                                card.style.transform = 'scale(0.8)';
+                                setTimeout(() => {
+                                    card.remove();
+                                    this.updateCounters();
+                                }, 300);
+                            }
+
+                            // Remove from state
+                            for (const estado in this.state.actividades) {
+                                this.state.actividades[estado] = this.state.actividades[estado].filter(a => a.id != actividadId);
+                            }
+
+                            // Check if board is now empty
+                            const total = Object.values(this.state.actividades).reduce((sum, arr) => sum + arr.length, 0);
+                            if (total === 0) {
+                                document.getElementById('kanban-board').style.display = 'none';
+                                document.getElementById('kanban-empty-state').style.display = 'flex';
+                                document.querySelector('.kanban-filters').style.display = 'none';
+                            }
+
+                            Swal.fire({
+                                toast: true, position: 'top-end', icon: 'success',
+                                title: 'Tarea eliminada', showConfirmButton: false, timer: 3000,
+                            });
+                        } else {
+                            throw new Error(data.message || 'Error al eliminar');
+                        }
+                    } catch (error) {
+                        Swal.fire({
+                            toast: true, position: 'top-end', icon: 'error',
+                            title: 'No se pudo eliminar la tarea',
+                            showConfirmButton: false, timer: 5000, timerProgressBar: true,
+                        });
+                    }
+                }
+            },
+            handleDragStart(e, cardEl) {
+                const actividadId = cardEl.dataset.id;
+                const sourceColumn = cardEl.closest('.kanban-column').dataset.estado;
+                e.dataTransfer.setData('text/plain', JSON.stringify({ id: actividadId, source: sourceColumn }));
+                e.dataTransfer.effectAllowed = 'move';
+                cardEl.classList.add('dragging');
+            },
+
+            handleDragOver(e, columnEl) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                columnEl.classList.add('drag-over');
+            },
+
+            handleDragLeave(e, columnEl) {
+                // Only remove if leaving the column entirely (not entering a child)
+                if (!columnEl.contains(e.relatedTarget)) {
+                    columnEl.classList.remove('drag-over');
+                }
+            },
+
+            async handleDrop(e, columnEl) {
+                e.preventDefault();
+                columnEl.classList.remove('drag-over');
+
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const actividadId = data.id;
+                const sourceEstado = data.source;
+                const targetEstado = columnEl.dataset.estado;
+
+                // No-op if same column
+                if (sourceEstado === targetEstado) return;
+
+                // Optimistic: move card to target column
+                const card = document.querySelector(`.kanban-card[data-id="${actividadId}"]`);
+                const targetBody = columnEl.querySelector('.kanban-column-body');
+                if (card && targetBody) {
+                    targetBody.appendChild(card);
+                    this.updateCounters();
+                }
+
+                // Update state optimistically
+                let movedActivity = null;
+                if (this.state.actividades[sourceEstado]) {
+                    const idx = this.state.actividades[sourceEstado].findIndex(a => a.id == actividadId);
+                    if (idx !== -1) {
+                        movedActivity = this.state.actividades[sourceEstado].splice(idx, 1)[0];
+                        movedActivity.estado = targetEstado;
+                        if (!this.state.actividades[targetEstado]) this.state.actividades[targetEstado] = [];
+                        this.state.actividades[targetEstado].push(movedActivity);
+                    }
+                }
+
+                // Call API
+                try {
+                    const response = await fetch(`/proyectos/api/actualizar-actividad/${actividadId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: JSON.stringify({ estado: targetEstado }),
+                    });
+                    const result = await response.json();
+
+                    if (result.status !== 'success') {
+                        throw new Error(result.message || 'Error al mover la tarea');
+                    }
+
+                    // Mark dirty so other tabs refresh when activated
+                    this.state.dirty = true;
+                } catch (error) {
+                    // Revert: move card back to source column
+                    const sourceColumn = document.querySelector(`.kanban-column[data-estado="${sourceEstado}"]`);
+                    const sourceBody = sourceColumn?.querySelector('.kanban-column-body');
+                    if (card && sourceBody) {
+                        sourceBody.appendChild(card);
+                        this.updateCounters();
+                    }
+
+                    // Revert state
+                    if (movedActivity) {
+                        this.state.actividades[targetEstado] = this.state.actividades[targetEstado].filter(a => a.id != actividadId);
+                        movedActivity.estado = sourceEstado;
+                        this.state.actividades[sourceEstado].push(movedActivity);
+                    }
+
+                    Swal.fire({
+                        toast: true, position: 'top-end', icon: 'error',
+                        title: 'Error al mover la tarea',
+                        showConfirmButton: false, timer: 5000, timerProgressBar: true,
+                    });
+                }
+            },
+
+            handleDragEnd(e, cardEl) {
+                cardEl.classList.remove('dragging');
+                // Clean all drag-over classes
+                document.querySelectorAll('.kanban-column.drag-over').forEach(col => col.classList.remove('drag-over'));
+            },
+            applyFilters() {
+                const responsable = document.getElementById('filtro-responsable').value;
+                const prioridad = document.getElementById('filtro-prioridad').value;
+
+                this.state.filtros.responsable = responsable || null;
+                this.state.filtros.prioridad = prioridad || null;
+
+                // Re-render all columns with updated filters
+                ['PENDIENTE', 'EN_PROGRESO', 'COMPLETADA', 'BLOQUEADA'].forEach(estado => {
+                    this.renderColumn(estado, this.state.actividades[estado] || []);
+                });
+            },
+
+            clearFilters() {
+                document.getElementById('filtro-responsable').value = '';
+                document.getElementById('filtro-prioridad').value = '';
+                this.state.filtros.responsable = null;
+                this.state.filtros.prioridad = null;
+
+                // Re-render all columns without filters
+                ['PENDIENTE', 'EN_PROGRESO', 'COMPLETADA', 'BLOQUEADA'].forEach(estado => {
+                    this.renderColumn(estado, this.state.actividades[estado] || []);
+                });
+            },
+
+            updateCounters() {
+                document.querySelectorAll('.kanban-column').forEach(column => {
+                    const estado = column.dataset.estado;
+                    const visibleCards = column.querySelectorAll('.kanban-card').length;
+                    const counter = column.querySelector('.column-counter');
+                    if (counter) counter.textContent = visibleCards;
+                });
+            },
+        };
+
+        // Initialize Kanban with project ID from Django template context
+        KanbanBoard.init({{ proyecto.pk }});
     </script>
 </body>
 </html>

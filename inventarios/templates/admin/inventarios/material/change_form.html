@@ -1,0 +1,121 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    .price-history-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f59e0b;
+        border: none;
+        color: #fff;
+        padding: 8px 18px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s;
+    }
+    .price-history-btn:hover {
+        background: #d97706;
+        color: #fff;
+    }
+</style>
+{% endblock %}
+
+{% block after_field_sets %}
+{% if original and original.pk %}
+<div style="margin: 10px 0 20px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+    <div>
+        <strong style="font-size: 0.9rem; color: #1e293b;">Precio Estimado Actual:</strong>
+        <span style="font-size: 1.1rem; font-weight: 700; color: #059669; margin-left: 8px;"> L. {{ original.precio_estimado|floatformat:2 }}</span>
+    </div>
+    <button type="button" class="price-history-btn" onclick="abrirHistorialPrecios({{ original.pk }})">
+        📊 Ver Precios Históricos
+    </button>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script>
+function abrirHistorialPrecios(materialId) {
+    Swal.fire({
+        title: 'Cargando historial...',
+        html: '<div style="text-align:center;padding:2rem;"><div class="spinner-border" role="status"></div></div>',
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        width: 900,
+        padding: '0',
+    });
+
+    fetch('/inventarios/api/material/' + materialId + '/precios-historicos/')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var rows = '';
+            if (data.historial.length === 0) {
+                rows = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#64748b;">No hay requisiciones con precio para este material.</td></tr>';
+            } else {
+                data.historial.forEach(function(h) {
+                    var link = h.req_id
+                        ? '<a href="/admin/presupuestos/requisicion/' + h.req_id + '/change/" target="_blank" style="color:#2563eb;text-decoration:underline;">' + h.req_num + '</a>'
+                        : h.req_num;
+                    rows += '<tr>' +
+                        '<td style="padding:8px 12px;font-weight:600;color:#6366f1;">' + link + '</td>' +
+                        '<td style="padding:8px 12px;">' + h.fecha + '</td>' +
+                        '<td style="padding:8px 12px;">' + h.proveedor + '</td>' +
+                        '<td style="padding:8px 12px;text-align:center;">' + h.cantidad + '</td>' +
+                        '<td style="padding:8px 12px;font-weight:600;">L. ' + h.precio_unitario.toFixed(2) + '</td>' +
+                        '<td style="padding:8px 12px;color:#64748b;font-size:0.85rem;">' + h.estado + '</td>' +
+                        '</tr>';
+                });
+            }
+
+            var precioActual = data.precio_actual ? 'L. ' + data.precio_actual.toFixed(2) : '—';
+            var badgeColor = data.precio_actual > 0 ? '#059669' : '#94a3b8';
+
+            Swal.fire({
+                title: '📊 Precios Históricos',
+                html:
+                    '<div style="text-align:left;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding:12px 16px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">' +
+                    '<div><strong style="color:#1e293b;">' + data.material + '</strong><br><span style="color:#64748b;font-size:0.85rem;">SKU: ' + data.material_sku + '</span></div>' +
+                    '<div style="text-align:right;"><span style="font-size:0.75rem;color:#64748b;">Precio Actual</span><br><span style="font-size:1.2rem;font-weight:700;color:' + badgeColor + ';">' + precioActual + '</span></div>' +
+                    '</div>' +
+                    '<div style="max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;">' +
+                    '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">' +
+                    '<thead style="background:#f1f5f9;position:sticky;top:0;">' +
+                    '<tr>' +
+                    '<th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">Requisición</th>' +
+                    '<th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">Fecha</th>' +
+                    '<th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">Proveedor</th>' +
+                    '<th style="padding:10px 12px;text-align:center;font-weight:600;color:#475569;">Cant.</th>' +
+                    '<th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">Precio Unit.</th>' +
+                    '<th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;">Estado</th>' +
+                    '</tr>' +
+                    '</thead>' +
+                    '<tbody>' + rows + '</tbody>' +
+                    '</table>' +
+                    '</div>' +
+                    '<div style="margin-top:0.5rem;text-align:right;color:#64748b;font-size:0.8rem;">' + data.total_registros + ' registro(s)</div>' +
+                    '</div>',
+                showConfirmButton: true,
+                confirmButtonText: 'Cerrar',
+                confirmButtonColor: '#64748b',
+                width: 900,
+                padding: '1.5rem',
+            });
+        })
+        .catch(function(err) {
+            Swal.fire('Error', 'No se pudo cargar el historial de precios.', 'error');
+            console.error(err);
+        });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporte de Validacion - Cronograma</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --border: #334155;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --error: #ef4444;
+    --warning: #f59e0b;
+    --info: #06b6d4;
+    --accent: #3b82f6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: var(--bg); color: var(--text); padding: 2rem; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+  .subtitle { color: var(--text-muted); margin-bottom: 2rem; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                  gap: 1rem; margin-bottom: 2rem; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+          padding: 1.5rem; text-align: center; }
+  .card .num { font-size: 2.5rem; font-weight: 700; }
+  .card .label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;
+                 letter-spacing: 0.05em; }
+  .card.error .num { color: var(--error); }
+  .card.warning .num { color: var(--warning); }
+  .card.info .num { color: var(--info); }
+  .card.total .num { color: var(--accent); }
+  .section { margin-bottom: 2rem; }
+  .section h2 { font-size: 1.3rem; margin-bottom: 1rem; padding-bottom: 0.5rem;
+                border-bottom: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;
+       letter-spacing: 0.05em; }
+  .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px;
+           font-size: 0.75rem; font-weight: 600; }
+  .badge.error { background: rgba(239,68,68,0.15); color: var(--error); }
+  .badge.warning { background: rgba(245,158,11,0.15); color: var(--warning); }
+  .badge.info { background: rgba(6,182,212,0.15); color: var(--info); }
+  .issue-detail { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
+  .order-code { font-weight: 600; color: var(--accent); }
+  .category-bar { display: flex; align-items: center; gap: 0.5rem; margin: 0.3rem 0; }
+  .category-bar .bar { flex: 1; height: 20px; background: var(--border); border-radius: 999px;
+                       overflow: hidden; }
+  .category-bar .fill { height: 100%; border-radius: 999px; transition: width 0.3s; }
+  .category-bar .cat-label { min-width: 180px; font-size: 0.85rem; }
+  .category-bar .cat-count { min-width: 40px; text-align: right; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Reporte de Validacion del Cronograma</h1>
+  <p class="subtitle">Ordenes de Trabajo - Verificacion automatica de consistencia</p>
+
+  <div class="summary-grid">
+    <div class="card total">
+      <div class="num">{{ summary.total_orders }}</div>
+      <div class="label">Ordenes Revisadas</div>
+    </div>
+    <div class="card error">
+      <div class="num">{{ summary.errors }}</div>
+      <div class="label">Errores</div>
+    </div>
+    <div class="card warning">
+      <div class="num">{{ summary.warnings }}</div>
+      <div class="label">Advertencias</div>
+    </div>
+    <div class="card info">
+      <div class="num">{{ summary.info }}</div>
+      <div class="label">Info</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Por Categoria</h2>
+    {% for cat in summary.by_category %}
+    {% set pct = (cat.count / summary.total_issues * 100) | round(1) %}
+    {% if loop.first %}
+    {% set bar_color = "red" %}
+    {% elif loop.index == 2 %}
+    {% set bar_color = "orange" %}
+    {% elif loop.index == 3 %}
+    {% set bar_color = "cyan" %}
+    {% elif loop.index == 4 %}
+    {% set bar_color = "purple" %}
+    {% else %}
+    {% set bar_color = "blue" %}
+    {% endif %}
+    {% set color_map = {"red": "#ef4444", "orange": "#f59e0b", "cyan": "#06b6d4", "purple": "#8b5cf6", "blue": "#3b82f6"} %}
+    <div class="category-bar">
+      <span class="cat-label">{{ cat.category }}</span>
+      <div class="bar">
+        <div class="fill" style="width:{{ pct }}%;background:{{ color_map[bar_color] }}"></div>
+      </div>
+      <span class="cat-count">{{ cat.count }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="section">
+    <h2>Problemas Encontrados ({{ issues | length }})</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Severidad</th>
+          <th>Categoria</th>
+          <th>OT</th>
+          <th>Descripcion</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for issue in issues %}
+        <tr>
+          <td><span class="badge {{ issue.severity | lower }}">{{ issue.severity }}</span></td>
+          <td>{{ issue.category }}</td>
+          <td class="order-code">{{ issue.codigo | default(value="N/A") }}</td>
+          <td>
+            <div>{{ issue.message }}</div>
+            <div class="issue-detail">{{ issue.detail }}</div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="subtitle" style="text-align:center;margin-top:2rem">
+    Generado por Cronograma Validator
+  </p>
+</div>
+</body>
+</html>

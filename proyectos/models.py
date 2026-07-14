@@ -1,6 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from colorfield.fields import ColorField
+from core.storage import MinIOStorage
+
+minio_storage = MinIOStorage()
 
 
 class Proyecto(models.Model):
@@ -156,7 +161,9 @@ class ObservacionProyecto(models.Model):
         DocumentoProyecto,
         on_delete=models.CASCADE,
         related_name='observaciones',
-        verbose_name="Documento del proyecto"
+        verbose_name="Documento del proyecto",
+        null=True,
+        blank=True,
     )
     usuario = models.ForeignKey(
         User,
@@ -250,3 +257,126 @@ class Actividad(models.Model):
         verbose_name = "Actividad"
         verbose_name_plural = "Actividades"
         ordering = ['proyecto', 'orden', 'creado_en']
+
+
+class PlanoProyecto(models.Model):
+    """
+    Plano PDF asociado a un proyecto.
+    Almacena archivos PDF en MinIO para documentación técnica del proyecto.
+    """
+    proyecto = models.ForeignKey(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name='planos_pdf'
+    )
+    titulo = models.CharField(max_length=200)
+    descripcion = models.TextField(blank=True)
+    archivo = models.FileField(
+        upload_to='proyectos/planos/',
+        storage=minio_storage,
+        max_length=500
+    )
+    subido_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+    fecha_carga = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Plano de Proyecto"
+        verbose_name_plural = "Planos de Proyecto"
+        ordering = ['-fecha_carga']
+
+    def __str__(self):
+        return f"{self.proyecto.codigo} - {self.titulo}"
+
+
+class PinObservacionProyecto(models.Model):
+    """
+    Pin que vincula una observación de proyecto a una posición específica
+    en un plano PDF del mismo proyecto.
+    """
+    plano = models.ForeignKey(
+        PlanoProyecto,
+        on_delete=models.CASCADE,
+        related_name='pines_observacion'
+    )
+    observacion = models.ForeignKey(
+        ObservacionProyecto,
+        on_delete=models.CASCADE,
+        related_name='pines_plano'
+    )
+    coordenada_x = models.FloatField(help_text="Posición X en píxeles absolutos del viewport base")
+    coordenada_y = models.FloatField(help_text="Posición Y en píxeles absolutos del viewport base")
+    pagina = models.PositiveIntegerField(default=1)
+    color = ColorField(default='#EF4444')
+    nota = models.TextField(blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('plano', 'observacion')
+        verbose_name = "Pin de Observación en Proyecto"
+        verbose_name_plural = "Pines de Observación en Proyecto"
+
+    def __str__(self):
+        return f"Pin en {self.plano.titulo} - {self.observacion.observacion[:50]}"
+
+
+class FotoPinObservacion(models.Model):
+    """Foto adjunta a un pin de observación en un plano de proyecto."""
+    pin = models.ForeignKey(
+        PinObservacionProyecto,
+        on_delete=models.CASCADE,
+        related_name='fotos'
+    )
+    imagen = models.ImageField(upload_to='proyectos/fotos_pines/')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['creado_en']
+        verbose_name = "Foto de Pin de Observación"
+        verbose_name_plural = "Fotos de Pin de Observación"
+
+    def save(self, *args, **kwargs):
+        if self.imagen:
+            from core.image_utils import compress_image
+            self.imagen = compress_image(self.imagen)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Foto {self.id} - Pin {self.pin_id}"
+
+
+class AreaPlanoProyecto(models.Model):
+    """Área rectangular definida sobre una página del plano de proyecto."""
+    plano = models.ForeignKey(
+        PlanoProyecto,
+        on_delete=models.CASCADE,
+        related_name='areas'
+    )
+    nombre = models.CharField(max_length=100)
+    color = ColorField(default='#3B82F6')
+    x1 = models.FloatField(help_text="X esquina superior izquierda (viewport base)")
+    y1 = models.FloatField(help_text="Y esquina superior izquierda (viewport base)")
+    x2 = models.FloatField(help_text="X esquina inferior derecha (viewport base)")
+    y2 = models.FloatField(help_text="Y esquina inferior derecha (viewport base)")
+    pagina = models.PositiveIntegerField(default=1)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['creado_en']
+        verbose_name = "Área de Plano de Proyecto"
+        verbose_name_plural = "Áreas de Plano de Proyecto"
+
+    def __str__(self):
+        return f"{self.nombre} - {self.plano.titulo} (p.{self.pagina})"
+
+
+@receiver(post_delete, sender=PlanoProyecto)
+def eliminar_archivo_plano(sender, instance, **kwargs):
+    if instance.archivo:
+        try:
+            instance.archivo.delete(save=False)
+        except Exception:
+            pass  # Si falla la eliminación del archivo, no bloquear la operación

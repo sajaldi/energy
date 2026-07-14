@@ -93,6 +93,10 @@ class Material(models.Model):
     ]
     tipo_material = models.CharField(max_length=20, choices=TIPO_MATERIAL_CHOICES, default='INSUMO', verbose_name="Tipo de Material")
     imagen = models.ImageField(upload_to='materiales/', verbose_name="Imagen del Material", blank=True, null=True)
+    alto = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="Alto (cm)", help_text="Altura del material en cm")
+    ancho = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="Ancho (cm)", help_text="Ancho del material en cm")
+    peso = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="Peso (lb)", help_text="Peso en libras")
+    profundidad = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name="Profundidad (cm)", help_text="Profundidad del material en cm", validators=[MinValueValidator(Decimal('0.01'))])
     
     departamentos = models.ManyToManyField(
         'core.Departamento', 
@@ -343,6 +347,9 @@ class MovimientoInventario(models.Model):
         verbose_name = "Movimiento de Inventario"
         verbose_name_plural = "Movimientos de Inventario"
         ordering = ['-fecha_movimiento']
+        indexes = [
+            models.Index(fields=['material', 'fecha_movimiento'], name='idx_mov_mat_fecha'),
+        ]
         permissions = [
             ("can_liquidar_movimiento", "Puede liquidar/aprobar movimientos de inventario"),
         ]
@@ -399,6 +406,57 @@ class FotoDevolucion(models.Model):
             from core.image_utils import compress_image
             self.imagen = compress_image(self.imagen)
         super().save(*args, **kwargs)
+
+
+class Rack(models.Model):
+    bodega = models.ForeignKey(
+        'activos.Ubicacion', on_delete=models.CASCADE, related_name='racks',
+        limit_choices_to={'tipo': 'BODEGA'}, verbose_name="Bodega"
+    )
+    nombre = models.CharField(max_length=50, verbose_name="Nombre del Rack")
+    largo = models.DecimalField(max_digits=8, decimal_places=2, verbose_name="Largo (cm)", help_text="Largo total del rack en cm")
+    alto = models.DecimalField(max_digits=8, decimal_places=2, verbose_name="Altura (cm)", help_text="Altura total del rack en cm")
+    num_niveles = models.PositiveIntegerField(default=4, verbose_name="Número de Niveles")
+    num_secciones = models.PositiveIntegerField(default=4, verbose_name="Secciones por Nivel")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+    pos_x_m = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name="Posición X (m)", help_text="Distancia desde pared lateral izquierda")
+    pos_y_m = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name="Posición Y (m)", help_text="Distancia desde pared frontal")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Rack"
+        verbose_name_plural = "Racks"
+        ordering = ['bodega', 'orden', 'nombre']
+        unique_together = ('bodega', 'nombre')
+
+    def __str__(self):
+        return f"{self.nombre} ({self.bodega.nombre})"
+
+    @property
+    def total_posiciones(self):
+        return self.num_niveles * self.num_secciones
+
+
+class RackPosition(models.Model):
+    rack = models.ForeignKey(Rack, on_delete=models.CASCADE, related_name='posiciones')
+    nivel = models.PositiveIntegerField(verbose_name="Nivel")
+    seccion = models.PositiveIntegerField(verbose_name="Sección")
+    codigo = models.CharField(max_length=20, verbose_name="Código", help_text="Ej: A01-03-04")
+    material = models.ForeignKey(Material, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Material")
+    lote = models.ForeignKey(Lote, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Lote")
+    cantidad = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Cantidad")
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Posición de Rack"
+        verbose_name_plural = "Posiciones de Rack"
+        ordering = ['rack', 'nivel', 'seccion']
+
+    def __str__(self):
+        ocupado = f" - {self.material.nombre} x{self.cantidad}" if self.material else " (vacío)"
+        return f"{self.codigo}{ocupado}"
 
 
 class HistorialCambioMaterial(models.Model):

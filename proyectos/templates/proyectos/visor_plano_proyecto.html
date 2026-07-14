@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ plano.titulo }} &mdash; {{ proyecto.nombre }}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Artifakt Element', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #e8e8e8; color: #333; height: 100vh;
+           display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Toolbar - Autodesk Fusion style */
+    #toolbar { background: #f5f5f5; border-bottom: 1px solid #d0d0d0;
+               padding: 0 12px; height: 46px; display: flex; align-items: center;
+               gap: 8px; flex-shrink: 0; user-select: none; overflow: hidden; }
+    .tb-brand { font-size: 12px; font-weight: 700; color: #ff9800; white-space: nowrap;
+                letter-spacing: .3px; text-transform: uppercase; }
+    .tb-div   { width: 1px; height: 20px; background: #505050; flex-shrink: 0; }
+    .tb-title { font-size: 12px; font-weight: 500; color: #e0e0e0; flex: 1;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tb-meta  { font-size: 11px; color: #999; white-space: nowrap; }
+    .tb-group { display: flex; align-items: center; gap: 3px; }
+    .tb-btn { background: #4a4a4a; border: 1px solid #5a5a5a; color: #d4d4d4;
+              border-radius: 4px; padding: 0 10px; height: 30px; cursor: pointer;
+              font-size: 12px; font-weight: 500; display: inline-flex; align-items: center;
+              gap: 5px; white-space: nowrap; text-decoration: none;
+              transition: background .12s, border-color .12s; }
+    .tb-btn:hover { background: #5a5a5a; border-color: #6a6a6a; color: #fff; }
+    .tb-btn.primary { background: #0696d7; border-color: #0696d7; color: #fff; }
+    .tb-btn.primary:hover { background: #0580b8; border-color: #0580b8; }
+    .tb-btn.ico { padding: 0; width: 30px; justify-content: center; }
+    #page-info { font-size: 12px; color: #999; min-width: 80px; text-align: center; }
+    #zoom-lbl  { font-size: 11px; color: #808080; min-width: 42px; text-align: center; }
+
+    /* Main area */
+    #main-area { flex: 1; display: flex; overflow: hidden; }
+    #viewer { flex: 1; overflow: hidden; position: relative; cursor: grab; background: #383838; }
+    #viewer.grabbing { cursor: grabbing; }
+    #stage { position: absolute; top: 0; left: 0; transform-origin: 0 0;
+             will-change: transform; line-height: 0; }
+    #pdf-canvas { display: block; box-shadow: 0 4px 24px rgba(0,0,0,.4); border-radius: 1px;
+                  image-rendering: -webkit-optimize-contrast;
+                  image-rendering: crisp-edges; }
+
+    /* Overlay / loading */
+    #overlay { position: absolute; inset: 0; display: flex; flex-direction: column;
+               align-items: center; justify-content: center; gap: 14px; }
+    #overlay.hidden { display: none; }
+    .spinner { width: 36px; height: 36px; border: 3px solid #505050;
+               border-top-color: #0696d7; border-radius: 50%;
+               animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #progress-bar { width: 200px; height: 3px; background: #505050; border-radius: 2px;
+                    overflow: hidden; }
+    #progress-fill { height: 100%; background: #0696d7; width: 0%;
+                     transition: width .3s ease; }
+    #progress-text { font-size: 11px; color: #808080; }
+
+    /* Error screen */
+    #err-screen { display: none; flex: 1; flex-direction: column; align-items: center;
+                  justify-content: center; gap: 16px; text-align: center; padding: 32px; }
+    #err-screen.show { display: flex; }
+    #err-screen .err-icon { font-size: 56px; opacity: 0.5; }
+    #err-screen p { color: #e57373; font-size: 14px; max-width: 400px; }
+    #err-screen .tb-btn { margin-top: 8px; }
+
+    /* Thumbnail strip */
+    #thumb-strip { width: 96px; background: #333; border-left: 1px solid #4a4a4a;
+                   overflow-y: auto; flex-shrink: 0; display: flex;
+                   flex-direction: column; gap: 5px; padding: 6px 5px; }
+    #thumb-strip.hidden { display: none; }
+    .t-item { cursor: pointer; border: 2px solid transparent; border-radius: 3px;
+              overflow: hidden; transition: border-color .12s; position: relative; }
+    .t-item:hover { border-color: #666; }
+    .t-item.active { border-color: #0696d7; }
+    .t-item canvas { width: 100%; display: block; }
+    .t-num { position: absolute; bottom: 2px; right: 4px; font-size: 10px;
+             color: #999; font-weight: 700; }
+
+    /* Pins panel (lateral) */
+    #pins-panel { width: 272px; background: #333; border-left: 1px solid #4a4a4a;
+                  overflow-y: auto; flex-shrink: 0; display: flex;
+                  flex-direction: column; }
+    #pins-panel.hidden { display: none; }
+    .panel-header { padding: 12px 14px; border-bottom: 1px solid #4a4a4a;
+                    display: flex; align-items: center; gap: 8px; }
+    .panel-title { font-size: 12px; font-weight: 600; color: #e0e0e0; flex: 1; }
+    .panel-count { font-size: 10px; font-weight: 700; background: #4a4a4a;
+                   color: #999; padding: 2px 7px; border-radius: 10px; }
+    #pins-list { flex: 1; overflow-y: auto; padding: 6px; }
+    .pin-list-item { padding: 9px 10px; border-radius: 4px; cursor: pointer;
+                     border: 1px solid transparent; margin-bottom: 4px;
+                     transition: background .12s, border-color .12s; }
+    .pin-list-item:hover { background: #444; border-color: #555; }
+    .pin-list-item.active { background: #1a4a6b; border-color: #0696d7; }
+    .pin-list-item .pli-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .pin-list-item .pli-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .pin-list-item .pli-page { font-size: 10px; color: #808080; margin-left: auto; }
+    .pin-list-item .pli-text { font-size: 11px; color: #ccc; line-height: 1.4;
+                               display: -webkit-box; -webkit-line-clamp: 2;
+                               -webkit-box-orient: vertical; overflow: hidden; }
+    .pin-list-item .pli-estado { display: inline-block; font-size: 10px; font-weight: 700;
+                                 padding: 1px 6px; border-radius: 8px; margin-top: 4px;
+                                 text-transform: uppercase; }
+
+    /* Pin layer */
+    #pin-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                 pointer-events: none; z-index: 10; }
+    #pin-layer .pin-marker { pointer-events: auto; position: absolute; cursor: grab;
+                             transform: translate(-12px, -24px);
+                             filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+                             transition: transform .15s ease; }
+    #pin-layer .pin-marker.dragging { cursor: grabbing; opacity: 0.7; z-index: 200;
+                                      transition: none; }
+    #pin-layer .pin-marker:hover { transform: translate(-12px, -28px) scale(1.15); z-index: 100; }
+
+    /* Area layer */
+    #area-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                  pointer-events: none; z-index: 5; }
+    #area-layer .area-rect { pointer-events: auto; position: absolute; cursor: default;
+                             border-radius: 3px; transition: opacity .15s; }
+    #area-layer .area-rect:hover { opacity: 0.85; }
+    #area-layer .area-rect.highlight { opacity: 1; }
+    .area-preview { position: absolute; border: 2px dashed #0696d7; background: rgba(6,150,215,0.08);
+                    pointer-events: none; z-index: 15; }
+
+    /* Context menu */
+    #context-menu { position: fixed; z-index: 9000; background: #3c3c3c;
+                    border: 1px solid #555; border-radius: 4px;
+                    box-shadow: 0 6px 24px rgba(0,0,0,.5); padding: 4px 0;
+                    min-width: 210px; }
+    #context-menu .ctx-item { padding: 8px 14px; font-size: 12px; color: #d4d4d4;
+                              cursor: pointer; transition: background .1s; }
+    #context-menu .ctx-item:hover { background: #0696d7; color: #fff; }
+
+    /* Modal overlay shared */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6);
+                     display: none; align-items: center; justify-content: center;
+                     z-index: 10000; }
+    .modal-overlay.show { display: flex; }
+    .modal-box { background: #3c3c3c; border: 1px solid #555; border-radius: 6px;
+                 padding: 22px; width: 370px; max-width: 95vw;
+                 box-shadow: 0 16px 48px rgba(0,0,0,.5); }
+    .modal-box h3 { font-size: 15px; font-weight: 600; color: #e0e0e0; margin-bottom: 16px; }
+    .modal-box label { display: block; font-size: 11px; font-weight: 600;
+                       color: #999; margin-bottom: 5px; text-transform: uppercase;
+                       letter-spacing: .4px; }
+    .modal-box select,
+    .modal-box textarea { width: 100%; background: #2d2d2d; border: 1px solid #555;
+                          border-radius: 4px; color: #d4d4d4; padding: 9px 11px;
+                          font-size: 12px; margin-bottom: 12px; font-family: inherit; }
+    .modal-box select:focus,
+    .modal-box textarea:focus { outline: none; border-color: #0696d7; }
+    .modal-box textarea { resize: vertical; min-height: 56px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+    /* Color palette */
+    .color-palette { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
+    .color-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+                    border: 2px solid transparent; transition: border-color .12s, transform .12s; }
+    .color-swatch:hover { transform: scale(1.15); }
+    .color-swatch.selected { border-color: #fff; transform: scale(1.15); }
+
+    /* Status badge */
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 3px;
+                    font-size: 10px; font-weight: 700; text-transform: uppercase;
+                    letter-spacing: .3px; }
+
+    /* Detail modal specific */
+    .detail-field { margin-bottom: 12px; }
+    .detail-field .field-label { font-size: 10px; color: #808080; text-transform: uppercase;
+                                 letter-spacing: .4px; margin-bottom: 3px; }
+    .detail-field .field-value { font-size: 13px; color: #d4d4d4; line-height: 1.5; }
+    .btn-danger { background: #5c1a1a; border: 1px solid #8b2525; color: #f87171;
+                  border-radius: 4px; padding: 0 11px; height: 30px; cursor: pointer;
+                  font-size: 12px; font-weight: 600; display: inline-flex;
+                  align-items: center; gap: 5px; transition: background .12s; }
+    .btn-danger:hover { background: #8b2525; }
+
+    /* Mode toggle */
+    .mode-toggle { display: flex; gap: 0; margin-bottom: 14px; }
+    .mode-option { display: inline-flex; align-items: center; padding: 7px 12px;
+                   cursor: pointer; font-size: 11px; font-weight: 600;
+                   background: #2d2d2d; border: 1px solid #555; color: #999;
+                   transition: background .12s, color .12s, border-color .12s;
+                   user-select: none; }
+    .mode-option:first-child { border-radius: 4px 0 0 4px; }
+    .mode-option:last-child { border-radius: 0 4px 4px 0; border-left: none; }
+    .mode-option input[type="radio"] { display: none; }
+    .mode-option.selected,
+    .mode-option:has(input:checked) { background: #0696d7; color: #fff; border-color: #0696d7; }
+
+    /* Field errors */
+    .field-error { color: #e57373; font-size: 11px; margin-top: -10px; margin-bottom: 10px; }
+
+    /* Mode sections */
+    .mode-section { transition: opacity .15s ease; }
+
+    /* Fotos grid */
+    .fotos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+    .foto-thumb { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; cursor: pointer; }
+    .foto-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .foto-thumb .btn-delete-foto { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.6);
+      color: #f87171; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 14px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity .15s; }
+    .foto-thumb:hover .btn-delete-foto { opacity: 1; }
+    /* Lightbox */
+    .lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.9); display: none;
+      align-items: center; justify-content: center; z-index: 20000; }
+    .lightbox-overlay.show { display: flex; }
+    .lightbox-overlay img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 4px; }
+    .lightbox-close { position: absolute; top: 16px; right: 20px; background: none; border: none;
+      color: #fff; font-size: 36px; cursor: pointer; z-index: 20001; }
+    .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,.15);
+      border: none; color: #fff; font-size: 28px; padding: 12px 16px; cursor: pointer; border-radius: 4px; }
+    .lightbox-prev { left: 16px; }
+    .lightbox-next { right: 16px; }
+  </style>
+</head>
+<body>
+
+{% if archivo_disponible %}
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <span class="tb-brand">Visor de Plano</span>
+  <div class="tb-div"></div>
+  <span class="tb-title">{{ plano.titulo }} &middot; <span style="color:#64748b;font-weight:400">{{ proyecto.nombre }}</span></span>
+  <div class="tb-div"></div>
+  <div class="tb-group" id="pg-grp" style="display:none;">
+    <button class="tb-btn ico" id="btn-prev" title="Página anterior">&lsaquo;</button>
+    <span id="page-info">Página 1 de 1</span>
+    <button class="tb-btn ico" id="btn-next" title="Página siguiente">&rsaquo;</button>
+    <div class="tb-div"></div>
+  </div>
+  <div class="tb-group">
+    <button class="tb-btn ico" id="btn-z-out" title="Reducir zoom">&minus;</button>
+    <span id="zoom-lbl">100%</span>
+    <button class="tb-btn ico" id="btn-z-in" title="Ampliar zoom">+</button>
+    <button class="tb-btn" id="btn-fit">Ajustar</button>
+    <button class="tb-btn" id="btn-100">1:1</button>
+  </div>
+  <div class="tb-div"></div>
+  <button class="tb-btn" id="btn-thumbs">Páginas</button>
+  <div class="tb-div"></div>
+  <button class="tb-btn" id="btn-pins-panel">&#128204; Pines</button>
+  <div class="tb-div"></div>
+  <a class="tb-btn primary" href="{% url 'proyectos:download_plano' proyecto.pk plano.pk %}" download>Descargar</a>
+</div>
+
+<!-- MAIN AREA -->
+<div id="main-area">
+  <div id="viewer">
+    <div id="stage">
+      <canvas id="pdf-canvas"></canvas>
+      <div id="area-layer"></div>
+      <div id="pin-layer"></div>
+    </div>
+    <div id="overlay">
+      <div class="spinner"></div>
+      <div id="progress-bar"><div id="progress-fill"></div></div>
+      <span id="progress-text">Cargando plano...</span>
+    </div>
+  </div>
+  <div id="thumb-strip" class="hidden"></div>
+  <!-- PANEL LATERAL: Listado de Pines -->
+  <div id="pins-panel" class="hidden">
+    <div class="panel-header">
+      <span class="panel-title">&#128204; Pines de Observación</span>
+      <span class="panel-count" id="pins-count">0</span>
+    </div>
+    <div id="pins-list"></div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="context-menu" class="context-menu" style="display:none">
+  <div class="ctx-item" id="ctx-add-pin">&#128204; Agregar Pin de Observación</div>
+  <div class="ctx-item" id="ctx-add-area">&#9634; Agregar Área</div>
+</div>
+
+<!-- MODAL: Crear Pin -->
+<div id="modal-crear-pin" class="modal-overlay">
+  <div class="modal-box">
+    <h3>&#128204; Nuevo Pin de Observación</h3>
+    <div class="mode-toggle" id="mode-toggle">
+      <label class="mode-option selected">
+        <input type="radio" name="pin-mode" value="existing" checked>
+        <span>Seleccionar existente</span>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="pin-mode" value="new">
+        <span>Nueva observación</span>
+      </label>
+    </div>
+    <div id="section-existing" class="mode-section">
+      <label for="select-observacion">Observación</label>
+      <select id="select-observacion">
+        <option value="">— Seleccionar observación —</option>
+      </select>
+    </div>
+    <div id="section-new" class="mode-section" style="display:none;">
+      <label for="new-obs-texto">Texto de la observación *</label>
+      <textarea id="new-obs-texto" placeholder="Describa la observación..." rows="3" required></textarea>
+      <div class="field-error" id="error-obs-texto" style="display:none;"></div>
+    </div>
+    <label>Color del Pin</label>
+    <div class="color-palette" id="color-palette">
+      <div class="color-swatch selected" data-color="#EF4444" style="background:#EF4444"></div>
+      <div class="color-swatch" data-color="#F59E0B" style="background:#F59E0B"></div>
+      <div class="color-swatch" data-color="#10B981" style="background:#10B981"></div>
+      <div class="color-swatch" data-color="#3B82F6" style="background:#3B82F6"></div>
+      <div class="color-swatch" data-color="#A855F7" style="background:#A855F7"></div>
+      <div class="color-swatch" data-color="#EC4899" style="background:#EC4899"></div>
+      <div class="color-swatch" data-color="#6B7280" style="background:#6B7280"></div>
+      <div class="color-swatch" data-color="#FFFFFF" style="background:#FFFFFF;border-color:#475569;border-width:2px"></div>
+    </div>
+    <label for="pin-nota">Nota (opcional)</label>
+    <textarea id="pin-nota" placeholder="Descripción adicional del pin..." rows="3"></textarea>
+    <div id="crear-fotos-section">
+      <label>Fotos (opcional, máx. 5)</label>
+      <input type="file" id="input-fotos-crear" multiple accept="image/jpeg,image/png" style="font-size:12px;margin-bottom:8px;">
+      <div id="crear-fotos-preview" class="fotos-grid"></div>
+      <div id="crear-fotos-error" style="display:none;color:#f87171;font-size:11px;margin-bottom:8px;"></div>
+    </div>
+    <div id="modal-crear-error" style="display:none;color:#f87171;font-size:12px;margin-bottom:8px;"></div>
+    <div class="modal-actions">
+      <button class="tb-btn" id="btn-cancel-pin">Cancelar</button>
+      <button class="tb-btn primary" id="btn-save-pin">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Detalle Pin -->
+<div id="modal-detalle-pin" class="modal-overlay">
+  <div class="modal-box" style="width:400px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+      <div id="detail-color-dot" style="width:14px;height:14px;border-radius:50%;flex-shrink:0;"></div>
+      <h3 style="flex:1;margin-bottom:0;">Detalle del Pin</h3>
+      <button id="btn-close-detail" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;line-height:1;">&times;</button>
+    </div>
+    <div class="detail-field">
+      <div class="field-label">Observación</div>
+      <div class="field-value" id="detail-obs-texto"></div>
+    </div>
+    <div class="detail-field">
+      <div class="field-label">Estado</div>
+      <div class="field-value"><span class="status-badge" id="detail-obs-estado"></span></div>
+    </div>
+    <div class="detail-field" style="display:flex;gap:24px;">
+      <div>
+        <div class="field-label">Fecha</div>
+        <div class="field-value" id="detail-obs-fecha" style="font-size:13px;"></div>
+      </div>
+      <div>
+        <div class="field-label">Usuario</div>
+        <div class="field-value" id="detail-obs-usuario" style="font-size:13px;"></div>
+      </div>
+    </div>
+    <div class="detail-field" id="detail-nota-section">
+      <div class="field-label">Nota del Pin</div>
+      <div class="field-value" id="detail-pin-nota"></div>
+    </div>
+    <div class="detail-field" id="detail-fotos-section" style="display:none;">
+      <div class="field-label">Fotos</div>
+      <div id="detail-fotos-grid" class="fotos-grid"></div>
+      <p id="fotos-limit-msg" style="display:none;font-size:11px;color:#64748b;margin-top:6px;">Máximo de 5 fotos alcanzado</p>
+      <button id="btn-agregar-fotos" class="tb-btn" style="margin-top:8px;font-size:12px;">&#128247; Agregar Fotos</button>
+      <input type="file" id="input-fotos-detalle" multiple accept="image/jpeg,image/png" style="display:none;">
+      <div id="fotos-upload-error" style="display:none;color:#f87171;font-size:11px;margin-top:4px;"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:20px;">
+      <button class="btn-danger" id="btn-delete-pin">&#128465; Eliminar Pin</button>
+      <button class="tb-btn" id="btn-close-detail-2">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox para fotos -->
+<div id="lightbox-overlay" class="lightbox-overlay">
+  <button id="lightbox-close" class="lightbox-close">&times;</button>
+  <button id="lightbox-prev" class="lightbox-nav lightbox-prev">&#10094;</button>
+  <img id="lightbox-img" src="" alt="Foto ampliada">
+  <button id="lightbox-next" class="lightbox-nav lightbox-next">&#10095;</button>
+</div>
+
+<!-- MODAL: Crear/Editar Área -->
+<div id="modal-area" class="modal-overlay">
+  <div class="modal-box">
+    <h3 id="modal-area-title">&#9634; Nueva Área</h3>
+    <label for="area-nombre">Nombre del área *</label>
+    <input type="text" id="area-nombre" placeholder="Ej: Zona Norte" style="width:100%;background:#2d2d2d;border:1px solid #555;border-radius:4px;color:#d4d4d4;padding:9px 11px;font-size:12px;margin-bottom:12px;">
+    <label>Color</label>
+    <div class="color-palette" id="area-color-palette">
+      <div class="color-swatch selected" data-color="#3B82F6" style="background:#3B82F6"></div>
+      <div class="color-swatch" data-color="#EF4444" style="background:#EF4444"></div>
+      <div class="color-swatch" data-color="#10B981" style="background:#10B981"></div>
+      <div class="color-swatch" data-color="#F59E0B" style="background:#F59E0B"></div>
+      <div class="color-swatch" data-color="#A855F7" style="background:#A855F7"></div>
+      <div class="color-swatch" data-color="#EC4899" style="background:#EC4899"></div>
+    </div>
+    <div id="modal-area-error" style="display:none;color:#f87171;font-size:11px;margin-bottom:8px;"></div>
+    <div class="modal-actions">
+      <button class="tb-btn" id="btn-cancel-area">Cancelar</button>
+      <button class="tb-btn primary" id="btn-save-area">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Datos inyectados para JavaScript -->
+<script>
+  var PINES_DATA = {{ pines_json|safe }};
+  var OBSERVACIONES_DISPONIBLES = {{ observaciones_disponibles_json|safe }};
+  var PIN_CREATE_URL = "{% url 'proyectos:crear_pin_plano_api' proyecto.pk plano.pk %}";
+  var PIN_DELETE_URL_BASE = "{% url 'proyectos:listar_pines_plano_api' proyecto.pk plano.pk %}";
+  var CSRF_TOKEN = "{{ csrf_token }}";
+  var CREAR_OBSERVACION_URL = "{% url 'proyectos:crear_observacion' proyecto.pk %}";
+  var FOTOS_UPLOAD_URL_BASE = PIN_CREATE_URL.replace('crear/', '');
+  var AREAS_DATA = {{ areas_json|safe }};
+  var AREA_CREATE_URL = "{% url 'proyectos:crear_area_plano_api' proyecto.pk plano.pk %}";
+</script>
+
+<script>
+(function() {
+  'use strict';
+
+  var PDF_URL = "{{ pdf_url|escapejs }}";
+
+  // State
+  var pdfDoc = null, curPage = 1, totPages = 1;
+  var scale = 1, base = 1, cssW = 0, cssH = 0;
+  var tx = 0, ty = 0;
+  var panning = false, px0, py0, tx0, ty0;
+  var thumbsOn = false;
+  var areaCreationMode = false;
+
+  // Elements
+  var canvas      = document.getElementById('pdf-canvas');
+  var ctx         = canvas.getContext('2d');
+  var stage       = document.getElementById('stage');
+  var viewer      = document.getElementById('viewer');
+  var overlay     = document.getElementById('overlay');
+  var pageInfo    = document.getElementById('page-info');
+  var zoomLbl     = document.getElementById('zoom-lbl');
+  var thumbs      = document.getElementById('thumb-strip');
+  var pgGrp       = document.getElementById('pg-grp');
+  var progressFill = document.getElementById('progress-fill');
+  var progressText = document.getElementById('progress-text');
+
+  // Zoom limits (25% to 400%)
+  var MIN_ZOOM_RATIO = 0.25;
+  var MAX_ZOOM_RATIO = 4.0;
+
+  function xform() {
+    stage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+  }
+
+  function clamp() {
+    var vw = viewer.clientWidth, vh = viewer.clientHeight;
+    var cw = cssW * scale, ch = cssH * scale;
+    var pad = 40;
+    if (cw < vw) { tx = Math.max(0, Math.min(vw - cw, tx)); }
+    else { tx = Math.max(-(cw - vw) - pad, Math.min(pad, tx)); }
+    if (ch < vh) { ty = Math.max(0, Math.min(vh - ch, ty)); }
+    else { ty = Math.max(-(ch - vh) - pad, Math.min(pad, ty)); }
+  }
+
+  function center() {
+    tx = (viewer.clientWidth  - cssW * scale) / 2;
+    ty = (viewer.clientHeight - cssH * scale) / 2;
+    xform();
+  }
+
+  function getZoomPercent() {
+    return Math.round(scale / base * 100);
+  }
+
+  function setZoomLabel() {
+    zoomLbl.textContent = getZoomPercent() + '%';
+  }
+
+  function zoomAt(f, vx, vy) {
+    var ns = scale * f;
+    var ratio = ns / base;
+    // Clamp to 25%-400%
+    if (ratio < MIN_ZOOM_RATIO) ns = base * MIN_ZOOM_RATIO;
+    if (ratio > MAX_ZOOM_RATIO) ns = base * MAX_ZOOM_RATIO;
+    var r = ns / scale;
+    tx = vx - r * (vx - tx);
+    ty = vy - r * (vy - ty);
+    scale = ns;
+    clamp(); xform(); setZoomLabel();
+  }
+
+  function zoom(f) { zoomAt(f, viewer.clientWidth / 2, viewer.clientHeight / 2); }
+
+  // Render a single PDF page
+  function renderPage(n) {
+    if (!pdfDoc) return Promise.resolve();
+    return pdfDoc.getPage(n).then(function(page) {
+      var RENDER_FACTOR = 4;
+      var vp = page.getViewport({ scale: base * RENDER_FACTOR });
+      canvas.width  = vp.width;
+      canvas.height = vp.height;
+      cssW = vp.width  / RENDER_FACTOR;
+      cssH = vp.height / RENDER_FACTOR;
+      canvas.style.width  = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      return page.render({ canvasContext: ctx, viewport: vp, intent: 'print',
+                           background: 'rgba(255,255,255,1)' }).promise;
+    }).then(function() {
+      curPage = n;
+      pageInfo.textContent = 'Página ' + n + ' de ' + totPages;
+      // Update active thumbnail
+      var items = thumbs.querySelectorAll('.t-item');
+      for (var i = 0; i < items.length; i++) {
+        items[i].classList.toggle('active', parseInt(items[i].dataset.page) === n);
+      }
+      renderizarPines(n);
+    });
+  }
+
+  // ─── Pin rendering ───────────────────────────────────────────────────
+  var pinLayer = document.getElementById('pin-layer');
+
+  function renderizarPines(pagina) {
+    // Clear existing pin markers
+    pinLayer.innerHTML = '';
+
+    // Filter pins for the current page
+    var pinesPagina = PINES_DATA.filter(function(pin) {
+      return pin.pagina === pagina;
+    });
+
+    pinesPagina.forEach(function(pin) {
+      var marker = document.createElement('div');
+      marker.className = 'pin-marker';
+      marker.setAttribute('data-pin-id', pin.id);
+
+      // Tooltip: first 80 characters of observation text
+      var tooltipText = pin.observacion_texto || '';
+      if (tooltipText.length > 80) {
+        tooltipText = tooltipText.substring(0, 80);
+      }
+      marker.setAttribute('title', tooltipText);
+
+      // Position at stored coordinates (stage transform handles zoom/pan)
+      marker.style.left = pin.x + 'px';
+      marker.style.top = pin.y + 'px';
+
+      // SVG teardrop/pin shape with the pin's color
+      var color = pin.color || '#EF4444';
+      marker.innerHTML =
+        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+          '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" ' +
+                'fill="' + color + '" stroke="#000" stroke-width="0.5" stroke-opacity="0.3"/>' +
+          '<circle cx="12" cy="9" r="3" fill="#fff" fill-opacity="0.4"/>' +
+        '</svg>';
+
+      pinLayer.appendChild(marker);
+    });
+  }
+
+  function fitToWindow() {
+    if (!pdfDoc) return;
+    requestAnimationFrame(function() {
+      pdfDoc.getPage(curPage).then(function(page) {
+        var vp = page.getViewport({ scale: 1 });
+        var sw = (viewer.clientWidth  - 48) / vp.width;
+        var sh = (viewer.clientHeight - 48) / vp.height;
+        base  = Math.max(Math.min(sw, sh), 0.01);
+        scale = base;
+        renderPage(curPage).then(function() {
+          center();
+          overlay.classList.add('hidden');
+          setZoomLabel();
+        });
+      });
+    });
+  }
+
+  // Pan events
+  viewer.addEventListener('mousedown', function(e) {
+    if (e.button !== 0) return;
+    if (areaCreationMode) return;
+    panning = true; px0 = e.clientX; py0 = e.clientY; tx0 = tx; ty0 = ty;
+    viewer.classList.add('grabbing');
+  });
+  window.addEventListener('mouseup', function() {
+    panning = false; viewer.classList.remove('grabbing');
+  });
+  viewer.addEventListener('mousemove', function(e) {
+    if (!panning) return;
+    if (areaCreationMode) return;
+    tx = tx0 + (e.clientX - px0);
+    ty = ty0 + (e.clientY - py0);
+    xform();
+  });
+
+  // Wheel zoom
+  viewer.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var r = viewer.getBoundingClientRect();
+    zoomAt(e.deltaY < 0 ? 1.1 : 1/1.1, e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+
+  // Touch pinch zoom
+  var t0d = null, t0s, t0tx, t0ty;
+  viewer.addEventListener('touchstart', function(e) {
+    if (e.touches.length !== 2) return;
+    t0d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                     e.touches[0].clientY - e.touches[1].clientY);
+    t0s = scale; t0tx = tx; t0ty = ty;
+  }, { passive: true });
+  viewer.addEventListener('touchmove', function(e) {
+    if (e.touches.length !== 2 || !t0d) return;
+    e.preventDefault();
+    var d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                       e.touches[0].clientY - e.touches[1].clientY);
+    var ns = t0s * d / t0d;
+    var ratio = ns / base;
+    if (ratio < MIN_ZOOM_RATIO) ns = base * MIN_ZOOM_RATIO;
+    if (ratio > MAX_ZOOM_RATIO) ns = base * MAX_ZOOM_RATIO;
+    scale = ns;
+    tx = t0tx; ty = t0ty; clamp(); xform(); setZoomLabel();
+  }, { passive: false });
+  viewer.addEventListener('touchend', function() { t0d = null; });
+
+  // Thumbnails
+  function buildThumbs() {
+    thumbs.innerHTML = '';
+    var i = 1;
+    function next() {
+      if (i > totPages) return;
+      pdfDoc.getPage(i).then(function(page) {
+        var vp = page.getViewport({ scale: 0.15 });
+        var tc = document.createElement('canvas');
+        tc.width = vp.width; tc.height = vp.height;
+        return page.render({ canvasContext: tc.getContext('2d'), viewport: vp }).promise
+          .then(function() {
+            var item = document.createElement('div');
+            item.className = 't-item';
+            if (i === curPage) item.classList.add('active');
+            item.dataset.page = i;
+            var lbl = document.createElement('span');
+            lbl.className = 't-num'; lbl.textContent = i;
+            item.appendChild(tc); item.appendChild(lbl);
+            var pg = i;
+            item.addEventListener('click', function() { renderPage(pg); });
+            thumbs.appendChild(item);
+            i++; next();
+          });
+      });
+    }
+    next();
+  }
+
+  // Toolbar button events
+  document.getElementById('btn-prev').addEventListener('click', function() {
+    if (curPage > 1) renderPage(curPage - 1);
+  });
+  document.getElementById('btn-next').addEventListener('click', function() {
+    if (curPage < totPages) renderPage(curPage + 1);
+  });
+  document.getElementById('btn-z-in').addEventListener('click', function() { zoom(1.25); });
+  document.getElementById('btn-z-out').addEventListener('click', function() { zoom(1/1.25); });
+  document.getElementById('btn-fit').addEventListener('click', fitToWindow);
+  document.getElementById('btn-100').addEventListener('click', function() {
+    scale = base; center(); setZoomLabel();
+  });
+  document.getElementById('btn-thumbs').addEventListener('click', function() {
+    thumbsOn = !thumbsOn;
+    thumbs.classList.toggle('hidden', !thumbsOn);
+    if (thumbsOn && thumbs.children.length === 0) buildThumbs();
+  });
+
+  // ─── Panel lateral de pines ─────────────────────────────────────────────────
+  var pinsPanel = document.getElementById('pins-panel');
+  var pinsList = document.getElementById('pins-list');
+  var pinsCount = document.getElementById('pins-count');
+  var pinsPanelOn = false;
+
+  function buildPinsList() {
+    pinsList.innerHTML = '';
+    var sortedPins = PINES_DATA.slice().sort(function(a, b) {
+      return a.pagina - b.pagina || a.id - b.id;
+    });
+    pinsCount.textContent = sortedPins.length;
+
+    if (sortedPins.length === 0) {
+      pinsList.innerHTML = '<div style="padding:16px;text-align:center;color:#64748b;font-size:12px;">No hay pines en este plano.<br>Clic derecho para agregar.</div>';
+      return;
+    }
+
+    var estadoColors = { 'ABIERTA': '#EF4444', 'EN_PROCESO': '#F59E0B', 'RESUELTA': '#10B981', 'CERRADA': '#6B7280' };
+
+    sortedPins.forEach(function(pin) {
+      var item = document.createElement('div');
+      item.className = 'pin-list-item';
+      item.setAttribute('data-pin-id', pin.id);
+
+      var texto = pin.observacion_texto || '(Sin texto)';
+      if (texto.length > 80) texto = texto.substring(0, 80) + '...';
+      var estado = pin.observacion_estado || 'ABIERTA';
+      var estadoColor = estadoColors[estado] || '#6B7280';
+      var estadoLabel = estado.replace('_', ' ');
+
+      item.innerHTML =
+        '<div class="pli-header">' +
+          '<div class="pli-dot" style="background:' + (pin.color || '#EF4444') + '"></div>' +
+          '<span class="pli-page">Pág. ' + pin.pagina + '</span>' +
+        '</div>' +
+        '<div class="pli-text">' + texto + '</div>' +
+        '<span class="pli-estado" style="background:' + estadoColor + ';color:#fff;">' + estadoLabel + '</span>';
+
+      item.addEventListener('click', function() {
+        // Navegar a la página del pin si es diferente
+        if (curPage !== pin.pagina) {
+          renderPage(pin.pagina);
+        }
+        // Highlight el pin en el plano
+        var markers = pinLayer.querySelectorAll('.pin-marker');
+        markers.forEach(function(m) { m.style.outline = 'none'; });
+        var target = pinLayer.querySelector('[data-pin-id="' + pin.id + '"]');
+        if (target) {
+          target.style.outline = '3px solid #fff';
+          target.style.outlineOffset = '2px';
+          setTimeout(function() { target.style.outline = 'none'; }, 2000);
+        }
+        // Mark active in list
+        pinsList.querySelectorAll('.pin-list-item').forEach(function(li) { li.classList.remove('active'); });
+        item.classList.add('active');
+      });
+
+      pinsList.appendChild(item);
+    });
+  }
+
+  document.getElementById('btn-pins-panel').addEventListener('click', function() {
+    pinsPanelOn = !pinsPanelOn;
+    pinsPanel.classList.toggle('hidden', !pinsPanelOn);
+    if (pinsPanelOn) buildPinsList();
+  });
+
+  // Rebuild pins list when pins change (hook into renderizarPines)
+  var _origRenderizarPines = renderizarPines;
+  renderizarPines = function(pagina) {
+    _origRenderizarPines(pagina);
+    if (pinsPanelOn) buildPinsList();
+  };
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      if (curPage < totPages) renderPage(curPage + 1);
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      if (curPage > 1) renderPage(curPage - 1);
+    }
+    if (e.key === '+' || e.key === '=') zoom(1.25);
+    if (e.key === '-') zoom(1/1.25);
+    if (e.key === '0') fitToWindow();
+  });
+
+  // ─── Context Menu & Pin Creation (Task 7.1) ─────────────────────────────────
+  var ctxMenu = document.getElementById('context-menu');
+  var ctxX = 0, ctxY = 0; // Coordenadas relativas al canvas (sin transformación)
+
+  function hideContextMenu() {
+    ctxMenu.style.display = 'none';
+  }
+
+  viewer.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    // Calcular coordenadas relativas al canvas (deshacer transform del stage)
+    var rect = viewer.getBoundingClientRect();
+    ctxX = (e.clientX - rect.left - tx) / scale;
+    ctxY = (e.clientY - rect.top - ty) / scale;
+    // Posicionar menú contextual en pantalla (evitar desbordamiento)
+    ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - 240) + 'px';
+    ctxMenu.style.top = Math.min(e.clientY, window.innerHeight - 60) + 'px';
+    ctxMenu.style.display = 'block';
+  });
+
+  // Ocultar menú contextual al hacer clic fuera
+  document.addEventListener('click', function() {
+    hideContextMenu();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      hideContextMenu();
+      document.getElementById('modal-crear-pin').classList.remove('show');
+      document.getElementById('modal-detalle-pin').classList.remove('show');
+    }
+  });
+
+  // ── Modal de Creación de Pin ──────────────────────────────────────────────
+  var modalCrear = document.getElementById('modal-crear-pin');
+  var selectObs = document.getElementById('select-observacion');
+  var pinNota = document.getElementById('pin-nota');
+  var modalCrearError = document.getElementById('modal-crear-error');
+  var selectedColor = '#EF4444';
+
+  // Populate el select de observaciones disponibles
+  function populateObservaciones() {
+    selectObs.innerHTML = '<option value="">— Seleccionar observación —</option>';
+    OBSERVACIONES_DISPONIBLES.forEach(function(obs) {
+      var opt = document.createElement('option');
+      opt.value = obs.id;
+      opt.textContent = obs.texto || obs.observacion || ('Observación #' + obs.id);
+      selectObs.appendChild(opt);
+    });
+  }
+
+  // Color palette handling
+  var swatches = document.querySelectorAll('#color-palette .color-swatch');
+  swatches.forEach(function(swatch) {
+    swatch.addEventListener('click', function() {
+      swatches.forEach(function(s) { s.classList.remove('selected'); });
+      swatch.classList.add('selected');
+      selectedColor = swatch.dataset.color;
+    });
+  });
+
+  // Abrir modal de creación desde el menú contextual
+  document.getElementById('ctx-add-pin').addEventListener('click', function() {
+    hideContextMenu();
+    populateObservaciones();
+    pinNota.value = '';
+    modalCrearError.style.display = 'none';
+    modalCrearError.textContent = '';
+    // Reset color selection to first swatch
+    swatches.forEach(function(s) { s.classList.remove('selected'); });
+    if (swatches.length > 0) {
+      swatches[0].classList.add('selected');
+      selectedColor = swatches[0].dataset.color;
+    }
+    // Reset fotos state
+    fotosParaSubir = [];
+    crearFotosPreview.innerHTML = '';
+    if (inputFotosCrear) inputFotosCrear.value = '';
+    crearFotosError.style.display = 'none';
+    modalCrear.classList.add('show');
+  });
+
+  // Cancelar creación
+  document.getElementById('btn-cancel-pin').addEventListener('click', function() {
+    modalCrear.classList.remove('show');
+  });
+  modalCrear.addEventListener('click', function(e) {
+    if (e.target === modalCrear) modalCrear.classList.remove('show');
+  });
+
+  // ── Toggle de Modos: Existente / Nueva observación (Task 3.1) ────────────
+  var currentMode = 'existing';
+  var sectionExisting = document.getElementById('section-existing');
+  var sectionNew = document.getElementById('section-new');
+  var newObsTexto = document.getElementById('new-obs-texto');
+  var btnSavePin = document.getElementById('btn-save-pin');
+  var modeOptions = document.querySelectorAll('.mode-option');
+
+  document.querySelectorAll('[name="pin-mode"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      currentMode = this.value;
+      sectionExisting.style.display = currentMode === 'existing' ? 'block' : 'none';
+      sectionNew.style.display = currentMode === 'new' ? 'block' : 'none';
+
+      // Update .selected class on mode-option labels
+      modeOptions.forEach(function(label) {
+        var input = label.querySelector('input[type="radio"]');
+        if (input && input.checked) {
+          label.classList.add('selected');
+        } else {
+          label.classList.remove('selected');
+        }
+      });
+
+      if (currentMode === 'new') {
+        newObsTexto.focus();
+      }
+    });
+  });
+
+  // ── Validación del Formulario Inline (Task 3.2) ───────────────────────────
+  function showFieldError(elementId, message) {
+    var el = document.getElementById(elementId);
+    if (el) {
+      el.textContent = message;
+      el.style.display = 'block';
+    }
+  }
+
+  function clearFieldError(elementId) {
+    var el = document.getElementById(elementId);
+    if (el) {
+      el.style.display = 'none';
+      el.textContent = '';
+    }
+  }
+
+  function validateNewObsForm() {
+    var valid = true;
+    var texto = newObsTexto.value.trim();
+
+    clearFieldError('error-obs-texto');
+
+    if (!texto) {
+      showFieldError('error-obs-texto', 'El texto de la observación es obligatorio.');
+      valid = false;
+    }
+    return valid;
+  }
+
+  // Clear errors on field modification
+  newObsTexto.addEventListener('input', function() {
+    clearFieldError('error-obs-texto');
+  });
+
+  // ── Creación encadenada observación + pin (Task 3.3) ────────────────────────
+  var btnCancelPin = document.getElementById('btn-cancel-pin');
+
+  function setButtonsLoading(loading) {
+    btnSavePin.disabled = loading;
+    btnCancelPin.disabled = loading;
+    btnSavePin.textContent = loading ? 'Guardando...' : 'Guardar';
+  }
+
+  function showModalError(message) {
+    modalCrearError.textContent = message;
+    modalCrearError.style.display = 'block';
+  }
+
+  function saveNewObservationAndPin() {
+    if (!validateNewObsForm()) return;
+
+    setButtonsLoading(true);
+    modalCrearError.style.display = 'none';
+
+    var obsPayload = {
+      observacion: newObsTexto.value.trim(),
+      estado: 'ABIERTA',
+      fecha_observacion: new Date().toISOString().split('T')[0]
+    };
+
+    fetch(CREAR_OBSERVACION_URL, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify(obsPayload)
+    })
+    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+    .then(function(result) {
+      if (!result.ok || result.data.error) {
+        throw new Error(result.data.error || 'Error al crear la observación.');
+      }
+      // Crear el pin con la observación recién creada
+      var pinPayload = {
+        x: ctxX,
+        y: ctxY,
+        pagina: curPage,
+        observacion_id: result.data.id,
+        color: selectedColor,
+        nota: pinNota.value.trim()
+      };
+      return fetch(PIN_CREATE_URL, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify(pinPayload)
+      }).then(function(res2) {
+        return res2.json().then(function(d) {
+          return { ok: res2.ok, data: d, obsId: result.data.id };
+        });
+      });
+    })
+    .then(function(result) {
+      if (!result.ok || !(result.data.status === 'success' || result.data.pin)) {
+        // Pin creation failed but observation was created
+        showModalError('La observación fue creada pero el pin no pudo vincularse. Selecciónela desde "Seleccionar existente".');
+        OBSERVACIONES_DISPONIBLES.push({
+          id: result.obsId,
+          texto: obsPayload.observacion.substring(0, 100),
+          estado: 'ABIERTA'
+        });
+        return;
+      }
+      // Éxito completo: cerrar modal, agregar pin, renderizar
+      PINES_DATA.push(result.data.pin);
+      renderizarPines(curPage);
+      // Remover observación de disponibles (ya está vinculada a un pin)
+      OBSERVACIONES_DISPONIBLES = OBSERVACIONES_DISPONIBLES.filter(function(obs) {
+        return obs.id !== result.obsId;
+      });
+      // Upload fotos if any were selected
+      if (fotosParaSubir.length > 0) {
+        var createdPin = result.data.pin;
+        var fd = new FormData();
+        fotosParaSubir.forEach(function(f) { fd.append('fotos', f); });
+        fetch(getFotosUploadUrl(createdPin.id), { method: 'POST', headers: {'X-CSRFToken': CSRF_TOKEN}, body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.status === 'success') { createdPin.fotos = d.fotos; }
+          for (var k=0; k<PINES_DATA.length; k++) { if (PINES_DATA[k].id === createdPin.id) { PINES_DATA[k].fotos = createdPin.fotos || []; break; } }
+        })
+        .catch(function() { /* silently fail, pin was created */ });
+        fotosParaSubir = [];
+        crearFotosPreview.innerHTML = '';
+        inputFotosCrear.value = '';
+      }
+      modalCrear.classList.remove('show');
+    })
+    .catch(function(err) {
+      showModalError(err.message || 'Error de conexión.');
+    })
+    .finally(function() {
+      setButtonsLoading(false);
+    });
+  }
+
+  // ── Guardar pin (AJAX POST) — con integración de modo (Task 3.4) ──────────
+  document.getElementById('btn-save-pin').addEventListener('click', function() {
+    // Verificar modo activo
+    if (currentMode === 'new') {
+      saveNewObservationAndPin();
+      return;
+    }
+
+    // Modo "existing": lógica existente de creación de pin con observación seleccionada
+    var obsId = selectObs.value;
+    if (!obsId) {
+      modalCrearError.textContent = 'Debe seleccionar una observación.';
+      modalCrearError.style.display = 'block';
+      return;
+    }
+    var nota = pinNota.value.trim();
+    var payload = JSON.stringify({
+      x: ctxX,
+      y: ctxY,
+      pagina: curPage,
+      observacion_id: parseInt(obsId),
+      color: selectedColor,
+      nota: nota
+    });
+
+    fetch(PIN_CREATE_URL, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF_TOKEN,
+        'Content-Type': 'application/json'
+      },
+      body: payload
+    })
+    .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+    .then(function(result) {
+      if (result.ok && (result.data.status === 'success' || result.data.pin)) {
+        var pin = result.data.pin;
+        // Agregar pin a PINES_DATA
+        PINES_DATA.push(pin);
+        // Renderizar el nuevo pin en el canvas
+        renderizarPines(curPage);
+        // Remover la observación del listado de disponibles
+        OBSERVACIONES_DISPONIBLES = OBSERVACIONES_DISPONIBLES.filter(function(obs) {
+          return obs.id !== parseInt(obsId);
+        });
+        // Upload fotos if any were selected
+        if (fotosParaSubir.length > 0) {
+          var fd = new FormData();
+          fotosParaSubir.forEach(function(f) { fd.append('fotos', f); });
+          fetch(getFotosUploadUrl(pin.id), { method: 'POST', headers: {'X-CSRFToken': CSRF_TOKEN}, body: fd })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d.status === 'success') { pin.fotos = d.fotos; }
+            for (var k=0; k<PINES_DATA.length; k++) { if (PINES_DATA[k].id === pin.id) { PINES_DATA[k].fotos = pin.fotos || []; break; } }
+          })
+          .catch(function() { /* silently fail, pin was created */ });
+          fotosParaSubir = [];
+          crearFotosPreview.innerHTML = '';
+          inputFotosCrear.value = '';
+        }
+        // Cerrar modal
+        modalCrear.classList.remove('show');
+      } else {
+        // Mostrar error en el modal sin cerrarlo
+        modalCrearError.textContent = result.data.message || 'Error al crear el pin.';
+        modalCrearError.style.display = 'block';
+      }
+    })
+    .catch(function(err) {
+      modalCrearError.textContent = 'Error de conexión: ' + err.message;
+      modalCrearError.style.display = 'block';
+    });
+  });
+
+  // ─── Modal de Detalle y Eliminación (Task 7.2) ────────────────────────────
+  var modalDetalle = document.getElementById('modal-detalle-pin');
+  var detailColorDot = document.getElementById('detail-color-dot');
+  var detailObsTexto = document.getElementById('detail-obs-texto');
+  var detailObsEstado = document.getElementById('detail-obs-estado');
+  var detailObsFecha = document.getElementById('detail-obs-fecha');
+  var detailObsUsuario = document.getElementById('detail-obs-usuario');
+  var detailPinNota = document.getElementById('detail-pin-nota');
+  var detailNotaSection = document.getElementById('detail-nota-section');
+  var currentDetailPin = null; // Pin data object being viewed
+
+  // Mapeo de estado a color
+  var ESTADO_COLORS = {
+    'ABIERTA': '#EF4444',
+    'EN_PROCESO': '#F59E0B',
+    'RESUELTA': '#10B981',
+    'CERRADA': '#6B7280'
+  };
+
+  // ─── Drag & Drop de pines (mover posición) ───────────────────────────────────
+  var dragPin = null, dragMarker = null, dragStartX = 0, dragStartY = 0;
+  var dragMoved = false, dragThreshold = 5;
+
+  pinLayer.addEventListener('mousedown', function(e) {
+    var marker = e.target.closest('.pin-marker');
+    if (!marker || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragMarker = marker;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragMoved = false;
+    var pinId = parseInt(marker.getAttribute('data-pin-id'));
+    for (var i = 0; i < PINES_DATA.length; i++) {
+      if (PINES_DATA[i].id === pinId) { dragPin = PINES_DATA[i]; break; }
+    }
+    marker.classList.add('dragging');
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!dragMarker) return;
+    var dx = e.clientX - dragStartX;
+    var dy = e.clientY - dragStartY;
+    if (!dragMoved && Math.abs(dx) + Math.abs(dy) > dragThreshold) {
+      dragMoved = true;
+    }
+    if (dragMoved) {
+      // Move marker visually (in pin-layer coordinates, unscaled since stage handles transform)
+      var newX = dragPin.x + dx / scale;
+      var newY = dragPin.y + dy / scale;
+      dragMarker.style.left = newX + 'px';
+      dragMarker.style.top = newY + 'px';
+    }
+  });
+
+  document.addEventListener('mouseup', function(e) {
+    if (!dragMarker) return;
+    dragMarker.classList.remove('dragging');
+    if (dragMoved && dragPin) {
+      var dx = e.clientX - dragStartX;
+      var dy = e.clientY - dragStartY;
+      var newX = dragPin.x + dx / scale;
+      var newY = dragPin.y + dy / scale;
+      var _marker = dragMarker, _pin = dragPin;
+
+      if (!confirm('¿Mover este pin a la nueva posición?')) {
+        // Revert position
+        _marker.style.left = _pin.x + 'px';
+        _marker.style.top = _pin.y + 'px';
+        dragPin = null;
+        dragMarker = null;
+        return;
+      }
+
+      // Update server
+      var moveUrl = PIN_CREATE_URL.replace('crear/', _pin.id + '/mover/');
+      fetch(moveUrl, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x: newX, y: newY })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.status === 'success') {
+          _pin.x = d.x;
+          _pin.y = d.y;
+        } else {
+          _marker.style.left = _pin.x + 'px';
+          _marker.style.top = _pin.y + 'px';
+        }
+      })
+      .catch(function() {
+        _marker.style.left = _pin.x + 'px';
+        _marker.style.top = _pin.y + 'px';
+      });
+    }
+    dragPin = null;
+    dragMarker = null;
+  });
+
+  // Event delegation: clic en pin-marker (ignora si fue drag)
+  pinLayer.addEventListener('click', function(e) {
+    if (dragMoved) { dragMoved = false; return; }
+    var marker = e.target.closest('.pin-marker');
+    if (!marker) return;
+    e.stopPropagation();
+    var pinId = parseInt(marker.getAttribute('data-pin-id'));
+    // Buscar datos del pin en PINES_DATA
+    var pinData = null;
+    for (var i = 0; i < PINES_DATA.length; i++) {
+      if (PINES_DATA[i].id === pinId) { pinData = PINES_DATA[i]; break; }
+    }
+    if (!pinData) return;
+    openDetailModal(pinData);
+  });
+
+  function openDetailModal(pin) {
+    currentDetailPin = pin;
+    // Color dot
+    detailColorDot.style.background = pin.color || '#EF4444';
+    // Observación texto
+    detailObsTexto.textContent = pin.observacion_texto || '(Sin texto)';
+    // Estado badge
+    var estado = pin.observacion_estado || 'ABIERTA';
+    var estadoLabel = estado.replace('_', ' ');
+    var estadoColor = ESTADO_COLORS[estado] || '#6B7280';
+    detailObsEstado.textContent = estadoLabel;
+    detailObsEstado.style.background = estadoColor;
+    detailObsEstado.style.color = '#fff';
+    // Fecha
+    detailObsFecha.textContent = pin.observacion_fecha || '—';
+    // Usuario
+    detailObsUsuario.textContent = pin.observacion_usuario || '—';
+    // Nota del pin
+    if (pin.nota) {
+      detailPinNota.textContent = pin.nota;
+      detailNotaSection.style.display = 'block';
+    } else {
+      detailNotaSection.style.display = 'none';
+    }
+    modalDetalle.classList.add('show');
+  }
+
+  // Cerrar modal detalle
+  document.getElementById('btn-close-detail').addEventListener('click', function() {
+    modalDetalle.classList.remove('show');
+  });
+  document.getElementById('btn-close-detail-2').addEventListener('click', function() {
+    modalDetalle.classList.remove('show');
+  });
+  modalDetalle.addEventListener('click', function(e) {
+    if (e.target === modalDetalle) modalDetalle.classList.remove('show');
+  });
+
+  // Eliminar pin
+  document.getElementById('btn-delete-pin').addEventListener('click', function() {
+    if (!currentDetailPin) return;
+    if (!confirm('¿Eliminar este pin del plano? La observación no se eliminará.')) return;
+
+    var pinId = currentDetailPin.id;
+    var deleteUrl = PIN_CREATE_URL.replace('crear/', pinId + '/eliminar/');
+
+    fetch(deleteUrl, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF_TOKEN
+      }
+    })
+    .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+    .then(function(result) {
+      if (result.ok && (result.data.status === 'success')) {
+        // Remover pin del DOM
+        var marker = pinLayer.querySelector('[data-pin-id="' + pinId + '"]');
+        if (marker) marker.remove();
+        // Remover de PINES_DATA
+        PINES_DATA = PINES_DATA.filter(function(p) { return p.id !== pinId; });
+        // Agregar la observación de vuelta a la lista de disponibles
+        OBSERVACIONES_DISPONIBLES.push({
+          id: currentDetailPin.observacion_id,
+          texto: currentDetailPin.observacion_texto,
+          estado: currentDetailPin.observacion_estado
+        });
+        // Cerrar modal
+        modalDetalle.classList.remove('show');
+        currentDetailPin = null;
+      } else {
+        alert('Error al eliminar: ' + (result.data.message || 'Error desconocido'));
+      }
+    })
+    .catch(function(err) {
+      alert('Error de conexión: ' + err.message);
+    });
+  });
+
+  // ─── Task 6.2: Los pines se reposicionan automáticamente con zoom/pan ──────
+  // El pin-layer está DENTRO de #stage que tiene CSS transform (translate + scale),
+  // por lo que los pines heredan la transformación automáticamente.
+  // La función renderizarPines(curPage) ya se llama en renderPage() al cambiar página.
+
+  // ─── Fotos de Pines ──────────────────────────────────────────────────────────
+  var fotosSection = document.getElementById('detail-fotos-section');
+  var fotosGrid = document.getElementById('detail-fotos-grid');
+  var fotosLimitMsg = document.getElementById('fotos-limit-msg');
+  var btnAgregarFotos = document.getElementById('btn-agregar-fotos');
+  var inputFotosDetalle = document.getElementById('input-fotos-detalle');
+  var fotosUploadError = document.getElementById('fotos-upload-error');
+
+  function getFotosUploadUrl(pinId) {
+    return FOTOS_UPLOAD_URL_BASE + pinId + '/fotos/subir/';
+  }
+  function getFotoDeleteUrl(pinId, fotoId) {
+    return FOTOS_UPLOAD_URL_BASE + pinId + '/fotos/' + fotoId + '/eliminar/';
+  }
+
+  function renderFotosInDetail(pinData) {
+    var fotos = pinData.fotos || [];
+    if (fotos.length === 0 && !btnAgregarFotos) {
+      fotosSection.style.display = 'none';
+      return;
+    }
+    fotosSection.style.display = 'block';
+    fotosGrid.innerHTML = '';
+    fotos.forEach(function(foto, idx) {
+      var thumb = document.createElement('div');
+      thumb.className = 'foto-thumb';
+      thumb.innerHTML = '<img src="' + foto.url + '" alt="Foto">' +
+        '<button class="btn-delete-foto" data-foto-id="' + foto.id + '" title="Eliminar">&times;</button>';
+      thumb.querySelector('img').addEventListener('click', function() {
+        openLightbox(fotos, idx);
+      });
+      fotosGrid.appendChild(thumb);
+    });
+    // Show/hide limit msg and add button
+    if (fotos.length >= 5) {
+      fotosLimitMsg.style.display = 'block';
+      btnAgregarFotos.style.display = 'none';
+    } else {
+      fotosLimitMsg.style.display = 'none';
+      btnAgregarFotos.style.display = 'inline-flex';
+    }
+    fotosUploadError.style.display = 'none';
+  }
+
+  // Override openDetailModal to also show fotos
+  var _origOpenDetailModal = openDetailModal;
+  openDetailModal = function(pin) {
+    _origOpenDetailModal(pin);
+    renderFotosInDetail(pin);
+  };
+
+  // Agregar fotos desde modal detalle
+  btnAgregarFotos.addEventListener('click', function() {
+    inputFotosDetalle.click();
+  });
+  inputFotosDetalle.addEventListener('change', function() {
+    if (!currentDetailPin || !this.files.length) return;
+    var files = Array.from(this.files);
+    var currentFotos = (currentDetailPin.fotos || []).length;
+    if (currentFotos + files.length > 5) {
+      fotosUploadError.textContent = 'Solo puede agregar ' + (5 - currentFotos) + ' foto(s) más.';
+      fotosUploadError.style.display = 'block';
+      this.value = '';
+      return;
+    }
+    var formData = new FormData();
+    files.forEach(function(f) { formData.append('fotos', f); });
+
+    var uploadUrl = getFotosUploadUrl(currentDetailPin.id);
+    fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: formData
+    })
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+    .then(function(result) {
+      if (result.ok && result.data.status === 'success') {
+        if (!currentDetailPin.fotos) currentDetailPin.fotos = [];
+        result.data.fotos.forEach(function(f) { currentDetailPin.fotos.push(f); });
+        // Update PINES_DATA
+        for (var i = 0; i < PINES_DATA.length; i++) {
+          if (PINES_DATA[i].id === currentDetailPin.id) {
+            PINES_DATA[i].fotos = currentDetailPin.fotos;
+            break;
+          }
+        }
+        renderFotosInDetail(currentDetailPin);
+      } else {
+        fotosUploadError.textContent = result.data.message || 'Error al subir fotos.';
+        fotosUploadError.style.display = 'block';
+      }
+    })
+    .catch(function(err) {
+      fotosUploadError.textContent = 'Error de conexión: ' + err.message;
+      fotosUploadError.style.display = 'block';
+    });
+    this.value = '';
+  });
+
+  // Eliminar foto (delegated)
+  fotosGrid.addEventListener('click', function(e) {
+    var btn = e.target.closest('.btn-delete-foto');
+    if (!btn) return;
+    e.stopPropagation();
+    if (!confirm('¿Eliminar esta foto?')) return;
+    var fotoId = parseInt(btn.dataset.fotoId);
+    var deleteUrl = getFotoDeleteUrl(currentDetailPin.id, fotoId);
+    fetch(deleteUrl, { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } })
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+    .then(function(result) {
+      if (result.ok && result.data.status === 'success') {
+        currentDetailPin.fotos = (currentDetailPin.fotos || []).filter(function(f) { return f.id !== fotoId; });
+        for (var i = 0; i < PINES_DATA.length; i++) {
+          if (PINES_DATA[i].id === currentDetailPin.id) {
+            PINES_DATA[i].fotos = currentDetailPin.fotos;
+            break;
+          }
+        }
+        renderFotosInDetail(currentDetailPin);
+        if (currentDetailPin.fotos.length === 0) fotosSection.style.display = 'none';
+      } else {
+        alert('Error al eliminar: ' + (result.data.message || 'Error desconocido'));
+      }
+    })
+    .catch(function(err) { alert('Error de conexión: ' + err.message); });
+  });
+
+  // ─── Lightbox ─────────────────────────────────────────────────────────────────
+  var lightboxOverlay = document.getElementById('lightbox-overlay');
+  var lightboxImg = document.getElementById('lightbox-img');
+  var lightboxFotos = [];
+  var lightboxIndex = 0;
+
+  function openLightbox(fotos, index) {
+    lightboxFotos = fotos;
+    lightboxIndex = index;
+    lightboxImg.src = fotos[index].url;
+    lightboxOverlay.classList.add('show');
+    updateLightboxNav();
+  }
+  function closeLightbox() {
+    lightboxOverlay.classList.remove('show');
+    lightboxImg.src = '';
+  }
+  function updateLightboxNav() {
+    document.getElementById('lightbox-prev').style.display = lightboxFotos.length > 1 ? 'block' : 'none';
+    document.getElementById('lightbox-next').style.display = lightboxFotos.length > 1 ? 'block' : 'none';
+  }
+  document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+  lightboxOverlay.addEventListener('click', function(e) { if (e.target === lightboxOverlay) closeLightbox(); });
+  document.getElementById('lightbox-prev').addEventListener('click', function(e) {
+    e.stopPropagation();
+    lightboxIndex = (lightboxIndex - 1 + lightboxFotos.length) % lightboxFotos.length;
+    lightboxImg.src = lightboxFotos[lightboxIndex].url;
+  });
+  document.getElementById('lightbox-next').addEventListener('click', function(e) {
+    e.stopPropagation();
+    lightboxIndex = (lightboxIndex + 1) % lightboxFotos.length;
+    lightboxImg.src = lightboxFotos[lightboxIndex].url;
+  });
+  document.addEventListener('keydown', function(e) {
+    if (!lightboxOverlay.classList.contains('show')) return;
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft') { lightboxIndex = (lightboxIndex - 1 + lightboxFotos.length) % lightboxFotos.length; lightboxImg.src = lightboxFotos[lightboxIndex].url; }
+    if (e.key === 'ArrowRight') { lightboxIndex = (lightboxIndex + 1) % lightboxFotos.length; lightboxImg.src = lightboxFotos[lightboxIndex].url; }
+  });
+
+  // ─── Fotos en modal de creación ───────────────────────────────────────────────
+  var inputFotosCrear = document.getElementById('input-fotos-crear');
+  var crearFotosPreview = document.getElementById('crear-fotos-preview');
+  var crearFotosError = document.getElementById('crear-fotos-error');
+  var fotosParaSubir = []; // Files to upload after pin creation
+
+  inputFotosCrear.addEventListener('change', function() {
+    var files = Array.from(this.files);
+    crearFotosError.style.display = 'none';
+    // Validate type
+    var invalidos = files.filter(function(f) { return f.type !== 'image/jpeg' && f.type !== 'image/png'; });
+    if (invalidos.length > 0) {
+      crearFotosError.textContent = 'Solo se permiten archivos JPG o PNG.';
+      crearFotosError.style.display = 'block';
+      this.value = '';
+      return;
+    }
+    if (files.length > 5) {
+      crearFotosError.textContent = 'Máximo 5 fotos por pin.';
+      crearFotosError.style.display = 'block';
+      this.value = '';
+      return;
+    }
+    fotosParaSubir = files;
+    // Show previews
+    crearFotosPreview.innerHTML = '';
+    files.forEach(function(f) {
+      var thumb = document.createElement('div');
+      thumb.className = 'foto-thumb';
+      var img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      thumb.appendChild(img);
+      crearFotosPreview.appendChild(thumb);
+    });
+  });
+
+  // ─── Áreas de Plano ───────────────────────────────────────────────────────────
+  var areaLayer = document.getElementById('area-layer');
+  var areaCreationMode = false;
+  var areaStartX = 0, areaStartY = 0;
+  var areaPreview = null;
+  var editingAreaId = null;
+
+  function renderizarAreas(pagina) {
+    areaLayer.innerHTML = '';
+    var areasPagina = AREAS_DATA.filter(function(a) { return a.pagina === pagina; });
+    areasPagina.forEach(function(area) {
+      var div = document.createElement('div');
+      div.className = 'area-rect';
+      div.setAttribute('data-area-id', area.id);
+      div.setAttribute('title', area.nombre);
+      div.style.left = area.x1 + 'px';
+      div.style.top = area.y1 + 'px';
+      div.style.width = (area.x2 - area.x1) + 'px';
+      div.style.height = (area.y2 - area.y1) + 'px';
+      var c = area.color || '#3B82F6';
+      div.style.backgroundColor = c + '26'; // ~15% opacity hex
+      div.style.border = '2px solid ' + c + 'B3'; // ~70% opacity hex
+      areaLayer.appendChild(div);
+    });
+  }
+
+  // Hook into renderizarPines to also render areas on page change
+  var _origRenderPines2 = renderizarPines;
+  renderizarPines = function(pagina) {
+    _origRenderPines2(pagina);
+    renderizarAreas(pagina);
+  };
+
+  // ── Area Creation Mode ──────────────────────────────────────────────────────
+  document.getElementById('ctx-add-area').addEventListener('click', function() {
+    hideContextMenu();
+    areaCreationMode = true;
+    viewer.style.cursor = 'crosshair';
+  });
+
+  viewer.addEventListener('mousedown', function(e) {
+    if (!areaCreationMode || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var rect = viewer.getBoundingClientRect();
+    areaStartX = (e.clientX - rect.left - tx) / scale;
+    areaStartY = (e.clientY - rect.top - ty) / scale;
+    // Create preview element
+    areaPreview = document.createElement('div');
+    areaPreview.className = 'area-preview';
+    areaPreview.style.left = areaStartX + 'px';
+    areaPreview.style.top = areaStartY + 'px';
+    areaPreview.style.width = '0px';
+    areaPreview.style.height = '0px';
+    stage.appendChild(areaPreview);
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!areaCreationMode || !areaPreview) return;
+    var rect = viewer.getBoundingClientRect();
+    var curX = (e.clientX - rect.left - tx) / scale;
+    var curY = (e.clientY - rect.top - ty) / scale;
+    var left = Math.min(areaStartX, curX);
+    var top = Math.min(areaStartY, curY);
+    var w = Math.abs(curX - areaStartX);
+    var h = Math.abs(curY - areaStartY);
+    areaPreview.style.left = left + 'px';
+    areaPreview.style.top = top + 'px';
+    areaPreview.style.width = w + 'px';
+    areaPreview.style.height = h + 'px';
+  });
+
+  document.addEventListener('mouseup', function(e) {
+    if (!areaCreationMode || !areaPreview) return;
+    var rect = viewer.getBoundingClientRect();
+    var endX = (e.clientX - rect.left - tx) / scale;
+    var endY = (e.clientY - rect.top - ty) / scale;
+    // Remove preview
+    if (areaPreview.parentNode) areaPreview.parentNode.removeChild(areaPreview);
+    areaPreview = null;
+    areaCreationMode = false;
+    viewer.style.cursor = 'grab';
+
+    var x1 = Math.min(areaStartX, endX), x2 = Math.max(areaStartX, endX);
+    var y1 = Math.min(areaStartY, endY), y2 = Math.max(areaStartY, endY);
+
+    if ((x2 - x1) < 10 || (y2 - y1) < 10) {
+      alert('El área es demasiado pequeña (mínimo 10x10 píxeles).');
+      return;
+    }
+
+    // Store pending coords and open modal
+    window._pendingArea = { x1: x1, y1: y1, x2: x2, y2: y2 };
+    editingAreaId = null;
+    document.getElementById('modal-area-title').textContent = '\u25A2 Nueva Área';
+    document.getElementById('area-nombre').value = '';
+    document.getElementById('modal-area-error').style.display = 'none';
+    // Reset color palette
+    var aSwatches = document.querySelectorAll('#area-color-palette .color-swatch');
+    aSwatches.forEach(function(s) { s.classList.remove('selected'); });
+    if (aSwatches.length > 0) aSwatches[0].classList.add('selected');
+    selectedAreaColor = '#3B82F6';
+    document.getElementById('modal-area').classList.add('show');
+    document.getElementById('area-nombre').focus();
+  });
+
+  // Escape cancels area creation mode
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && areaCreationMode) {
+      areaCreationMode = false;
+      viewer.style.cursor = 'grab';
+      if (areaPreview && areaPreview.parentNode) areaPreview.parentNode.removeChild(areaPreview);
+      areaPreview = null;
+    }
+    if (e.key === 'Escape') {
+      document.getElementById('modal-area').classList.remove('show');
+    }
+  });
+
+  // Area color palette
+  var selectedAreaColor = '#3B82F6';
+  document.querySelectorAll('#area-color-palette .color-swatch').forEach(function(sw) {
+    sw.addEventListener('click', function() {
+      document.querySelectorAll('#area-color-palette .color-swatch').forEach(function(s) { s.classList.remove('selected'); });
+      sw.classList.add('selected');
+      selectedAreaColor = sw.dataset.color;
+    });
+  });
+
+  // Save area (create or edit)
+  document.getElementById('btn-save-area').addEventListener('click', function() {
+    var nombre = document.getElementById('area-nombre').value.trim();
+    var errorEl = document.getElementById('modal-area-error');
+    if (!nombre) {
+      errorEl.textContent = 'El nombre del área es obligatorio.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    errorEl.style.display = 'none';
+
+    if (editingAreaId) {
+      // Edit mode
+      var editUrl = AREA_CREATE_URL.replace('crear/', editingAreaId + '/editar/');
+      fetch(editUrl, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: nombre, color: selectedAreaColor })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.status === 'success') {
+          for (var i = 0; i < AREAS_DATA.length; i++) {
+            if (AREAS_DATA[i].id === editingAreaId) {
+              AREAS_DATA[i].nombre = d.area.nombre;
+              AREAS_DATA[i].color = d.area.color;
+              break;
+            }
+          }
+          renderizarAreas(curPage);
+          document.getElementById('modal-area').classList.remove('show');
+        } else {
+          errorEl.textContent = d.message || 'Error al actualizar.';
+          errorEl.style.display = 'block';
+        }
+      })
+      .catch(function(err) { errorEl.textContent = 'Error: ' + err.message; errorEl.style.display = 'block'; });
+    } else {
+      // Create mode
+      var pending = window._pendingArea;
+      fetch(AREA_CREATE_URL, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          x1: pending.x1, y1: pending.y1, x2: pending.x2, y2: pending.y2,
+          pagina: curPage, nombre: nombre, color: selectedAreaColor
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.status === 'success') {
+          AREAS_DATA.push(d.area);
+          renderizarAreas(curPage);
+          document.getElementById('modal-area').classList.remove('show');
+        } else {
+          errorEl.textContent = d.message || 'Error al crear.';
+          errorEl.style.display = 'block';
+        }
+      })
+      .catch(function(err) { errorEl.textContent = 'Error: ' + err.message; errorEl.style.display = 'block'; });
+    }
+  });
+
+  // Cancel area modal
+  document.getElementById('btn-cancel-area').addEventListener('click', function() {
+    document.getElementById('modal-area').classList.remove('show');
+  });
+  document.getElementById('modal-area').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('show');
+  });
+
+  // Double-click on area to edit
+  areaLayer.addEventListener('dblclick', function(e) {
+    var areaEl = e.target.closest('.area-rect');
+    if (!areaEl) return;
+    var areaId = parseInt(areaEl.getAttribute('data-area-id'));
+    var areaData = null;
+    for (var i = 0; i < AREAS_DATA.length; i++) {
+      if (AREAS_DATA[i].id === areaId) { areaData = AREAS_DATA[i]; break; }
+    }
+    if (!areaData) return;
+    editingAreaId = areaId;
+    document.getElementById('modal-area-title').textContent = '\u25A2 Editar Área';
+    document.getElementById('area-nombre').value = areaData.nombre;
+    document.getElementById('modal-area-error').style.display = 'none';
+    // Set color
+    selectedAreaColor = areaData.color;
+    document.querySelectorAll('#area-color-palette .color-swatch').forEach(function(s) {
+      s.classList.toggle('selected', s.dataset.color === areaData.color);
+    });
+    document.getElementById('modal-area').classList.add('show');
+    document.getElementById('area-nombre').focus();
+  });
+
+  // Right-click on area to delete
+  areaLayer.addEventListener('contextmenu', function(e) {
+    var areaEl = e.target.closest('.area-rect');
+    if (!areaEl) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var areaId = parseInt(areaEl.getAttribute('data-area-id'));
+    var areaData = null;
+    for (var i = 0; i < AREAS_DATA.length; i++) {
+      if (AREAS_DATA[i].id === areaId) { areaData = AREAS_DATA[i]; break; }
+    }
+    if (!areaData) return;
+    if (!confirm('¿Eliminar el área "' + areaData.nombre + '"?')) return;
+    var delUrl = AREA_CREATE_URL.replace('crear/', areaId + '/eliminar/');
+    fetch(delUrl, { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.status === 'success') {
+        AREAS_DATA = AREAS_DATA.filter(function(a) { return a.id !== areaId; });
+        renderizarAreas(curPage);
+      } else {
+        alert('Error: ' + (d.message || 'No se pudo eliminar.'));
+      }
+    })
+    .catch(function(err) { alert('Error: ' + err.message); });
+  });
+
+  // Load PDF via PDF.js CDN
+  function loadPdf() {
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = function() {
+      var lib = window.pdfjsLib;
+      if (!lib) { showErr('pdf.js no disponible'); return; }
+      lib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+      progressText.textContent = 'Descargando PDF...';
+
+      var loadingTask = lib.getDocument({ url: PDF_URL, withCredentials: true });
+
+      // Progress callback
+      loadingTask.onProgress = function(data) {
+        if (data.total > 0) {
+          var pct = Math.round((data.loaded / data.total) * 100);
+          progressFill.style.width = pct + '%';
+          progressText.textContent = 'Cargando... ' + pct + '%';
+        }
+      };
+
+      loadingTask.promise
+        .then(function(doc) {
+          pdfDoc = doc;
+          totPages = doc.numPages;
+          pageInfo.textContent = 'Página 1 de ' + totPages;
+          if (totPages > 1) pgGrp.style.display = 'flex';
+          progressFill.style.width = '100%';
+          progressText.textContent = 'Renderizando...';
+          fitToWindow();
+        })
+        .catch(function(err) {
+          showErr('Error al cargar PDF: ' + err.message);
+        });
+    };
+    s.onerror = function() { showErr('No se pudo cargar la librería PDF.js'); };
+    document.head.appendChild(s);
+  }
+
+  function showErr(msg) {
+    overlay.innerHTML =
+      '<div style="text-align:center;">' +
+        '<p style="color:#f87171;font-size:15px;margin-bottom:16px;">' + msg + '</p>' +
+        '<a class="tb-btn primary" href="/proyectos/proyecto/' + {{ proyecto.pk }} + '/">Volver al proyecto</a>' +
+      '</div>';
+  }
+
+  loadPdf();
+})();
+</script>
+
+{% else %}
+<!-- ERROR SCREEN: Archivo no disponible -->
+<div id="toolbar">
+  <span class="tb-brand">Visor de Plano</span>
+  <div class="tb-div"></div>
+  <span class="tb-title">{{ plano.titulo }} &middot; <span style="color:#64748b;font-weight:400">{{ proyecto.nombre }}</span></span>
+</div>
+<div id="err-screen" class="show">
+  <span class="err-icon">&#128196;</span>
+  <p>El archivo PDF de este plano no se encuentra disponible en el servidor.</p>
+  <a class="tb-btn primary" href="{% url 'proyectos:detalle_fiori' proyecto.pk %}">Volver al proyecto</a>
+</div>
+{% endif %}
+
+</body>
+</html>

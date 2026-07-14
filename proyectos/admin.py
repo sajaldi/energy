@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from .models import Proyecto, Actividad, DocumentoProyecto, ObservacionProyecto
+from .models import Proyecto, Actividad, DocumentoProyecto, ObservacionProyecto, PlanoProyecto
 import json
 from datetime import timedelta
 
@@ -49,6 +49,18 @@ class ActividadInline(admin.TabularInline):
     ordering = ('orden', 'creado_en')
 
 
+class PlanoProyectoInline(admin.TabularInline):
+    """Inline para ver planos PDF asociados al proyecto"""
+    model = PlanoProyecto
+    extra = 0
+    fields = ('titulo', 'archivo', 'subido_por', 'fecha_carga')
+    readonly_fields = ('fecha_carga',)
+    autocomplete_fields = ('subido_por',)
+    show_change_link = True
+    verbose_name = "Plano PDF"
+    verbose_name_plural = "Planos PDF"
+
+
 class AnalisisCostoInline(admin.TabularInline):
     from costos.models import AnalisisCostoUnitario
     model = AnalisisCostoUnitario
@@ -83,7 +95,7 @@ class ProyectoAdmin(admin.ModelAdmin):
     search_fields = ('codigo', 'nombre', 'descripcion', 'visores__nombre')
     autocomplete_fields = ('responsable', 'ubicacion')
     readonly_fields = ('creado_en', 'actualizado_en', 'resumen_actividades', 'ver_cronograma_btn', 'ver_repositorio_docs_btn', 'visor_planos_dinamico', 'cronograma_interactivo')
-    inlines = [ActividadInline, DocumentoProyectoInline, AvisoInline, AnalisisCostoInline, OrdenTrabajoInline]
+    inlines = [ActividadInline, DocumentoProyectoInline, PlanoProyectoInline, AvisoInline, AnalisisCostoInline, OrdenTrabajoInline]
     
     filter_horizontal = ('visores',)
     
@@ -678,3 +690,11 @@ class ObservacionProyectoAdmin(admin.ModelAdmin):
             color, color, obj.get_estado_display()
         )
     estado_badge.short_description = 'Estado'
+
+
+@admin.register(PlanoProyecto)
+class PlanoProyectoAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'proyecto', 'subido_por', 'fecha_carga')
+    list_filter = ('proyecto', 'fecha_carga')
+    search_fields = ('titulo', 'descripcion', 'proyecto__nombre')
+    raw_id_fields = ('proyecto', 'subido_por')

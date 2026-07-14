@@ -16,6 +16,7 @@ urlpatterns = [
     path('proyecto/<int:pk>/update/', views.update_proyecto_api, name='update_api'),
     path('proyecto/<int:pk>/actividades/bulk-update/', views.update_actividades_bulk_api, name='actividades_bulk_update'),
     path('proyecto/<int:pk>/actividades/<int:act_id>/delete/', views.delete_actividad_api, name='delete_actividad'),
+    path('proyecto/<int:pk>/kanban/api/', views.kanban_actividades_api, name='kanban_actividades_api'),
     path('proyecto/<int:pk>/documentos/upload/', views.upload_documento_proyecto_api, name='upload_documento'),
     path('proyecto/<int:pk>/documentos/upload/', views.upload_documento_proyecto_api, name='upload_documento'),
     path('proyecto/<int:proyecto_pk>/link-ot/', views.link_ot_api, name='link_ot'),
@@ -27,4 +28,26 @@ urlpatterns = [
     path('proyecto/<int:proyecto_pk>/observaciones/<int:obs_id>/detalle/', views.detalle_observacion_api, name='detalle_observacion'),
     path('proyecto/<int:proyecto_pk>/observaciones/<int:obs_id>/actualizar/', views.actualizar_observacion_api, name='actualizar_observacion'),
     path('proyecto/<int:proyecto_pk>/observaciones/<int:obs_id>/eliminar/', views.eliminar_observacion_api, name='eliminar_observacion'),
+
+    # Planos PDF
+    path('proyecto/<int:pk>/planos/', views.listar_planos_api, name='listar_planos_api'),
+    path('proyecto/<int:pk>/planos/upload/', views.upload_plano_api, name='upload_plano_api'),
+    path('proyecto/<int:pk>/planos/<int:plano_id>/delete/', views.delete_plano_api, name='delete_plano_api'),
+    path('proyecto/<int:pk>/planos/<int:plano_id>/download/', views.download_plano, name='download_plano'),
+    path('proyecto/<int:pk>/planos/<int:plano_id>/visor/', views.visor_plano_proyecto, name='visor_plano_proyecto'),
+
+    # Pines de observación en planos
+    path('proyecto/<int:pk>/planos/<int:plano_id>/pines/', views.listar_pines_plano_api, name='listar_pines_plano_api'),
+    path('proyecto/<int:pk>/planos/<int:plano_id>/pines/crear/', views.crear_pin_plano_api, name='crear_pin_plano_api'),
+    path('proyecto/<int:pk>/planos/<int:plano_id>/pines/<int:pin_id>/eliminar/', views.eliminar_pin_plano_api, name='eliminar_pin_plano_api'),
+    path('proyecto/<int:pk>/planos/<int:plano_id>/pines/<int:pin_id>/mover/', views.mover_pin_plano_api, name='mover_pin_plano_api'),
+
+    # Fotos de pines de observación
+    path('proyecto/<int:pk>/planos/<int:plano_id>/pines/<int:pin_id>/fotos/subir/', views.subir_fotos_pin_api, name='subir_fotos_pin_api'),
+    path('proyecto/<int:pk>/planos/<int:plano_id>/pines/<int:pin_id>/fotos/<int:foto_id>/eliminar/', views.eliminar_foto_pin_api, name='eliminar_foto_pin_api'),
+
+    # Áreas de planos
+    path('proyecto/<int:pk>/planos/<int:plano_id>/areas/crear/', views.crear_area_plano_api, name='crear_area_plano_api'),
+    path('proyecto/<int:pk>/planos/<int:plano_id>/areas/<int:area_id>/editar/', views.editar_area_plano_api, name='editar_area_plano_api'),
+    path('proyecto/<int:pk>/planos/<int:plano_id>/areas/<int:area_id>/eliminar/', views.eliminar_area_plano_api, name='eliminar_area_plano_api'),
 ]
