@@ -273,6 +273,7 @@ class PuestoTrabajoAdmin(admin.ModelAdmin):
     ver_dashboard_link.short_description = 'Dashboard'
 
 from .models import Tipo, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Empresa, DocumentoEmpresa
+from portalsub.models import PerfilContratista
 
 class EmpresaResource(resources.ModelResource):
     class Meta:
@@ -306,13 +307,33 @@ class PersonalInline(admin.TabularInline):
         return f"{obj.nombre} {obj.apellido}".strip() or "Sin nombre"
     get_nombre_completo.short_description = 'Nombre'
 
+class PerfilContratistaInline(admin.TabularInline):
+    model = PerfilContratista
+    extra = 0
+    fields = ('user', 'cargo', 'activo')
+    autocomplete_fields = ('user',)
+    verbose_name = "Usuario del Portal"
+    verbose_name_plural = "Usuarios del Portal"
+
 @admin.register(Empresa)
 class EmpresaAdmin(ImportExportModelAdmin):
     resource_class = EmpresaResource
-    list_display = ('nombre', 'dynamics_guid', 'activo', 'ver_status_documentacion', 'creado_en')
-    search_fields = ('nombre', 'dynamics_guid')
+    list_display = ('nombre', 'contacto', 'telefono', 'activo', 'ver_status_documentacion', 'creado_en')
+    search_fields = ('nombre', 'dynamics_guid', 'contacto', 'email')
     list_filter = ('activo',)
-    inlines = [DocumentoEmpresaInline, PersonalInline]
+    inlines = [DocumentoEmpresaInline, PersonalInline, PerfilContratistaInline]
+    fieldsets = (
+        (None, {
+            'fields': ('nombre', 'descripcion', 'activo')
+        }),
+        ('Información de Contacto', {
+            'fields': ('contacto', 'telefono', 'email'),
+        }),
+        ('Integración', {
+            'fields': ('dynamics_guid',),
+            'classes': ('collapse',),
+        }),
+    )
 
     def ver_status_documentacion(self, obj):
         ok, msg = obj.tiene_documentacion_completa()

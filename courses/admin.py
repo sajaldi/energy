@@ -1,5 +1,23 @@
 from django.contrib import admin
-from .models import Curso, Seccion, Pagina, AsignacionCurso, ProgresoSeccion, RegistroTiempo
+from .models import Curso, Seccion, Pagina, ImagenInteractiva, Hotspot, Acordeon, AsignacionCurso, ProgresoSeccion, RegistroTiempo
+
+
+class AcordeonInline(admin.StackedInline):
+    model = Acordeon
+    extra = 1
+    fields = ('orden', 'titulo', 'contenido_html')
+
+
+class HotspotInline(admin.StackedInline):
+    model = Hotspot
+    extra = 1
+    fields = ('numero', 'pos_x', 'pos_y', 'titulo', 'contenido_html')
+
+
+class ImagenInteractivaInline(admin.StackedInline):
+    model = ImagenInteractiva
+    extra = 0
+    fields = ('titulo', 'imagen', 'orden')
 
 
 class SeccionInline(admin.StackedInline):
@@ -39,6 +57,15 @@ class PaginaAdmin(admin.ModelAdmin):
     list_filter = ('seccion__curso', 'obligatorio')
     search_fields = ('titulo', 'seccion__titulo')
     autocomplete_fields = ('seccion',)
+    inlines = [ImagenInteractivaInline]
+
+
+@admin.register(ImagenInteractiva)
+class ImagenInteractivaAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'seccion', 'pagina', 'orden')
+    list_filter = ('seccion__curso',)
+    search_fields = ('titulo',)
+    inlines = [HotspotInline]
 
 
 @admin.register(AsignacionCurso)

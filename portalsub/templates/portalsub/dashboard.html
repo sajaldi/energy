@@ -1,0 +1,119 @@
+{% extends 'portalsub/base.html' %}
+{% load static %}
+{% block title %}Dashboard{% endblock %}
+{% block header_title %}{{ empresa.nombre }}{% endblock %}
+
+{% block content %}
+<div class="card" style="background: linear-gradient(135deg, var(--sap-primary), #0a4a7a); color: white; border: none;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+            <h2 style="margin: 0; font-size: 18px;">{{ empresa.nombre }}</h2>
+            <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.85;">
+                Expediente {{ mes_actual }}/{{ anio_actual }}
+            </p>
+        </div>
+        <span class="badge {% if expediente_actual.estado == 'APROBADO' %}badge-success{% elif expediente_actual.estado == 'ENVIADO' %}badge-info{% elif expediente_actual.estado == 'RECHAZADO' %}badge-danger{% else %}badge-warning{% endif %}">
+            {{ expediente_actual.get_estado_display }}
+        </span>
+    </div>
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ progreso_mes }}%</div>
+        <div class="stat-label">Expediente del Mes</div>
+        <div class="progress-bar">
+            <div class="progress-fill {% if progreso_mes == 100 %}success{% elif progreso_mes > 50 %}warning{% endif %}" style="width: {{ progreso_mes }}%;"></div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ progreso_anual }}%</div>
+        <div class="stat-label">Matriz Anual</div>
+        <div class="progress-bar">
+            <div class="progress-fill {% if progreso_anual == 100 %}success{% elif progreso_anual > 50 %}warning{% endif %}" style="width: {{ progreso_anual }}%;"></div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: #256f3a;">{{ docs_completos }}/{{ docs_totales }}</div>
+        <div class="stat-label">Documentos Completos</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: #0c5460;">{{ personal_vigente }}</div>
+        <div class="stat-label">Personal Vigente</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: {% if personal_no_vigente > 0 %}#bb2d3b{% else %}#256f3a{% endif %};">{{ total_personal }}</div>
+        <div class="stat-label">Total Personal</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="document-text-outline"></ion-icon>
+        Expediente del Mes
+    </div>
+    <p style="font-size: 13px; color: #666; margin: 0 0 12px;">
+        Estado actual: <strong>{{ expediente_actual.get_estado_display }}</strong>
+    </p>
+    <a href="{% url 'portalsub:expediente' %}" class="btn btn-primary btn-block">
+        <ion-icon name="eye-outline"></ion-icon> Ver Expediente
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="people-outline"></ion-icon>
+        Personal
+    </div>
+    <div style="display: flex; gap: 16px; font-size: 13px; color: #666;">
+        <span>🟢 Vigentes: <strong>{{ personal_vigente }}</strong></span>
+        <span>🔴 No vigentes: <strong>{{ personal_no_vigente }}</strong></span>
+    </div>
+    <div style="margin-top: 12px;">
+        <a href="{% url 'portalsub:personal_list' %}" class="btn btn-secondary btn-block">
+            <ion-icon name="list-outline"></ion-icon> Administrar Personal
+        </a>
+    </div>
+</div>
+
+{% if meses %}
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="time-outline"></ion-icon>
+        Historial de Expedientes
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Período</th>
+                <th>Estado</th>
+                <th>Envío</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exp in meses %}
+            <tr>
+                <td>
+                    <a href="{% url 'portalsub:expediente_mes' exp.mes exp.anio %}" style="color: var(--sap-primary); text-decoration: none; font-weight: 500;">
+                        {{ exp.mes }}/{{ exp.anio }}
+                    </a>
+                </td>
+                <td>
+                    <span class="badge 
+                        {% if exp.estado == 'APROBADO' %}badge-success
+                        {% elif exp.estado == 'ENVIADO' %}badge-info
+                        {% elif exp.estado == 'RECHAZADO' %}badge-danger
+                        {% else %}badge-secondary{% endif %}">
+                        {{ exp.get_estado_display }}
+                    </span>
+                </td>
+                <td style="font-size: 12px; color: #999;">
+                    {% if exp.fecha_envio %}{{ exp.fecha_envio|date:"d/m/Y" }}{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

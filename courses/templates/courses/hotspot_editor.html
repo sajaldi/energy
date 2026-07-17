@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Hotspots — {{ imagen.titulo }}</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+
+        .topbar {
+            background: var(--sap-shell-bg); color: #fff;
+            padding: 12px 24px; display: flex; align-items: center; gap: 16px;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .topbar h1 { font-size: 1rem; font-weight: 700; flex: 1; }
+        .topbar .btn { padding: 6px 16px; border-radius: 4px; font-size: 0.82rem;
+            font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
+        .topbar .btn-save { background: #22c55e; color: #fff; }
+        .topbar .btn-save:hover { background: #16a34a; }
+        .topbar .btn-back { background: rgba(255,255,255,0.15); color: #fff; text-decoration: none; }
+        .topbar .btn-back:hover { background: rgba(255,255,255,0.25); text-decoration: none; }
+
+        .layout { display: grid; grid-template-columns: 1fr 380px; height: calc(100vh - 52px); }
+
+        /* ── Canvas Area ── */
+        .canvas-area { padding: 24px; overflow: auto; display: flex; align-items: center; justify-content: center; background: #1e293b; }
+        .canvas-wrap { position: relative; display: inline-block; max-width: 100%; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .canvas-wrap img { display: block; max-width: 100%; max-height: calc(100vh - 100px); cursor: crosshair; user-select: none; -webkit-user-drag: none; }
+
+        /* ── Hotspot Bubbles ── */
+        .hotspot-bubble {
+            position: absolute; width: 32px; height: 32px; border-radius: 50%;
+            background: #0e7c86; color: #fff; display: flex; align-items: center;
+            justify-content: center; font-size: 0.78rem; font-weight: 800;
+            cursor: move; transform: translate(-50%, -50%);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 3px rgba(14,124,134,0.3);
+            transition: box-shadow 0.15s, transform 0.15s;
+            z-index: 10;
+        }
+        .hotspot-bubble:hover { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 4px rgba(14,124,134,0.5); }
+        .hotspot-bubble.active { background: #fbbf24; color: #0f172a; box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 4px rgba(251,191,36,0.5); }
+        .hotspot-bubble.dragging { opacity: 0.7; }
+
+        /* ── Sidebar Panel ── */
+        .sidebar-panel { background: #fff; border-left: 1px solid var(--sap-border-color); overflow-y: auto; display: flex; flex-direction: column; }
+        .panel-header { padding: 16px 18px; border-bottom: 1px solid var(--sap-border-color); background: var(--sap-group-bg); }
+        .panel-header h2 { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
+        .panel-header p { font-size: 0.75rem; color: var(--sap-text-muted); }
+
+        .hotspot-list { flex: 1; padding: 12px; overflow-y: auto; }
+        .hs-item {
+            border: 1px solid var(--sap-border-color); border-radius: 6px;
+            padding: 12px; margin-bottom: 10px; cursor: pointer; transition: all 0.15s;
+        }
+        .hs-item:hover { border-color: var(--sap-brand-color); }
+        .hs-item.active { border-color: #fbbf24; background: #fffbeb; }
+        .hs-item-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .hs-item-num { width: 24px; height: 24px; border-radius: 50%; background: #0e7c86; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; flex-shrink: 0; }
+        .hs-item.active .hs-item-num { background: #fbbf24; color: #0f172a; }
+        .hs-item-title { flex: 1; font-size: 0.82rem; font-weight: 600; }
+        .hs-item-del { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem; padding: 2px 6px; border-radius: 3px; }
+        .hs-item-del:hover { background: #fef2f2; color: #dc2626; }
+        .hs-item-body { display: none; }
+        .hs-item.active .hs-item-body { display: block; }
+        .hs-field { margin-bottom: 10px; }
+        .hs-field label { display: block; font-size: 0.72rem; font-weight: 600; color: var(--sap-text-muted); margin-bottom: 3px; text-transform: uppercase; }
+        .hs-field input, .hs-field textarea {
+            width: 100%; padding: 7px 10px; border: 1px solid var(--sap-border-color);
+            border-radius: 4px; font-size: 0.85rem; font-family: inherit;
+        }
+        .hs-field textarea { min-height: 100px; resize: vertical; font-family: Consolas, monospace; font-size: 0.78rem; }
+        .hs-field input:focus, .hs-field textarea:focus { outline: none; border-color: var(--sap-brand-color); }
+        .hs-coords { display: flex; gap: 8px; }
+        .hs-coords .hs-field { flex: 1; }
+
+        .add-hotspot-btn {
+            margin: 12px; padding: 10px; border: 2px dashed var(--sap-border-color);
+            border-radius: 6px; text-align: center; cursor: pointer; font-size: 0.82rem;
+            color: var(--sap-text-muted); font-weight: 600; transition: all 0.15s;
+            font-family: inherit; background: none;
+        }
+        .add-hotspot-btn:hover { border-color: var(--sap-brand-color); color: var(--sap-brand-color); }
+
+        .hint { padding: 12px 18px; background: #f0fdf4; border-top: 1px solid #dcfce7; font-size: 0.75rem; color: #16a34a; text-align: center; }
+
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+            .canvas-area { min-height: 300px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <a href="javascript:history.back()" class="btn btn-back">← Volver</a>
+    <h1>🎯 {{ imagen.titulo }}</h1>
+    <button type="button" class="btn btn-save" onclick="guardarTodo()">💾 Guardar Hotspots</button>
+</div>
+
+<div class="layout">
+    <!-- Canvas -->
+    <div class="canvas-area">
+        <div class="canvas-wrap" id="canvas-wrap">
+            <img src="{{ imagen.imagen.url }}" id="base-image" alt="{{ imagen.titulo }}" ondragstart="return false">
+            <!-- Hotspot bubbles rendered via JS -->
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar-panel">
+        <div class="panel-header">
+            <h2>Puntos Interactivos</h2>
+            <p>Haz clic en la imagen para agregar un hotspot, o arrastra los existentes.</p>
+        </div>
+        <div class="hotspot-list" id="hotspot-list"></div>
+        <button type="button" class="add-hotspot-btn" onclick="agregarHotspot(50, 50)">+ Agregar Hotspot</button>
+        <div class="hint">💡 Clic en la imagen = nuevo hotspot · Arrastra para mover · Clic en burbuja = editar</div>
+    </div>
+</div>
+
+<script>
+const IMG_ID = {{ imagen.id }};
+const API_URL = '{% url "courses:api_hotspots" imagen.id %}';
+const CSRF = '{{ csrf_token }}';
+
+let hotspots = [];
+let activeIdx = -1;
+let dragging = null;
+
+// ── Load hotspots ──
+async function cargarHotspots() {
+    const resp = await fetch(API_URL);
+    const data = await resp.json();
+    hotspots = data.hotspots.map((h, i) => ({
+        id: h.id,
+        numero: h.numero || i + 1,
+        pos_x: h.pos_x,
+        pos_y: h.pos_y,
+        titulo: h.titulo,
+        contenido_html: h.contenido_html,
+    }));
+    renderAll();
+}
+
+function renderAll() {
+    renderBubbles();
+    renderList();
+}
+
+// ── Render bubbles on image ──
+function renderBubbles() {
+    const wrap = document.getElementById('canvas-wrap');
+    wrap.querySelectorAll('.hotspot-bubble').forEach(el => el.remove());
+    hotspots.forEach((hs, idx) => {
+        const bubble = document.createElement('div');
+        bubble.className = 'hotspot-bubble' + (idx === activeIdx ? ' active' : '');
+        bubble.style.left = hs.pos_x + '%';
+        bubble.style.top = hs.pos_y + '%';
+        bubble.textContent = hs.numero;
+        bubble.dataset.idx = idx;
+        bubble.addEventListener('mousedown', (e) => startDrag(e, idx));
+        bubble.addEventListener('click', (e) => { e.stopPropagation(); seleccionar(idx); });
+        wrap.appendChild(bubble);
+    });
+}
+
+// ── Render sidebar list ──
+function renderList() {
+    const list = document.getElementById('hotspot-list');
+    list.innerHTML = hotspots.map((hs, idx) => `
+        <div class="hs-item ${idx === activeIdx ? 'active' : ''}" onclick="seleccionar(${idx})">
+            <div class="hs-item-head">
+                <span class="hs-item-num">${hs.numero}</span>
+                <span class="hs-item-title">${hs.titulo || 'Sin título'}</span>
+                <button type="button" class="hs-item-del" onclick="event.stopPropagation(); eliminarHotspot(${idx})" title="Eliminar">✕</button>
+            </div>
+            <div class="hs-item-body" onclick="event.stopPropagation()">
+                <div class="hs-field">
+                    <label>Título</label>
+                    <input type="text" value="${escHtml(hs.titulo)}" oninput="hotspots[${idx}].titulo=this.value; renderBubbles(); updateItemTitle(${idx}, this.value);">
+                </div>
+                <div class="hs-coords">
+                    <div class="hs-field">
+                        <label>X (%)</label>
+                        <input type="number" min="0" max="100" step="0.1" value="${hs.pos_x.toFixed(1)}" onchange="hotspots[${idx}].pos_x=parseFloat(this.value); renderBubbles();">
+                    </div>
+                    <div class="hs-field">
+                        <label>Y (%)</label>
+                        <input type="number" min="0" max="100" step="0.1" value="${hs.pos_y.toFixed(1)}" onchange="hotspots[${idx}].pos_y=parseFloat(this.value); renderBubbles();">
+                    </div>
+                </div>
+                <div class="hs-field">
+                    <label>Contenido HTML</label>
+                    <textarea oninput="hotspots[${idx}].contenido_html=this.value;">${escHtml(hs.contenido_html)}</textarea>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateItemTitle(idx, val) {
+    const item = document.querySelectorAll('.hs-item')[idx];
+    if (item) {
+        const titleSpan = item.querySelector('.hs-item-title');
+        if (titleSpan) titleSpan.textContent = val || 'Sin título';
+    }
+}
+
+function escHtml(str) {
+    return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function seleccionar(idx) {
+    activeIdx = idx === activeIdx ? -1 : idx;
+    renderAll();
+}
+
+// ── Add hotspot ──
+function agregarHotspot(x, y) {
+    const num = hotspots.length + 1;
+    hotspots.push({ id: null, numero: num, pos_x: x, pos_y: y, titulo: 'Hotspot ' + num, contenido_html: '' });
+    activeIdx = hotspots.length - 1;
+    renderAll();
+}
+
+function eliminarHotspot(idx) {
+    hotspots.splice(idx, 1);
+    hotspots.forEach((h, i) => h.numero = i + 1);
+    if (activeIdx >= hotspots.length) activeIdx = hotspots.length - 1;
+    renderAll();
+}
+
+// ── Click on image to add hotspot ──
+document.getElementById('base-image').addEventListener('click', function(e) {
+    const rect = this.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    agregarHotspot(parseFloat(x.toFixed(1)), parseFloat(y.toFixed(1)));
+});
+
+// ── Drag hotspots ──
+function startDrag(e, idx) {
+    e.preventDefault();
+    dragging = { idx, startX: e.clientX, startY: e.clientY, origX: hotspots[idx].pos_x, origY: hotspots[idx].pos_y };
+    const bubble = e.target.closest('.hotspot-bubble');
+    if (bubble) bubble.classList.add('dragging');
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', endDrag);
+}
+
+function onDrag(e) {
+    if (!dragging) return;
+    const img = document.getElementById('base-image');
+    const rect = img.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    hotspots[dragging.idx].pos_x = Math.max(0, Math.min(100, parseFloat(x.toFixed(1))));
+    hotspots[dragging.idx].pos_y = Math.max(0, Math.min(100, parseFloat(y.toFixed(1))));
+    renderBubbles();
+}
+
+function endDrag() {
+    dragging = null;
+    document.querySelectorAll('.hotspot-bubble.dragging').forEach(el => el.classList.remove('dragging'));
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', endDrag);
+    renderList();
+}
+
+// ── Save all ──
+async function guardarTodo() {
+    const btn = document.querySelector('.btn-save');
+    btn.textContent = '⏳ Guardando...';
+    btn.disabled = true;
+    try {
+        const resp = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ action: 'save_all', hotspots: hotspots })
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            btn.textContent = '✅ Guardado';
+            setTimeout(() => { btn.textContent = '💾 Guardar Hotspots'; btn.disabled = false; }, 1500);
+            cargarHotspots();
+        }
+    } catch (e) {
+        btn.textContent = '❌ Error';
+        setTimeout(() => { btn.textContent = '💾 Guardar Hotspots'; btn.disabled = false; }, 2000);
+    }
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', cargarHotspots);
+</script>
+</body>
+</html>

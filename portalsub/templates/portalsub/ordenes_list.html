@@ -1,0 +1,78 @@
+{% extends 'portalsub/base.html' %}
+{% load static %}
+{% block title %}Órdenes de Compra{% endblock %}
+{% block header_title %}Órdenes de Compra{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'portalsub:dashboard' %}" class="back-btn">
+    <ion-icon name="arrow-back-outline"></ion-icon>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="filter-outline"></ion-icon>
+        Filtrar por estado
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <a href="{% url 'portalsub:ordenes_list' %}" class="btn btn-sm {% if not filtro_estado %}btn-primary{% else %}btn-secondary{% endif %}">
+            Todas
+        </a>
+        {% for key, label in estados_oc %}
+        <a href="{% url 'portalsub:ordenes_list' %}?estado={{ key }}" class="btn btn-sm {% if filtro_estado == key %}btn-primary{% else %}btn-secondary{% endif %}">
+            {{ label }}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card" style="padding: 0;">
+    {% if ordenes %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>N° OC</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for oc in ordenes %}
+            <tr>
+                <td>
+                    <div style="font-weight: 600;">{{ oc.numero_oc }}</div>
+                    <div style="font-size: 11px; color: #999;">{{ oc.tipo_documento }}</div>
+                </td>
+                <td style="font-weight: 600;">L. {{ oc.total|floatformat:2 }}</td>
+                <td>
+                    <span class="badge
+                        {% if oc.estado == 'CONFIRMADA' %}badge-success
+                        {% elif oc.estado == 'ENVIADA' %}badge-info
+                        {% elif oc.estado == 'RECIBIDA' %}badge-success
+                        {% elif oc.estado == 'CANCELADA' %}badge-danger
+                        {% else %}badge-secondary{% endif %}">
+                        {{ oc.get_estado_display }}
+                    </span>
+                </td>
+                <td style="font-size: 12px; color: #666;">{{ oc.fecha_creacion|date:"d/m/Y" }}</td>
+                <td>
+                    <a href="{% url 'portalsub:orden_detalle' oc.id %}" class="btn btn-primary btn-sm">
+                        <ion-icon name="eye-outline"></ion-icon>
+                        Ver
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <ion-icon name="receipt-outline"></ion-icon>
+        <p>No hay órdenes de compra asignadas a tu empresa.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

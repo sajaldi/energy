@@ -1,0 +1,148 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Altas y Bajas - {{ empresa.nombre }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 40px;
+            color: #222;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #0070f2;
+        }
+        .header h1 { font-size: 22px; color: #0070f2; margin-bottom: 4px; }
+        .header p { font-size: 14px; color: #666; }
+        .header .fecha { font-size: 12px; color: #999; margin-top: 8px; }
+        h2 {
+            font-size: 16px;
+            color: #0070f2;
+            margin: 24px 0 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #ddd;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+        }
+        th {
+            background: #f2f2f2;
+            text-align: left;
+            padding: 10px 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #555;
+            border: 1px solid #ddd;
+        }
+        td {
+            padding: 8px;
+            font-size: 13px;
+            border: 1px solid #ddd;
+        }
+        .empty { text-align: center; color: #999; padding: 24px; font-size: 14px; }
+        .footer {
+            text-align: center;
+            font-size: 11px;
+            color: #999;
+            margin-top: 32px;
+            padding-top: 12px;
+            border-top: 1px solid #ddd;
+        }
+        @media print {
+            body { padding: 20px; }
+            .no-print { display: none; }
+        }
+        .btn-print {
+            display: inline-block;
+            padding: 10px 24px;
+            background: #0070f2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-bottom: 24px;
+        }
+        .btn-print:hover { background: #005bb5; }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:right;">
+        <button class="btn-print" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
+        <button class="btn-print" style="background:#6c757d;" onclick="window.close()">Cerrar</button>
+    </div>
+
+    <div class="header">
+        <h1>Reporte de Altas y Bajas</h1>
+        <p>{{ empresa.nombre }}</p>
+        <div class="fecha">Generado el {{ today|date:"d/m/Y H:i" }}</div>
+    </div>
+
+    <h2>Altas</h2>
+    {% if altas %}
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Identidad</th>
+                <th>Puesto</th>
+                <th>Fecha de Alta</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in altas %}
+            <tr>
+                <td>{{ a.nombre }} {{ a.apellido }}</td>
+                <td>{{ a.dni|default:"—" }}</td>
+                <td>{{ a.puesto|default:"—" }}</td>
+                <td>{{ a.fecha_alta|date:"d/m/Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No hay registros de altas.</p>
+    {% endif %}
+
+    <h2>Bajas</h2>
+    {% if bajas %}
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Identidad</th>
+                <th>Puesto</th>
+                <th>Fecha de Baja</th>
+                <th>Detalle</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in bajas %}
+            <tr>
+                <td>{{ b.tecnico.nombre }} {{ b.tecnico.apellido }}</td>
+                <td>{{ b.tecnico.dni|default:"—" }}</td>
+                <td>{{ b.tecnico.puesto|default:"—" }}</td>
+                <td>{{ b.fecha|date:"d/m/Y" }}</td>
+                <td>{{ b.detalle|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No hay registros de bajas.</p>
+    {% endif %}
+
+    <div class="footer">
+        SoftCoM-CCG - Portal Subcontratistas
+    </div>
+</body>
+</html>

@@ -1,0 +1,185 @@
+{% extends 'portalsub/base.html' %}
+{% load static %}
+{% block title %}Personal{% endblock %}
+{% block header_title %}Mi Personal{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'portalsub:dashboard' %}" class="back-btn">
+    <ion-icon name="arrow-back-outline"></ion-icon>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="stat-grid" style="margin-bottom: 4px;">
+    <div class="stat-card">
+        <div class="stat-value" style="color: #256f3a;">{{ vigentes }}</div>
+        <div class="stat-label">Vigentes</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: #bb2d3b;">{{ total|add:"-vigentes" }}</div>
+        <div class="stat-label">No Vigentes</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total }}</div>
+        <div class="stat-label">Total</div>
+    </div>
+</div>
+
+<a href="{% url 'portalsub:personal_crear' %}" class="btn btn-primary btn-block" style="margin-bottom: 4px;">
+    <ion-icon name="person-add-outline"></ion-icon> Agregar Personal
+</a>
+
+<div class="card" style="padding: 0;">
+    {% if personal %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Puesto</th>
+                <th>Estado</th>
+                <th>Docs</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in personal %}
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        {% if p.foto %}
+                        <img src="{{ p.foto.url }}" alt="" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                        {% else %}
+                        <div style="width: 32px; height: 32px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #999;">
+                            <ion-icon name="person-outline"></ion-icon>
+                        </div>
+                        {% endif %}
+                        <div>
+                            <div style="font-weight: 500;">{{ p.nombre }} {{ p.apellido }}</div>
+                            <div style="font-size: 11px; color: #999;">{{ p.dni|default:"—" }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td style="font-size: 12px;">{{ p.puesto|default:"—" }}</td>
+                <td>
+                    {% if p.esta_vigente %}
+                    <span class="badge badge-success">Vigente</span>
+                    {% else %}
+                    <span class="badge badge-danger">No Vigente</span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 11px;">
+                    {% with docs=p.documentos.count %}
+                    {% if docs >= total_tipos_doc %}
+                    <span class="badge badge-success">✔ {{ docs }}/{{ total_tipos_doc }}</span>
+                    {% elif docs > 0 %}
+                    <span class="badge badge-warning">{{ docs }}/{{ total_tipos_doc }}</span>
+                    {% else %}
+                    <span class="badge badge-secondary">0/{{ total_tipos_doc }}</span>
+                    {% endif %}
+                    {% endwith %}
+                </td>
+                <td style="white-space: nowrap;">
+                    <a href="{% url 'portalsub:personal_detalle' p.id %}" class="btn btn-primary btn-sm">
+                        <ion-icon name="eye-outline"></ion-icon>
+                        Ver
+                    </a>
+                    <a href="{% url 'portalsub:personal_editar' p.id %}" class="btn btn-secondary btn-sm">
+                        <ion-icon name="create-outline"></ion-icon>
+                        Editar
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <ion-icon name="people-outline"></ion-icon>
+        <p>No has registrado personal aún.</p>
+        <a href="{% url 'portalsub:personal_crear' %}" class="btn btn-primary" style="margin-top: 12px;">
+            <ion-icon name="person-add-outline"></ion-icon> Agregar Primer Empleado
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="swap-vertical-outline"></ion-icon>
+        Reporte de Altas y Bajas
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-sm {% if altas %}btn-primary{% else %}btn-secondary{% endif %}" onclick="mostrarTab('altas')" id="tab-altas-btn">Altas ({{ altas|length }})</button>
+        <button class="btn btn-sm btn-secondary" onclick="mostrarTab('bajas')" id="tab-bajas-btn">Bajas ({{ bajas|length }})</button>
+    </div>
+
+    <div id="tab-altas" class="tab-content">
+        {% if altas %}
+        <table class="table">
+            <thead>
+                <tr><th>Nombre</th><th>Identidad</th><th>Fecha Alta</th></tr>
+            </thead>
+            <tbody>
+                {% for a in altas|slice:":10" %}
+                <tr>
+                    <td style="font-weight:500;">{{ a.nombre }} {{ a.apellido }}</td>
+                    <td style="font-size:12px;color:#666;">{{ a.dni|default:"—" }}</td>
+                    <td style="font-size:12px;">{{ a.fecha_alta|date:"d/m/Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if altas|length > 10 %}
+        <p style="text-align:center;font-size:12px;color:#999;margin:8px 0 0;">Mostrando 10 de {{ altas|length }} registros</p>
+        {% endif %}
+        {% else %}
+        <p class="empty-state" style="padding:16px;">No hay altas registradas.</p>
+        {% endif %}
+    </div>
+
+    <div id="tab-bajas" class="tab-content" style="display:none;">
+        {% if bajas %}
+        <table class="table">
+            <thead>
+                <tr><th>Nombre</th><th>Identidad</th><th>Fecha Baja</th><th>Detalle</th></tr>
+            </thead>
+            <tbody>
+                {% for b in bajas|slice:":10" %}
+                <tr>
+                    <td style="font-weight:500;">{{ b.tecnico.nombre }} {{ b.tecnico.apellido }}</td>
+                    <td style="font-size:12px;color:#666;">{{ b.tecnico.dni|default:"—" }}</td>
+                    <td style="font-size:12px;">{{ b.fecha|date:"d/m/Y" }}</td>
+                    <td style="font-size:11px;color:#888;">{{ b.detalle|truncatechars:40|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if bajas|length > 10 %}
+        <p style="text-align:center;font-size:12px;color:#999;margin:8px 0 0;">Mostrando 10 de {{ bajas|length }} registros</p>
+        {% endif %}
+        {% else %}
+        <p class="empty-state" style="padding:16px;">No hay bajas registradas.</p>
+        {% endif %}
+    </div>
+
+    <a href="{% url 'portalsub:reporte_altas_bajas' %}" target="_blank" class="btn btn-primary btn-block" style="margin-top:12px;">
+        <ion-icon name="print-outline"></ion-icon> Generar Reporte
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function mostrarTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+    document.getElementById('tab-' + tab).style.display = '';
+    document.querySelectorAll('[id$="-btn"]').forEach(el => {
+        el.classList.remove('btn-primary');
+        el.classList.add('btn-secondary');
+    });
+    document.getElementById('tab-' + tab + '-btn').classList.remove('btn-secondary');
+    document.getElementById('tab-' + tab + '-btn').classList.add('btn-primary');
+}
+</script>
+{% endblock %}

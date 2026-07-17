@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.contrib import messages
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-from .models import Curso, AsignacionCurso, ProgresoSeccion, Seccion, Pagina, RegistroTiempo
+from .models import Curso, AsignacionCurso, ProgresoSeccion, Seccion, Pagina, RegistroTiempo, ImagenInteractiva, Hotspot, Acordeon, Carrusel, TarjetaCarrusel
 from .forms import CursoForm, SeccionFormSet
 
 
@@ -195,12 +195,25 @@ def detalle_curso(request, pk):
     secciones_data = []
     for s in secciones:
         prog = progresos.get(s.id)
-        paginas = s.paginas.all()
+        paginas = list(s.paginas.all())
+        # Prefetch interactive images
+        imgs_sec = list(s.imagenes_interactivas.prefetch_related('hotspots').all())
+        # Prefetch accordions
+        acordeones_sec = list(s.acordeones.all())
+        # Prefetch carousels
+        carruseles_sec = list(s.carruseles.prefetch_related('tarjetas').all())
+        for p in paginas:
+            p.imgs_interactivas = list(p.imagenes_interactivas.prefetch_related('hotspots').all())
+            p.acordeones_list = list(p.acordeones.all())
+            p.carruseles_list = list(p.carruseles.prefetch_related('tarjetas').all())
         secciones_data.append({
             'seccion': s,
             'completado': prog.completado if prog else False,
             'completado_en': prog.completado_en if prog else None,
             'paginas': paginas,
+            'imagenes_interactivas': imgs_sec,
+            'acordeones': acordeones_sec,
+            'carruseles': carruseles_sec,
         })
 
     return render(request, 'courses/detalle.html', {
@@ -908,3 +921,267 @@ def servir_scorm(request, pk, subpath):
     }
     content_type = mime_map.get(ext, 'application/octet-stream')
     return HttpResponse(content, content_type=content_type)
+
+
+# ══════════════════════════════════════════════════════════════
+# Imagen Interactiva / Hotspots
+# ══════════════════════════════════════════════════════════════
+
+@staff_member_required
+def crear_imagen_interactiva(request):
+    """Crea una imagen interactiva y redirige al editor visual."""
+    if request.method == 'POST':
+        seccion_id = request.POST.get('seccion_id')
+        pagina_id = request.POST.get('pagina_id')
+        imagen = request.FILES.get('imagen')
+        titulo = request.POST.get('titulo', '').strip() or 'Imagen interactiva'
+
+        if not imagen:
+            return JsonResponse({'error': 'Se requiere una imagen'}, status=400)
+
+        obj = ImagenInteractiva(titulo=titulo, imagen=imagen)
+        if seccion_id:
+            obj.seccion_id = int(seccion_id)
+        if pagina_id:
+            obj.pagina_id = int(pagina_id)
+        obj.save()
+
+        from django.urls import reverse
+        return JsonResponse({
+            'ok': True,
+            'id': obj.id,
+            'url': request.build_absolute_uri(
+                reverse('courses:editar_imagen_interactiva', args=[obj.id])
+            ),
+        })
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+@staff_member_required
+def editar_imagen_interactiva(request, img_id):
+    """Editor visual para posicionar hotspots sobre una imagen."""
+    img = get_object_or_404(ImagenInteractiva, pk=img_id)
+    hotspots = img.hotspots.all()
+
+    return render(request, 'courses/hotspot_editor.html', {
+        'imagen': img,
+        'hotspots': hotspots,
+    })
+
+
+@staff_member_required
+def api_hotspots(request, img_id):
+    """API JSON para CRUD de hotspots de una imagen interactiva."""
+    import json
+    img = get_object_or_404(ImagenInteractiva, pk=img_id)
+
+    if request.method == 'GET':
+        data = list(img.hotspots.values('id', 'numero', 'pos_x', 'pos_y', 'titulo', 'contenido_html'))
+        return JsonResponse({'hotspots': data})
+
+    if request.method == 'POST':
+        body = json.loads(request.body)
+        action = body.get('action', 'save_all')
+
+        if action == 'save_all':
+            # Bulk save: reemplaza todos los hotspots
+            items = body.get('hotspots', [])
+            img.hotspots.all().delete()
+            for item in items:
+                Hotspot.objects.create(
+                    imagen=img,
+                    numero=item.get('numero', 1),
+                    pos_x=float(item.get('pos_x', 50)),
+                    pos_y=float(item.get('pos_y', 50)),
+                    titulo=item.get('titulo', ''),
+                    contenido_html=item.get('contenido_html', ''),
+                )
+            return JsonResponse({'ok': True, 'count': len(items)})
+
+        elif action == 'add':
+            hs = Hotspot.objects.create(
+                imagen=img,
+                numero=img.hotspots.count() + 1,
+                pos_x=float(body.get('pos_x', 50)),
+                pos_y=float(body.get('pos_y', 50)),
+                titulo=body.get('titulo', 'Nuevo hotspot'),
+                contenido_html=body.get('contenido_html', ''),
+            )
+            return JsonResponse({'ok': True, 'id': hs.id, 'numero': hs.numero})
+
+        elif action == 'delete':
+            hs_id = body.get('id')
+            img.hotspots.filter(id=hs_id).delete()
+            # Renumerar
+            for i, hs in enumerate(img.hotspots.all(), 1):
+                hs.numero = i
+                hs.save(update_fields=['numero'])
+            return JsonResponse({'ok': True})
+
+    return JsonResponse({'error': 'Método no soportado'}, status=405)
+
+
+@staff_member_required
+@require_POST
+def eliminar_imagen_interactiva(request, img_id):
+    img = get_object_or_404(ImagenInteractiva, pk=img_id)
+    img.delete()
+    return JsonResponse({'ok': True})
+
+
+# ══════════════════════════════════════════════════════════════
+# Acordeones (Expandibles)
+# ══════════════════════════════════════════════════════════════
+
+@staff_member_required
+def guardar_acordeones(request):
+    """API para crear, editar y eliminar acordeones de una sección o página."""
+    import json
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    body = json.loads(request.body)
+    action = body.get('action')
+    seccion_id = body.get('seccion_id')
+    pagina_id = body.get('pagina_id')
+
+    if action == 'list':
+        qs = Acordeon.objects.all()
+        if seccion_id:
+            qs = qs.filter(seccion_id=seccion_id)
+        elif pagina_id:
+            qs = qs.filter(pagina_id=pagina_id)
+        else:
+            return JsonResponse({'error': 'Se requiere seccion_id o pagina_id'}, status=400)
+        data = list(qs.values('id', 'titulo', 'contenido_html', 'orden'))
+        return JsonResponse({'acordeones': data})
+
+    elif action == 'add':
+        obj = Acordeon(
+            titulo=body.get('titulo', 'Nuevo elemento'),
+            contenido_html=body.get('contenido_html', ''),
+            orden=body.get('orden', 0),
+        )
+        if seccion_id:
+            obj.seccion_id = int(seccion_id)
+            obj.orden = Acordeon.objects.filter(seccion_id=seccion_id).count() + 1
+        elif pagina_id:
+            obj.pagina_id = int(pagina_id)
+            obj.orden = Acordeon.objects.filter(pagina_id=pagina_id).count() + 1
+        obj.save()
+        return JsonResponse({'ok': True, 'id': obj.id, 'orden': obj.orden})
+
+    elif action == 'update':
+        ac_id = body.get('id')
+        obj = get_object_or_404(Acordeon, pk=ac_id)
+        if 'titulo' in body:
+            obj.titulo = body['titulo']
+        if 'contenido_html' in body:
+            obj.contenido_html = body['contenido_html']
+        if 'orden' in body:
+            obj.orden = body['orden']
+        obj.save()
+        return JsonResponse({'ok': True})
+
+    elif action == 'delete':
+        ac_id = body.get('id')
+        Acordeon.objects.filter(pk=ac_id).delete()
+        return JsonResponse({'ok': True})
+
+    return JsonResponse({'error': 'Acción no válida'}, status=400)
+
+
+# ══════════════════════════════════════════════════════════════
+# Carruseles
+# ══════════════════════════════════════════════════════════════
+
+@staff_member_required
+def guardar_carrusel(request):
+    """API para CRUD de carruseles y sus tarjetas."""
+    import json
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    body = json.loads(request.body)
+    action = body.get('action')
+
+    if action == 'create':
+        seccion_id = body.get('seccion_id')
+        pagina_id = body.get('pagina_id')
+        titulo = body.get('titulo', 'Carrusel')
+        obj = Carrusel(titulo=titulo)
+        if seccion_id:
+            obj.seccion_id = int(seccion_id)
+            obj.orden = Carrusel.objects.filter(seccion_id=seccion_id).count() + 1
+        elif pagina_id:
+            obj.pagina_id = int(pagina_id)
+            obj.orden = Carrusel.objects.filter(pagina_id=pagina_id).count() + 1
+        obj.save()
+        return JsonResponse({'ok': True, 'id': obj.id})
+
+    elif action == 'delete':
+        car_id = body.get('id')
+        Carrusel.objects.filter(pk=car_id).delete()
+        return JsonResponse({'ok': True})
+
+    elif action == 'add_tarjeta':
+        car_id = body.get('carrusel_id')
+        carrusel = get_object_or_404(Carrusel, pk=car_id)
+        orden = carrusel.tarjetas.count() + 1
+        tarjeta = TarjetaCarrusel.objects.create(
+            carrusel=carrusel,
+            titulo=body.get('titulo', f'Tarjeta {orden}'),
+            contenido_html=body.get('contenido_html', ''),
+            orden=orden,
+        )
+        return JsonResponse({'ok': True, 'id': tarjeta.id, 'orden': orden})
+
+    elif action == 'update_tarjeta':
+        t_id = body.get('id')
+        tarjeta = get_object_or_404(TarjetaCarrusel, pk=t_id)
+        if 'titulo' in body:
+            tarjeta.titulo = body['titulo']
+        if 'contenido_html' in body:
+            tarjeta.contenido_html = body['contenido_html']
+        tarjeta.save()
+        return JsonResponse({'ok': True})
+
+    elif action == 'delete_tarjeta':
+        t_id = body.get('id')
+        TarjetaCarrusel.objects.filter(pk=t_id).delete()
+        return JsonResponse({'ok': True})
+
+    elif action == 'set_imagen':
+        t_id = body.get('id')
+        imagen_url = body.get('imagen_url', '')
+        tarjeta = get_object_or_404(TarjetaCarrusel, pk=t_id)
+        # Extract the storage-relative path from the full URL
+        # MinIO URLs look like: http://localhost:9000/energia-media/uploads/xxx.png
+        # We need just: uploads/xxx.png
+        from django.conf import settings
+        bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'energia-media')
+        rel_path = imagen_url
+        # Strip protocol and domain
+        if '://' in rel_path:
+            rel_path = rel_path.split('://', 1)[1]  # remove http://
+            rel_path = rel_path.split('/', 1)[1] if '/' in rel_path else ''  # remove domain
+        # Strip bucket name prefix
+        if rel_path.startswith(bucket + '/'):
+            rel_path = rel_path[len(bucket) + 1:]
+        elif rel_path.startswith('/' + bucket + '/'):
+            rel_path = rel_path[len(bucket) + 2:]
+        # Strip leading slash
+        if rel_path.startswith('/'):
+            rel_path = rel_path[1:]
+        tarjeta.imagen = rel_path
+        tarjeta.save(update_fields=['imagen'])
+        return JsonResponse({'ok': True, 'path': rel_path})
+
+    elif action == 'list':
+        car_id = body.get('carrusel_id')
+        carrusel = get_object_or_404(Carrusel, pk=car_id)
+        tarjetas = list(carrusel.tarjetas.values('id', 'titulo', 'contenido_html', 'orden'))
+        return JsonResponse({'tarjetas': tarjetas, 'titulo': carrusel.titulo})
+
+    return JsonResponse({'error': 'Acción no válida'}, status=400)

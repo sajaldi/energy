@@ -141,10 +141,7 @@ class PuestoTrabajo(models.Model):
         verbose_name_plural = "Puestos de Trabajo"
 
 def empresa_directory_path(instance, filename):
-    import re
-    # Limpiar nombre para evitar caracteres no deseados en la url
-    nombre_limpio = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', instance.empresa.nombre)
-    return f'empresas/{instance.empresa.id}_{nombre_limpio}/{filename}'
+    return f'empresas/{instance.empresa.id}/{filename}'
 
 class Empresa(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
@@ -153,6 +150,9 @@ class Empresa(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
     dynamics_guid = models.UUIDField(null=True, blank=True, unique=True, verbose_name="GUID de Dynamics")
+    contacto = models.CharField(max_length=200, blank=True, null=True, verbose_name='Persona de contacto')
+    telefono = models.CharField(max_length=50, blank=True, null=True, verbose_name='Teléfono')
+    email = models.EmailField(blank=True, null=True, verbose_name='Correo electrónico')
 
     def tiene_documentacion_completa(self):
         """
@@ -235,7 +235,7 @@ class DocumentoEmpresa(models.Model):
     mes = models.PositiveIntegerField(null=True, blank=True, help_text="Mes de aplicación (1-12). Dejar vacío si es DOC ÚNICO.")
     anio = models.PositiveIntegerField(null=True, blank=True, help_text="Año de aplicación (ej. 2026)")
     
-    archivo = models.FileField(upload_to=empresa_directory_path, help_text="Archivo físico a subir a MinIO")
+    archivo = models.FileField(upload_to=empresa_directory_path, max_length=500, help_text="Archivo físico a subir a MinIO")
     descripcion = models.CharField(max_length=200, blank=True, null=True, help_text="Aclaración adicional")
     
     es_valido = models.BooleanField(default=True, help_text="Si no es válido, no contará para la autorización de QR.")
@@ -278,6 +278,8 @@ class TecnicoPuesto(models.Model):
     esta_vigente = models.BooleanField(default=True, verbose_name="Vigente", help_text="Si no está vigente, no podrá ingresar al recinto")
     codigo_asistencia = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Código QR Carnet", help_text="ID del carnet físico (ej. PERSONAL0001)")
     foto = models.ImageField(upload_to='tecnicos/', null=True, blank=True, verbose_name="Foto de Perfil")
+    telefono = models.CharField(max_length=50, blank=True, null=True, verbose_name='Teléfono')
+    telefono_emergencia = models.CharField(max_length=50, blank=True, null=True, verbose_name='Teléfono de emergencia')
     
     horas_semanales_max = models.DecimalField(max_length=5, max_digits=5, decimal_places=2, default=40.00, help_text="Capacidad máxima de horas por semana")
 

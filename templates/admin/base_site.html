@@ -204,6 +204,7 @@
 
 {% block extrahead %}
 {{ block.super }}
+<link rel="stylesheet" href="{% static 'notificaciones/css/notificaciones.css' %}">
 <style>
     body, .main-header, .content-wrapper, .main-sidebar, .nav-link, h1, h2, h3, h4, h5, h6,
     .form-control, .btn, .dropdown-item, .breadcrumb, .alert, .table, .card-title,
@@ -584,11 +585,24 @@
             const userGroups = [{% for g in user.groups.all %}"{{ g.name }}", {% endfor %}];
     const isAlmacen = {% if user.is_superuser %}true{% else %} userGroups.includes("Almacenes"){% endif %};
 
-    if (!isAlmacen) return;
-
-    // Inyectar icono en Navbar de Jazzmin si existe
     const navbar = $('.navbar-nav.ml-auto');
     if (navbar.length) {
+        // Notificaciones - campana
+        const notifBell = $(`
+            <li class="nav-item dropdown notif-bell-wrapper" style="position:relative;">
+                <a class="nav-link notif-bell-btn" href="#" title="Notificaciones">
+                    <ion-icon name="notifications-outline" style="font-size:1.3rem;"></ion-icon>
+                    <span class="notif-badge" id="notif-badge-count" style="display:none;">0</span>
+                </a>
+                <div class="notif-dropdown" id="notif-dropdown"></div>
+            </li>
+        `);
+        navbar.prepend(notifBell);
+
+    // Gestión de Salidas (solo Almacenes)
+    if (!isAlmacen) {
+        // Skip inventory badge
+    } else {
         const notifyItem = $(`
                     <li class="nav-item dropdown" id="gs-admin-link">
                         <a class="nav-link" href="#" title="Gestión de Salidas">
@@ -787,7 +801,17 @@
         } catch (e) { }
     }, 30000);
         });
-    }) (django.jQuery || jQuery);
+        }) (django.jQuery || jQuery);
+
+    // Inicializar gestor de notificaciones (para todos los usuarios autenticados)
+    if (typeof initNotificaciones === 'function') {
+        initNotificaciones({
+            pollInterval: 15000,
+            csrfToken: '{{ csrf_token }}'
+        });
+    }
 </script>
+
+<script src="{% static 'notificaciones/js/notificaciones.js' %}"></script>
 {% endif %}
 {% endblock %}

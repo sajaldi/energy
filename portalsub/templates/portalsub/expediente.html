@@ -1,0 +1,61 @@
+{% extends 'portalsub/base.html' %}
+{% load static %}
+{% block title %}Matriz de Entregables {{ anio }}{% endblock %}
+{% block header_title %}Matriz de Entregables {{ anio }}{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'portalsub:dashboard' %}" class="back-btn">
+    <ion-icon name="arrow-back-outline"></ion-icon>
+</a>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 13px; color: #666;">Progreso anual</span>
+        <span style="font-size: 13px; font-weight: 600;">{{ total_completos }}/{{ total_aplican }}</span>
+    </div>
+    <div style="height: 8px; background: var(--sap-card-border); border-radius: 4px; overflow: hidden;">
+        <div style="height: 100%; width: {{ progreso }}%; background: var(--sap-primary); border-radius: 4px; transition: width 0.4s;"></div>
+    </div>
+</div>
+
+<div style="overflow-x: auto; margin: 0 -16px;">
+    <table style="width: 100%; min-width: 800px; border-collapse: collapse; font-size: 13px;">
+        <thead>
+            <tr style="background: var(--sap-secondary-bg);">
+                <th style="text-align: left; padding: 10px 12px; position: sticky; left: 0; background: var(--sap-secondary-bg); z-index: 2; min-width: 180px; border-bottom: 1px solid var(--sap-card-border);">Entregable</th>
+                {% for mn in meses_nombre %}
+                <th style="text-align: center; padding: 10px 4px; width: 60px; border-bottom: 1px solid var(--sap-card-border);">
+                    <a href="{% url 'portalsub:expediente_mes' forloop.counter anio %}" style="text-decoration: none; color: var(--sap-primary); font-weight: 600; font-size: 12px; display: block;">
+                        {{ mn }}
+                    </a>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for fila in entregas %}
+            <tr style="border-bottom: 1px solid var(--sap-card-border);">
+                <td style="padding: 8px 12px; font-weight: 500; position: sticky; left: 0; background: #fff; z-index: 1;">
+                    {{ fila.config.tipo_entregable.nombre }}
+                </td>
+                {% for m, cell in fila.meses.items %}
+                <td style="text-align: center; padding: 8px 4px; cursor: pointer;" onclick="window.location='{% url 'portalsub:expediente_mes' m anio %}'">
+                    {% if cell.aplica %}
+                        {% if cell.completo %}
+                        <span style="color: #2e7d32; font-size: 16px;">✔</span>
+                        {% else %}
+                        <span style="color: #d32f2f; font-size: 16px;">✘</span>
+                        {% endif %}
+                    {% else %}
+                    <span style="color: #ccc;">—</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

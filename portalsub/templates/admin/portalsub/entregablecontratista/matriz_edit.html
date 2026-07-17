@@ -1,0 +1,160 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .matriz-form { margin-top: 20px; }
+  .matriz-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .matriz-table th {
+    background: var(--darkened-bg, #f8f8f8);
+    padding: 10px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--body-quiet-color, #666);
+    border-bottom: 2px solid var(--border-color, #ddd);
+    white-space: nowrap;
+    text-align: center;
+  }
+  .matriz-table th:first-child { text-align: left; padding-left: 16px; }
+  .matriz-table th.col-activo,
+  .matriz-table th.col-oblig  { width: 60px; }
+  .matriz-table th.col-mes   { width: 44px; }
+  .matriz-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color, #eee);
+    text-align: center;
+    vertical-align: middle;
+  }
+  .matriz-table td:first-child {
+    text-align: left;
+    padding-left: 16px;
+    font-weight: 600;
+    font-size: 13px;
+    min-width: 180px;
+  }
+  .matriz-table tr:hover td { background: var(--darkened-bg, #f8f8f8); }
+  .matriz-table input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+  .matriz-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .matriz-actions input[type="submit"] {
+    padding: 10px 24px;
+    background: var(--primary, #0070f2);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .matriz-actions input[type="submit"]:hover { opacity: .9; }
+  .matriz-actions .cancel {
+    color: var(--body-quiet-color, #666);
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .empresa-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .empresa-header h2 { margin: 0; font-size: 18px; }
+  .empresa-header .count {
+    font-size: 13px;
+    color: var(--body-quiet-color, #666);
+    background: var(--darkened-bg, #f8f8f8);
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Inicio' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url 'admin:portalsub_entregablecontratista_changelist' %}">{{ opts.verbose_name_plural }}</a>
+  &rsaquo; <a href="{% url 'admin:portalsub_entregablecontratista_matriz' %}">Matriz por Subcontratista</a>
+  &rsaquo; {{ empresa.nombre }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="empresa-header">
+  <h2>{{ empresa.nombre }}</h2>
+  <span class="count">{{ rows|length }} tipos de entregables</span>
+</div>
+<p style="color: #666; margin-bottom: 16px;">
+  Marca los meses en que cada entregable aplica. Si ningún mes está marcado, aplica para <strong>todos</strong> los meses.
+</p>
+
+<form method="post" class="matriz-form">
+  {% csrf_token %}
+  <table class="matriz-table">
+    <thead>
+      <tr>
+        <th>Entregable</th>
+        <th class="col-activo">Activo</th>
+        <th class="col-oblig">Oblig</th>
+        {% for _, _, name in rows.0.meses %}
+        <th class="col-mes">{{ name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.tipo.nombre }}</td>
+        <td>
+          <input type="checkbox" name="activo_{{ row.tipo.id }}" {% if row.config.activo %}checked{% endif %}>
+        </td>
+        <td>
+          <input type="checkbox" name="obligatorio_{{ row.tipo.id }}" {% if row.config.obligatorio %}checked{% endif %}>
+        </td>
+        {% for m, checked, _ in row.meses %}
+        <td>
+          <input type="checkbox" name="meses_{{ row.tipo.id }}" value="{{ m }}" {% if checked %}checked{% endif %}>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="matriz-actions">
+    <input type="submit" value="Guardar Matriz">
+    <a href="{% url 'admin:portalsub_entregablecontratista_matriz' %}" class="cancel">Cancelar</a>
+  </div>
+</form>
+
+<hr style="margin: 24px 0; border: none; border-top: 1px solid var(--border-color, #ddd);">
+
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+  <h3 style="margin: 0; font-size: 14px; font-weight: 600;">Agregar nuevo entregable</h3>
+  <form method="post" style="display: flex; gap: 8px; align-items: center; flex: 1; max-width: 500px;">
+    {% csrf_token %}
+    <input type="text" name="nuevo_nombre" placeholder="Nombre del nuevo entregable" required
+           style="flex: 1; padding: 8px 12px; border: 1px solid var(--border-color, #ddd); border-radius: 4px; font-size: 13px;">
+    <input type="submit" value="Crear"
+           style="padding: 8px 16px; background: var(--primary, #0070f2); color: #fff; border: none; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+  </form>
+</div>
+{% endblock %}

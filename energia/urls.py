@@ -104,6 +104,7 @@ urlpatterns = [
     path('', include('core.urls', namespace='core')),
     path('activos/', include('activos.urls', namespace='activos')),
     path('mantenimiento/', include('mantenimiento.urls', namespace='mantenimiento')),
+    path('portalsub/', include('portalsub.urls', namespace='portalsub')),
     # Sistema de firmas electrónicas
     path('firmas/', include('documentos.urls_firmas', namespace='firmas')),
     # Gestión Documental y Firmas
@@ -126,6 +127,7 @@ urlpatterns = [
     path('costos/', include('costos.urls', namespace='costos')),
     path('courses/', include('courses.urls', namespace='courses')),
     path('invitaciones/', include('invitaciones.urls', namespace='invitaciones')),
+    path('notificaciones/', include('notificaciones.urls', namespace='notificaciones')),
     # complete-registration en la raíz (el link del correo apunta a esta URL)
     path('complete-registration', __import__('invitaciones.views', fromlist=['complete_registration']).complete_registration, name='complete_registration'),
 

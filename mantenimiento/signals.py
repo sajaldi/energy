@@ -4,6 +4,7 @@ from django.utils import timezone
 from webpush import send_user_notification
 from .models import OrdenTrabajo, CierreOrdenTrabajo, Aviso
 from activos.models import Activo, DowntimeActivo
+from notificaciones.utils import crear_notificacion
 
 @receiver(post_save, sender=Aviso)
 def handle_aviso_status_and_downtime(sender, instance, created, **kwargs):
@@ -176,33 +177,75 @@ def handle_ot_notifications(sender, instance, created, **kwargs):
     ot_url = f"/mantenimiento/app/ot/{instance.id}/"
     icon = "/static/core/img/icon-512.png"
 
+    ot_codigo = instance.codigo_de_orden or str(instance.id)
+    ot_titulo = f"OT {ot_codigo}"
+
     # 1. Nueva OT asignada a un Técnico
     if created and instance.tecnico:
         payload = {
             "title": "🆕 Nueva OT Asignada",
-            "body": f"Se te ha asignado la OT {instance.codigo_de_orden or instance.id}. Revisa los detalles.",
+            "body": f"Se te ha asignado la OT {ot_codigo}. Revisa los detalles.",
             "icon": icon,
             "url": ot_url
         }
         send_user_notification(user=instance.tecnico, payload=payload, ttl=1000)
+        crear_notificacion(
+            user=instance.tecnico,
+            titulo="Nueva OT Asignada",
+            mensaje=f"Se te ha asignado la OT {ot_codigo}.",
+            tipo='INFO',
+            modulo='MANTENIMIENTO',
+            enlace=ot_url,
+            icono='construct-outline',
+        )
 
     # 2. OT Finalizada -> Avisar al Supervisor
     elif old_estado != 'REALIZADA' and instance.estado == 'REALIZADA' and instance.supervisor:
         payload = {
             "title": "✅ OT Finalizada",
-            "body": f"El técnico ha finalizado la OT {instance.codigo_de_orden or instance.id}. Pendiente de revisión.",
+            "body": f"El técnico ha finalizado la OT {ot_codigo}. Pendiente de revisión.",
             "icon": icon,
             "url": ot_url
         }
         send_user_notification(user=instance.supervisor, payload=payload, ttl=1000)
+        crear_notificacion(
+            user=instance.supervisor,
+            titulo="OT Finalizada",
+            mensaje=f"La OT {ot_codigo} ha sido finalizada y está pendiente de revisión.",
+            tipo='SUCCESS',
+            modulo='MANTENIMIENTO',
+            enlace=ot_url,
+            icono='checkmark-done-outline',
+        )
 
     # 3. OT Rechazada (De REALIZADA a EJECUCION) -> Avisar al Técnico
     elif old_estado == 'REALIZADA' and instance.estado == 'EJECUCION' and instance.tecnico:
         payload = {
             "title": "⚠️ OT Devuelta",
-            "body": f"La OT {instance.codigo_de_orden or instance.id} ha sido devuelta a Ejecución. Por favor revisa las notas.",
+            "body": f"La OT {ot_codigo} ha sido devuelta a Ejecución. Por favor revisa las notas.",
             "icon": icon,
             "url": ot_url
         }
         send_user_notification(user=instance.tecnico, payload=payload, ttl=1000)
+        crear_notificacion(
+            user=instance.tecnico,
+            titulo="OT Devuelta",
+            mensaje=f"La OT {ot_codigo} ha sido devuelta a ejecución para correcciones.",
+            tipo='WARNING',
+            modulo='MANTENIMIENTO',
+            enlace=ot_url,
+            icono='refresh-outline',
+        )
+
+    # 4. OT en EJECUCION (cuando se inicia)
+    elif old_estado == 'PROGRAMADA' and instance.estado == 'EJECUCION' and instance.supervisor:
+        crear_notificacion(
+            user=instance.supervisor,
+            titulo="OT en Ejecución",
+            mensaje=f"La OT {ot_codigo} ha iniciado ejecución.",
+            tipo='INFO',
+            modulo='MANTENIMIENTO',
+            enlace=ot_url,
+            icono='play-outline',
+        )
 

@@ -83,6 +83,103 @@ class Pagina(models.Model):
         return f"{self.orden}. {self.titulo}"
 
 
+class ImagenInteractiva(models.Model):
+    """Imagen con hotspots interactivos para una sección o página."""
+    seccion = models.ForeignKey(Seccion, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='imagenes_interactivas', verbose_name="Sección")
+    pagina = models.ForeignKey(Pagina, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='imagenes_interactivas', verbose_name="Página")
+    imagen = models.ImageField(upload_to='cursos/interactivas/', verbose_name="Imagen base")
+    titulo = models.CharField(max_length=255, blank=True, verbose_name="Título descriptivo")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+
+    class Meta:
+        verbose_name = "Imagen Interactiva"
+        verbose_name_plural = "Imágenes Interactivas"
+        ordering = ['orden']
+
+    def __str__(self):
+        return self.titulo or f"Imagen {self.id}"
+
+
+class Hotspot(models.Model):
+    """Punto interactivo (burbuja) sobre una imagen interactiva."""
+    imagen = models.ForeignKey(ImagenInteractiva, on_delete=models.CASCADE,
+        related_name='hotspots', verbose_name="Imagen")
+    numero = models.PositiveIntegerField(default=1, verbose_name="Número de burbuja")
+    pos_x = models.FloatField(verbose_name="Posición X (%)",
+        help_text="Porcentaje horizontal (0-100)")
+    pos_y = models.FloatField(verbose_name="Posición Y (%)",
+        help_text="Porcentaje vertical (0-100)")
+    titulo = models.CharField(max_length=255, verbose_name="Título del hotspot")
+    contenido_html = models.TextField(blank=True, verbose_name="Contenido HTML",
+        help_text="Contenido que se muestra al hacer clic en la burbuja")
+
+    class Meta:
+        verbose_name = "Hotspot"
+        verbose_name_plural = "Hotspots"
+
+
+class Acordeon(models.Model):
+    """Elemento expandible (accordion) dentro de una sección o página."""
+    seccion = models.ForeignKey(Seccion, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='acordeones', verbose_name="Sección")
+    pagina = models.ForeignKey(Pagina, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='acordeones', verbose_name="Página")
+    titulo = models.CharField(max_length=255, verbose_name="Título")
+    contenido_html = models.TextField(blank=True, verbose_name="Contenido HTML",
+        help_text="Contenido que se muestra al expandir")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+
+    class Meta:
+        verbose_name = "Acordeón"
+        verbose_name_plural = "Acordeones"
+        ordering = ['orden']
+
+    def __str__(self):
+        return self.titulo
+
+
+class Carrusel(models.Model):
+    """Carrusel horizontal de tarjetas dentro de una sección o página."""
+    seccion = models.ForeignKey(Seccion, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='carruseles', verbose_name="Sección")
+    pagina = models.ForeignKey(Pagina, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='carruseles', verbose_name="Página")
+    titulo = models.CharField(max_length=255, blank=True, verbose_name="Título del carrusel")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+
+    class Meta:
+        verbose_name = "Carrusel"
+        verbose_name_plural = "Carruseles"
+        ordering = ['orden']
+
+    def __str__(self):
+        return self.titulo or f"Carrusel {self.id}"
+
+
+class TarjetaCarrusel(models.Model):
+    """Tarjeta individual dentro de un carrusel."""
+    carrusel = models.ForeignKey(Carrusel, on_delete=models.CASCADE,
+        related_name='tarjetas', verbose_name="Carrusel")
+    titulo = models.CharField(max_length=255, verbose_name="Título")
+    contenido_html = models.TextField(blank=True, verbose_name="Contenido HTML")
+    imagen = models.ImageField(upload_to='cursos/carrusel/', null=True, blank=True, verbose_name="Imagen")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+
+    class Meta:
+        verbose_name = "Tarjeta de Carrusel"
+        verbose_name_plural = "Tarjetas de Carrusel"
+        ordering = ['orden']
+
+    def __str__(self):
+        return self.titulo
+        ordering = ['numero']
+
+    def __str__(self):
+        return f"#{self.numero} - {self.titulo}"
+
+
 class AsignacionCurso(models.Model):
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE, related_name='asignaciones', verbose_name="Curso")
     usuario = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='cursos_asignados', verbose_name="Usuario")

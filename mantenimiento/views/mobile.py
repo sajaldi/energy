@@ -348,6 +348,23 @@ def mobile_crear_aviso(request, pk=None):
             except Exception: 
                 data['fecha_cierre'] = None
 
+        # Fechas de parada
+        fecha_inicio = request.POST.get('fecha_inicio_parada')
+        if fecha_inicio:
+            try:
+                data['fecha_inicio_parada'] = timezone.make_aware(datetime.fromisoformat(fecha_inicio))
+            except Exception: pass
+        else:
+            data['fecha_inicio_parada'] = None
+
+        fecha_fin = request.POST.get('fecha_fin_parada')
+        if fecha_fin:
+            try:
+                data['fecha_fin_parada'] = timezone.make_aware(datetime.fromisoformat(fecha_fin))
+            except Exception: pass
+        else:
+            data['fecha_fin_parada'] = None
+
         # Campos de cierre: diagnóstico y acciones
         diagnostico = request.POST.get('diagnostico', '').strip()
         if diagnostico:

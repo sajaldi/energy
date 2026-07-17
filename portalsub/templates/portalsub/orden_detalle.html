@@ -1,0 +1,225 @@
+{% extends 'portalsub/base.html' %}
+{% load static %}
+{% block title %}OC {{ oc.numero_oc }}{% endblock %}
+{% block header_title %}OC {{ oc.numero_oc }}{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'portalsub:ordenes_list' %}" class="back-btn">
+    <ion-icon name="arrow-back-outline"></ion-icon>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="receipt-outline"></ion-icon>
+        {{ oc.numero_oc }}
+        <span class="badge
+            {% if oc.estado == 'CONFIRMADA' %}badge-success
+            {% elif oc.estado == 'ENVIADA' %}badge-info
+            {% elif oc.estado == 'RECIBIDA' %}badge-success
+            {% elif oc.estado == 'CANCELADA' %}badge-danger
+            {% else %}badge-secondary{% endif %}"
+            style="margin-left: auto;">
+            {{ oc.get_estado_display }}
+        </span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;">
+        <div>
+            <div style="color: #999; font-size: 11px;">Fecha de creación</div>
+            <div>{{ oc.fecha_creacion|date:"d/m/Y" }}</div>
+        </div>
+        <div>
+            <div style="color: #999; font-size: 11px;">Fecha entrega estimada</div>
+            <div>{{ oc.fecha_entrega_estimada|date:"d/m/Y"|default:"—" }}</div>
+        </div>
+        <div>
+            <div style="color: #999; font-size: 11px;">Tipo</div>
+            <div>{{ oc.tipo_documento }}</div>
+        </div>
+        <div>
+            <div style="color: #999; font-size: 11px;">Condición de pago</div>
+            <div>
+                {% if oc.anticipo %}Anticipo ({{ oc.anticipo_porcentaje }}%) · {% endif %}
+                {% if oc.contraentrega %}Contraentrega · {% endif %}
+                {% if oc.credito %}Crédito {{ oc.credito_dias }} días{% endif %}
+                {% if not oc.anticipo and not oc.contraentrega and not oc.credito %}—{% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if oc.notas %}
+    <div style="margin-top: 12px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 13px; color: #555;">
+        <strong>Notas:</strong> {{ oc.notas }}
+    </div>
+    {% endif %}
+
+    <div class="progress-bar" style="margin-top: 12px;">
+        <div class="progress-fill {% if oc.estado == 'RECIBIDA' %}success{% elif oc.estado == 'CONFIRMADA' %}warning{% endif %}"
+             style="width: {% if oc.estado == 'BORRADOR' %}10%{% elif oc.estado == 'ENVIADA' %}30%{% elif oc.estado == 'CONFIRMADA' %}60%{% elif oc.estado == 'RECIBIDA' %}100%{% else %}0%{% endif %};"></div>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #999; margin-top: 4px;">
+        <span>Borrador</span>
+        <span>Enviada</span>
+        <span>Confirmada</span>
+        <span>Recibida</span>
+    </div>
+</div>
+
+{% if oc.articulos.exists %}
+<div class="card" style="padding: 0;">
+    <div class="card-title" style="padding: 16px 16px 0;">
+        <ion-icon name="list-outline"></ion-icon>
+        Artículos
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Descripción</th>
+                <th>Cant.</th>
+                <th>Costo U.</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for art in oc.articulos.all %}
+            <tr>
+                <td style="font-size: 13px;">{{ art.descripcion }}</td>
+                <td>{{ art.cantidad|floatformat:0 }}</td>
+                <td>L. {{ art.costo_unitario|floatformat:2 }}</td>
+                <td style="font-weight: 600;">L. {{ art.subtotal|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" style="text-align: right; font-weight: 700;">Subtotal</td>
+                <td style="font-weight: 700;">L. {{ oc.subtotal|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td colspan="3" style="text-align: right; font-weight: 700;">Impuestos</td>
+                <td style="font-weight: 700;">L. {{ oc.impuestos|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td colspan="3" style="text-align: right; font-weight: 700; font-size: 15px;">Total</td>
+                <td style="font-weight: 700; font-size: 15px; color: var(--sap-primary);">L. {{ oc.total|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="checklist-outline"></ion-icon>
+        Documentos Requeridos
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for key, label in tipos_doc %}
+            {% with doc=documentos|dictsortreversed:"creado_en"|first %}
+            {% endwith %}
+            {% with doc=documentos_dict|get_item:key %}
+            <tr>
+                <td style="font-weight: 500;">{{ label }}</td>
+                <td>
+                    {% if doc %}
+                    <span class="badge badge-success">✔ Subido</span>
+                    {% else %}
+                    <span class="badge badge-danger">✘ Pendiente</span>
+                    {% endif %}
+                </td>
+                <td style="white-space: nowrap;">
+                    {% if puede_subir %}
+                    <form class="upload-form" data-tipo="{{ key }}" style="display: inline; margin: 0;">
+                        {% csrf_token %}
+                        <input type="file" name="archivo" class="file-input" style="display: none;" accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.doc,.docx,.xml">
+                        <button type="button" class="btn btn-primary btn-sm upload-btn" title="Subir">
+                            <ion-icon name="cloud-upload-outline"></ion-icon>
+                            {% if doc %}Reemplazar{% else %}Subir{% endif %}
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% if doc %}
+                    <a href="{{ doc.archivo.url }}" target="_blank" class="btn btn-secondary btn-sm" title="Ver">
+                        <ion-icon name="eye-outline"></ion-icon>
+                    </a>
+                    {% if puede_subir %}
+                    <button type="button" class="btn btn-danger btn-sm delete-doc" data-id="{{ doc.id }}" title="Eliminar">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                    {% endif %}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $('.upload-btn').on('click', function() {
+        $(this).closest('.upload-form').find('.file-input').click();
+    });
+
+    $('.file-input').on('change', function() {
+        const form = $(this).closest('.upload-form');
+        const tipo = form.data('tipo');
+        const file = this.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('tipo', tipo);
+        formData.append('archivo', file);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        $.ajax({
+            url: '{% url "portalsub:subir_documento_oc" oc.id %}',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(resp) {
+                Swal.fire({ icon: 'success', title: 'Subido', text: resp.message, timer: 1500, showConfirmButton: false });
+                setTimeout(() => location.reload(), 1000);
+            },
+            error: function(xhr) {
+                Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.message || 'Error al subir archivo' });
+            }
+        });
+    });
+
+    $('.delete-doc').on('click', function() {
+        const docId = $(this).data('id');
+        Swal.fire({
+            title: '¿Eliminar documento?',
+            text: 'Esta acción no se puede deshacer.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#bb2d3b'
+        }).then(result => {
+            if (result.isConfirmed) {
+                $.post('{% url "portalsub:eliminar_documento_oc" oc.id 0 %}'.replace('/0/', '/' + docId + '/'), {
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                }).done(function() {
+                    Swal.fire({ icon: 'success', title: 'Eliminado', timer: 1000, showConfirmButton: false });
+                    setTimeout(() => location.reload(), 800);
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

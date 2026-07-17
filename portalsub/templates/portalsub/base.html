@@ -1,0 +1,393 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>{% block title %}Portal Subcontratistas{% endblock %} | SoftCoM-CCG</title>
+    {% include 'core/pwa_tags.html' %}
+    {% include 'core/fiori_tokens.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'notificaciones/css/notificaciones.css' %}">
+    <style>
+        :root {
+            --safe-area-top: env(safe-area-inset-top);
+            --safe-area-bottom: env(safe-area-inset-bottom);
+            --sap-primary: var(--sap-brand-color, #0070f2);
+            --sap-secondary-bg: var(--sap-neutral-bg, #f2f2f2);
+            --sap-card-border: var(--sap-border-color, #d9d9d9);
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
+            margin: 0;
+            padding: 0 0 80px;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            padding: calc(12px + var(--safe-area-top)) 16px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            color: white;
+        }
+        .fiori-header .back-btn {
+            color: white;
+            font-size: 22px;
+            display: flex;
+            text-decoration: none;
+            background: rgba(255,255,255,0.15);
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .fiori-header h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            flex: 1;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .fiori-header .header-icon {
+            font-size: 20px;
+            color: rgba(255,255,255,0.8);
+        }
+        .container {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+        }
+        .card {
+            background: white;
+            border-radius: var(--sap-border-radius);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            padding: 16px;
+            border: 1px solid var(--sap-card-border);
+        }
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--sap-text-color);
+            margin: 0 0 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title ion-icon {
+            font-size: 18px;
+            color: var(--sap-primary);
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--sap-border-radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: var(--sap-primary);
+            color: white;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary {
+            background: var(--sap-secondary-bg);
+            color: var(--sap-text-color);
+            border: 1px solid var(--sap-card-border);
+        }
+        .btn-secondary:hover { background: #e0e0e0; }
+        .btn-success {
+            background: #256f3a;
+            color: white;
+        }
+        .btn-danger {
+            background: #bb2d3b;
+            color: white;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .btn-block {
+            display: flex;
+            width: 100%;
+            justify-content: center;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        .badge-secondary { background: #e2e3e5; color: #383d41; }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: var(--sap-border-radius);
+            padding: 16px;
+            text-align: center;
+            border: 1px solid var(--sap-card-border);
+        }
+        .stat-card .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--sap-primary);
+        }
+        .stat-card .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .progress-bar {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .progress-bar .progress-fill {
+            height: 100%;
+            background: var(--sap-primary);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        .progress-bar .progress-fill.success { background: #256f3a; }
+        .progress-bar .progress-fill.warning { background: #e67e22; }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table th, .table td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+        .table th {
+            font-weight: 600;
+            color: #666;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .table tr:last-child td { border-bottom: none; }
+        .empty-state {
+            text-align: center;
+            padding: 32px 16px;
+            color: #999;
+        }
+        .empty-state ion-icon {
+            font-size: 48px;
+            color: #ddd;
+        }
+        .empty-state p { margin: 12px 0 0; font-size: 14px; }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            border-top: 1px solid #e0e0e0;
+            padding: 6px 0 calc(6px + var(--safe-area-bottom));
+            z-index: 200;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+        }
+        .bottom-nav a {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 6px 0;
+            text-decoration: none;
+            color: #999;
+            font-size: 10px;
+            transition: color 0.2s;
+        }
+        .bottom-nav a.active { color: var(--sap-primary); }
+        .bottom-nav a ion-icon { font-size: 22px; }
+        .alert {
+            padding: 12px 16px;
+            border-radius: var(--sap-border-radius);
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .alert-error { background: #f8d7da; color: #721c24; border-left: 4px solid #bb2d3b; }
+        .alert-success { background: #d4edda; color: #155724; border-left: 4px solid #256f3a; }
+        .alert-info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 4px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: var(--sap-border-radius);
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--sap-primary);
+            box-shadow: 0 0 0 3px rgba(0,120,212,0.1);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .form-check input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        .file-upload-zone {
+            border: 2px dashed #ddd;
+            border-radius: var(--sap-border-radius);
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .file-upload-zone:hover { border-color: var(--sap-primary); background: #f0f7ff; }
+        .file-upload-zone ion-icon { font-size: 36px; color: #ccc; }
+        .file-upload-zone p { margin: 8px 0 0; font-size: 13px; color: #999; }
+        .file-list-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: var(--sap-border-radius);
+            margin-bottom: 8px;
+        }
+        .file-list-item .file-info { flex: 1; }
+        .file-list-item .file-info .file-name { font-size: 13px; font-weight: 500; }
+        .file-list-item .file-info .file-meta { font-size: 11px; color: #999; }
+        @media (max-width: 480px) {
+            .form-row { grid-template-columns: 1fr; }
+            .stat-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% block header %}
+    <div class="fiori-header">
+        {% block back_button %}
+        <a href="{% url 'portalsub:dashboard' %}" class="back-btn">
+            <ion-icon name="home-outline"></ion-icon>
+        </a>
+        {% endblock %}
+        <h1>{% block header_title %}Portal{% endblock %}</h1>
+        <div class="notif-bell-wrapper" style="position:relative;display:inline-flex;">
+            <a href="#" class="notif-bell-btn" title="Notificaciones" style="color:rgba(255,255,255,0.85);font-size:1.2rem;padding:4px 8px;">
+                <ion-icon name="notifications-outline"></ion-icon>
+                <span class="notif-badge" id="notif-badge-count" style="display:none;">0</span>
+            </a>
+            <div class="notif-dropdown" id="notif-dropdown"></div>
+        </div>
+        <a href="{% url 'portalsub:logout' %}" class="header-icon" title="Cerrar sesión">
+            <ion-icon name="log-out-outline"></ion-icon>
+        </a>
+    </div>
+    {% endblock %}
+
+    {% if messages %}
+    <div class="container" style="padding-bottom: 0;">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    {% block bottom_nav %}
+    <nav class="bottom-nav">
+        <a href="{% url 'portalsub:dashboard' %}" class="{% if active_tab == 'dashboard' %}active{% endif %}">
+            <ion-icon name="home-outline"></ion-icon>
+            <span>Inicio</span>
+        </a>
+        <a href="{% url 'portalsub:expediente' %}" class="{% if active_tab == 'expediente' %}active{% endif %}">
+            <ion-icon name="document-text-outline"></ion-icon>
+            <span>Expediente</span>
+        </a>
+        <a href="{% url 'portalsub:ordenes_list' %}" class="{% if active_tab == 'ordenes' %}active{% endif %}">
+            <ion-icon name="receipt-outline"></ion-icon>
+            <span>Órdenes</span>
+        </a>
+        <a href="{% url 'portalsub:personal_list' %}" class="{% if active_tab == 'personal' %}active{% endif %}">
+            <ion-icon name="people-outline"></ion-icon>
+            <span>Personal</span>
+        </a>
+        <a href="{% url 'portalsub:notificaciones' %}" class="{% if active_tab == 'notificaciones' %}active{% endif %}">
+            <ion-icon name="notifications-outline"></ion-icon>
+            <span>Notif.</span>
+        </a>
+    </nav>
+    {% endblock %}
+
+    {% block extra_scripts %}{% endblock %}
+
+{% if user.is_authenticated %}
+<script src="{% static 'notificaciones/js/notificaciones.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof initNotificaciones === 'function') {
+            initNotificaciones({
+                pollInterval: 15000,
+                csrfToken: '{{ csrf_token }}'
+            });
+        }
+    });
+</script>
+{% endif %}
+
+</body>
+</html>

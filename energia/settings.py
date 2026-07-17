@@ -208,6 +208,7 @@ INSTALLED_APPS = [
     'colorfield',
     'activos',
     'mantenimiento',
+    'portalsub.apps.PortalsubConfig',
     'presupuestos.apps.PresupuestosConfig',
     'inventarios',
     'auditorias',
@@ -222,6 +223,7 @@ INSTALLED_APPS = [
     'costos.apps.CostosConfig',
     'courses',
     'invitaciones.apps.InvitacionesConfig',
+    'notificaciones.apps.NotificacionesConfig',
 ]
 
 

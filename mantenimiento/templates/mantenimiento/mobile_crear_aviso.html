@@ -503,6 +503,19 @@
                         </div>
                     </div>
 
+                    <div id="parada-fechas" style="display: {% if aviso.equipo_parado %}block{% else %}none{% endif %};">
+                        <div class="fiori-form-group">
+                            <label class="fiori-label">Fecha y Hora de Inicio de Parada</label>
+                            <input type="datetime-local" name="fecha_inicio_parada" class="fiori-input"
+                                value="{% if aviso.fecha_inicio_parada %}{{ aviso.fecha_inicio_parada|date:'Y-m-d\\TH:i' }}{% endif %}">
+                        </div>
+                        <div class="fiori-form-group">
+                            <label class="fiori-label">Fecha y Hora de Fin de Parada</label>
+                            <input type="datetime-local" name="fecha_fin_parada" class="fiori-input"
+                                value="{% if aviso.fecha_fin_parada %}{{ aviso.fecha_fin_parada|date:'Y-m-d\\TH:i' }}{% endif %}">
+                        </div>
+                    </div>
+
                     <div class="fiori-form-group">
                         <label class="fiori-label">Departamento Destino</label>
                         <select name="departamento" class="fiori-select">
@@ -853,6 +866,10 @@
             }, false);
         }
         setupDrop(photoDropzone);
+
+        document.getElementById('equipo_parado_toggle').addEventListener('change', function() {
+            document.getElementById('parada-fechas').style.display = this.checked ? 'block' : 'none';
+        });
 
         const estadoSelect = document.getElementById('estado-select');
         const fotoTipoInput = document.getElementById('foto-tipo-input');

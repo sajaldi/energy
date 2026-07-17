@@ -5,3 +5,6 @@ class PresupuestosConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'presupuestos'
     verbose_name = 'Presupuestos'
+
+    def ready(self):
+        import presupuestos.signals  # noqa

@@ -4,383 +4,973 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ curso.titulo }}</title>
+    {% include 'core/fiori_tokens.html' %}
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: var(--sap-font-family); background: #f5f6f7; color: #32363a; min-height: 100vh; overflow: hidden; }
+        a { color: var(--sap-brand-color); text-decoration: none; }
 
-        /* ── Progress Bar (fixed top, Amazon-style) ── */
-        .progress-header {
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-            background: white; border-bottom: 1px solid #e2e8f0;
-            padding: 8px 24px; display: flex; align-items: center; gap: 16px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        /* ── Layout Grid ── */
+        .lms-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+            transition: grid-template-columns 0.3s ease;
         }
-        .progress-header .back { text-decoration: none; color: #64748b; display: flex; align-items: center; gap: 4px; font-size: 0.85rem; font-weight: 600; padding: 6px 10px; border-radius: 6px; transition: background 0.15s; white-space: nowrap; }
-        .progress-header .back:hover { background: #f1f5f9; color: #334155; }
-        .progress-header h2 { font-size: 0.95rem; font-weight: 700; color: #0f172a; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .progress-track { flex: 0 0 200px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a); border-radius: 3px; transition: width 0.4s ease; }
-        .progress-pct { font-size: 0.78rem; font-weight: 700; color: #16a34a; white-space: nowrap; min-width: 36px; text-align: right; }
-
-        /* ── Layout ── */
-        .container { max-width: 1200px; margin: 0 auto; padding: 70px 20px 40px; }
-
-        /* ── Hero ── */
-        .hero { margin-bottom: 32px; }
-        .hero h1 { font-size: 1.5rem; font-weight: 800; color: #0f172a; line-height: 1.3; }
-        .hero p { font-size: 0.9rem; color: #64748b; margin-top: 8px; line-height: 1.6; }
-        .hero-meta { display: flex; gap: 16px; margin-top: 12px; font-size: 0.82rem; color: #94a3b8; flex-wrap: wrap; }
-        .hero-meta span { display: flex; align-items: center; gap: 4px; }
-
-        /* ── Sección (Amazon-style card) ── */
-        .seccion {
-            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
-            margin-bottom: 20px; overflow: hidden;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            scroll-margin-top: 80px;
+        .lms-layout.sidebar-collapsed {
+            grid-template-columns: 0px 1fr;
         }
-        .seccion:target { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
-        .seccion-head {
-            display: flex; align-items: flex-start; gap: 14px;
-            padding: 18px 20px; cursor: pointer; user-select: none;
-            background: #fafbfc; border-bottom: 1px solid #f1f5f9;
+
+        /* ── Top Header ── */
+        .lms-header {
+            grid-column: 1 / -1;
+            background: #0e7c86;
+            border-bottom: 1px solid #0a6870;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            height: 56px;
+            gap: 16px;
+            z-index: 100;
         }
-        .seccion-head:hover { background: #f1f5f9; }
-        .seccion-num {
-            width: 32px; height: 32px; border-radius: 50%; display: flex;
-            align-items: center; justify-content: center; font-size: 0.78rem;
-            font-weight: 700; flex-shrink: 0; transition: all 0.2s;
+        .lms-header .back-btn {
+            display: flex; align-items: center; gap: 6px;
+            color: rgba(255,255,255,0.8); font-size: 0.82rem; font-weight: 600;
+            padding: 6px 12px; border-radius: 6px; transition: all 0.15s;
+            white-space: nowrap;
         }
-        .seccion-num.pending { background: #e2e8f0; color: #64748b; }
-        .seccion-num.done { background: #dcfce7; color: #16a34a; }
-        .seccion-num.current { background: #dbeafe; color: #2563eb; }
-        .seccion-info { flex: 1; }
-        .seccion-info h3 { font-size: 1rem; font-weight: 700; color: #0f172a; }
-        .seccion-info .badge { font-size: 0.7rem; color: #94a3b8; display: flex; align-items: center; gap: 8px; margin-top: 3px; }
-        .seccion-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; cursor: pointer; margin-top: 2px; font-size: 0.7rem; color: transparent; }
-        .seccion-check.done { background: #16a34a; border-color: #16a34a; color: white; }
-
-        .seccion-body { padding: 20px 24px; line-height: 1.8; font-size: 0.95rem; color: #334155; }
-        .seccion-contenido { margin-bottom: 16px; }
-        .seccion-body :first-child { margin-top: 0; }
-        .seccion-body :last-child { margin-bottom: 0; }
-        .seccion-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0; }
-        .seccion-body iframe { max-width: 100%; border-radius: 8px; margin: 16px 0; aspect-ratio: 16/9; width: 100%; }
-        .seccion-body video { max-width: 100%; border-radius: 8px; margin: 16px 0; }
-
-        /* ── Page Slides ── */
-        .slide-container { margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
-        .slide-header { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 0.82rem; }
-        .slide-header .slide-counter { font-weight: 700; color: #64748b; }
-        .slide-header .slide-title { flex: 1; font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .slide-body { padding: 16px 20px; min-height: 100px; }
-        .slide-body.hidden { display: none; }
-        .slide-nav { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 14px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
-        .slide-nav button { background: none; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 16px; cursor: pointer; font-size: 0.82rem; color: #475569; transition: all 0.15s; font-weight: 600; }
-        .slide-nav button:hover:not(:disabled) { background: #e2e8f0; border-color: #94a3b8; }
-        .slide-nav button:disabled { opacity: 0.4; cursor: default; }
-        .slide-nav .slide-dots { display: flex; gap: 6px; }
-        .slide-nav .dot { width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1; transition: all 0.2s; cursor: pointer; }
-        .slide-nav .dot.active { background: #3b82f6; transform: scale(1.3); }
-
-        /* ── Complete Banner ── */
-        .complete-banner {
-            display: none; text-align: center; padding: 32px; margin: 32px 0;
-            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-            border: 2px solid #86efac; border-radius: 16px;
+        .lms-header .back-btn:hover { background: rgba(255,255,255,0.12); color: #fff; text-decoration: none; }
+        .lms-header .toggle-sidebar {
+            background: none; border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.8);
+            padding: 6px 10px; border-radius: 6px; cursor: pointer;
+            font-size: 1rem; transition: all 0.15s;
         }
-        .complete-banner.visible { display: block; }
-        .complete-banner h2 { font-size: 1.3rem; color: #16a34a; }
-        .complete-banner p { color: #15803d; margin-top: 8px; }
+        .lms-header .toggle-sidebar:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .lms-header .course-title {
+            flex: 1; font-size: 0.95rem; font-weight: 700; color: #fff;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .lms-header .progress-wrap {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .lms-header .progress-bar {
+            width: 160px; height: 6px; background: rgba(255,255,255,0.25);
+            border-radius: 3px; overflow: hidden;
+        }
+        .lms-header .progress-bar-fill {
+            height: 100%; background: #fbbf24;
+            border-radius: 3px; transition: width 0.4s ease;
+        }
+        .lms-header .progress-text {
+            font-size: 0.78rem; font-weight: 700; color: #fbbf24; white-space: nowrap;
+        }
 
+        /* ── Sidebar ── */
+        .lms-sidebar {
+            background: #0e7c86;
+            border-right: none;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: all 0.3s ease;
+        }
+        .lms-layout.sidebar-collapsed .lms-sidebar {
+            border-right: none; width: 0; min-width: 0; padding: 0;
+        }
+        .sidebar-header {
+            padding: 20px 18px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+        }
+        .sidebar-header h2 {
+            font-size: 1rem; font-weight: 800; color: #fff;
+            line-height: 1.3; margin-bottom: 8px;
+        }
+        .sidebar-progress {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.75rem; color: #fbbf24; font-weight: 700;
+        }
+        .sidebar-progress .bar {
+            flex: 1; height: 4px; background: rgba(255,255,255,0.25); border-radius: 2px; overflow: hidden;
+        }
+        .sidebar-progress .bar-fill {
+            height: 100%; background: #fbbf24; border-radius: 2px; transition: width 0.4s;
+        }
+
+        /* ── Sidebar Nav Items ── */
+        .sidebar-nav { padding: 12px 0; }
+        .nav-section-title {
+            padding: 10px 18px 6px; font-size: 0.68rem; font-weight: 700;
+            color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 18px; cursor: pointer; transition: all 0.15s;
+            border-left: 3px solid transparent; position: relative;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.08); }
+        .nav-item.active {
+            background: rgba(255,255,255,0.12); border-left-color: #fbbf24;
+        }
+        .nav-item.completed .nav-icon { background: #fbbf24; color: #0e7c86; }
+        .nav-item .nav-icon {
+            width: 24px; height: 24px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; font-weight: 700; flex-shrink: 0;
+            background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); transition: all 0.2s;
+        }
+        .nav-item.active .nav-icon { background: #fff; color: #0e7c86; }
+        .nav-item .nav-label {
+            flex: 1; font-size: 0.82rem; color: rgba(255,255,255,0.85);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            line-height: 1.3;
+        }
+        .nav-item.active .nav-label { color: #fff; font-weight: 600; }
+        .nav-item.completed .nav-label { color: rgba(255,255,255,0.6); }
+        .nav-item .nav-type {
+            font-size: 0.6rem; color: rgba(255,255,255,0.4); padding: 1px 6px;
+            background: rgba(255,255,255,0.08); border-radius: 8px;
+        }
+        .nav-item .nav-pages-badge {
+            font-size: 0.6rem; color: rgba(255,255,255,0.4); white-space: nowrap;
+        }
+
+        /* ── Main Content ── */
+        .lms-content {
+            overflow: hidden; padding: 0;
+            display: flex; flex-direction: column;
+            background: #fff;
+            min-height: 0;
+        }
+        .content-hero {
+            background: linear-gradient(135deg, #f0fdfa 0%, #e0f7fa 100%);
+            padding: 40px 60px 32px;
+            border-bottom: 1px solid #e2e8f0;
+            position: relative; overflow: hidden;
+            flex-shrink: 0;
+        }
+        .content-hero::before {
+            content: ''; position: absolute; top: -50%; right: -20%;
+            width: 500px; height: 500px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(14,124,134,0.06), transparent 70%);
+        }
+        .content-hero .inner {
+            max-width: 720px; margin: 0 auto; position: relative;
+        }
+        .content-hero .page-counter {
+            font-size: 0.75rem; color: #64748b; font-weight: 600;
+            margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .content-hero h1 {
+            font-size: 1.8rem; font-weight: 800; color: #0f172a;
+            line-height: 1.3; position: relative;
+        }
+        .content-hero .subtitle {
+            font-size: 0.9rem; color: #64748b; margin-top: 10px; line-height: 1.6;
+        }
+        .content-hero .section-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 14px; padding: 4px 12px; border-radius: 16px;
+            background: rgba(14,124,134,0.1); color: #0e7c86;
+            font-size: 0.75rem; font-weight: 600;
+        }
+
+        /* ── Content Body ── */
+        .content-body {
+            flex: 1; padding: 0 60px 40px; overflow-y: auto;
+            background: #fff; position: relative;
+            min-height: 0;
+        }
+
+        /* ── Scroll Progress Bar ── */
+        .scroll-progress {
+            position: sticky; top: 0; left: 0; right: 0; z-index: 10;
+            height: 4px; background: #e2e8f0;
+            margin: 0 -60px 0; width: calc(100% + 120px);
+        }
+        .scroll-progress-fill {
+            height: 100%; width: 0%; background: linear-gradient(90deg, #0e7c86, #14b8a6);
+            border-radius: 0 2px 2px 0; transition: width 0.1s ease-out;
+        }
+        .content-body .lesson-content {
+            max-width: 720px; margin: 0 auto;
+            font-size: 1rem; line-height: 1.85; color: #334155;
+            padding-top: 32px;
+        }
+        .content-body .lesson-content h1,
+        .content-body .lesson-content h2,
+        .content-body .lesson-content h3 {
+            color: #0f172a; margin: 24px 0 12px; font-weight: 700;
+        }
+        .content-body .lesson-content h2 { font-size: 1.4rem; }
+        .content-body .lesson-content h3 { font-size: 1.15rem; }
+        .content-body .lesson-content p { margin-bottom: 16px; }
+        .content-body .lesson-content img {
+            max-width: 100%; height: auto; border-radius: 10px;
+            margin: 20px 0; box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+        .content-body .lesson-content iframe {
+            max-width: 100%; width: 100%; aspect-ratio: 16/9;
+            border-radius: 10px; margin: 20px 0; border: none;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+        .content-body .lesson-content video {
+            max-width: 100%; border-radius: 10px; margin: 20px 0;
+        }
+        .content-body .lesson-content ul,
+        .content-body .lesson-content ol {
+            margin: 12px 0 12px 24px;
+        }
+        .content-body .lesson-content li { margin-bottom: 8px; }
+        .content-body .lesson-content a { color: #0e7c86; }
+        .content-body .lesson-content a:hover { text-decoration: underline; }
+        .content-body .lesson-content blockquote {
+            border-left: 3px solid #0e7c86; padding: 12px 18px;
+            background: #f0fdfa; border-radius: 0 8px 8px 0;
+            margin: 16px 0; color: #475569;
+        }
+        .content-body .lesson-content code {
+            background: #f1f5f9; padding: 2px 6px;
+            border-radius: 4px; font-size: 0.88em; color: #0f172a;
+        }
+        .content-body .lesson-content pre {
+            background: #f8fafc; padding: 16px 20px; border-radius: 8px;
+            overflow-x: auto; margin: 16px 0; border: 1px solid #e2e8f0;
+        }
+
+        .empty-lesson {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 60px 20px; text-align: center;
+            color: #94a3b8;
+        }
+        .empty-lesson .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+        .empty-lesson p { font-size: 0.9rem; }
+
+        /* ── Bottom Navigation ── */
+        .content-nav {
+            padding: 20px 60px; border-top: 1px solid #e2e8f0;
+            background: #fff; display: flex; align-items: center; gap: 12px;
+            max-width: 100%; flex-shrink: 0;
+        }
+        .content-nav .inner-nav {
+            max-width: 720px; margin: 0 auto; width: 100%;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .content-nav .nav-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px; border-radius: 8px; font-size: 0.85rem;
+            font-weight: 600; cursor: pointer; transition: all 0.15s;
+            border: 1px solid #d1d5db; background: #fff; color: #374151;
+            font-family: var(--sap-font-family);
+        }
+        .content-nav .nav-btn:hover:not(:disabled) {
+            background: #f9fafb; border-color: #0e7c86; color: #0e7c86;
+        }
+        .content-nav .nav-btn:disabled { opacity: 0.35; cursor: default; }
+        .content-nav .nav-btn.primary {
+            background: #0e7c86; border-color: #0e7c86; color: #fff;
+        }
+        .content-nav .nav-btn.primary:hover:not(:disabled) {
+            background: #0a6870; border-color: #0a6870;
+        }
+        .content-nav .nav-btn.complete-btn {
+            background: #16a34a; border-color: #16a34a; color: #fff;
+        }
+        .content-nav .nav-btn.complete-btn:hover:not(:disabled) {
+            background: #15803d;
+        }
+        .content-nav .nav-btn.complete-btn.done {
+            background: #dcfce7; border-color: #86efac; color: #16a34a; cursor: default;
+        }
+        .content-nav .spacer { flex: 1; }
+        .content-nav .page-indicator {
+            font-size: 0.78rem; color: #94a3b8; font-weight: 600;
+        }
+
+        /* ── Completion Modal ── */
+        .completion-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; backdrop-filter: blur(4px);
+        }
+        .completion-overlay.show { display: flex; }
+        .completion-modal {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+            padding: 48px; text-align: center; max-width: 440px; width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        .completion-modal .trophy { font-size: 4rem; margin-bottom: 16px; }
+        .completion-modal h2 { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+        .completion-modal p { font-size: 0.9rem; color: #64748b; line-height: 1.6; margin-bottom: 20px; }
+        .completion-modal .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .completion-modal .actions a,
+        .completion-modal .actions button {
+            padding: 10px 22px; border-radius: 8px; font-size: 0.85rem;
+            font-weight: 600; cursor: pointer; transition: all 0.15s;
+            text-decoration: none; font-family: var(--sap-font-family); border: none;
+        }
+        .completion-modal .btn-cert { background: #cba135; color: #fff; }
+        .completion-modal .btn-cert:hover { background: #b8922e; }
+        .completion-modal .btn-close { background: #f1f5f9; color: #475569; }
+        .completion-modal .btn-close:hover { background: #e2e8f0; }
+
+        /* ── Scrollbar ── */
+        .lms-sidebar::-webkit-scrollbar,
+        .content-body::-webkit-scrollbar { width: 5px; }
+        .lms-sidebar::-webkit-scrollbar-track,
+        .content-body::-webkit-scrollbar-track { background: transparent; }
+        .lms-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .content-body::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .lms-layout { grid-template-columns: 0px 1fr; }
+            .lms-layout.sidebar-open { grid-template-columns: 280px 1fr; }
+            .lms-sidebar { position: fixed; top: 56px; left: 0; bottom: 0; width: 280px; z-index: 200; transform: translateX(-100%); transition: transform 0.3s ease; }
+            .lms-layout.sidebar-open .lms-sidebar { transform: translateX(0); }
+            .content-hero { padding: 32px 20px 28px; }
+            .content-hero h1 { font-size: 1.3rem; }
+            .content-body { padding: 0 20px 24px; }
+            .content-body .scroll-progress { margin: 0 -20px 0; width: calc(100% + 40px); }
+            .content-nav { padding: 12px 16px; flex-wrap: wrap; }
+            .lms-header .progress-bar { width: 80px; }
+        }
         @media (max-width: 640px) {
-            .progress-header { padding: 8px 12px; }
-            .progress-track { flex: 0 0 80px; }
-            .progress-header h2 { font-size: 0.82rem; }
-            .container { padding: 64px 12px 24px; }
-            .seccion-head { padding: 14px 16px; }
-            .seccion-body { padding: 14px 16px; font-size: 0.9rem; }
+            .lms-header .course-title { display: none; }
+            .content-nav .nav-btn { padding: 8px 14px; font-size: 0.8rem; }
         }
+
+        /* ── Accordion / Expandibles ── */
+        .accordion-group {
+            margin: 24px 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .accordion-item { border-bottom: 1px solid #e2e8f0; }
+        .accordion-item:last-child { border-bottom: none; }
+        .accordion-header {
+            display: flex; align-items: center; padding: 16px 20px;
+            cursor: pointer; user-select: none; transition: background 0.15s;
+        }
+        .accordion-header:hover { background: #f8fafc; }
+        .accordion-title { flex: 1; font-size: 0.95rem; font-weight: 700; color: #0f172a; }
+        .accordion-icon {
+            font-size: 1.3rem; color: #64748b; transition: transform 0.2s;
+            width: 24px; text-align: center; line-height: 1;
+        }
+        .accordion-item.open .accordion-icon { transform: rotate(45deg); }
+        .accordion-body {
+            display: none; padding: 0 20px 20px; font-size: 0.9rem;
+            line-height: 1.75; color: #475569; border-left: 3px solid #0e7c86;
+            margin-left: 20px; margin-right: 20px; margin-bottom: 16px;
+            padding-left: 16px;
+        }
+        .accordion-item.open .accordion-body { display: block; }
+        .accordion-body img { max-width: 100%; border-radius: 8px; margin: 12px 0; }
+        .accordion-body p { margin-bottom: 10px; }
+
+        /* ── Carousel / Carrusel ── */
+        .carousel-wrap { margin: 24px 0; }
+        .carousel-title { font-size: 0.85rem; font-weight: 700; color: #64748b; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .carousel-container { position: relative; }
+        .carousel-track {
+            display: flex; gap: 16px; overflow-x: auto; scroll-behavior: smooth;
+            padding: 4px 0 12px; -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent;
+        }
+        .carousel-track::-webkit-scrollbar { height: 5px; }
+        .carousel-track::-webkit-scrollbar-track { background: transparent; }
+        .carousel-track::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .carousel-card {
+            flex: 0 0 260px; background: #fff; border: 1px solid #e2e8f0;
+            border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .carousel-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .carousel-card-img { width: 100%; height: 120px; object-fit: cover; border-radius: 6px; margin-bottom: 12px; }
+        .carousel-card h4 { font-size: 0.9rem; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+        .carousel-card .card-content { font-size: 0.82rem; color: #475569; line-height: 1.6; }
+        .carousel-card .card-content img { max-width: 100%; border-radius: 6px; }
+        .carousel-nav {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 32px; height: 32px; border-radius: 50%; background: #fff;
+            border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 0.9rem; color: #475569; transition: all 0.15s; z-index: 5;
+        }
+        .carousel-nav:hover { background: #f1f5f9; border-color: #0e7c86; color: #0e7c86; }
+        .carousel-nav.prev { left: -16px; }
+        .carousel-nav.next { right: -16px; }
+
+        /* ── Interactive Image Hotspots ── */
+        .interactive-image-wrap {
+            position: relative; display: inline-block; max-width: 100%;
+            margin: 20px 0; border-radius: 10px; overflow: visible;
+        }
+        .interactive-image-wrap .interactive-base-img {
+            display: block; max-width: 100%; height: auto; border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+        .interactive-image-wrap .hs-bubble {
+            position: absolute; width: 30px; height: 30px; border-radius: 50%;
+            background: #0e7c86; color: #fff; display: flex; align-items: center;
+            justify-content: center; font-size: 0.72rem; font-weight: 800;
+            cursor: pointer; transform: translate(-50%, -50%);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 0 0 3px rgba(14,124,134,0.3);
+            transition: all 0.2s; z-index: 10;
+            animation: hs-pulse 2s infinite;
+        }
+        .interactive-image-wrap .hs-bubble:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 0 0 5px rgba(14,124,134,0.4);
+        }
+        @keyframes hs-pulse {
+            0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 0 0 3px rgba(14,124,134,0.3); }
+            50% { box-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 0 0 6px rgba(14,124,134,0.15); }
+        }
+
+        /* Hotspot Popover */
+        .hs-popover {
+            position: fixed; z-index: 9999; background: #fff; color: #334155;
+            border: 1px solid #e2e8f0; border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2); padding: 0;
+            width: 320px; max-width: 90vw; display: none;
+            animation: hs-pop-in 0.2s ease;
+            overflow: hidden;
+        }
+        .hs-popover.show { display: block; }
+        @keyframes hs-pop-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .hs-popover-header {
+            display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .hs-popover-header .hs-pop-num {
+            width: 26px; height: 26px; border-radius: 50%; background: #0e7c86;
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; font-weight: 800; flex-shrink: 0;
+        }
+        .hs-popover-header h4 { font-size: 0.9rem; font-weight: 700; color: #0f172a; flex: 1; }
+        .hs-popover-header .hs-pop-nav { display: flex; gap: 4px; }
+        .hs-popover-header .hs-pop-nav button {
+            background: none; border: 1px solid #e2e8f0; border-radius: 4px;
+            padding: 3px 8px; cursor: pointer; font-size: 0.78rem; color: #64748b;
+        }
+        .hs-popover-header .hs-pop-nav button:hover { background: #f1f5f9; color: #0f172a; }
+        .hs-popover-close {
+            background: none; border: none; font-size: 1.1rem; color: #94a3b8;
+            cursor: pointer; padding: 2px 6px; border-radius: 4px;
+        }
+        .hs-popover-close:hover { background: #f1f5f9; color: #0f172a; }
+        .hs-popover-body {
+            padding: 16px 18px; font-size: 0.88rem; line-height: 1.7;
+            max-height: 250px; overflow-y: auto; overflow-x: hidden;
+        }
+        .hs-popover-body * {
+            max-width: 100% !important; box-sizing: border-box !important;
+        }
+        .hs-popover-body img { max-width: 100% !important; height: auto !important; border-radius: 6px; margin: 8px 0; display: block; }
+        .hs-popover-body table { width: 100% !important; table-layout: fixed; }
+        .hs-popover-body iframe { max-width: 100% !important; }
+        .hs-popover-body h1, .hs-popover-body h2, .hs-popover-body h3 { font-size: 1rem; margin: 8px 0 4px; color: #0f172a; }
+        .hs-popover-body p { margin: 0 0 8px; }
     </style>
 </head>
 <body>
 
-    <!-- ── Fixed Progress Header (Amazon style) ── -->
-    <div class="progress-header" id="progress-header">
-        <a href="{% url 'courses:lista' %}" class="back">← Mis Cursos</a>
-        <h2>{{ curso.titulo }}</h2>
-        <div class="progress-track">
-            <div class="progress-fill" id="progress-fill" style="width: {{ progreso }}%"></div>
+<div class="lms-layout" id="lms-layout">
+
+    <!-- ── Header ── -->
+    <header class="lms-header">
+        <a href="{% url 'courses:lista' %}" class="back-btn">← Mis Cursos</a>
+        <button type="button" class="toggle-sidebar" id="btn-toggle-sidebar" onclick="toggleSidebar()" title="Mostrar/ocultar menú">☰</button>
+        <span class="course-title">{{ curso.titulo }}</span>
+        <div class="progress-wrap">
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progress-fill" style="width:{{ progreso }}%"></div>
+            </div>
+            <span class="progress-text" id="progress-text">{{ progreso }}% COMPLETADO</span>
         </div>
-        <span class="progress-pct" id="progress-pct">{{ progreso }}%</span>
-    </div>
+    </header>
 
-    <div class="container">
-
-        <!-- ── Hero ── -->
-        <div class="hero">
-            <h1>{{ curso.titulo }}</h1>
-            {% if curso.descripcion %}<p>{{ curso.descripcion }}</p>{% endif %}
-            <div class="hero-meta">
-                <span>📖 {{ total }} secciones</span>
-                <span>⏱ {{ curso.duracion_estimada }} min</span>
-                <span id="hero-progress">📊 {{ completadas }}/{{ total }} completadas</span>
+    <!-- ── Sidebar ── -->
+    <aside class="lms-sidebar" id="lms-sidebar">
+        <div class="sidebar-header">
+            <h2>{{ curso.titulo }}</h2>
+            <div class="sidebar-progress">
+                <span id="sidebar-pct">{{ progreso }}% COMPLETADO</span>
+                <div class="bar"><div class="bar-fill" id="sidebar-fill" style="width:{{ progreso }}%"></div></div>
             </div>
         </div>
-
-        <!-- ── Secciones lineales ── -->
-        <div id="secciones-container">
+        <nav class="sidebar-nav" id="sidebar-nav">
             {% for item in secciones %}
             {% with s=item.seccion %}
-            <div class="seccion" id="seccion-{{ s.id }}" data-seccion-id="{{ s.id }}">
-                <div class="seccion-head" onclick="toggleSeccion(this)">
-                    <div class="seccion-num {% if item.completado %}done{% else %}{% if forloop.first %}current{% else %}pending{% endif %}{% endif %}" id="num-{{ s.id }}">
-                        {% if item.completado %}✓{% else %}{{ s.orden }}{% endif %}
-                    </div>
-                    <div class="seccion-info">
-                        <h3>{{ s.titulo }}</h3>
-                        <div class="badge">
-                            {% if s.duracion_minutos %}<span>⏱ {{ s.duracion_minutos }} min</span>{% endif %}
-                            {% if not s.obligatorio %}<span>💡 Opcional</span>{% endif %}
-                        </div>
-                    </div>
-                    <div class="seccion-check {% if item.completado %}done{% endif %}" id="check-{{ s.id }}"
-                         onclick="event.stopPropagation(); marcarCompletada({{ s.id }})">
-                        {% if item.completado %}✓{% endif %}
-                    </div>
-                </div>
-                <div class="seccion-body" id="body-{{ s.id }}" style="display: {% if forloop.first or item.completado %}block{% else %}none{% endif %};">
-
-                    {% if s.contenido_html %}
-                    <div class="seccion-contenido">
-                        {{ s.contenido_html|safe }}
-                    </div>
-                    {% endif %}
-
-                    {% if item.paginas %}
-                    <div class="slide-container" data-paginas-count="{{ item.paginas|length }}">
-                        {% for p in item.paginas %}
-                        <div class="slide-page" data-slide-idx="{{ forloop.counter0 }}" {% if not forloop.first %}style="display:none;"{% endif %}>
-                            <div class="slide-header">
-                                <span class="slide-counter">Página {{ forloop.counter }} de {{ item.paginas|length }}</span>
-                                <span class="slide-title">{{ p.titulo }}</span>
-                            </div>
-                            <div class="slide-body">
-                                {% if p.contenido_html %}
-                                {{ p.contenido_html|safe }}
-                                {% else %}
-                                <p style="color:#94a3b8;">Sin contenido disponible.</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                        <div class="slide-nav">
-                            <button type="button" class="slide-prev" onclick="slideNavegar(this, -1)">◀ Anterior</button>
-                            <div class="slide-dots">
-                                {% for p in item.paginas %}
-                                <span class="dot {% if forloop.first %}active{% endif %}" onclick="slideIr(this, {{ forloop.counter0 }})"></span>
-                                {% endfor %}
-                            </div>
-                            <button type="button" class="slide-next" onclick="slideNavegar(this, 1)">Siguiente ▶</button>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                </div>
+            <div class="nav-section-title">{{ s.titulo }}</div>
+            <!-- Section content as nav item -->
+            {% if s.contenido_html %}
+            <div class="nav-item {% if item.completado %}completed{% endif %}"
+                 data-seccion-id="{{ s.id }}" data-page-idx="0"
+                 onclick="navegarA({{ s.id }}, 0)">
+                <span class="nav-icon">{% if item.completado %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
+                <span class="nav-label">Información general</span>
+                <span class="nav-type">≡</span>
             </div>
+            {% endif %}
+            <!-- Pages as nav items -->
+            {% for p in item.paginas %}
+            <div class="nav-item {% if item.completado %}completed{% endif %}"
+                 data-seccion-id="{{ s.id }}" data-page-idx="{{ forloop.counter }}"
+                 onclick="navegarA({{ s.id }}, {{ forloop.counter }})">
+                <span class="nav-icon">{% if item.completado %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
+                <span class="nav-label">{{ p.titulo }}</span>
+                <span class="nav-type">📄</span>
+            </div>
+            {% endfor %}
             {% endwith %}
             {% endfor %}
+        </nav>
+    </aside>
+
+    <!-- ── Main Content Area ── -->
+    <main class="lms-content" id="lms-content">
+        <!-- Hero / Title area -->
+        <div class="content-hero" id="content-hero">
+            <div class="inner">
+                <div class="page-counter" id="page-counter"></div>
+                <h1 id="content-title">{{ curso.titulo }}</h1>
+                <p class="subtitle" id="content-subtitle">{{ curso.descripcion }}</p>
+                <div class="section-badge" id="section-badge"></div>
+            </div>
         </div>
 
-        <!-- ── Banner de curso completado ── -->
-        <div class="complete-banner {% if progreso == 100 %}visible{% endif %}" id="complete-banner">
-            <h2>🎉 ¡Curso Completado!</h2>
-            <p>Has finalizado todas las secciones de este curso.</p>
-            <a href="{% url 'courses:certificado' curso.id %}" class="btn" style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:10px 24px;background:#cba135;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9rem;">🎓 Obtener Certificado</a>
+        <!-- Lesson content -->
+        <div class="content-body" id="content-body">
+            <div class="scroll-progress"><div class="scroll-progress-fill" id="scroll-progress-fill"></div></div>
+            <div class="lesson-content" id="lesson-content">
+                <div class="empty-lesson">
+                    <div class="icon">📖</div>
+                    <p>Selecciona una lección del menú lateral para comenzar</p>
+                </div>
+            </div>
         </div>
+        <!-- Bottom Navigation -->
+        <div class="content-nav" id="content-nav">
+            <div class="inner-nav">
+                <button type="button" class="nav-btn" id="btn-prev" onclick="navegarPrevNext(-1)" disabled>← Anterior</button>
+                <span class="spacer"></span>
+                <span class="page-indicator" id="page-indicator"></span>
+                <span class="spacer"></span>
+                <button type="button" class="nav-btn complete-btn" id="btn-complete" onclick="completarSeccionActual()">✓ Marcar completada</button>
+                <button type="button" class="nav-btn primary" id="btn-next" onclick="navegarPrevNext(1)">Siguiente →</button>
+            </div>
+        </div>
+    </main>
 
+</div>
+
+<!-- ── Completion Modal ── -->
+<div class="completion-overlay" id="completion-overlay">
+    <div class="completion-modal">
+        <div class="trophy">🏆</div>
+        <h2>¡Curso Completado!</h2>
+        <p>Has finalizado todas las secciones de <strong>{{ curso.titulo }}</strong>. ¡Felicidades!</p>
+        <div class="actions">
+            <a href="{% url 'courses:certificado' curso.id %}" class="btn-cert">🎓 Obtener Certificado</a>
+            <button type="button" class="btn-close" onclick="cerrarModal()">Continuar</button>
+        </div>
     </div>
+</div>
 
-    <script>
-        const COMPLETE_URL_TMPL = '{% url "courses:marcar_completada" curso.id 99999 %}';
+<!-- Hidden content containers for each section/page -->
+{% for item in secciones %}
+{% with s=item.seccion %}
+<template id="content-sec-{{ s.id }}">{{ s.contenido_html|safe }}{% for img in item.imagenes_interactivas %}<div class="interactive-image-wrap" data-img-id="{{ img.id }}"><img src="{{ img.imagen.url }}" alt="{{ img.titulo }}" class="interactive-base-img">{% for hs in img.hotspots.all %}<div class="hs-bubble" data-numero="{{ hs.numero }}" data-x="{{ hs.pos_x }}" data-y="{{ hs.pos_y }}" data-titulo="{{ hs.titulo }}" data-contenido="{{ hs.contenido_html|escape }}">{{ hs.numero }}</div>{% endfor %}</div>{% endfor %}{% if item.acordeones %}<div class="accordion-group">{% for ac in item.acordeones %}<div class="accordion-item"><div class="accordion-header" onclick="this.parentElement.classList.toggle('open')"><span class="accordion-title">{{ ac.titulo }}</span><span class="accordion-icon">+</span></div><div class="accordion-body">{{ ac.contenido_html|safe }}</div></div>{% endfor %}</div>{% endif %}{% for car in item.carruseles %}<div class="carousel-wrap">{% if car.titulo %}<div class="carousel-title">{{ car.titulo }}</div>{% endif %}<div class="carousel-container"><button class="carousel-nav prev" onclick="this.nextElementSibling.scrollBy({left:-280,behavior:'smooth'})">‹</button><div class="carousel-track">{% for t in car.tarjetas.all %}<div class="carousel-card">{% if t.imagen %}<img src="{{ t.imagen.url }}" class="carousel-card-img" alt="{{ t.titulo }}">{% endif %}<h4>{{ t.titulo }}</h4><div class="card-content">{{ t.contenido_html|safe }}</div></div>{% endfor %}</div><button class="carousel-nav next" onclick="this.previousElementSibling.scrollBy({left:280,behavior:'smooth'})">›</button></div></div>{% endfor %}</template>
+{% for p in item.paginas %}
+<template id="content-page-{{ p.id }}">{{ p.contenido_html|safe }}{% for img in p.imgs_interactivas %}<div class="interactive-image-wrap" data-img-id="{{ img.id }}"><img src="{{ img.imagen.url }}" alt="{{ img.titulo }}" class="interactive-base-img">{% for hs in img.hotspots.all %}<div class="hs-bubble" data-numero="{{ hs.numero }}" data-x="{{ hs.pos_x }}" data-y="{{ hs.pos_y }}" data-titulo="{{ hs.titulo }}" data-contenido="{{ hs.contenido_html|escape }}">{{ hs.numero }}</div>{% endfor %}</div>{% endfor %}{% if p.acordeones_list %}<div class="accordion-group">{% for ac in p.acordeones_list %}<div class="accordion-item"><div class="accordion-header" onclick="this.parentElement.classList.toggle('open')"><span class="accordion-title">{{ ac.titulo }}</span><span class="accordion-icon">+</span></div><div class="accordion-body">{{ ac.contenido_html|safe }}</div></div>{% endfor %}</div>{% endif %}{% for car in p.carruseles_list %}<div class="carousel-wrap">{% if car.titulo %}<div class="carousel-title">{{ car.titulo }}</div>{% endif %}<div class="carousel-container"><button class="carousel-nav prev" onclick="this.nextElementSibling.scrollBy({left:-280,behavior:'smooth'})">‹</button><div class="carousel-track">{% for t in car.tarjetas.all %}<div class="carousel-card">{% if t.imagen %}<img src="{{ t.imagen.url }}" class="carousel-card-img" alt="{{ t.titulo }}">{% endif %}<h4>{{ t.titulo }}</h4><div class="card-content">{{ t.contenido_html|safe }}</div></div>{% endfor %}</div><button class="carousel-nav next" onclick="this.previousElementSibling.scrollBy({left:280,behavior:'smooth'})">›</button></div></div>{% endfor %}</template>
+{% endfor %}
+{% endwith %}
+{% endfor %}
 
-        // ── Toggle secci�n ──
-        function toggleSeccion(head) {
-            const body = head.nextElementSibling;
-            if (!body) return;
-            const isOpen = body.style.display !== 'none';
-            // Cerrar todas
-            document.querySelectorAll('.seccion-body').forEach(el => el.style.display = 'none');
-            if (!isOpen) body.style.display = 'block';
-            document.querySelectorAll('.seccion-num').forEach(el => {
-                if (el.classList.contains('current')) el.classList.remove('current');
+<script>
+// ══════════════════════════════════════════════════════════════
+// Course Data — injected from Django context
+// ══════════════════════════════════════════════════════════════
+const CURSO_ID = {{ curso.id }};
+const CSRF = '{{ csrf_token }}';
+const COMPLETE_URL_TMPL = '{% url "courses:marcar_completada" curso.id 99999 %}';
+const HEARTBEAT_URL = '{% url "courses:heartbeat" curso.id %}';
+
+// Build the flat page list from secciones
+const SECCIONES = [
+{% for item in secciones %}
+{% with s=item.seccion %}
+{
+    id: {{ s.id }},
+    titulo: '{{ s.titulo|escapejs }}',
+    completado: {{ item.completado|yesno:"true,false" }},
+    obligatorio: {{ s.obligatorio|yesno:"true,false" }},
+    duracion: {{ s.duracion_minutos }},
+    contentId: 'content-sec-{{ s.id }}',
+    paginas: [
+        {% for p in item.paginas %}
+        { id: {{ p.id }}, titulo: '{{ p.titulo|escapejs }}', contentId: 'content-page-{{ p.id }}', duracion: {{ p.duracion_minutos }} },
+        {% endfor %}
+    ]
+},
+{% endwith %}
+{% endfor %}
+];
+
+// Helper: get HTML from a <template> element by ID
+function getTemplateContent(id) {
+    const tpl = document.getElementById(id);
+    if (!tpl) return '';
+    return tpl.innerHTML.trim();
+}
+
+// Build flat navigation pages: each seccion content + each page inside it
+let PAGES = [];
+SECCIONES.forEach((sec, secIdx) => {
+    const secContent = getTemplateContent(sec.contentId);
+    // If section has its own content, add it as first page
+    if (secContent) {
+        PAGES.push({
+            seccionId: sec.id,
+            seccionIdx: secIdx,
+            pageIdx: 0,
+            titulo: sec.titulo,
+            subtitulo: 'Información general',
+            contentId: sec.contentId,
+            tipo: 'seccion'
+        });
+    }
+    // Add each page
+    sec.paginas.forEach((p, pIdx) => {
+        PAGES.push({
+            seccionId: sec.id,
+            seccionIdx: secIdx,
+            pageIdx: pIdx + 1,
+            titulo: p.titulo,
+            subtitulo: sec.titulo,
+            contentId: p.contentId,
+            tipo: 'pagina'
+        });
+    });
+    // If section has no content and no pages, add placeholder
+    if (!secContent && sec.paginas.length === 0) {
+        PAGES.push({
+            seccionId: sec.id,
+            seccionIdx: secIdx,
+            pageIdx: 0,
+            titulo: sec.titulo,
+            subtitulo: '',
+            contentId: null,
+            tipo: 'seccion'
+        });
+    }
+});
+
+let currentPageIdx = 0;
+let totalPages = PAGES.length;
+
+// ── Navigation ──
+function navegarA(seccionId, pageIdx) {
+    const idx = PAGES.findIndex(p => p.seccionId === seccionId && p.pageIdx === pageIdx);
+    if (idx >= 0) {
+        mostrarPagina(idx);
+    }
+}
+
+function navegarPrevNext(dir) {
+    const next = currentPageIdx + dir;
+    if (next >= 0 && next < totalPages) {
+        mostrarPagina(next);
+    }
+}
+
+function mostrarPagina(idx) {
+    if (idx < 0 || idx >= totalPages) return;
+    currentPageIdx = idx;
+    const page = PAGES[idx];
+    const sec = SECCIONES[page.seccionIdx];
+
+    // Update hero
+    document.getElementById('page-counter').textContent = `${idx + 1} de ${totalPages}`;
+    document.getElementById('content-title').textContent = page.titulo;
+    document.getElementById('content-subtitle').textContent = page.subtitulo || '';
+    document.getElementById('section-badge').innerHTML = `📖 ${sec.titulo}`;
+
+    // Update content — read from <template> element
+    const lessonEl = document.getElementById('lesson-content');
+    const htmlContent = page.contentId ? getTemplateContent(page.contentId) : '';
+    if (htmlContent) {
+        lessonEl.innerHTML = htmlContent;
+        // Initialize interactive hotspots
+        inicializarHotspots(lessonEl);
+    } else {
+        lessonEl.innerHTML = '<div class="empty-lesson"><div class="icon">📄</div><p>Esta lección no tiene contenido disponible.</p></div>';
+    }
+
+    // Scroll content to top
+    document.getElementById('content-body').scrollTop = 0;
+    document.getElementById('scroll-progress-fill').style.width = '0%';
+
+    // Update nav buttons
+    document.getElementById('btn-prev').disabled = idx === 0;
+    document.getElementById('btn-next').disabled = idx === totalPages - 1;
+    document.getElementById('page-indicator').textContent = `${idx + 1} / ${totalPages}`;
+
+    // Update complete button
+    const completeBtn = document.getElementById('btn-complete');
+    if (sec.completado) {
+        completeBtn.classList.add('done');
+        completeBtn.textContent = '✓ Completada';
+        completeBtn.disabled = true;
+    } else {
+        completeBtn.classList.remove('done');
+        completeBtn.textContent = '✓ Marcar completada';
+        completeBtn.disabled = false;
+    }
+
+    // Update sidebar active state
+    actualizarSidebarActivo(page.seccionId, page.pageIdx);
+}
+
+function actualizarSidebarActivo(seccionId, pageIdx) {
+    document.querySelectorAll('#sidebar-nav .nav-item').forEach(el => {
+        el.classList.remove('active');
+        if (parseInt(el.dataset.seccionId) === seccionId && parseInt(el.dataset.pageIdx) === pageIdx) {
+            el.classList.add('active');
+            // Scroll into view in sidebar
+            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    });
+}
+
+// ── Complete Section ──
+async function completarSeccionActual() {
+    const page = PAGES[currentPageIdx];
+    const sec = SECCIONES[page.seccionIdx];
+    if (sec.completado) return;
+
+    const btn = document.getElementById('btn-complete');
+    btn.disabled = true;
+    btn.textContent = '⏳ Guardando...';
+
+    try {
+        const resp = await fetch(COMPLETE_URL_TMPL.replace('99999', sec.id), {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF }
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            sec.completado = true;
+            btn.classList.add('done');
+            btn.textContent = '✓ Completada';
+
+            // Update progress
+            actualizarProgreso(data.progreso);
+
+            // Update sidebar icons for this section
+            document.querySelectorAll(`#sidebar-nav .nav-item[data-seccion-id="${sec.id}"]`).forEach(el => {
+                el.classList.add('completed');
+                el.querySelector('.nav-icon').textContent = '✓';
             });
-            if (!isOpen) {
-                const num = head.querySelector('.seccion-num');
-                if (num && !num.classList.contains('done')) num.classList.add('current');
+
+            // Check if course is done
+            if (data.curso_completado) {
+                document.getElementById('completion-overlay').classList.add('show');
+            } else {
+                // Auto-advance to next page
+                setTimeout(() => navegarPrevNext(1), 600);
             }
         }
+    } catch (e) {
+        btn.disabled = false;
+        btn.textContent = '✓ Marcar completada';
+        btn.classList.remove('done');
+    }
+}
 
-        // ── Marcar sección como completada ──
-        async function marcarCompletada(seccionId) {
-            const check = document.getElementById('check-' + seccionId);
-            const num = document.getElementById('num-' + seccionId);
-            const estabaCompleta = check.classList.contains('done');
+function actualizarProgreso(pct) {
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-text').textContent = pct + '% COMPLETADO';
+    document.getElementById('sidebar-fill').style.width = pct + '%';
+    document.getElementById('sidebar-pct').textContent = pct + '% COMPLETADO';
+}
 
-            if (estabaCompleta) return;
+// ── Interactive Hotspots ──
+function inicializarHotspots(container) {
+    // Close any existing popover
+    document.querySelectorAll('.hs-popover').forEach(el => el.remove());
 
-            check.classList.add('done');
-            check.textContent = '✓';
-            num.classList.remove('pending', 'current');
-            num.classList.add('done');
-            num.textContent = '✓';
-
-            try {
-                const resp = await fetch(COMPLETE_URL_TMPL.replace('99999', seccionId), {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    document.getElementById('progress-fill').style.width = data.progreso + '%';
-                    document.getElementById('progress-pct').textContent = data.progreso + '%';
-                    document.getElementById('hero-progress').textContent = '📊 ' + data.completadas + '/' + data.total + ' completadas';
-
-                    if (data.curso_completado) {
-                        document.getElementById('complete-banner').classList.add('visible');
-                        const banner = document.getElementById('complete-banner');
-                        if (!banner.querySelector('.cert-link')) {
-                            const certLink = document.createElement('a');
-                            certLink.href = '{% url "courses:certificado" curso.id %}';
-                            certLink.className = 'cert-link';
-                            certLink.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:10px 24px;background:#cba135;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9rem;';
-                            certLink.textContent = '🎓 Obtener Certificado';
-                            banner.appendChild(certLink);
-                        }
-                    }
-
-                    // Auto-abrir siguiente sección
-                    const currentSeccion = document.getElementById('seccion-' + seccionId);
-                    const nextSeccion = currentSeccion.nextElementSibling;
-                    if (nextSeccion && nextSeccion.classList.contains('seccion')) {
-                        const nextHead = nextSeccion.querySelector('.seccion-head');
-                        if (nextHead) toggleSeccion(nextHead);
-                        nextSeccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                }
-            } catch (e) {
-                check.classList.remove('done');
-                check.textContent = '';
-                num.classList.remove('done');
-                num.classList.add('pending');
-                num.textContent = seccionId;
-            }
-        }
-
-        // ── Heartbeat: track study time ──
-        const HEARTBEAT_URL = '{% url "courses:heartbeat" curso.id %}';
-        let heartbeatInterval = null;
-
-        function sendHeartbeat(action, seconds) {
-            const fd = new FormData();
-            fd.append('action', action);
-            if (seconds) fd.append('seconds', seconds);
-            fetch(HEARTBEAT_URL, { method: 'POST', body: fd, headers: { 'X-CSRFToken': '{{ csrf_token }}' } }).catch(()=>{});
-        }
-
-        // ── Scroll-driven progress bar ──
-        document.addEventListener('DOMContentLoaded', function() {
-            sendHeartbeat('start');
-            let tickCount = 0;
-            heartbeatInterval = setInterval(() => {
-                tickCount++;
-                sendHeartbeat('tick', 30);
-            }, 30000);
-            const fill = document.getElementById('progress-fill');
-            const pct = document.getElementById('progress-pct');
-
-            window.addEventListener('scroll', function() {
-                const scrollTop = window.scrollY;
-                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-                const p = docHeight > 0 ? Math.min((scrollTop / docHeight) * 100, 100) : 0;
-                fill.style.width = p + '%';
-                if (pct) pct.textContent = Math.round(p) + '%';
-            }, { passive: true });
-
-            // Intersection Observer for section highlighting
-            const secciones = document.querySelectorAll('.seccion');
-            if (secciones.length === 0) return;
-
-            const observer = new IntersectionObserver((entries) => {
-                let maxVisible = -1;
-                let maxId = null;
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const idx = Array.from(secciones).indexOf(entry.target);
-                        if (idx > maxVisible) {
-                            maxVisible = idx;
-                            maxId = entry.target.id;
-                        }
-                    }
-                });
-                if (maxId) {
-                    const numEl = document.querySelector('#' + maxId + ' .seccion-num');
-                    if (numEl && !numEl.classList.contains('done')) {
-                        document.querySelectorAll('.seccion-num').forEach(el => el.classList.remove('current'));
-                        numEl.classList.add('current');
-                    }
-                }
-            }, { threshold: 0.3 });
-
-            secciones.forEach(s => observer.observe(s));
-        });
-
-        window.addEventListener('beforeunload', function() {
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
-            sendHeartbeat('tick', 30);
-        });
-
-        // ── Slide navigation ──
-        function slideNavegar(btn, dir) {
-            const nav = btn.closest('.slide-nav');
-            const container = nav.closest('.slide-container');
-            const pages = container.querySelectorAll('.slide-page');
-            let current = 0;
-            pages.forEach((p, i) => { if (p.style.display !== 'none') current = i; });
-            const next = current + dir;
-            if (next < 0 || next >= pages.length) return;
-            pages[current].style.display = 'none';
-            pages[next].style.display = '';
-            const dots = nav.querySelectorAll('.dot');
-            dots.forEach(d => d.classList.remove('active'));
-            if (dots[next]) dots[next].classList.add('active');
-            nav.querySelector('.slide-prev').disabled = next === 0;
-            nav.querySelector('.slide-next').disabled = next === pages.length - 1;
-        }
-
-        function slideIr(dot, idx) {
-            const nav = dot.closest('.slide-nav');
-            const container = nav.closest('.slide-container');
-            const pages = container.querySelectorAll('.slide-page');
-            pages.forEach((p, i) => p.style.display = i === idx ? '' : 'none');
-            nav.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
-            dot.classList.add('active');
-            nav.querySelector('.slide-prev').disabled = idx === 0;
-            nav.querySelector('.slide-next').disabled = idx === pages.length - 1;
-        }
-
-        // Init slide nav states
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.slide-container').forEach(container => {
-                const nav = container.querySelector('.slide-nav');
-                if (nav) {
-                    nav.querySelector('.slide-prev').disabled = true;
-                    const pages = container.querySelectorAll('.slide-page');
-                    if (pages.length <= 1) nav.querySelector('.slide-next').disabled = true;
-                }
+    container.querySelectorAll('.interactive-image-wrap').forEach(wrap => {
+        const bubbles = wrap.querySelectorAll('.hs-bubble');
+        bubbles.forEach(bubble => {
+            // Position the bubble
+            bubble.style.left = bubble.dataset.x + '%';
+            bubble.style.top = bubble.dataset.y + '%';
+            // Click handler
+            bubble.addEventListener('click', function(e) {
+                e.stopPropagation();
+                mostrarPopoverHotspot(wrap, bubble, bubbles);
             });
         });
-    </script>
+    });
+}
+
+function mostrarPopoverHotspot(wrap, bubble, allBubbles) {
+    // Remove existing popover
+    document.querySelectorAll('.hs-popover').forEach(el => el.remove());
+
+    const bubblesArr = Array.from(allBubbles);
+    const currentIdx = bubblesArr.indexOf(bubble);
+    const total = bubblesArr.length;
+
+    const popover = document.createElement('div');
+    popover.className = 'hs-popover show';
+
+    // Decode HTML entities from data-contenido
+    const contenidoRaw = bubble.dataset.contenido || '';
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = contenidoRaw;
+    const contenido = tempDiv.innerHTML;
+
+    popover.innerHTML = `
+        <div class="hs-popover-header">
+            <span class="hs-pop-num">${bubble.dataset.numero}</span>
+            <h4>${bubble.dataset.titulo || 'Hotspot'}</h4>
+            <div class="hs-pop-nav">
+                <button onclick="navPopoverHotspot(this, -1)" ${currentIdx === 0 ? 'disabled' : ''}>‹</button>
+                <button onclick="navPopoverHotspot(this, 1)" ${currentIdx === total - 1 ? 'disabled' : ''}>›</button>
+            </div>
+            <button class="hs-popover-close" onclick="this.closest('.hs-popover').remove()">✕</button>
+        </div>
+        <div class="hs-popover-body">${contenido || '<p style="color:#94a3b8;">Sin contenido</p>'}</div>
+    `;
+
+    // Position popover fixed, near the bubble
+    const bubbleRect = bubble.getBoundingClientRect();
+    let top = bubbleRect.bottom + 8;
+    let left = bubbleRect.left - 140;
+
+    // Keep within viewport
+    if (left < 10) left = 10;
+    if (left + 320 > window.innerWidth) left = window.innerWidth - 330;
+    if (top + 300 > window.innerHeight) top = bubbleRect.top - 308;
+
+    popover.style.top = top + 'px';
+    popover.style.left = left + 'px';
+
+    popover.dataset.wrapId = wrap.dataset.imgId;
+    popover.dataset.currentIdx = currentIdx;
+
+    // Append to body (not to the image wrap) so it doesn't affect layout
+    document.body.appendChild(popover);
+
+    // Close on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closePopover(ev) {
+            if (!popover.contains(ev.target) && !bubble.contains(ev.target)) {
+                popover.remove();
+                document.removeEventListener('click', closePopover);
+            }
+        });
+    }, 100);
+}
+
+function navPopoverHotspot(btn, dir) {
+    const popover = btn.closest('.hs-popover');
+    const imgId = popover.dataset.wrapId;
+    const wrap = document.querySelector(`.interactive-image-wrap[data-img-id="${imgId}"]`);
+    if (!wrap) return;
+    const bubbles = wrap.querySelectorAll('.hs-bubble');
+    const currentIdx = parseInt(popover.dataset.currentIdx) + dir;
+    if (currentIdx < 0 || currentIdx >= bubbles.length) return;
+    popover.remove();
+    mostrarPopoverHotspot(wrap, bubbles[currentIdx], bubbles);
+}
+
+// ── Sidebar Toggle ──
+function toggleSidebar() {
+    const layout = document.getElementById('lms-layout');
+    if (window.innerWidth <= 900) {
+        layout.classList.toggle('sidebar-open');
+    } else {
+        layout.classList.toggle('sidebar-collapsed');
+    }
+}
+
+// ── Modal ──
+function cerrarModal() {
+    document.getElementById('completion-overlay').classList.remove('show');
+}
+
+// ── Keyboard Navigation ──
+document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        navegarPrevNext(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        navegarPrevNext(-1);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        completarSeccionActual();
+    }
+});
+
+// ── Heartbeat: track study time ──
+let heartbeatInterval = null;
+function sendHeartbeat(action, seconds) {
+    const fd = new FormData();
+    fd.append('action', action);
+    if (seconds) fd.append('seconds', seconds);
+    fetch(HEARTBEAT_URL, { method: 'POST', body: fd, headers: { 'X-CSRFToken': CSRF } }).catch(()=>{});
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', function() {
+    // Start heartbeat
+    sendHeartbeat('start');
+    heartbeatInterval = setInterval(() => sendHeartbeat('tick', 30), 30000);
+
+    // Scroll progress bar
+    const contentBody = document.getElementById('content-body');
+    const scrollFill = document.getElementById('scroll-progress-fill');
+    contentBody.addEventListener('scroll', function() {
+        const scrollTop = contentBody.scrollTop;
+        const scrollHeight = contentBody.scrollHeight - contentBody.clientHeight;
+        const pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+        scrollFill.style.width = Math.min(pct, 100) + '%';
+    }, { passive: true });
+
+    // Show first page
+    if (PAGES.length > 0) {
+        // Find first incomplete section, or first page
+        let startIdx = 0;
+        for (let i = 0; i < PAGES.length; i++) {
+            const sec = SECCIONES[PAGES[i].seccionIdx];
+            if (!sec.completado) {
+                startIdx = i;
+                break;
+            }
+        }
+        mostrarPagina(startIdx);
+    }
+
+    // Close sidebar on mobile when clicking content
+    document.getElementById('lms-content').addEventListener('click', function() {
+        if (window.innerWidth <= 900) {
+            document.getElementById('lms-layout').classList.remove('sidebar-open');
+        }
+    });
+});
+
+window.addEventListener('beforeunload', function() {
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    sendHeartbeat('tick', 30);
+});
+</script>
 
 </body>
 </html>

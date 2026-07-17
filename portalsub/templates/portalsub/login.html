@@ -1,0 +1,140 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Portal Subcontratistas | SoftCoM-CCG</title>
+    {% include 'core/pwa_tags.html' %}
+    {% include 'core/fiori_tokens.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: var(--sap-font-family);
+            background: linear-gradient(135deg, var(--sap-shell-bg) 0%, #0a2a4a 100%);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 36px 28px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .login-logo {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .login-logo ion-icon {
+            font-size: 48px;
+            color: var(--sap-primary);
+        }
+        .login-logo h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 12px 0 4px;
+            color: #1a1a2e;
+        }
+        .login-logo p {
+            font-size: 13px;
+            color: #888;
+            margin: 0;
+        }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--sap-primary);
+            box-shadow: 0 0 0 3px rgba(0,120,212,0.12);
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--sap-primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.92; }
+        .error-msg {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .login-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-logo">
+            <ion-icon name="briefcase-outline"></ion-icon>
+            <h1>Portal Subcontratistas</h1>
+            <p>Ingresa con tus credenciales</p>
+        </div>
+
+        {% if error %}
+        <div class="error-msg">
+            <ion-icon name="alert-circle-outline" style="vertical-align: middle; margin-right: 4px;"></ion-icon>
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" name="username" class="form-control" placeholder="Nombre de usuario" required autocomplete="username" autofocus>
+            </div>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" name="password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn">
+                <ion-icon name="log-in-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon>
+                Ingresar
+            </button>
+        </form>
+        <div class="login-footer">
+            SoftCoM-CCG &mdash; Portal de Subcontratistas
+        </div>
+    </div>
+</body>
+</html>

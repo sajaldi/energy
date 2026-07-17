@@ -1,0 +1,321 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'notificaciones/css/notificaciones.css' %}">
+<style>
+    .notif-page {
+        padding: 24px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    .notif-page h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .notif-filters {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+    .notif-filters select, .notif-filters input {
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        background: white;
+    }
+    .notif-filters .btn-filter {
+        padding: 8px 16px;
+        background: #0070f2;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .notif-filters .btn-filter:hover {
+        background: #0058c4;
+    }
+    .notif-filters .btn-clear {
+        padding: 8px 16px;
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 0.85rem;
+    }
+    .notif-page-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .notif-page-item {
+        display: flex;
+        gap: 14px;
+        padding: 16px 18px;
+        background: white;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        transition: all 0.15s;
+        text-decoration: none;
+        color: inherit;
+    }
+    .notif-page-item:hover {
+        border-color: #0070f2;
+        box-shadow: 0 2px 8px rgba(0,112,242,0.08);
+    }
+    .notif-page-item.unread {
+        background: #f0f7ff;
+        border-left: 3px solid #0070f2;
+    }
+    .notif-page-item .notif-item-icon {
+        font-size: 1.5rem;
+    }
+    .notif-page-item .notif-item-title {
+        font-size: 0.95rem;
+    }
+    .notif-page-item .notif-item-msg {
+        font-size: 0.85rem;
+    }
+    .notif-pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 24px;
+    }
+    .notif-pagination button {
+        padding: 8px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: white;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    .notif-pagination button:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+    .notif-pagination button:hover:not(:disabled) {
+        background: #f8fafc;
+    }
+    .notif-pagination span {
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+    .notif-mark-read {
+        padding: 6px 14px;
+        background: transparent;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-left: auto;
+    }
+    .notif-mark-read:hover {
+        background: #f1f5f9;
+    }
+    .notif-empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #94a3b8;
+    }
+    .notif-empty-state ion-icon {
+        font-size: 4rem;
+        color: #d1d5db;
+        margin-bottom: 12px;
+    }
+    .notif-empty-state h2 {
+        font-size: 1.2rem;
+        color: #64748b;
+        margin-bottom: 6px;
+    }
+    .notif-empty-state p {
+        font-size: 0.9rem;
+        margin: 0;
+    }
+    .content-wrapper {
+        background: #f8fafc;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="notif-page">
+    <h1>
+        <ion-icon name="notifications-outline"></ion-icon>
+        Centro de Notificaciones
+        <span id="notif-total-count" style="font-size:0.9rem;font-weight:400;color:#64748b;margin-left:8px;"></span>
+    </h1>
+
+    <div class="notif-filters">
+        <select id="filter-tipo">
+            <option value="">Todos los tipos</option>
+            {% for t in tipos %}
+            <option value="{{ t.value }}">{{ t.label }}</option>
+            {% endfor %}
+        </select>
+        <select id="filter-modulo">
+            <option value="">Todos los módulos</option>
+            {% for m in modulos %}
+            <option value="{{ m.value }}">{{ m.label }}</option>
+            {% endfor %}
+        </select>
+        <select id="filter-leida">
+            <option value="">Todas</option>
+            <option value="0">No leídas</option>
+            <option value="1">Leídas</option>
+        </select>
+        <input type="text" id="filter-q" placeholder="Buscar..." style="flex:1;min-width:150px;">
+        <button class="btn-filter" onclick="notifPage.filter()">Filtrar</button>
+        <a href="#" class="btn-clear" onclick="notifPage.clearFilters()">Limpiar</a>
+        <button class="btn-filter" style="background:#10b981;" onclick="notifPage.markAllRead()">✓ Marcar todas leídas</button>
+    </div>
+
+    <div id="notif-list" class="notif-page-list">
+        <div class="notif-empty-state">
+            <ion-icon name="hourglass-outline"></ion-icon>
+            <p>Cargando notificaciones...</p>
+        </div>
+    </div>
+
+    <div class="notif-pagination" id="notif-pagination"></div>
+</div>
+
+<script src="{% static 'notificaciones/js/notificaciones.js' %}"></script>
+<script>
+    const notifPage = {
+        currentPage: 1,
+        apiBase: '{% url "notificaciones:api_todas" %}',
+
+        async loadPage(page) {
+            this.currentPage = page || 1;
+            const tipo = document.getElementById('filter-tipo').value;
+            const modulo = document.getElementById('filter-modulo').value;
+            const leida = document.getElementById('filter-leida').value;
+            const q = document.getElementById('filter-q').value;
+            const params = new URLSearchParams({
+                page: this.currentPage,
+                per_page: 20,
+            });
+            if (tipo) params.set('tipo', tipo);
+            if (modulo) params.set('modulo', modulo);
+            if (leida) params.set('leida', leida);
+            if (q) params.set('q', q);
+
+            try {
+                const res = await fetch(this.apiBase + '?' + params.toString());
+                const data = await res.json();
+                this.render(data);
+            } catch (e) {
+                document.getElementById('notif-list').innerHTML = `
+                    <div class="notif-empty-state">
+                        <ion-icon name="cloud-offline-outline"></ion-icon>
+                        <p>Error al cargar notificaciones.</p>
+                    </div>`;
+            }
+        },
+
+        render(data) {
+            const container = document.getElementById('notif-list');
+            const pagination = document.getElementById('notif-pagination');
+            document.getElementById('notif-total-count').textContent = `(${data.total} total)`;
+
+            if (data.notificaciones.length === 0) {
+                container.innerHTML = `
+                    <div class="notif-empty-state">
+                        <ion-icon name="notifications-off-outline"></ion-icon>
+                        <h2>No hay notificaciones</h2>
+                        <p>No se encontraron notificaciones con los filtros seleccionados.</p>
+                    </div>`;
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            data.notificaciones.forEach(n => {
+                const moduloClass = (n.modulo || '').toLowerCase().replace(/\s+/g, '_');
+                const link = n.enlace || '#';
+                html += `
+                    <a href="${link}" class="notif-page-item ${n.leida ? '' : 'unread'}" data-id="${n.id}">
+                        <div class="notif-item-icon ${n.tipo.toLowerCase()}">
+                            <ion-icon name="${n.icono || 'information-circle'}"></ion-icon>
+                        </div>
+                        <div class="notif-item-content" style="flex:1;">
+                            <div class="notif-item-title">
+                                ${n.titulo}
+                                <span class="notif-modulo-badge ${moduloClass}">${n.modulo || ''}</span>
+                            </div>
+                            <div class="notif-item-msg">${n.mensaje}</div>
+                            <div class="notif-item-time">${n.creado_en} (${n.tiempo})</div>
+                        </div>
+                        ${!n.leida ? `<button class="notif-mark-read" onclick="event.preventDefault(); event.stopPropagation(); notifPage.markRead(${n.id}, this)">✓ Leída</button>` : ''}
+                    </a>`;
+            });
+            container.innerHTML = html;
+
+            let phtml = '';
+            phtml += `<button onclick="notifPage.loadPage(${data.page - 1})" ${data.page <= 1 ? 'disabled' : ''}>< Anterior</button>`;
+            phtml += `<span>Página ${data.page} de ${data.pages}</span>`;
+            phtml += `<button onclick="notifPage.loadPage(${data.page + 1})" ${data.page >= data.pages ? 'disabled' : ''}>Siguiente ></button>`;
+            pagination.innerHTML = phtml;
+        },
+
+        filter() {
+            this.loadPage(1);
+        },
+
+        clearFilters() {
+            document.getElementById('filter-tipo').value = '';
+            document.getElementById('filter-modulo').value = '';
+            document.getElementById('filter-leida').value = '';
+            document.getElementById('filter-q').value = '';
+            this.loadPage(1);
+        },
+
+        async markRead(id, btn) {
+            try {
+                await fetch('{% url "notificaciones:api_marcar_leida" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ notif_id: id })
+                });
+                const item = btn.closest('.notif-page-item');
+                item.classList.remove('unread');
+                btn.remove();
+            } catch (e) {}
+        },
+
+        async markAllRead() {
+            try {
+                await fetch('{% url "notificaciones:api_marcar_leida" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({})
+                });
+                this.loadPage(1);
+            } catch (e) {}
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => notifPage.loadPage(1));
+</script>
+{% endblock %}

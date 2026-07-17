@@ -1,0 +1,116 @@
+{% extends 'portalsub/base.html' %}
+{% load static %}
+{% block title %}{{ accion }} Personal{% endblock %}
+{% block header_title %}{{ accion }} Personal{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'portalsub:personal_list' %}" class="back-btn">
+    <ion-icon name="arrow-back-outline"></ion-icon>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="person-outline"></ion-icon>
+        {{ accion }} Empleado
+    </div>
+
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-row">
+            <div class="form-group">
+                <label>Nombre *</label>
+                <input type="text" name="nombre" class="form-control" value="{{ empleado.nombre|default:'' }}" required>
+            </div>
+            <div class="form-group">
+                <label>Apellido *</label>
+                <input type="text" name="apellido" class="form-control" value="{{ empleado.apellido|default:'' }}" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Foto</label>
+                <input type="file" name="foto" class="form-control" accept="image/*">
+                {% if empleado.foto %}
+                <div style="margin-top: 6px;">
+                    <img src="{{ empleado.foto.url }}" alt="Foto" style="width: 64px; height: 64px; border-radius: 8px; object-fit: cover;">
+                </div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label>Puesto</label>
+                <select name="puesto_id" class="form-control">
+                    <option value="">— Seleccionar —</option>
+                    {% for p in puestos %}
+                    <option value="{{ p.id }}" {% if empleado.puesto_id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>DNI</label>
+            <input type="text" name="dni" class="form-control" value="{{ empleado.dni|default:'' }}" placeholder="Ej: 0501-1986-06985">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Teléfono</label>
+                <input type="text" name="telefono" class="form-control" value="{{ empleado.telefono|default:'' }}" placeholder="Teléfono del empleado">
+            </div>
+            <div class="form-group">
+                <label>Teléfono de Emergencia</label>
+                <input type="text" name="telefono_emergencia" class="form-control" value="{{ empleado.telefono_emergencia|default:'' }}" placeholder="Contacto de emergencia">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Fecha de Nacimiento</label>
+                <input type="date" name="fecha_nacimiento" class="form-control" value="{{ empleado.fecha_nacimiento|date:'Y-m-d'|default:'' }}">
+            </div>
+            <div class="form-group">
+                <label>Tipo de Sangre</label>
+                <select name="tipo_sangre" class="form-control">
+                    <option value="">— Seleccionar —</option>
+                    <option value="A+" {% if empleado.tipo_sangre == 'A+' %}selected{% endif %}>A+</option>
+                    <option value="A-" {% if empleado.tipo_sangre == 'A-' %}selected{% endif %}>A-</option>
+                    <option value="B+" {% if empleado.tipo_sangre == 'B+' %}selected{% endif %}>B+</option>
+                    <option value="B-" {% if empleado.tipo_sangre == 'B-' %}selected{% endif %}>B-</option>
+                    <option value="AB+" {% if empleado.tipo_sangre == 'AB+' %}selected{% endif %}>AB+</option>
+                    <option value="AB-" {% if empleado.tipo_sangre == 'AB-' %}selected{% endif %}>AB-</option>
+                    <option value="O+" {% if empleado.tipo_sangre == 'O+' %}selected{% endif %}>O+</option>
+                    <option value="O-" {% if empleado.tipo_sangre == 'O-' %}selected{% endif %}>O-</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Fecha de Alta</label>
+            <input type="date" name="fecha_alta" class="form-control" value="{{ empleado.fecha_alta|date:'Y-m-d'|default:'' }}">
+        </div>
+
+        {% if empleado %}
+        <div class="form-group form-check">
+            <input type="checkbox" name="esta_vigente" id="esta_vigente" {% if empleado.esta_vigente %}checked{% endif %}>
+            <label for="esta_vigente" style="margin: 0; cursor: pointer;">Empleado Vigente</label>
+        </div>
+        {% endif %}
+
+        <div style="display: flex; gap: 10px; margin-top: 8px;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">
+                <ion-icon name="save-outline"></ion-icon> Guardar
+            </button>
+            <a href="{% url 'portalsub:personal_list' %}" class="btn btn-secondary" style="flex: 1;">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

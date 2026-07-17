@@ -1,0 +1,204 @@
+{% extends 'portalsub/base.html' %}
+{% load static %}
+{% block title %}Expediente {{ mes_nombre }} {{ anio }}{% endblock %}
+{% block header_title %}Expediente {{ mes_nombre }} {{ anio }}{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'portalsub:expediente' %}" class="back-btn">
+    <ion-icon name="arrow-back-outline"></ion-icon>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title" style="justify-content: space-between; align-items: center;">
+        <span>
+            <ion-icon name="checklist-outline"></ion-icon>
+            Entregables del Mes
+        </span>
+        <span class="badge 
+            {% if expediente.estado == 'APROBADO' %}badge-success
+            {% elif expediente.estado == 'ENVIADO' %}badge-info
+            {% elif expediente.estado == 'RECHAZADO' %}badge-danger
+            {% elif expediente.estado == 'EN_REVISION' %}badge-warning
+            {% else %}badge-secondary{% endif %}">
+            {{ expediente.get_estado_display }}
+        </span>
+    </div>
+
+    <div style="margin: 8px 0;">
+        <div style="height: 8px; background: var(--sap-card-border); border-radius: 4px; overflow: hidden;">
+            <div style="height: 100%; width: {{ progreso }}%; background: var(--sap-primary); border-radius: 4px; transition: width 0.4s;"></div>
+        </div>
+        <div style="font-size: 12px; color: #666; margin-top: 4px;">{{ complete_count }}/{{ total_count }} completados</div>
+    </div>
+
+    {% if expediente.observaciones %}
+    <div class="alert alert-info">
+        <ion-icon name="chatbox-ellipses-outline" style="vertical-align: middle;"></ion-icon>
+        {{ expediente.observaciones }}
+    </div>
+    {% endif %}
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Entregable</th>
+                <th>Estado</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr class="entregable-row" data-target="desc-{{ forloop.counter }}" style="cursor:pointer;">
+                <td style="font-weight: 500;">{{ item.config.tipo_entregable.nombre }}</td>
+                <td>
+                    {% if item.completo %}
+                    <span class="badge badge-success">✔ Completado</span>
+                    {% else %}
+                    <span class="badge badge-danger">✘ Pendiente</span>
+                    {% endif %}
+                </td>
+                <td style="white-space: nowrap;">
+                    <form class="upload-entregable-form" data-tipo="{{ item.config.tipo_entregable_id }}" data-mes="{{ mes }}" style="display: inline; margin: 0;">
+                        {% csrf_token %}
+                        <input type="file" name="archivo" class="file-input" style="display: none;" accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.doc,.docx">
+                        <button type="button" class="btn btn-primary btn-sm upload-entregable-btn" title="Subir documento">
+                            <ion-icon name="cloud-upload-outline"></ion-icon>
+                            {% if item.completo %}Reemplazar{% else %}Subir{% endif %}
+                        </button>
+                    </form>
+                    {% if item.documento %}
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation();previewDocumento('{{ item.documento.archivo.url|escapejs }}')" title="Ver">
+                        <ion-icon name="eye-outline"></ion-icon>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm delete-entregable" data-id="{{ item.documento.id }}" title="Eliminar" onclick="event.stopPropagation();">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% if item.config.tipo_entregable.descripcion %}
+            <tr id="desc-{{ forloop.counter }}" class="desc-row" style="display:none;">
+                <td colspan="3" style="padding:8px 12px 12px 16px;font-size:13px;color:#555;background:#f9f9f9;border-bottom:1px solid #eee;">
+                    {{ item.config.tipo_entregable.descripcion }}
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if expediente.estado == 'BORRADOR' %}
+    <form method="post" action="{% url 'portalsub:enviar_expediente' mes anio %}" style="margin-top: 12px;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success btn-block">
+            <ion-icon name="send-outline"></ion-icon> Enviar para Revisión
+        </button>
+</form>
+{% endif %}
+</div>
+
+<div id="preview-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;padding:16px;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:8px;width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #eee;">
+            <span style="font-weight:600;font-size:14px;">Vista Previa</span>
+            <button type="button" id="close-preview" style="background:none;border:none;font-size:24px;cursor:pointer;color:#666;padding:0;line-height:1;">&times;</button>
+        </div>
+        <div style="flex:1;overflow:auto;padding:16px;display:flex;align-items:center;justify-content:center;background:#f5f5f5;">
+            <iframe id="preview-iframe" style="width:100%;height:70vh;border:none;border-radius:4px;background:white;" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function previewDocumento(url) {
+        document.getElementById('preview-iframe').src = url;
+        document.getElementById('preview-modal').style.display = 'flex';
+    }
+
+    function cerrarPreview() {
+        document.getElementById('preview-iframe').src = '';
+        document.getElementById('preview-modal').style.display = 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('close-preview').addEventListener('click', cerrarPreview);
+        document.getElementById('preview-modal').addEventListener('click', function(e) {
+            if (e.target === this) cerrarPreview();
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('preview-modal');
+                if (modal.style.display === 'flex') cerrarPreview();
+            }
+        });
+    });
+
+    $('.upload-entregable-btn').on('click', function(e) {
+        e.stopPropagation();
+        $(this).closest('.upload-entregable-form').find('.file-input').click();
+    });
+
+    $('.entregable-row').on('click', function() {
+        const target = $(this).data('target');
+        $('#' + target).toggle();
+    });
+
+    $('.file-input').on('change', function() {
+        const form = $(this).closest('.upload-entregable-form');
+        const tipo = form.data('tipo');
+        const mes = form.data('mes');
+        const file = this.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('tipo_entregable_id', tipo);
+        formData.append('mes', mes);
+        formData.append('anio', '{{ anio|stringformat:"d" }}');
+        formData.append('archivo', file);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        $.ajax({
+            url: '{% url "portalsub:subir_entregable" %}',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(resp) {
+                Swal.fire({ icon: 'success', title: 'Subido', text: resp.message, timer: 1500, showConfirmButton: false });
+                setTimeout(() => location.reload(), 1000);
+            },
+            error: function(xhr) {
+                Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.message || 'Error al subir archivo' });
+            }
+        });
+    });
+
+    $('.delete-entregable').on('click', function() {
+        const docId = $(this).data('id');
+        const btn = $(this);
+        Swal.fire({
+            title: '¿Eliminar documento?',
+            text: 'Esta acción no se puede deshacer.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#bb2d3b'
+        }).then(result => {
+            if (result.isConfirmed) {
+                $.post('{% url "portalsub:eliminar_entregable" 0 %}'.replace('/0/', '/' + docId + '/'), {
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                }).done(function() {
+                    btn.closest('td').fadeOut(300, function() { $(this).closest('tr').length > 0; });
+                    Swal.fire('Eliminado', '', 'success');
+                    setTimeout(() => location.reload(), 800);
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

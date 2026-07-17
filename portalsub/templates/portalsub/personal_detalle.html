@@ -1,0 +1,220 @@
+{% extends 'portalsub/base.html' %}
+{% load static %}
+{% block title %}{{ empleado.nombre }} {{ empleado.apellido }}{% endblock %}
+{% block header_title %}{{ empleado.nombre }} {{ empleado.apellido }}{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'portalsub:personal_list' %}" class="back-btn">
+    <ion-icon name="arrow-back-outline"></ion-icon>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; align-items: center; gap: 16px;">
+        {% if empleado.foto %}
+        <img src="{{ empleado.foto.url }}" alt="" style="width: 72px; height: 72px; border-radius: 12px; object-fit: cover;">
+        {% else %}
+        <div style="width: 72px; height: 72px; border-radius: 12px; background: #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 32px; color: #999;">
+            <ion-icon name="person-outline"></ion-icon>
+        </div>
+        {% endif %}
+        <div style="flex: 1;">
+            <h2 style="margin: 0; font-size: 18px;">{{ empleado.nombre }} {{ empleado.apellido }}</h2>
+            <p style="margin: 4px 0; font-size: 13px; color: #666;">{{ empleado.puesto|default:"Sin puesto" }}</p>
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+                {% if empleado.esta_vigente %}
+                <span class="badge badge-success">Vigente</span>
+                {% else %}
+                <span class="badge badge-danger">No Vigente</span>
+                {% endif %}
+                {% if empleado.dni %}
+                <span class="badge badge-info">DNI: {{ empleado.dni }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <a href="{% url 'portalsub:personal_editar' empleado.id %}" class="btn btn-secondary">
+            <ion-icon name="create-outline"></ion-icon> Editar
+        </a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; font-size: 13px;">
+        {% if empleado.telefono %}
+        <div>
+            <div style="color: #999; font-size: 11px;">Teléfono</div>
+            <div>{{ empleado.telefono }}</div>
+        </div>
+        {% endif %}
+        {% if empleado.telefono_emergencia %}
+        <div>
+            <div style="color: #999; font-size: 11px;">Teléfono de Emergencia</div>
+            <div>{{ empleado.telefono_emergencia }}</div>
+        </div>
+        {% endif %}
+        {% if empleado.fecha_nacimiento %}
+        <div>
+            <div style="color: #999; font-size: 11px;">Fecha de Nacimiento</div>
+            <div>{{ empleado.fecha_nacimiento|date:"d/m/Y" }}</div>
+        </div>
+        {% endif %}
+        {% if empleado.tipo_sangre %}
+        <div>
+            <div style="color: #999; font-size: 11px;">Tipo de Sangre</div>
+            <div>{{ empleado.tipo_sangre }}</div>
+        </div>
+        {% endif %}
+        {% if empleado.fecha_alta %}
+        <div>
+            <div style="color: #999; font-size: 11px;">Fecha de Alta</div>
+            <div>{{ empleado.fecha_alta|date:"d/m/Y" }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="folder-outline"></ion-icon>
+        Documentos
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for key, item in docs_status.items %}
+            <tr>
+                <td style="font-weight: 500;">{{ item.label }}</td>
+                <td>
+                    {% if item.documento %}
+                    <span class="badge badge-success">✔ Subido</span>
+                    {% else %}
+                    <span class="badge badge-danger">✘ Pendiente</span>
+                    {% endif %}
+                </td>
+                <td style="white-space: nowrap;">
+                    <form class="doc-upload-form" data-tipo="{{ key }}" style="display: inline; margin: 0;">
+                        {% csrf_token %}
+                        <input type="file" name="archivo" class="doc-file-input" style="display: none;" accept=".pdf,.jpg,.jpeg,.png">
+                        <button type="button" class="btn btn-primary btn-sm doc-upload-btn" title="Subir">
+                            <ion-icon name="cloud-upload-outline"></ion-icon>
+                            {% if item.documento %}Reemplazar{% else %}Subir{% endif %}
+                        </button>
+                    </form>
+                    {% if item.documento %}
+                    <a href="{{ item.documento.archivo.url }}" target="_blank" class="btn btn-secondary btn-sm" title="Ver">
+                        <ion-icon name="eye-outline"></ion-icon>
+                        Ver
+                    </a>
+                    <button type="button" class="btn btn-danger btn-sm doc-delete-btn" data-doc-id="{{ item.documento.id }}" title="Eliminar">
+                        <ion-icon name="trash-outline"></ion-icon>
+                        Eliminar
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" class="empty-state" style="padding:16px;text-align:center;color:#999;">
+                    No hay tipos de documento configurados.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% if historial %}
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="time-outline"></ion-icon>
+        Historial
+    </div>
+    <div style="padding: 4px 0;">
+        {% for h in historial %}
+        <div style="display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--sap-card-border);">
+            <div style="min-width: 80px; font-size: 11px; color: #999;">
+                {{ h.fecha|date:"d/m/Y" }}<br>{{ h.fecha|date:"H:i" }}
+            </div>
+            <div>
+                <span class="badge 
+                    {% if h.tipo == 'ALTA' or h.tipo == 'REINGRESO' %}badge-success
+                    {% elif h.tipo == 'BAJA' %}badge-danger
+                    {% elif h.tipo == 'CAMBIO_PUESTO' %}badge-warning
+                    {% else %}badge-info{% endif %}">
+                    {{ h.get_tipo_display }}
+                </span>
+                {% if h.detalle %}
+                <span style="font-size: 13px; margin-left: 6px;">{{ h.detalle }}</span>
+                {% endif %}
+                {% if h.usuario %}
+                <div style="font-size: 11px; color: #999; margin-top: 2px;">por {{ h.usuario.get_full_name|default:h.usuario.username }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    $(document).on('click', '.doc-upload-btn', function() {
+        $(this).closest('.doc-upload-form').find('.doc-file-input').click();
+    });
+
+    $(document).on('change', '.doc-file-input', function() {
+        const form = $(this).closest('.doc-upload-form');
+        const tipo = form.data('tipo');
+        const file = this.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('tipo', tipo);
+        formData.append('archivo', file);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        $.ajax({
+            url: '{% url "portalsub:subir_documento_personal" empleado.id %}',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(resp) {
+                Swal.fire({ icon: 'success', title: 'Subido', text: resp.message, timer: 1500, showConfirmButton: false });
+                setTimeout(() => location.reload(), 1000);
+            },
+            error: function(xhr) {
+                Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.message || 'Error al subir archivo' });
+            }
+        });
+    });
+
+    $(document).on('click', '.doc-delete-btn', function() {
+        const docId = $(this).data('doc-id');
+        Swal.fire({
+            title: '¿Eliminar documento?',
+            text: 'Esta acción no se puede deshacer.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#bb2d3b'
+        }).then(result => {
+            if (result.isConfirmed) {
+                $.post('{% url "portalsub:eliminar_documento_personal" empleado.id 0 %}'.replace('/0/', '/' + docId + '/'), {
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                }).done(function() {
+                    Swal.fire({ icon: 'success', title: 'Eliminado', timer: 1000, showConfirmButton: false });
+                    setTimeout(() => location.reload(), 800);
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

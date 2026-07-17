@@ -7,12 +7,13 @@
     {% include 'core/fiori_tokens.html' %}
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        html { width: 100%; overflow-x: hidden; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; overflow-x: hidden; width: 100%; max-width: 100vw; }
         a { color: var(--sap-brand-color); text-decoration: none; }
         a:hover { text-decoration: underline; }
 
         /* ── Container ── */
-        .container { max-width: 1400px; margin: 0 auto; padding: 24px 16px 80px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px 16px 80px; overflow: hidden; width: 100%; }
 
         /* ── Messages ── */
         .messages { margin-bottom: 16px; }
@@ -23,13 +24,14 @@
         .card {
             background: var(--sap-card-bg); border: 1px solid var(--sap-border-color);
             box-shadow: var(--sap-card-shadow); margin-bottom: 20px;
+            max-width: 100%; overflow: hidden;
         }
         .card-header {
             padding: 14px 20px; background: var(--sap-group-bg);
             border-bottom: 1px solid var(--sap-border-color);
             font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;
         }
-        .card-body { padding: 20px; }
+        .card-body { padding: 20px; overflow: hidden; }
 
         /* ── Form Fields ── */
         .field-group { margin-bottom: 16px; }
@@ -40,7 +42,7 @@
         .field-group input[type="number"],
         .field-group textarea,
         .field-group select {
-            width: 100%; padding: 8px 10px; border: 1px solid var(--sap-border-color);
+            width: 100%; max-width: 100%; padding: 8px 10px; border: 1px solid var(--sap-border-color);
             border-radius: 4px; font-family: var(--sap-font-family); font-size: 0.9rem;
             background: #fff; transition: border-color 0.15s;
         }
@@ -66,6 +68,7 @@
         .seccion-item {
             background: #fff; border: 1px solid var(--sap-border-color); border-radius: 6px;
             transition: box-shadow 0.15s, border-color 0.15s;
+            max-width: 100%; overflow: hidden;
         }
         .seccion-item:hover { border-color: var(--sap-brand-color); }
         .seccion-item.dragging { opacity: 0.5; border-style: dashed; }
@@ -83,7 +86,7 @@
             padding: 4px 8px; border-radius: 4px; font-size: 1.1rem; transition: all 0.15s;
         }
         .seccion-head .delete-btn:hover { background: var(--sap-error-bg); color: var(--sap-error); }
-        .seccion-body { padding: 16px; display: none; }
+        .seccion-body { padding: 16px; display: none; overflow: hidden; }
         .seccion-body.open { display: block; }
         .seccion-item .seccion-head { cursor: pointer; }
         .seccion-item .drag-handle { cursor: grab; }
@@ -93,7 +96,7 @@
         .html-split textarea { border: none; border-radius: 0; resize: vertical; min-height: 200px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; line-height: 1.6; padding: 10px; }
         .html-split textarea:focus { box-shadow: none; }
         .html-preview {
-            padding: 12px 14px; overflow-y: auto; min-height: 200px; max-height: 400px;
+            padding: 12px 14px; overflow-y: auto; overflow-x: hidden; min-height: 200px; max-height: 400px;
             background: #fff; border-left: 1px solid var(--sap-border-color);
             font-size: 0.9rem; line-height: 1.7; color: #334155;
         }
@@ -102,6 +105,7 @@
         .html-preview img { max-width: 100%; border-radius: 6px; margin: 8px 0; }
         .html-preview iframe { max-width: 100%; border-radius: 6px; margin: 8px 0; aspect-ratio: 16/9; width: 100%; }
         .html-preview video { max-width: 100%; border-radius: 6px; margin: 8px 0; }
+        .html-preview * { max-width: 100% !important; word-wrap: break-word; overflow-wrap: break-word; }
         .html-preview.empty { display: flex; align-items: center; justify-content: center; color: #94a3b8; font-style: italic; }
         .html-preview-tabs { display: flex; gap: 0; margin-bottom: 4px; }
         .html-preview-tabs button { padding: 4px 14px; font-size: 0.78rem; border: 1px solid var(--sap-border-color); background: var(--sap-bg-color); cursor: pointer; border-radius: 4px 4px 0 0; font-family: var(--sap-font-family); color: var(--sap-text-muted); transition: all 0.1s; }
@@ -379,11 +383,76 @@
                                     </div>
                                     {% if seccion_form.instance.id %}
                                     <button type="button" class="add-section-btn" style="padding:8px;font-size:0.82rem;margin-top:6px;" onclick="agregarPagina({{ seccion_form.instance.id }},{{ curso.id }})">+ Agregar Página</button>
+                                    <button type="button" class="add-section-btn" style="padding:8px;font-size:0.82rem;margin-top:6px;border-color:#0e7c86;color:#0e7c86;" onclick="crearImagenInteractiva({{ seccion_form.instance.id }}, null)">🎯 Imagen Interactiva</button>
+                                    <button type="button" class="add-section-btn" style="padding:8px;font-size:0.82rem;margin-top:6px;border-color:#7c3aed;color:#7c3aed;" onclick="agregarAcordeon({{ seccion_form.instance.id }}, null)">📂 Agregar Expandible</button>
+                                    <button type="button" class="add-section-btn" style="padding:8px;font-size:0.82rem;margin-top:6px;border-color:#e06c00;color:#e06c00;" onclick="crearCarrusel({{ seccion_form.instance.id }}, null)">🎠 Agregar Carrusel</button>
+                                    {% endif %}
+
+                                    <!-- Listado de acordeones existentes -->
+                                    {% if seccion_form.instance.id %}
+                                    {% for ac in seccion_form.instance.acordeones.all %}
+                                    <div class="acordeon-editor-item" data-ac-id="{{ ac.id }}" style="margin-top:6px;border:1px solid #e9d5ff;border-radius:6px;overflow:hidden;">
+                                        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#faf5ff;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+                                            <span style="font-size:1rem;">📂</span>
+                                            <span style="flex:1;font-size:0.82rem;font-weight:600;color:#0f172a;">{{ ac.titulo }}</span>
+                                            <button type="button" onclick="event.stopPropagation();eliminarAcordeon({{ ac.id }},this)" style="font-size:0.72rem;padding:3px 8px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:3px;cursor:pointer;font-family:inherit;">✕</button>
+                                        </div>
+                                        <div style="display:none;padding:10px;border-top:1px solid #e9d5ff;">
+                                            <div style="margin-bottom:6px;"><label style="font-size:0.72rem;font-weight:600;color:#64748b;">Título</label><input type="text" value="{{ ac.titulo }}" onchange="actualizarAcordeon({{ ac.id }},{titulo:this.value})" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.82rem;font-family:inherit;"></div>
+                                            <div><label style="font-size:0.72rem;font-weight:600;color:#64748b;">Contenido HTML</label><textarea onchange="actualizarAcordeon({{ ac.id }},{contenido_html:this.value})" style="width:100%;min-height:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.78rem;font-family:Consolas,monospace;resize:vertical;">{{ ac.contenido_html }}</textarea></div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    {% endif %}
+
+                                    <!-- Listado de imágenes interactivas existentes -->
+                                    {% if seccion_form.instance.id %}
+                                    {% for img in seccion_form.instance.imagenes_interactivas.all %}
+                                    <div class="img-interactiva-item" style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-top:6px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:6px;">
+                                        <span style="font-size:1.1rem;">🎯</span>
+                                        <img src="{{ img.imagen.url }}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #d1d5db;" alt="">
+                                        <span style="flex:1;font-size:0.82rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ img.titulo }}</span>
+                                        <span style="font-size:0.7rem;color:#64748b;background:#e2e8f0;padding:2px 8px;border-radius:8px;">{{ img.hotspots.count }} pts</span>
+                                        <a href="{% url 'courses:editar_imagen_interactiva' img.id %}" target="_blank" style="font-size:0.75rem;padding:4px 10px;background:#0e7c86;color:#fff;border-radius:4px;text-decoration:none;font-weight:600;">✎ Editar</a>
+                                        <button type="button" onclick="eliminarImagenInteractiva({{ img.id }}, this)" style="font-size:0.75rem;padding:4px 10px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:4px;cursor:pointer;font-weight:600;font-family:inherit;">✕</button>
+                                    </div>
+                                    {% endfor %}
+                                    {% endif %}
+
+                                    <!-- Listado de carruseles existentes -->
+                                    {% if seccion_form.instance.id %}
+                                    {% for car in seccion_form.instance.carruseles.all %}
+                                    <div class="carrusel-editor-item" data-car-id="{{ car.id }}" style="margin-top:6px;border:1px solid #fed7aa;border-radius:6px;overflow:hidden;">
+                                        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff7ed;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+                                            <span style="font-size:1rem;">🎠</span>
+                                            <span style="flex:1;font-size:0.82rem;font-weight:600;color:#0f172a;">{{ car.titulo }} ({{ car.tarjetas.count }} tarjetas)</span>
+                                            <button type="button" onclick="event.stopPropagation();eliminarCarrusel({{ car.id }},this)" style="font-size:0.72rem;padding:3px 8px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:3px;cursor:pointer;font-family:inherit;">✕</button>
+                                        </div>
+                                        <div style="display:none;padding:10px;border-top:1px solid #fed7aa;">
+                                            <div style="font-size:0.72rem;color:#64748b;margin-bottom:6px;">Tarjetas: {{ car.tarjetas.count }} · <button type="button" onclick="agregarTarjeta({{ car.id }})" style="color:#e06c00;background:none;border:none;cursor:pointer;font-size:0.72rem;font-weight:600;font-family:inherit;">+ Agregar tarjeta</button></div>
+                                            {% for t in car.tarjetas.all %}
+                                            <div class="tarjeta-editor-item" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;margin-bottom:4px;overflow:hidden;">
+                                                <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;font-size:0.78rem;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+                                                    <span style="font-weight:700;color:#e06c00;">{{ t.orden }}.</span>
+                                                    <span style="flex:1;font-weight:600;">{{ t.titulo }}</span>
+                                                    {% if t.imagen %}<span style="font-size:0.65rem;background:#dcfce7;color:#16a34a;padding:1px 6px;border-radius:6px;">IMG</span>{% endif %}
+                                                    <button type="button" onclick="event.stopPropagation();eliminarTarjeta({{ t.id }},this)" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:0.85rem;">✕</button>
+                                                </div>
+                                                <div style="display:none;padding:8px;border-top:1px solid #e2e8f0;">
+                                                    <div style="margin-bottom:6px;"><label style="font-size:0.68rem;font-weight:600;color:#64748b;">TÍTULO</label><input type="text" value="{{ t.titulo }}" onchange="actualizarTarjeta({{ t.id }},{titulo:this.value})" style="width:100%;padding:4px 6px;border:1px solid #d1d5db;border-radius:3px;font-size:0.78rem;font-family:inherit;"></div>
+                                                    <div style="margin-bottom:6px;"><label style="font-size:0.68rem;font-weight:600;color:#64748b;">CONTENIDO HTML</label><textarea onchange="actualizarTarjeta({{ t.id }},{contenido_html:this.value})" style="width:100%;min-height:60px;padding:4px 6px;border:1px solid #d1d5db;border-radius:3px;font-size:0.72rem;font-family:Consolas,monospace;resize:vertical;">{{ t.contenido_html }}</textarea></div>
+                                                    <div><label style="font-size:0.68rem;font-weight:600;color:#64748b;">IMAGEN</label>
+                                                        {% if t.imagen %}<img src="{{ t.imagen.url }}" style="width:60px;height:40px;object-fit:cover;border-radius:3px;margin-right:6px;vertical-align:middle;">{% endif %}
+                                                        <input type="file" accept="image/*" onchange="subirImagenTarjeta({{ t.id }},this)" style="font-size:0.72rem;">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
                                     {% endif %}
                                 </div>
-
-                            </div>
-                        </div>
                         {% endwith %}
                         {% endfor %}
 
@@ -1336,6 +1405,190 @@
             actualizarOrdenes();
             document.querySelectorAll('textarea[name$="-contenido_html"]').forEach(el => actualizarPreview(el));
         });
+
+        // ── Imagen Interactiva (Hotspots) ──
+        function crearImagenInteractiva(seccionId, paginaId) {
+            // Create a file input to select the base image
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = function() {
+                const file = input.files[0];
+                if (!file) return;
+                const fd = new FormData();
+                fd.append('imagen', file);
+                fd.append('titulo', prompt('Título para la imagen interactiva:', 'Imagen interactiva') || 'Imagen interactiva');
+                if (seccionId) fd.append('seccion_id', seccionId);
+                if (paginaId) fd.append('pagina_id', paginaId);
+                fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+                fetch('{% url "courses:crear_imagen_interactiva" %}', { method: 'POST', body: fd })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.ok) {
+                            // Open hotspot editor in new tab
+                            window.open(data.url, '_blank');
+                            // Reload page to show the new image in the list
+                            location.reload();
+                        } else {
+                            alert('Error: ' + (data.error || 'desconocido'));
+                        }
+                    })
+                    .catch(e => alert('Error: ' + e.message));
+            };
+            input.click();
+        }
+
+        function eliminarImagenInteractiva(imgId, btn) {
+            if (!confirm('¿Eliminar esta imagen interactiva y todos sus hotspots?')) return;
+            const fd = new FormData();
+            fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            fetch('/courses/admin/imagen-interactiva/' + imgId + '/eliminar/', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ok) {
+                        const item = btn.closest('.img-interactiva-item');
+                        if (item) item.remove();
+                    } else {
+                        alert('Error al eliminar');
+                    }
+                })
+                .catch(e => alert('Error: ' + e.message));
+        }
+
+        // ── Acordeones (Expandibles) ──
+        function agregarAcordeon(seccionId, paginaId) {
+            const titulo = prompt('Título del elemento expandible:', 'Nuevo elemento');
+            if (!titulo) return;
+            fetch('{% url "courses:guardar_acordeones" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                body: JSON.stringify({ action: 'add', seccion_id: seccionId, pagina_id: paginaId, titulo: titulo })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) location.reload();
+                else alert('Error: ' + JSON.stringify(data));
+            })
+            .catch(e => alert('Error: ' + e.message));
+        }
+
+        function actualizarAcordeon(acId, fields) {
+            fetch('{% url "courses:guardar_acordeones" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                body: JSON.stringify({ action: 'update', id: acId, ...fields })
+            })
+            .then(r => r.json())
+            .catch(e => console.error(e));
+        }
+
+        function eliminarAcordeon(acId, btn) {
+            if (!confirm('¿Eliminar este elemento expandible?')) return;
+            fetch('{% url "courses:guardar_acordeones" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                body: JSON.stringify({ action: 'delete', id: acId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    const item = btn.closest('.acordeon-editor-item');
+                    if (item) item.remove();
+                }
+            })
+            .catch(e => alert('Error: ' + e.message));
+        }
+
+        // ── Carruseles ──
+        function crearCarrusel(seccionId, paginaId) {
+            const titulo = prompt('Título del carrusel:', 'Carrusel');
+            if (!titulo) return;
+            fetch('{% url "courses:guardar_carrusel" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                body: JSON.stringify({ action: 'create', seccion_id: seccionId, pagina_id: paginaId, titulo: titulo })
+            })
+            .then(r => r.json())
+            .then(data => { if (data.ok) location.reload(); })
+            .catch(e => alert('Error: ' + e.message));
+        }
+
+        function eliminarCarrusel(carId, btn) {
+            if (!confirm('¿Eliminar este carrusel y todas sus tarjetas?')) return;
+            fetch('{% url "courses:guardar_carrusel" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                body: JSON.stringify({ action: 'delete', id: carId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    const item = btn.closest('.carrusel-editor-item');
+                    if (item) item.remove();
+                }
+            })
+            .catch(e => alert('Error: ' + e.message));
+        }
+
+        function agregarTarjeta(carruselId) {
+            const titulo = prompt('Título de la tarjeta:', 'Nueva tarjeta');
+            if (!titulo) return;
+            fetch('{% url "courses:guardar_carrusel" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                body: JSON.stringify({ action: 'add_tarjeta', carrusel_id: carruselId, titulo: titulo })
+            })
+            .then(r => r.json())
+            .then(data => { if (data.ok) location.reload(); })
+            .catch(e => alert('Error: ' + e.message));
+        }
+
+        function actualizarTarjeta(tarjetaId, fields) {
+            fetch('{% url "courses:guardar_carrusel" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                body: JSON.stringify({ action: 'update_tarjeta', id: tarjetaId, ...fields })
+            }).catch(e => console.error(e));
+        }
+
+        function eliminarTarjeta(tarjetaId, btn) {
+            if (!confirm('¿Eliminar esta tarjeta?')) return;
+            fetch('{% url "courses:guardar_carrusel" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                body: JSON.stringify({ action: 'delete_tarjeta', id: tarjetaId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) btn.closest('.tarjeta-editor-item').remove();
+            })
+            .catch(e => alert('Error: ' + e.message));
+        }
+
+        function subirImagenTarjeta(tarjetaId, input) {
+            const file = input.files[0];
+            if (!file) return;
+            // First upload the image
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            fetch('{% url "courses:upload_image" %}', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.url) {
+                        // Now save the image URL to the tarjeta via carrusel API
+                        fetch('{% url "courses:guardar_carrusel" %}', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                            body: JSON.stringify({ action: 'set_imagen', id: tarjetaId, imagen_url: data.url })
+                        })
+                        .then(r => r.json())
+                        .then(d => { if (d.ok) location.reload(); });
+                    }
+                })
+                .catch(e => alert('Error: ' + e.message));
+        }
     </script>
 
     <script>

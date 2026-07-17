@@ -18,6 +18,15 @@ urlpatterns = [
     path('admin/<int:pk>/estadisticas/', views.estadisticas_curso, name='estadisticas'),
     path('admin/<int:pk>/importar-scorm/', views.importar_scorm, name='importar_scorm'),
     path('admin/<int:pk>/scorm/<path:subpath>', views.servir_scorm, name='servir_scorm'),
+    # Hotspot editor
+    path('admin/imagen-interactiva/crear/', views.crear_imagen_interactiva, name='crear_imagen_interactiva'),
+    path('admin/imagen-interactiva/<int:img_id>/', views.editar_imagen_interactiva, name='editar_imagen_interactiva'),
+    path('admin/imagen-interactiva/<int:img_id>/hotspots/', views.api_hotspots, name='api_hotspots'),
+    path('admin/imagen-interactiva/<int:img_id>/eliminar/', views.eliminar_imagen_interactiva, name='eliminar_imagen_interactiva'),
+    # Acordeones
+    path('admin/acordeon/guardar/', views.guardar_acordeones, name='guardar_acordeones'),
+    # Carruseles
+    path('admin/carrusel/guardar/', views.guardar_carrusel, name='guardar_carrusel'),
     path('<int:pk>/', views.detalle_curso, name='detalle'),
     path('<int:pk>/certificado/', views.certificado_curso, name='certificado'),
     path('<int:pk>/heartbeat/', views.heartbeat_curso, name='heartbeat'),
