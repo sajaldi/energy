@@ -204,6 +204,7 @@ def trigger_sync_by_folios(request):
     return redirect('admin:callcenter_solicitudticket_changelist')
 
 
+@staff_member_required
 def send_ticket_to_power_automate_view(request, ticket_id):
     # Limpiar ID de posibles comas de formateo regional
     ticket_id = int(str(ticket_id).replace(',', ''))
@@ -2254,12 +2255,51 @@ def verify_correo_cierre_ajax(request, ticket_id):
 
 @staff_member_required
 def get_enlace_details_ajax(request, enlace_id):
-    """Retorna los datos de Institución y Ubicación de un enlace."""
-    from .models import Enlace
-    enlace = get_object_or_404(Enlace, id=enlace_id)
+    """Retorna los datos completos de un enlace y sus tickets asociados."""
+    from .models import Enlace, SolicitudTicket
+    enlace = get_object_or_404(Enlace.objects.select_related('institucion', 'ubicacion', 'oficio_alta', 'oficio_baja'), id=enlace_id)
+
+    tickets = SolicitudTicket.objects.filter(enlace_solicitante=enlace).order_by('-fecha_solicitud')[:50]
+    tickets_data = []
+    for t in tickets:
+        tickets_data.append({
+            'id': t.id,
+            'folio': t.folio or t.id_solicitud,
+            'fecha': t.fecha_solicitud.isoformat() if t.fecha_solicitud else None,
+            'servicio': t.servicio,
+            'area': t.area,
+            'estado': 'Cerrado' if t.fecha_cierre else 'Abierto',
+            'url': f'/admin/callcenter/solicitudticket/{t.id}/change/',
+        })
+
     return JsonResponse({
+        'id': enlace.id,
+        'nombre_completo': str(enlace),
+        'nombre': enlace.nombre,
+        'primer_apellido': enlace.primer_apellido,
+        'segundo_apellido': enlace.segundo_apellido,
+        'institucion': enlace.institucion.nombre,
         'institucion_id': enlace.institucion_id,
+        'ubicacion': enlace.ubicacion.nombre if enlace.ubicacion else None,
         'ubicacion_id': enlace.ubicacion_id,
+        'nivel_referencia': enlace.nivel_referencia,
+        'email': enlace.email,
+        'correo_secundario': enlace.correo_secundario,
+        'telefono': enlace.telefono,
+        'telefono_2': enlace.telefono_2,
+        'extension_ccg': enlace.extension_ccg,
+        'nombre_sig': enlace.nombre_sig,
+        'usuario_sig': enlace.usuario_sig,
+        'pin_sig': enlace.pin_sig,
+        'genero': enlace.get_genero_display() if enlace.genero else None,
+        'contrasena_sig': enlace.contrasena_sig,
+        'oficio_alta': str(enlace.oficio_alta) if enlace.oficio_alta else None,
+        'oficio_alta_id': enlace.oficio_alta_id,
+        'fecha_alta': enlace.fecha_alta.isoformat() if enlace.fecha_alta else None,
+        'oficio_baja': str(enlace.oficio_baja) if enlace.oficio_baja else None,
+        'oficio_baja_id': enlace.oficio_baja_id,
+        'tickets': tickets_data,
+        'total_tickets': len(tickets_data),
     })
 
 @staff_member_required
@@ -2273,14 +2313,14 @@ def api_busqueda_enlaces_ajax(request):
         return JsonResponse({'results': []})
         
     enlaces = Enlace.objects.select_related('institucion', 'ubicacion').filter(
-        Q(nombre__icontains=q) | Q(institucion__nombre__icontains=q) | Q(institucion__acronimo__icontains=q)
+        Q(nombre__icontains=q) | Q(primer_apellido__icontains=q) | Q(segundo_apellido__icontains=q) | Q(institucion__nombre__icontains=q) | Q(institucion__acronimo__icontains=q)
     )[:15]
     
     results = []
     for e in enlaces:
         results.append({
             'id': e.id,
-            'text': f"{e.nombre} - {e.institucion.nombre}",
+            'text': str(e),
             'institucion_id': e.institucion_id,
             'inst_nombre': e.institucion.nombre,
             'ubicacion_id': e.ubicacion_id,
@@ -2290,6 +2330,45 @@ def api_busqueda_enlaces_ajax(request):
         })
         
     return JsonResponse({'results': results})
+
+@staff_member_required
+def enlaces_lista_view(request):
+    from .models import Enlace
+    q = request.GET.get('q', '').strip()
+    institucion_id = request.GET.get('institucion', '').strip()
+    genero = request.GET.get('genero', '').strip()
+
+    enlaces = Enlace.objects.select_related('institucion', 'ubicacion', 'oficio_alta', 'oficio_baja').all()
+
+    if q:
+        from django.db.models import Q
+        enlaces = enlaces.filter(
+            Q(nombre__icontains=q) | Q(primer_apellido__icontains=q) | Q(segundo_apellido__icontains=q) |
+            Q(email__icontains=q) | Q(correo_secundario__icontains=q) |
+            Q(telefono__icontains=q) | Q(telefono_2__icontains=q) |
+            Q(institucion__nombre__icontains=q) | Q(institucion__acronimo__icontains=q)
+        )
+    if institucion_id and institucion_id.isdigit():
+        enlaces = enlaces.filter(institucion_id=int(institucion_id))
+    if genero:
+        enlaces = enlaces.filter(genero=genero)
+
+    from .models import Institucion
+    instituciones = Institucion.objects.all().order_by('nombre')
+
+    total_m = sum(1 for e in enlaces if e.genero == 'M')
+    total_f = sum(1 for e in enlaces if e.genero == 'F')
+
+    return render(request, 'callcenter/enlaces_lista.html', {
+        'enlaces': enlaces,
+        'instituciones': instituciones,
+        'title': 'Enlaces / Contactos',
+        'q': q,
+        'filtro_institucion': institucion_id,
+        'filtro_genero': genero,
+        'total_m': total_m,
+        'total_f': total_f,
+    })
 
 @staff_member_required
 def tiempo_acordado_dashboard_view(request):

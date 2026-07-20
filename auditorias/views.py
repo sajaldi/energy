@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.db import models
 from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from core.decorators import mobile_permission_required
 from django.utils import timezone
@@ -9,6 +10,7 @@ from activos.models import Activo, Ubicacion, Categoria
 from django.db import transaction
 
 @require_POST
+@login_required
 def api_inicializar_auditoria(request, auditoria_id):
     """
     Busca todos los activos que coinciden con las ubicaciones y categorías
@@ -63,6 +65,7 @@ def api_inicializar_auditoria(request, auditoria_id):
     })
 
 @require_POST
+@login_required
 def api_procesar_escaneo(request, auditoria_id):
     """
     Procesa el escaneo de un código de barras o entrada manual.
@@ -128,6 +131,7 @@ def api_procesar_escaneo(request, auditoria_id):
     })
 
 @require_POST
+@login_required
 @mobile_permission_required('auditoria')
 def api_actualizar_conteo(request, auditoria_id):
     """Actualiza la cantidad encontrada para una categoría y ubicación."""
@@ -151,12 +155,14 @@ def api_actualizar_conteo(request, auditoria_id):
     except ValueError:
         return JsonResponse({'error': 'Cantidad inválida'}, status=400)
 
+@login_required
 @mobile_permission_required('auditoria')
 def lista_auditorias(request):
     """Lists audits for the user."""
     auditorias = Auditoria.objects.all().order_by('-fecha_inicio')
     return render(request, 'auditorias/lista_auditorias.html', {'auditorias': auditorias})
 
+@login_required
 @mobile_permission_required('auditoria')
 def ejecutar_auditoria(request, auditoria_id):
     """Renders the scanning interface or counting interface."""
@@ -266,6 +272,7 @@ def ejecutar_auditoria(request, auditoria_id):
 
 
 @require_POST
+@login_required
 def api_finalizar_auditoria(request, auditoria_id):
     """Finaliza la auditoría y marca extraviados."""
     auditoria = get_object_or_404(Auditoria, id=auditoria_id)

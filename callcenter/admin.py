@@ -276,7 +276,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     list_display = ('folio', 'falla_catalogo', 'ubicacion_jerarquica', 'servicio', 'deductiva', 'descripcion', 'fecha_solicitud')
     list_filter = ('servicio', 'falla_reportada', 'fecha_solicitud')
     search_fields = ('folio', 'falla_reportada__nombre', 'servicio')
-    autocomplete_fields = ('activo', 'usuario_responsable')
+    autocomplete_fields = ('activo', 'usuario_responsable', 'enlace_solicitante')
     date_hierarchy = 'fecha_solicitud'
     readonly_fields = ('creado_en', 'actualizado_en', 'robot_estatus', 'robot_log')
     inlines = [HistorialTicketInline]
@@ -386,7 +386,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
             'fields': (('activo', 'ubicacion'), ('area', 'unidad'), ('servicio', 'subservicio'), ('grupo', 'nivel'))
         }),
         ('Detalle de la Solicitud', {
-            'fields': (('solicitante', 'responsable'), 'usuario_responsable', ('tipo_solicitud', 'tiempo_tipo'), 'solicitud_descripcion', 'falla_descripcion', 'falla_clasificacion', 'falla_reportada')
+            'fields': (('solicitante', 'enlace_solicitante'), 'responsable', 'usuario_responsable', ('tipo_solicitud', 'tiempo_tipo'), 'solicitud_descripcion', 'falla_descripcion', 'falla_clasificacion', 'falla_reportada')
         }),
         ('Seguimiento Técnico', {
             'fields': (('fecha_diagnostico', 'diagnostico_reportado', 'diagnostico'), ('fecha_actividades', 'actividades'), ('fecha_observaciones', 'observaciones'), ('fecha_observaciones_usuario', 'observaciones_usuario'))
@@ -445,6 +445,7 @@ class EnlaceInline(admin.TabularInline):
     model = Enlace
     extra = 1
     autocomplete_fields = ('ubicacion',)
+    fields = ('nombre', 'primer_apellido', 'segundo_apellido', 'institucion', 'email', 'telefono')
 
 # --- Import Export Resources ---
 
@@ -470,11 +471,21 @@ class EnlaceResource(resources.ModelResource):
         attribute='ubicacion',
         widget=ForeignKeyWidget(Ubicacion, 'nombre')
     )
+    oficio_alta = fields.Field(
+        column_name='oficio_alta',
+        attribute='oficio_alta',
+        widget=ForeignKeyWidget('documentos.Documento', 'codigo')
+    )
+    oficio_baja = fields.Field(
+        column_name='oficio_baja',
+        attribute='oficio_baja',
+        widget=ForeignKeyWidget('documentos.Documento', 'codigo')
+    )
 
     class Meta:
         model = Enlace
-        fields = ('id', 'nombre', 'institucion', 'email', 'telefono', 'ubicacion')
-        export_order = ('id', 'nombre', 'institucion', 'email', 'telefono', 'ubicacion')
+        fields = ('id', 'nombre', 'primer_apellido', 'segundo_apellido', 'institucion', 'email', 'correo_secundario', 'telefono', 'telefono_2', 'extension_ccg', 'ubicacion', 'nivel_referencia', 'nombre_sig', 'usuario_sig', 'pin_sig', 'genero', 'contrasena_sig', 'oficio_alta', 'fecha_alta', 'oficio_baja')
+        export_order = ('id', 'nombre', 'primer_apellido', 'segundo_apellido', 'institucion', 'email', 'correo_secundario', 'telefono', 'telefono_2', 'extension_ccg', 'ubicacion', 'nivel_referencia', 'nombre_sig', 'usuario_sig', 'pin_sig', 'genero', 'contrasena_sig', 'oficio_alta', 'fecha_alta', 'oficio_baja')
 
 @admin.register(Institucion)
 class InstitucionAdmin(ImportExportModelAdmin):
@@ -491,10 +502,26 @@ class InstitucionAdmin(ImportExportModelAdmin):
 @admin.register(Enlace)
 class EnlaceAdmin(ImportExportModelAdmin):
     resource_class = EnlaceResource
-    list_display = ('nombre', 'institucion', 'email', 'telefono', 'ubicacion')
-    list_filter = ('institucion', 'ubicacion')
-    search_fields = ('nombre', 'email', 'telefono', 'institucion__nombre')
-    autocomplete_fields = ('ubicacion', 'institucion')
+    list_display = ('nombre', 'primer_apellido', 'segundo_apellido', 'institucion', 'email', 'telefono', 'ubicacion')
+    list_filter = ('institucion', 'ubicacion', 'genero')
+    search_fields = ('nombre', 'primer_apellido', 'segundo_apellido', 'email', 'correo_secundario', 'telefono', 'telefono_2', 'institucion__nombre')
+    autocomplete_fields = ('ubicacion', 'institucion', 'oficio_alta', 'oficio_baja')
+    fieldsets = [
+        (None, {
+            'fields': ('nombre', 'primer_apellido', 'segundo_apellido', 'institucion', 'ubicacion', 'nivel_referencia')
+        }),
+        ('Contacto', {
+            'fields': ('email', 'correo_secundario', 'telefono', 'telefono_2', 'extension_ccg')
+        }),
+        ('SIG', {
+            'fields': ('nombre_sig', 'usuario_sig', 'pin_sig', 'contrasena_sig'),
+            'classes': ('collapse',)
+        }),
+        ('Información Adicional', {
+            'fields': ('genero', 'oficio_alta', 'fecha_alta', 'oficio_baja'),
+            'classes': ('collapse',)
+        }),
+    ]
 
 @admin.register(TiempoAcordado)
 class TiempoAcordadoAdmin(admin.ModelAdmin):

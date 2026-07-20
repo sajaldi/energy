@@ -89,6 +89,7 @@ class Material(models.Model):
         ('MEDICAMENTO', 'Medicamento'),
         ('HERRAMIENTA', 'Herramienta'),
         ('EPP', 'Equipo de Protección (EPP)'),
+        ('SERVICIO', 'Servicio'),
         ('OTRO', 'Otro'),
     ]
     tipo_material = models.CharField(max_length=20, choices=TIPO_MATERIAL_CHOICES, default='INSUMO', verbose_name="Tipo de Material")
@@ -106,13 +107,24 @@ class Material(models.Model):
         help_text="Si se seleccionan departamentos, solo los usuarios de estos departamentos podrán utilizar este material. Si está vacío, cualquier usuario podrá utilizarlo (Global)."
     )
     
+    no_afecta_stock = models.BooleanField(
+        default=False,
+        verbose_name="No Afecta Stock",
+        help_text="Activar para materiales de ingreso que no deben afectar inventario (ej. compra de agua, servicios, etc.)"
+    )
+
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
     def get_stock_total(self):
+        if self.no_afecta_stock:
+            return Decimal('0.00')
         return self.existencias.aggregate(total=models.Sum('cantidad'))['total'] or Decimal('0.00')
 
     def recalcular_stock(self):
+        if self.no_afecta_stock:
+            self.existencias.update(cantidad=Decimal('0'))
+            return
         """
         Recalcula las existencias por ubicación y lote desde cero, iterando
         todos los Movimientos de Inventario del material que estén 'APROBADO'.

@@ -16,6 +16,14 @@ class SolicitudTicket(models.Model):
     
     # Personas
     solicitante = models.CharField(max_length=255, blank=True, null=True, db_index=True)
+    enlace_solicitante = models.ForeignKey(
+        'Enlace',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tickets',
+        verbose_name="Enlace Solicitante"
+    )
     responsable = models.CharField(max_length=255, blank=True, null=True, verbose_name="Responsable de Atención")
     
     # Descripciones
@@ -203,6 +211,72 @@ class SolicitudTicket(models.Model):
             distancia=CosineDistance('embedding', query_embedding)
         ).order_by('distancia')[:limit]
 
+    def _resolve_enlace(self):
+        """
+        Auto-resuelve enlace_solicitante comparando el texto de solicitante
+        con los nombres de Enlace existentes.
+        """
+        if not self.solicitante or self.enlace_solicitante:
+            return
+
+        from .models import Enlace
+        from django.db.models import Q
+
+        name = self.solicitante.strip().lower()
+        # Quitar prefijos comunes (Ing., Lic., Dr., etc.)
+        for prefix in ['ing. ', 'lic. ', 'dr. ', 'dra. ', 'arq. ', 'mba. ', 'mc. ']:
+            if name.startswith(prefix):
+                name = name[len(prefix):]
+                break
+
+        parts = name.split()
+        if not parts:
+            return
+
+        # 1. Buscar coincidencia exacta con nombre + apellidos
+        enlace = Enlace.objects.filter(
+            Q(nombre__iexact=parts[0]) &
+            Q(primer_apellido__iexact=parts[1]) if len(parts) > 1 else Q()
+        ).first()
+
+        if not enlace and len(parts) >= 2:
+            # 2. Buscar solo nombre + primer apellido (ignorar segundo)
+            enlace = Enlace.objects.filter(
+                nombre__iexact=parts[0],
+                primer_apellido__iexact=parts[1]
+            ).first()
+
+        if not enlace and len(parts) >= 1:
+            # 3. Buscar solo por nombre
+            enlace = Enlace.objects.filter(nombre__iexact=parts[0]).first()
+
+        if enlace:
+            self.enlace_solicitante = enlace
+            return
+
+        # 4. No se encontró ningún Enlace → crearlo automáticamente
+        parts_list = self.solicitante.strip().split(maxsplit=2)
+        nom = parts_list[0] if parts_list else self.solicitante.strip()
+        ap1 = parts_list[1] if len(parts_list) > 1 else ''
+        ap2 = parts_list[2] if len(parts_list) > 2 else ''
+
+        from .models import Institucion
+        inst = Institucion.objects.first()
+        if not inst:
+            inst = Institucion.objects.create(nombre='Sin Institución')
+
+        enlace = Enlace.objects.create(
+            nombre=nom,
+            primer_apellido=ap1,
+            segundo_apellido=ap2,
+            institucion=inst,
+        )
+        self.enlace_solicitante = enlace
+
+    def save(self, *args, **kwargs):
+        self._resolve_enlace()
+        super().save(*args, **kwargs)
+
 
 class GrupoTicket(models.Model):
     """
@@ -329,9 +403,20 @@ class Enlace(models.Model):
     """
     Persona de contacto en una institución para el seguimiento de tickets.
     """
-    nombre = models.CharField(max_length=255, verbose_name="Nombre Completo")
-    email = models.EmailField(blank=True, null=True, verbose_name="Correo Electrónico")
-    telefono = models.CharField(max_length=50, blank=True, null=True, verbose_name="Teléfono / WhatsApp")
+    GENERO_CHOICES = [
+        ('M', 'Masculino'),
+        ('F', 'Femenino'),
+        ('OTRO', 'Otro'),
+    ]
+
+    nombre = models.CharField(max_length=255, verbose_name="Nombres")
+    primer_apellido = models.CharField(max_length=255, blank=True, null=True, verbose_name="1er Apellido")
+    segundo_apellido = models.CharField(max_length=255, blank=True, null=True, verbose_name="2do Apellido")
+    email = models.EmailField(blank=True, null=True, verbose_name="Correo Principal")
+    correo_secundario = models.EmailField(blank=True, null=True, verbose_name="Correo Secundario")
+    telefono = models.CharField(max_length=50, blank=True, null=True, verbose_name="Teléfono 1")
+    telefono_2 = models.CharField(max_length=50, blank=True, null=True, verbose_name="Teléfono 2")
+    extension_ccg = models.CharField(max_length=20, blank=True, null=True, verbose_name="Extensión CCG")
     institucion = models.ForeignKey(
         Institucion, 
         on_delete=models.CASCADE, 
@@ -344,11 +429,41 @@ class Enlace(models.Model):
         null=True, 
         blank=True, 
         related_name='enlaces', 
-        verbose_name="Ubicación por Defecto"
+        verbose_name="Ubicación"
+    )
+    nivel_referencia = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nivel de Referencia",
+                                        help_text="Manual / Nivel jerárquico dentro de la institución")
+    nombre_sig = models.CharField(max_length=100, blank=True, null=True, verbose_name="Nombre SIG")
+    usuario_sig = models.CharField(max_length=100, blank=True, null=True, verbose_name="Usuario SIG")
+    pin_sig = models.IntegerField(blank=True, null=True, verbose_name="PIN SIG")
+    genero = models.CharField(max_length=10, choices=GENERO_CHOICES, blank=True, null=True, verbose_name="Género")
+    contrasena_sig = models.CharField(max_length=255, blank=True, null=True, verbose_name="Contraseña SIG")
+    oficio_alta = models.ForeignKey(
+        'documentos.Documento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='enlaces_oficio_alta',
+        verbose_name="Oficio de Alta"
+    )
+    fecha_alta = models.DateField(blank=True, null=True, verbose_name="Fecha de Alta")
+    oficio_baja = models.ForeignKey(
+        'documentos.Documento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='enlaces_oficio_baja',
+        verbose_name="Oficio de Baja"
     )
 
     def __str__(self):
-        return f"{self.nombre} ({self.institucion.nombre})"
+        parts = [self.nombre]
+        if self.primer_apellido:
+            parts.append(self.primer_apellido)
+        if self.segundo_apellido:
+            parts.append(self.segundo_apellido)
+        nombre_completo = ' '.join(parts)
+        return f"{nombre_completo} ({self.institucion.nombre})"
 
     class Meta:
         verbose_name = "Enlace / Contacto"

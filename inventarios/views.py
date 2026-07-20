@@ -1619,6 +1619,9 @@ def api_ingreso_lote(request):
                     
                     if cantidad <= 0: continue
 
+                    if material.no_afecta_stock:
+                        continue
+
                     lote_obj = None
                     if lote_codigo and str(lote_codigo).strip():
                         lote_obj, _ = Lote.objects.get_or_create(
@@ -1863,6 +1866,7 @@ def api_create_material(request):
             marca_id = request.POST.get('marca_id')
             tipo_material = request.POST.get('tipo_material', 'INSUMO')
             descripcion = request.POST.get('descripcion', '')
+            no_afecta_stock = request.POST.get('no_afecta_stock') == 'true'
 
             if not nombre or not sku:
                 return JsonResponse({'status': 'error', 'message': 'Nombre y SKU son obligatorios'}, status=400)
@@ -1894,6 +1898,7 @@ def api_create_material(request):
                     if marca_id: existing_material.marca_id = marca_id
                     if descripcion: existing_material.descripcion = descripcion
                     existing_material.tipo_material = tipo_material if tipo_material in dict(Material.TIPO_MATERIAL_CHOICES) else 'INSUMO'
+                    existing_material.no_afecta_stock = no_afecta_stock
                     existing_material.save()
                     material = existing_material
                     created = False
@@ -1907,6 +1912,7 @@ def api_create_material(request):
                         marca_id=marca_id,
                         tipo_material=tipo_material if tipo_material in dict(Material.TIPO_MATERIAL_CHOICES) else 'INSUMO',
                         descripcion=descripcion,
+                        no_afecta_stock=no_afecta_stock,
                     )
                     created = True
 
@@ -1919,8 +1925,8 @@ def api_create_material(request):
                         material.imagen = f
                         material.save()
 
-                # 3. Stock Inicial
-                if stock_inicial > 0 and ubicacion_id:
+                # 3. Stock Inicial (solo para materiales que afectan stock)
+                if stock_inicial > 0 and ubicacion_id and not no_afecta_stock:
                     try:
                         ubicacion = Ubicacion.objects.get(id=ubicacion_id)
                         mov = MovimientoInventario.objects.create(

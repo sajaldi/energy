@@ -1,9 +1,11 @@
 from django.core.files.storage import default_storage
 from django.http import FileResponse, HttpResponseNotFound
+from django.contrib.auth.decorators import login_required
 import logging
 
 logger = logging.getLogger(__name__)
 
+@login_required
 def media_proxy(request, path):
     """
     Proxy de medios usando el motor de storage de Django.

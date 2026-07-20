@@ -216,13 +216,34 @@ class MaterialAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/inventarios/material/change_list.html'
     change_form_template = 'admin/inventarios/material/change_form.html'
     resource_class = MaterialResource
-    list_display = ('sku', 'nombre', 'categoria', 'tipo_material', 'unidad_medida', 'peso', 'get_stock_total', 'tiene_imagen')
+    list_display = ('sku', 'nombre', 'categoria', 'tipo_material', 'unidad_medida', 'peso', 'get_stock_total', 'tiene_imagen', 'no_afecta_stock')
     search_fields = ('nombre', 'sku')
-    list_filter = ('categoria', 'tipo_material', 'unidad_medida')
+    list_filter = ('categoria', 'tipo_material', 'unidad_medida', 'no_afecta_stock')
     list_select_related = ('categoria', 'marca')
     filter_horizontal = ('departamentos',)
     inlines = [StockRecordInline]
     readonly_fields = ('imagen_preview',)
+    fieldsets = [
+        (None, {
+            'fields': ('sku', 'nombre', 'marca', 'descripcion', 'categoria', 'unidad_medida', 'tipo_material')
+        }),
+        ('Precio y Stock', {
+            'fields': ('precio_estimado', 'stock_minimo', 'no_afecta_stock'),
+            'description': 'Marque "No afecta stock" para materiales de servicio/gasto que no deben registrar inventario.'
+        }),
+        ('Dimensiones', {
+            'fields': ('alto', 'ancho', 'peso', 'profundidad'),
+            'classes': ('collapse',)
+        }),
+        ('Imagen', {
+            'fields': ('imagen', 'imagen_preview'),
+            'classes': ('collapse',)
+        }),
+        ('Departamentos', {
+            'fields': ('departamentos',),
+            'classes': ('collapse',)
+        }),
+    ]
 
     def tiene_imagen(self, obj):
         if obj.imagen:

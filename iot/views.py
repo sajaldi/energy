@@ -1,11 +1,13 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.db.models import OuterRef, Subquery
+from django.contrib.auth.decorators import login_required
 from asgiref.sync import sync_to_async
 import asyncio
 from .models import BACnetDevice, Telemetry, BACnetPoint, BACnetSchedule
 from .services import bacnet_service
 
+@login_required
 def dashboard(request):
     """Vista principal para monitoreo IoT"""
     devices = BACnetDevice.objects.all().prefetch_related('points')
@@ -49,6 +51,7 @@ async def _do_device_sync(device_id):
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
+@login_required
 def sync_device(request, device_id):
     """Endpoint AJAX para sincronizar un dispositivo"""
     if request.method == 'POST':

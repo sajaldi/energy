@@ -1,0 +1,429 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} | SoftCom-CCG</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        @font-face {
+            font-family: 'Autodesk Fusion';
+            src: local('Autodesk Fusion'), local('AutodeskFusion');
+        }
+        :root {
+            --sap-shell-bg: #eff4f9;
+            --sap-card-bg: #ffffff;
+            --sap-primary: #0070f2;
+            --sap-primary-hover: #005bb7;
+            --sap-success: #107c41;
+            --sap-warning: #e9730c;
+            --sap-danger: #bb0000;
+            --sap-text: #32363a;
+            --sap-text-muted: #6a6d70;
+            --sap-border: #d8d8d8;
+            --sap-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.05);
+            --sap-radius: 0;
+            --sap-shell: #1a2a3a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0;
+            background: var(--sap-shell-bg);
+            font-family: 'Autodesk Fusion', Arial, sans-serif;
+            color: var(--sap-text);
+        }
+        .shell-bar {
+            background: var(--sap-shell); color: #fff;
+            padding: 0 2rem; display: flex; align-items: center;
+            height: 48px; gap: 1rem;
+        }
+        .shell-bar .brand { font-weight: 700; font-size: 1rem; letter-spacing: 0.3px; }
+        .shell-bar .breadcrumb { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
+        .shell-bar .breadcrumb a { color: rgba(255,255,255,0.7); text-decoration: none; }
+        .shell-bar .breadcrumb a:hover { color: #fff; }
+        .shell-bar .breadcrumb span { color: #fff; }
+        .page { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+        .header-card {
+            background: var(--sap-card-bg);
+            box-shadow: var(--sap-shadow);
+            padding: 1.5rem 2rem; margin-bottom: 1.5rem;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;
+        }
+        .header-card h1 { margin: 0; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.6rem; }
+        .header-card h1 i { color: var(--sap-primary); }
+        .header-card p { margin: 0.25rem 0 0; color: var(--sap-text-muted); font-size: 0.85rem; }
+        .btn-primary {
+            background: var(--sap-primary); color: #fff; padding: 0.55rem 1.5rem;
+            text-decoration: none; font-weight: 600; font-size: 0.85rem;
+            border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;
+            transition: background 0.2s; letter-spacing: 0.3px;
+        }
+        .btn-primary:hover { background: var(--sap-primary-hover); }
+        .btn-outline {
+            background: transparent; color: var(--sap-text); padding: 0.5rem 1.25rem;
+            text-decoration: none; font-weight: 500; font-size: 0.82rem;
+            border: 1px solid var(--sap-border); cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
+            transition: all 0.2s;
+        }
+        .btn-outline:hover { background: #f5f5f5; }
+        .btn-sm { padding: 0.35rem 0.8rem; font-size: 0.78rem; }
+        .filters-card {
+            background: var(--sap-card-bg);
+            box-shadow: var(--sap-shadow);
+            padding: 1rem 2rem; margin-bottom: 1.5rem;
+            display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+        }
+        .filters-card input, .filters-card select {
+            height: 36px; padding: 0 0.75rem; border: 1px solid var(--sap-border);
+            font-size: 0.84rem; font-family: inherit;
+            background: #fff; min-width: 180px; border-radius: 0;
+        }
+        .filters-card input:focus, .filters-card select:focus {
+            border-color: var(--sap-primary); outline: none;
+        }
+        .table-card {
+            background: var(--sap-card-bg);
+            box-shadow: var(--sap-shadow); overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: #f5f7fa; }
+        th {
+            padding: 0.85rem 1rem; text-align: left;
+            font-size: 0.7rem; font-weight: 700; color: var(--sap-text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+            border-bottom: 2px solid var(--sap-border);
+        }
+        td {
+            padding: 0.75rem 1rem; border-bottom: 1px solid #eee;
+            font-size: 0.84rem; vertical-align: middle;
+        }
+        tbody tr:hover { background: #f5f7fa; }
+        .badge {
+            display: inline-block; padding: 0.2rem 0.5rem;
+            font-size: 0.7rem; font-weight: 600; white-space: nowrap;
+        }
+        .badge-inst { background: #eef2f5; color: var(--sap-text); }
+        .badge-m { background: #e1f0ff; color: var(--sap-primary); }
+        .badge-f { background: #fce7f3; color: #be185d; }
+        .badge-otro { background: #f3f4f6; color: #6b7280; }
+        .empty {
+            text-align: center; padding: 4rem 1rem; color: var(--sap-text-muted);
+        }
+        .empty i { font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block; }
+        .empty h3 { font-weight: 600; color: var(--sap-text-muted); margin: 0 0 0.3rem; }
+        .action-link {
+            color: var(--sap-text-muted); text-decoration: none; font-weight: 500;
+            padding: 0.3rem 0.5rem; transition: all 0.15s;
+        }
+        .action-link:hover { color: var(--sap-primary); background: #eef2f5; }
+        .actions { display: flex; gap: 0.3rem; }
+        .stats-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: var(--sap-card-bg);
+            box-shadow: var(--sap-shadow);
+            padding: 1.25rem; text-align: center;
+        }
+        .stat-card .num { font-size: 1.75rem; font-weight: 700; }
+        .stat-card .label { font-size: 0.68rem; color: var(--sap-text-muted); text-transform: uppercase; font-weight: 600; margin-top: 4px; letter-spacing: 0.5px; }
+        .stat-card.total .num { color: var(--sap-primary); }
+        .stat-card.masc .num { color: var(--sap-primary); }
+        .stat-card.fem .num { color: #be185d; }
+        .tab-btn.active { color: var(--sap-primary) !important; border-bottom-color: var(--sap-primary) !important; }
+        .tab-btn.active i { color: var(--sap-primary); }
+        @media (max-width: 768px) {
+            .page { padding: 1rem; }
+            .header-card { flex-direction: column; align-items: start; }
+            .filters-card input, .filters-card select { min-width: 120px; flex: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell-bar">
+        <span class="brand"><i class="ph ph-headset" style="margin-right:6px;"></i>Energía SoftCom</span>
+        <div class="breadcrumb">
+            <a href="/callcenter/dashboard/"><i class="ph ph-gauge"></i></a>
+            <i class="ph ph-caret-right" style="font-size:0.7rem; opacity:0.5;"></i>
+            <span>Enlaces / Contactos</span>
+        </div>
+    </div>
+
+    <div class="page">
+        <div class="header-card">
+            <div>
+                <h1><i class="ph ph-address-book"></i> Enlaces / Contactos</h1>
+                <p>Directorio de contactos institucionales vinculados al call center</p>
+            </div>
+            <a href="/admin/callcenter/enlace/add/" target="_blank" class="btn-primary">
+                <i class="ph ph-plus-circle"></i> Nuevo Enlace
+            </a>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card total">
+                <div class="num">{{ enlaces|length }}</div>
+                <div class="label">Total Enlaces</div>
+            </div>
+            <div class="stat-card masc">
+                <div class="num">{{ total_m }}</div>
+                <div class="label">Masculinos</div>
+            </div>
+            <div class="stat-card fem">
+                <div class="num">{{ total_f }}</div>
+                <div class="label">Femeninos</div>
+            </div>
+        </div>
+
+        <form class="filters-card" method="GET">
+            <input type="text" name="q" placeholder="Buscar nombre, correo, teléfono, institución..." value="{{ q }}" style="flex:1; min-width:200px;">
+            <select name="institucion">
+                <option value="">Todas las instituciones</option>
+                {% for inst in instituciones %}
+                <option value="{{ inst.id }}" {% if filtro_institucion == inst.id|stringformat:"d" %}selected{% endif %}>{{ inst.nombre }}</option>
+                {% endfor %}
+            </select>
+            <select name="genero">
+                <option value="">Todos los géneros</option>
+                <option value="M" {% if filtro_genero == 'M' %}selected{% endif %}>Masculino</option>
+                <option value="F" {% if filtro_genero == 'F' %}selected{% endif %}>Femenino</option>
+                <option value="OTRO" {% if filtro_genero == 'OTRO' %}selected{% endif %}>Otro</option>
+            </select>
+            <button type="submit" class="btn-outline btn-sm"><i class="ph ph-magnifying-glass"></i> Filtrar</button>
+            {% if q or filtro_institucion or filtro_genero %}
+            <a href="{% url 'callcenter:enlaces_lista' %}" class="btn-outline btn-sm"><i class="ph ph-x-circle"></i> Limpiar</a>
+            {% endif %}
+        </form>
+
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre Completo</th>
+                        <th>Institución</th>
+                        <th>Contacto</th>
+                        <th>Ext.</th>
+                        <th>Ubicación</th>
+                        <th>Nivel Ref.</th>
+                        <th>Género</th>
+                        <th>SIG</th>
+                        <th style="text-align:center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in enlaces %}
+                    <tr>
+                        <td>
+                            <a href="#" onclick="openEnlaceModal({{ e.id }}); return false;" style="font-weight:600; color:var(--sap-primary); text-decoration:none; cursor:pointer;">
+                                {{ e.nombre }}
+                                {% if e.primer_apellido %} {{ e.primer_apellido }}{% endif %}
+                                {% if e.segundo_apellido %} {{ e.segundo_apellido }}{% endif %}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge badge-m">{{ e.institucion.nombre }}</span>
+                        </td>
+                        <td>
+                            <div>{% if e.email %}<i class="ph ph-envelope" style="font-size:0.75rem; margin-right:3px;"></i>{{ e.email }}{% endif %}</div>
+                            <div style="color:var(--sap-text-muted); font-size:0.78rem;">
+                                {% if e.correo_secundario %}{{ e.correo_secundario }}{% endif %}
+                            </div>
+                            <div style="margin-top:2px;">
+                                {% if e.telefono %}<i class="ph ph-phone" style="font-size:0.75rem;"></i> {{ e.telefono }}{% endif %}
+                                {% if e.telefono_2 %} / {{ e.telefono_2 }}{% endif %}
+                            </div>
+                        </td>
+                        <td style="font-family:monospace;">{{ e.extension_ccg|default:"—" }}</td>
+                        <td style="font-size:0.8rem;">{{ e.ubicacion.nombre|default:"—" }}</td>
+                        <td style="font-size:0.8rem;">{{ e.nivel_referencia|default:"—" }}</td>
+                        <td>
+                            {% if e.genero == 'M' %}<span class="badge badge-m">M</span>
+                            {% elif e.genero == 'F' %}<span class="badge badge-f">F</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td style="font-size:0.78rem;">
+                            {% if e.usuario_sig %}<div><strong>User:</strong> {{ e.usuario_sig }}</div>{% endif %}
+                            {% if e.nombre_sig %}<div style="color:var(--sap-text-muted);">{{ e.nombre_sig }}</div>{% endif %}
+                        </td>
+                        <td style="text-align:center;">
+                            <div class="actions" style="justify-content:center;">
+                                <a href="/admin/callcenter/enlace/{{ e.pk }}/change/" target="_blank" class="action-link" title="Editar">
+                                    <i class="ph ph-pencil-simple"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9">
+                            <div class="empty">
+                                <i class="ph ph-address-book"></i>
+                                <h3>No hay enlaces registrados</h3>
+                                <p style="color:var(--sap-text-muted);">Crea un nuevo enlace desde el botón "Nuevo Enlace".</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="enlaceModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(26,42,58,0.8); z-index:1000; align-items:center; justify-content:center; backdrop-filter:blur(2px);">
+        <div style="background:#fff; width:640px; max-width:94vw; max-height:90vh; overflow-y:auto; box-shadow:0 1rem 3rem rgba(0,0,0,0.3); display:flex; flex-direction:column;">
+            <div style="background:var(--sap-shell); color:#fff; padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="margin:0; font-size:1rem; font-weight:600; display:flex; align-items:center; gap:0.6rem;">
+                    <i class="ph ph-address-book" style="color:#89c3f8;"></i>
+                    <span id="modal-title">Enlace</span>
+                </h2>
+                <button onclick="closeEnlaceModal()" style="background:none; border:none; color:rgba(255,255,255,0.7); font-size:1.3rem; cursor:pointer; padding:0; line-height:1;">✕</button>
+            </div>
+            <div style="border-bottom:1px solid var(--sap-border); display:flex; padding:0 1.5rem;">
+                <button id="tab-datos" class="tab-btn active" onclick="switchTab('datos')" style="flex:1; padding:0.75rem 0; border:none; background:none; cursor:pointer; font-size:0.82rem; font-weight:600; color:var(--sap-primary); border-bottom:3px solid var(--sap-primary); transition:all 0.15s;">
+                    <i class="ph ph-address-book"></i> Datos del Enlace
+                </button>
+                <button id="tab-tickets" class="tab-btn" onclick="switchTab('tickets')" style="flex:1; padding:0.75rem 0; border:none; background:none; cursor:pointer; font-size:0.82rem; font-weight:600; color:var(--sap-text-muted); border-bottom:3px solid transparent; transition:all 0.15s;">
+                    <i class="ph ph-ticket"></i> Tickets <span id="ticket-count-badge" style="background:var(--sap-primary); color:#fff; font-size:0.65rem; padding:0.1rem 0.4rem; margin-left:4px;"></span>
+                </button>
+            </div>
+            <div style="padding:1.5rem;">
+                <div id="tab-datos-content">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <tbody id="modal-body-datos"></tbody>
+                    </table>
+                </div>
+                <div id="tab-tickets-content" style="display:none;">
+                    <div id="modal-body-tickets"></div>
+                </div>
+            </div>
+            <div style="padding:1rem 1.5rem; border-top:1px solid var(--sap-border); display:flex; justify-content:flex-end; gap:0.5rem;">
+                <a id="modal-edit-btn" href="#" target="_blank" class="btn-primary" style="font-size:0.82rem; padding:0.45rem 1rem;">
+                    <i class="ph ph-pencil-simple"></i> Editar en Admin
+                </a>
+                <button onclick="closeEnlaceModal()" class="btn-outline btn-sm">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    var currentEnlaceData = null;
+
+    function switchTab(tab) {
+        document.getElementById('tab-datos').className = 'tab-btn' + (tab === 'datos' ? ' active' : '');
+        document.getElementById('tab-tickets').className = 'tab-btn' + (tab === 'tickets' ? ' active' : '');
+        document.getElementById('tab-datos-content').style.display = tab === 'datos' ? 'block' : 'none';
+        document.getElementById('tab-tickets-content').style.display = tab === 'tickets' ? 'block' : 'none';
+        document.getElementById('tab-datos').style.cssText = 'flex:1; padding:0.75rem 0; border:none; background:none; cursor:pointer; font-size:0.82rem; font-weight:600; color:' + (tab === 'datos' ? 'var(--sap-primary)' : 'var(--sap-text-muted)') + '; border-bottom:3px solid ' + (tab === 'datos' ? 'var(--sap-primary)' : 'transparent') + '; transition:all 0.15s;';
+        document.getElementById('tab-tickets').style.cssText = 'flex:1; padding:0.75rem 0; border:none; background:none; cursor:pointer; font-size:0.82rem; font-weight:600; color:' + (tab === 'tickets' ? 'var(--sap-primary)' : 'var(--sap-text-muted)') + '; border-bottom:3px solid ' + (tab === 'tickets' ? 'var(--sap-primary)' : 'transparent') + '; transition:all 0.15s;';
+    }
+
+    function openEnlaceModal(id) {
+        currentEnlaceData = null;
+        switchTab('datos');
+        document.getElementById('modal-title').textContent = 'Cargando...';
+        document.getElementById('modal-body-datos').innerHTML = '<tr><td colspan="2" style="padding:2rem;text-align:center;color:var(--sap-text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;"></i><br>Cargando...</td></tr>';
+        document.getElementById('modal-body-tickets').innerHTML = '';
+        document.getElementById('ticket-count-badge').textContent = '';
+        document.getElementById('enlaceModal').style.display = 'flex';
+
+        fetch('/callcenter/api/enlace/' + id + '/details/')
+            .then(r => r.json())
+            .then(d => {
+                currentEnlaceData = d;
+                document.getElementById('modal-title').textContent = d.nombre_completo;
+                document.getElementById('modal-edit-btn').href = '/admin/callcenter/enlace/' + d.id + '/change/';
+
+                // Datos del enlace
+                const fields = [
+                    { label: 'Nombres', value: d.nombre },
+                    { label: '1er Apellido', value: d.primer_apellido },
+                    { label: '2do Apellido', value: d.segundo_apellido },
+                    { label: 'Institución', value: d.institucion, badge: true },
+                    { label: 'Ubicación', value: d.ubicacion },
+                    { label: 'Nivel de Referencia', value: d.nivel_referencia },
+                    { label: 'Correo Principal', value: d.email, link: 'mailto:' + (d.email || '') },
+                    { label: 'Correo Secundario', value: d.correo_secundario, link: 'mailto:' + (d.correo_secundario || '') },
+                    { label: 'Teléfono 1', value: d.telefono },
+                    { label: 'Teléfono 2', value: d.telefono_2 },
+                    { label: 'Extensión CCG', value: d.extension_ccg },
+                    { label: 'Género', value: d.genero },
+                    { label: 'Nombre SIG', value: d.nombre_sig },
+                    { label: 'Usuario SIG', value: d.usuario_sig },
+                    { label: 'PIN SIG', value: d.pin_sig },
+                    { label: 'Contraseña SIG', value: d.contrasena_sig ? '••••••••' : null },
+                    { label: 'Oficio de Alta', value: d.oficio_alta, link: d.oficio_alta_id ? '/admin/documentos/documento/' + d.oficio_alta_id + '/change/' : null },
+                    { label: 'Fecha de Alta', value: d.fecha_alta },
+                    { label: 'Oficio de Baja', value: d.oficio_baja, link: d.oficio_baja_id ? '/admin/documentos/documento/' + d.oficio_baja_id + '/change/' : null },
+                ];
+
+                let html = '';
+                fields.forEach(function(f) {
+                    if (!f.value) return;
+                    var val = f.value;
+                    if (f.badge) val = '<span class="badge badge-inst">' + val + '</span>';
+                    else if (f.link) val = '<a href="' + f.link + '" style="color:var(--sap-primary);text-decoration:none;">' + val + '</a>';
+                    html += '<tr>' +
+                        '<td style="padding:0.6rem 1rem 0.6rem 0; font-size:0.75rem; font-weight:600; color:var(--sap-text-muted); text-transform:uppercase; letter-spacing:0.4px; white-space:nowrap; width:140px; border-bottom:1px solid #f1f1f1;">' + f.label + '</td>' +
+                        '<td style="padding:0.6rem 0; font-size:0.88rem; border-bottom:1px solid #f1f1f1;">' + val + '</td>' +
+                    '</tr>';
+                });
+                document.getElementById('modal-body-datos').innerHTML = html;
+
+                // Tickets
+                if (d.tickets && d.tickets.length > 0) {
+                    document.getElementById('ticket-count-badge').textContent = d.total_tickets;
+                    renderTickets(d.tickets);
+                } else {
+                    document.getElementById('ticket-count-badge').textContent = '0';
+                    document.getElementById('modal-body-tickets').innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--sap-text-muted);"><i class="ph ph-ticket" style="font-size:2.5rem;opacity:0.3;display:block;margin-bottom:0.5rem;"></i>Sin tickets asociados</div>';
+                }
+            })
+            .catch(function() {
+                document.getElementById('modal-body-datos').innerHTML = '<tr><td style="padding:2rem;text-align:center;color:var(--sap-danger);">Error al cargar datos del enlace.</td></tr>';
+            });
+    }
+
+    function renderTickets(tickets) {
+        var html = '<table style="width:100%;border-collapse:collapse;">' +
+            '<thead><tr>' +
+                '<th style="padding:0.6rem 0.5rem;font-size:0.68rem;font-weight:700;color:var(--sap-text-muted);text-transform:uppercase;letter-spacing:0.3px;border-bottom:2px solid var(--sap-border);">Folio</th>' +
+                '<th style="padding:0.6rem 0.5rem;font-size:0.68rem;font-weight:700;color:var(--sap-text-muted);text-transform:uppercase;letter-spacing:0.3px;border-bottom:2px solid var(--sap-border);">Servicio</th>' +
+                '<th style="padding:0.6rem 0.5rem;font-size:0.68rem;font-weight:700;color:var(--sap-text-muted);text-transform:uppercase;letter-spacing:0.3px;border-bottom:2px solid var(--sap-border);">Área</th>' +
+                '<th style="padding:0.6rem 0.5rem;font-size:0.68rem;font-weight:700;color:var(--sap-text-muted);text-transform:uppercase;letter-spacing:0.3px;border-bottom:2px solid var(--sap-border);">Fecha</th>' +
+                '<th style="padding:0.6rem 0.5rem;font-size:0.68rem;font-weight:700;color:var(--sap-text-muted);text-transform:uppercase;letter-spacing:0.3px;border-bottom:2px solid var(--sap-border);">Estado</th>' +
+            '</tr></thead><tbody>';
+
+        tickets.forEach(function(t) {
+            var estadoClass = t.estado === 'Cerrado' ? '#107c41' : '#e9730c';
+            var estadoBg = t.estado === 'Cerrado' ? '#e7f4e9' : '#fff7ed';
+            var fecha = t.fecha ? t.fecha.split('T')[0] : '—';
+            html += '<tr style="transition:background 0.1s;" onmouseover="this.style.background=\'#f5f7fa\'" onmouseout="this.style.background=\'transparent\'">' +
+                '<td style="padding:0.5rem;border-bottom:1px solid #f1f1f1;"><a href="' + t.url + '" target="_blank" style="color:var(--sap-primary);font-weight:600;text-decoration:none;">' + t.folio + '</a></td>' +
+                '<td style="padding:0.5rem;border-bottom:1px solid #f1f1f1;font-size:0.82rem;">' + (t.servicio || '—') + '</td>' +
+                '<td style="padding:0.5rem;border-bottom:1px solid #f1f1f1;font-size:0.82rem;">' + (t.area || '—') + '</td>' +
+                '<td style="padding:0.5rem;border-bottom:1px solid #f1f1f1;font-size:0.82rem;color:var(--sap-text-muted);">' + fecha + '</td>' +
+                '<td style="padding:0.5rem;border-bottom:1px solid #f1f1f1;"><span style="font-size:0.68rem;font-weight:600;padding:0.15rem 0.4rem;background:' + estadoBg + ';color:' + estadoClass + ';">' + t.estado + '</span></td>' +
+            '</tr>';
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('modal-body-tickets').innerHTML = html;
+    }
+
+    function closeEnlaceModal() {
+        document.getElementById('enlaceModal').style.display = 'none';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeEnlaceModal();
+    });
+
+    document.getElementById('enlaceModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEnlaceModal();
+    });
+    </script>
+</body>
+</html>

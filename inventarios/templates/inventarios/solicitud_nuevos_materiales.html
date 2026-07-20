@@ -368,6 +368,7 @@
               <option value="CONSUMIBLE">Consumible</option>
               <option value="HERRAMIENTA">Herramienta</option>
               <option value="EPP">EPP</option>
+              <option value="SERVICIO">Servicio</option>
               <option value="OTRO">Otro</option>
             </select>
           </div>
@@ -396,6 +397,10 @@
             </div>
           </div>
           <div class="fiori-help">Si ingresas cantidad, debes seleccionar una bodega para el stock inicial.</div>
+          <label style="display:flex; align-items:center; gap:8px; margin-top:12px; cursor:pointer; font-size:0.84rem; font-weight:500;">
+            <input type="checkbox" id="f-no-stock" onchange="toggleNoAfectaStock()">
+            <span>No afecta stock (servicio / gasto / consumo interno)</span>
+          </label>
         </div>
       </form>
     </div>
@@ -425,11 +430,29 @@ function openEditor(art) {
   $('#f-descripcion').val('');
   $('#f-stock').val('');
   $('#f-ubicacion').val('');
+  $('#f-no-stock').prop('checked', false);
+  $('#f-stock').prop('disabled', false);
+  $('#f-ubicacion').prop('disabled', false);
+  $('#f-stock').closest('.fiori-field').css('opacity', '1');
+  $('#f-ubicacion').closest('.fiori-field').css('opacity', '1');
   $('#editor-modal').addClass('active');
 }
 
 function closeEditor() {
   $('#editor-modal').removeClass('active');
+}
+
+function toggleNoAfectaStock() {
+  const checked = $('#f-no-stock').is(':checked');
+  $('#f-stock').prop('disabled', checked).val(checked ? '' : '');
+  $('#f-ubicacion').prop('disabled', checked).val('');
+  if (checked) {
+    $('#f-stock').closest('.fiori-field').css('opacity', '0.4');
+    $('#f-ubicacion').closest('.fiori-field').css('opacity', '0.4');
+  } else {
+    $('#f-stock').closest('.fiori-field').css('opacity', '1');
+    $('#f-ubicacion').closest('.fiori-field').css('opacity', '1');
+  }
 }
 
 function submitMaterial() {
@@ -443,8 +466,9 @@ function submitMaterial() {
   if (!categoria_id) { Swal.fire('Validación', 'Selecciona una categoría.', 'warning'); return; }
   if (!unidad_id) { Swal.fire('Validación', 'Selecciona una unidad de medida.', 'warning'); return; }
 
-  const stock = parseFloat($('#f-stock').val()) || 0;
-  const ubicacion_id = $('#f-ubicacion').val();
+  const noAfectaStock = $('#f-no-stock').is(':checked');
+  const stock = noAfectaStock ? 0 : (parseFloat($('#f-stock').val()) || 0);
+  const ubicacion_id = noAfectaStock ? '' : $('#f-ubicacion').val();
   if (stock > 0 && !ubicacion_id) {
     Swal.fire('Validación', 'Si ingresas stock inicial, debes seleccionar una bodega.', 'warning');
     return;
@@ -459,6 +483,7 @@ function submitMaterial() {
   formData.append('unidad_id', unidad_id);
   formData.append('stock_inicial', stock.toString());
   if (ubicacion_id) formData.append('ubicacion_id', ubicacion_id);
+  formData.append('no_afecta_stock', noAfectaStock ? 'true' : 'false');
   if ($('#f-marca').val()) formData.append('marca_id', $('#f-marca').val());
   if ($('#f-tipo').val()) formData.append('tipo_material', $('#f-tipo').val());
   if ($('#f-descripcion').val()) formData.append('descripcion', $('#f-descripcion').val());

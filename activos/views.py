@@ -11,6 +11,7 @@ from core.decorators import mobile_permission_required
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 
+@login_required
 def visor_plano(request, visor_id=None, plano_id=None):
     from .models.plano import VisorPlano, Plano
     
@@ -360,6 +361,7 @@ def api_upload_foto_ubicacion(request):
     return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
 @csrf_exempt
+@login_required
 def eliminar_pin(request, pin_id):
     if request.method == 'POST':
         pin = get_object_or_404(PinPlano, id=pin_id)
@@ -367,6 +369,7 @@ def eliminar_pin(request, pin_id):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error'}, status=405)
 
+@login_required
 def import_progress(request, task_id):
     """
     API endpoint para obtener el progreso de una tarea de importación Celery.

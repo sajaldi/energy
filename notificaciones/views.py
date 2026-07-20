@@ -1,6 +1,7 @@
 import json
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.http import require_POST, require_GET
 from django.views.decorators.csrf import csrf_exempt
@@ -10,6 +11,7 @@ from .models import Notificacion
 
 
 @require_GET
+@login_required
 def api_conteo(request):
     if not request.user.is_authenticated:
         return JsonResponse({'count': 0})
@@ -18,6 +20,7 @@ def api_conteo(request):
 
 
 @require_GET
+@login_required
 def api_no_leidas(request):
     if not request.user.is_authenticated:
         return JsonResponse({'notificaciones': []})
@@ -37,6 +40,7 @@ def api_no_leidas(request):
 
 
 @require_GET
+@login_required
 def api_todas(request):
     if not request.user.is_authenticated:
         return JsonResponse({'notificaciones': [], 'total': 0})
@@ -79,6 +83,7 @@ def api_todas(request):
 
 @csrf_exempt
 @require_POST
+@login_required
 def api_marcar_leida(request):
     if not request.user.is_authenticated:
         return JsonResponse({'status': 'error', 'message': 'No autenticado'}, status=401)
@@ -105,6 +110,7 @@ def pagina_notificaciones(request):
     })
 
 
+@login_required
 def portal_notificaciones(request):
     tipos = [{'value': c[0], 'label': c[1]} for c in Notificacion.TIPO_CHOICES]
     modulos = [{'value': c[0], 'label': c[1]} for c in Notificacion.MODULO_CHOICES]

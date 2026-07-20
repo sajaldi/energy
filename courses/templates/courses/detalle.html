@@ -148,7 +148,20 @@
             border-bottom: 1px solid #e2e8f0;
             position: relative; overflow: hidden;
             flex-shrink: 0;
+            transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+            max-height: 300px;
         }
+        .content-hero.collapsed {
+            max-height: 0; padding: 0 60px; border-bottom: none; opacity: 0;
+            pointer-events: none;
+        }
+        .hero-toggle {
+            position: absolute; top: 10px; right: 20px;
+            background: rgba(14,124,134,0.1); border: none; border-radius: 50%;
+            width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 0.85rem; color: #0e7c86; transition: all 0.15s;
+        }
+        .hero-toggle:hover { background: rgba(14,124,134,0.2); }
         .content-hero::before {
             content: ''; position: absolute; top: -50%; right: -20%;
             width: 500px; height: 500px; border-radius: 50%;
@@ -248,8 +261,8 @@
 
         /* ── Bottom Navigation ── */
         .content-nav {
-            padding: 20px 60px; border-top: 1px solid #e2e8f0;
-            background: #fff; display: flex; align-items: center; gap: 12px;
+            padding: 8px 60px 32px; border-top: 1px solid #e2e8f0;
+            background: #fff; display: flex; align-items: flex-start; gap: 12px;
             max-width: 100%; flex-shrink: 0;
         }
         .content-nav .inner-nav {
@@ -532,6 +545,7 @@
     <main class="lms-content" id="lms-content">
         <!-- Hero / Title area -->
         <div class="content-hero" id="content-hero">
+            <button type="button" class="hero-toggle" id="hero-toggle" onclick="toggleHero()" title="Ocultar encabezado">▲</button>
             <div class="inner">
                 <div class="page-counter" id="page-counter"></div>
                 <h1 id="content-title">{{ curso.titulo }}</h1>
@@ -896,6 +910,29 @@ function toggleSidebar() {
         layout.classList.toggle('sidebar-open');
     } else {
         layout.classList.toggle('sidebar-collapsed');
+    }
+}
+
+// ── Hero Toggle ──
+function toggleHero() {
+    const hero = document.getElementById('content-hero');
+    const btn = document.getElementById('hero-toggle');
+    hero.classList.toggle('collapsed');
+    btn.textContent = hero.classList.contains('collapsed') ? '▼' : '▲';
+    btn.title = hero.classList.contains('collapsed') ? 'Mostrar encabezado' : 'Ocultar encabezado';
+    // When collapsed, move the button outside so it's still clickable
+    if (hero.classList.contains('collapsed')) {
+        btn.style.position = 'fixed';
+        btn.style.top = '66px';
+        btn.style.right = '20px';
+        btn.style.zIndex = '50';
+        btn.style.pointerEvents = 'auto';
+        btn.style.opacity = '1';
+    } else {
+        btn.style.position = '';
+        btn.style.top = '';
+        btn.style.right = '';
+        btn.style.zIndex = '';
     }
 }
 

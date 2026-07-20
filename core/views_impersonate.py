@@ -1,4 +1,4 @@
-from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.decorators import user_passes_test, login_required
 from django.contrib.auth.models import User
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
@@ -24,6 +24,7 @@ def impersonate_start(request, user_id):
     return redirect('/app/')
 
 
+@login_required
 def impersonate_stop(request):
     impersonator_id = request.session.get('impersonator_id')
 

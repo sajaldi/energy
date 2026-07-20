@@ -34,6 +34,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
+@login_required
 def landing_page(request):
     """
     Landing page de SoftCom CCG en la ruta principal.

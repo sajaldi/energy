@@ -342,6 +342,7 @@ def trigger_n8n_extraction(request, doc_id):
 
 @csrf_exempt
 @require_POST
+@login_required
 def api_analizar_oficios_trazabilidad(request, doc_id):
     """
     Recopila la trazabilidad de un oficio (cadena de respuestas), extrae metadatos
@@ -422,6 +423,7 @@ def api_analizar_oficios_trazabilidad(request, doc_id):
 
 @csrf_exempt
 @require_POST
+@login_required
 def api_analizar_biblioteca_ia(request, bib_id):
     """
     Recopila todos los documentos de una biblioteca y los envía a n8n para
@@ -1040,6 +1042,7 @@ def documento_proxy_pdf(request, doc_id):
 
 @csrf_exempt
 @require_POST
+@login_required
 def documento_chat_ia(request):
     """
     Proxy para comunicar el chat del frontend con el webhook de n8n interno.

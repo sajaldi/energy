@@ -399,7 +399,7 @@
                                         </div>
                                         <div style="display:none;padding:10px;border-top:1px solid #e9d5ff;">
                                             <div style="margin-bottom:6px;"><label style="font-size:0.72rem;font-weight:600;color:#64748b;">Título</label><input type="text" value="{{ ac.titulo }}" onchange="actualizarAcordeon({{ ac.id }},{titulo:this.value})" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.82rem;font-family:inherit;"></div>
-                                            <div><label style="font-size:0.72rem;font-weight:600;color:#64748b;">Contenido HTML</label><textarea onchange="actualizarAcordeon({{ ac.id }},{contenido_html:this.value})" style="width:100%;min-height:80px;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.78rem;font-family:Consolas,monospace;resize:vertical;">{{ ac.contenido_html }}</textarea></div>
+                                            <div><label style="font-size:0.72rem;font-weight:600;color:#64748b;">Contenido</label><div contenteditable="true" onblur="actualizarAcordeon({{ ac.id }},{contenido_html:this.innerHTML})" style="width:100%;min-height:80px;padding:8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;font-family:inherit;line-height:1.6;overflow-y:auto;max-height:300px;background:#fff;">{{ ac.contenido_html|safe }}</div></div>
                                         </div>
                                     </div>
                                     {% endfor %}
@@ -1428,8 +1428,6 @@
                         if (data.ok) {
                             // Open hotspot editor in new tab
                             window.open(data.url, '_blank');
-                            // Reload page to show the new image in the list
-                            location.reload();
                         } else {
                             alert('Error: ' + (data.error || 'desconocido'));
                         }
@@ -1467,8 +1465,32 @@
             })
             .then(r => r.json())
             .then(data => {
-                if (data.ok) location.reload();
-                else alert('Error: ' + JSON.stringify(data));
+                if (data.ok) {
+                    // Insert new accordion item in DOM without reload
+                    const container = document.querySelector(`.paginas-section input[onclick*="agregarAcordeon(${seccionId}"]`)?.closest('.paginas-section')
+                        || document.querySelector(`button[onclick*="agregarAcordeon(${seccionId}"]`)?.closest('.paginas-section');
+                    if (container) {
+                        const div = document.createElement('div');
+                        div.className = 'acordeon-editor-item';
+                        div.dataset.acId = data.id;
+                        div.style.cssText = 'margin-top:6px;border:1px solid #e9d5ff;border-radius:6px;overflow:hidden;';
+                        div.innerHTML = `
+                            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#faf5ff;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+                                <span style="font-size:1rem;">📂</span>
+                                <span style="flex:1;font-size:0.82rem;font-weight:600;color:#0f172a;">${titulo}</span>
+                                <button type="button" onclick="event.stopPropagation();eliminarAcordeon(${data.id},this)" style="font-size:0.72rem;padding:3px 8px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:3px;cursor:pointer;font-family:inherit;">✕</button>
+                            </div>
+                            <div style="display:block;padding:10px;border-top:1px solid #e9d5ff;">
+                                <div style="margin-bottom:6px;"><label style="font-size:0.72rem;font-weight:600;color:#64748b;">Título</label><input type="text" value="${titulo}" onchange="actualizarAcordeon(${data.id},{titulo:this.value})" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.82rem;font-family:inherit;"></div>
+                                <div><label style="font-size:0.72rem;font-weight:600;color:#64748b;">Contenido</label><div contenteditable="true" onblur="actualizarAcordeon(${data.id},{contenido_html:this.innerHTML})" style="width:100%;min-height:80px;padding:8px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;font-family:inherit;line-height:1.6;overflow-y:auto;max-height:300px;background:#fff;"></div></div>
+                            </div>
+                        `;
+                        // Insert before the carrusel items or at the end
+                        const carruselItems = container.querySelector('.carrusel-editor-item');
+                        if (carruselItems) container.insertBefore(div, carruselItems);
+                        else container.appendChild(div);
+                    }
+                } else alert('Error: ' + JSON.stringify(data));
             })
             .catch(e => alert('Error: ' + e.message));
         }
@@ -1510,7 +1532,29 @@
                 body: JSON.stringify({ action: 'create', seccion_id: seccionId, pagina_id: paginaId, titulo: titulo })
             })
             .then(r => r.json())
-            .then(data => { if (data.ok) location.reload(); })
+            .then(data => {
+                if (data.ok) {
+                    const btn = document.querySelector(`button[onclick*="crearCarrusel(${seccionId}"]`);
+                    const container = btn?.closest('.paginas-section');
+                    if (container) {
+                        const div = document.createElement('div');
+                        div.className = 'carrusel-editor-item';
+                        div.dataset.carId = data.id;
+                        div.style.cssText = 'margin-top:6px;border:1px solid #fed7aa;border-radius:6px;overflow:hidden;';
+                        div.innerHTML = `
+                            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff7ed;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+                                <span style="font-size:1rem;">🎠</span>
+                                <span style="flex:1;font-size:0.82rem;font-weight:600;color:#0f172a;">${titulo} (0 tarjetas)</span>
+                                <button type="button" onclick="event.stopPropagation();eliminarCarrusel(${data.id},this)" style="font-size:0.72rem;padding:3px 8px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:3px;cursor:pointer;font-family:inherit;">✕</button>
+                            </div>
+                            <div style="display:block;padding:10px;border-top:1px solid #fed7aa;">
+                                <div style="font-size:0.72rem;color:#64748b;margin-bottom:6px;">Tarjetas: 0 · <button type="button" onclick="agregarTarjeta(${data.id})" style="color:#e06c00;background:none;border:none;cursor:pointer;font-size:0.72rem;font-weight:600;font-family:inherit;">+ Agregar tarjeta</button></div>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    }
+                }
+            })
             .catch(e => alert('Error: ' + e.message));
         }
 
@@ -1540,7 +1584,32 @@
                 body: JSON.stringify({ action: 'add_tarjeta', carrusel_id: carruselId, titulo: titulo })
             })
             .then(r => r.json())
-            .then(data => { if (data.ok) location.reload(); })
+            .then(data => {
+                if (data.ok) {
+                    const carItem = document.querySelector(`.carrusel-editor-item[data-car-id="${carruselId}"]`);
+                    if (carItem) {
+                        const body = carItem.querySelector('div:last-child');
+                        const div = document.createElement('div');
+                        div.className = 'tarjeta-editor-item';
+                        div.style.cssText = 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;margin-bottom:4px;overflow:hidden;';
+                        div.innerHTML = `
+                            <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;font-size:0.78rem;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+                                <span style="font-weight:700;color:#e06c00;">${data.orden}.</span>
+                                <span style="flex:1;font-weight:600;">${titulo}</span>
+                                <button type="button" onclick="event.stopPropagation();eliminarTarjeta(${data.id},this)" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:0.85rem;">✕</button>
+                            </div>
+                            <div style="display:block;padding:8px;border-top:1px solid #e2e8f0;">
+                                <div style="margin-bottom:6px;"><label style="font-size:0.68rem;font-weight:600;color:#64748b;">TÍTULO</label><input type="text" value="${titulo}" onchange="actualizarTarjeta(${data.id},{titulo:this.value})" style="width:100%;padding:4px 6px;border:1px solid #d1d5db;border-radius:3px;font-size:0.78rem;font-family:inherit;"></div>
+                                <div style="margin-bottom:6px;"><label style="font-size:0.68rem;font-weight:600;color:#64748b;">CONTENIDO HTML</label><textarea onchange="actualizarTarjeta(${data.id},{contenido_html:this.value})" style="width:100%;min-height:60px;padding:4px 6px;border:1px solid #d1d5db;border-radius:3px;font-size:0.72rem;font-family:Consolas,monospace;resize:vertical;"></textarea></div>
+                                <div><label style="font-size:0.68rem;font-weight:600;color:#64748b;">IMAGEN</label>
+                                    <input type="file" accept="image/*" onchange="subirImagenTarjeta(${data.id},this)" style="font-size:0.72rem;">
+                                </div>
+                            </div>
+                        `;
+                        body.appendChild(div);
+                    }
+                }
+            })
             .catch(e => alert('Error: ' + e.message));
         }
 

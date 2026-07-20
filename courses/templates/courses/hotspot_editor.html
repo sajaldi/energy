@@ -194,6 +194,12 @@ function renderList() {
                 <div class="hs-field">
                     <label>Contenido HTML</label>
                     <textarea oninput="hotspots[${idx}].contenido_html=this.value;">${escHtml(hs.contenido_html)}</textarea>
+                    <div style="margin-top:6px;">
+                        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:0.72rem;color:#0e7c86;font-weight:600;">
+                            🖼 Insertar imagen
+                            <input type="file" accept="image/*" style="display:none;" onchange="subirImagenHotspot(${idx}, this)">
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -267,6 +273,29 @@ function endDrag() {
     document.removeEventListener('mousemove', onDrag);
     document.removeEventListener('mouseup', endDrag);
     renderList();
+}
+
+// ── Upload image for hotspot content ──
+function subirImagenHotspot(idx, input) {
+    const file = input.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('csrfmiddlewaretoken', CSRF);
+    fetch('{% url "courses:upload_image" %}', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.url) {
+                const imgTag = `<img src="${data.url}" style="max-width:100%;border-radius:6px;margin:8px 0;" alt="${data.filename || 'imagen'}">`;
+                hotspots[idx].contenido_html = (hotspots[idx].contenido_html || '') + imgTag;
+                renderList();
+                // Keep active
+                activeIdx = idx;
+                renderAll();
+            }
+        })
+        .catch(e => alert('Error al subir: ' + e.message))
+        .finally(() => { input.value = ''; });
 }
 
 // ── Save all ──
