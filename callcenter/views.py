@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect, get_object_or_404
+﻿from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .tasks import sync_tickets_task, sync_tickets_automatico_task
 from django.contrib.admin.views.decorators import staff_member_required
@@ -33,7 +33,7 @@ def save_ticket_pdf_helper(ticket, request=None):
     """
     evidencias_b64 = []
     # Filtrar evidencias que no sean el propio PDF anterior
-    desc_pdf_ignore = "Comprobante de Cierre Generado Automáticamente"
+    desc_pdf_ignore = "Comprobante de Cierre Generado AutomÃ¡ticamente"
     qs_evidencias = EvidenciaTicket.objects.filter(ticket=ticket).exclude(descripcion=desc_pdf_ignore)
     
     for ev in qs_evidencias:
@@ -55,7 +55,7 @@ def save_ticket_pdf_helper(ticket, request=None):
             except Exception as e:
                 logger.warning(f"Error procesando imagen {ev.id} para PDF: {e}")
 
-    # Cálculos adicionales
+    # CÃ¡lculos adicionales
     tiempo_total = None
     if ticket.fecha_solicitud and ticket.fecha_cierre:
         diff = ticket.fecha_cierre - ticket.fecha_solicitud
@@ -89,11 +89,11 @@ def save_ticket_pdf_helper(ticket, request=None):
             pdf_bytes = page.pdf(format="A4", print_background=True)
             browser.close()
     except Exception as e:
-        logger.error(f"Error crítico en Playwright al generar PDF para ticket {ticket.id}: {e}")
+        logger.error(f"Error crÃ­tico en Playwright al generar PDF para ticket {ticket.id}: {e}")
         # Retornar algo que indique error o relanzar si es fatal para la vista
         raise e
 
-    desc_pdf = "Comprobante de Cierre Generado Automáticamente"
+    desc_pdf = "Comprobante de Cierre Generado AutomÃ¡ticamente"
     file_name = f'comprobante_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.pdf'
     
     evidencia = EvidenciaTicket.objects.filter(ticket=ticket, descripcion=desc_pdf).first()
@@ -127,59 +127,59 @@ def trigger_sync_tickets(request):
     try:
         sync_tickets_task.delay(days=days, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
         if fecha_inicio and fecha_fin:
-            messages.success(request, f"Se ha iniciado la sincronización del {fecha_inicio} al {fecha_fin} en segundo plano.")
+            messages.success(request, f"Se ha iniciado la sincronizaciÃ³n del {fecha_inicio} al {fecha_fin} en segundo plano.")
         else:
-            messages.success(request, f"Se ha iniciado la sincronización de los últimos {days} días en segundo plano.")
+            messages.success(request, f"Se ha iniciado la sincronizaciÃ³n de los Ãºltimos {days} dÃ­as en segundo plano.")
     except Exception as e:
-        logger.error(f"Error al iniciar la sincronización: {e}")
-        messages.error(request, f"Error al iniciar la sincronización: {e}")
+        logger.error(f"Error al iniciar la sincronizaciÃ³n: {e}")
+        messages.error(request, f"Error al iniciar la sincronizaciÃ³n: {e}")
     return redirect('admin:callcenter_solicitudticket_changelist')
 
 @staff_member_required
 def trigger_bulk_analysis_n8n(request):
     """
-    Inicia la vectorización masiva de todos los tickets pendientes en n8n.
+    Inicia la vectorizaciÃ³n masiva de todos los tickets pendientes en n8n.
     """
     from .tasks import bulk_vectorize_n8n
     try:
         bulk_vectorize_n8n.delay(only_missing=True)
-        messages.success(request, "Se ha iniciado el análisis masivo (n8n) de los tickets pendientes en segundo plano.")
+        messages.success(request, "Se ha iniciado el anÃ¡lisis masivo (n8n) de los tickets pendientes en segundo plano.")
     except Exception as e:
-        logger.error(f"Error al iniciar el análisis masivo: {e}")
-        messages.error(request, f"Error al iniciar el análisis masivo: {e}")
+        logger.error(f"Error al iniciar el anÃ¡lisis masivo: {e}")
+        messages.error(request, f"Error al iniciar el anÃ¡lisis masivo: {e}")
     return redirect('admin:callcenter_solicitudticket_changelist')
     
 @staff_member_required
 def trigger_sync_tickets_automatico(request):
     try:
         sync_tickets_automatico_task.delay()
-        messages.success(request, "Robot de sincronización automática iniciado en segundo plano (sin filtro de fechas).")
+        messages.success(request, "Robot de sincronizaciÃ³n automÃ¡tica iniciado en segundo plano (sin filtro de fechas).")
     except Exception as e:
-        logger.error(f"Error al iniciar sincronización automática: {e}")
-        messages.error(request, f"Error al iniciar sincronización automática: {e}")
+        logger.error(f"Error al iniciar sincronizaciÃ³n automÃ¡tica: {e}")
+        messages.error(request, f"Error al iniciar sincronizaciÃ³n automÃ¡tica: {e}")
     return redirect('admin:callcenter_solicitudticket_changelist')
 
 
 @staff_member_required
 def trigger_sync_dashboard(request):
     """
-    Vista AJAX: inicia la sincronización automática desde el dashboard
+    Vista AJAX: inicia la sincronizaciÃ³n automÃ¡tica desde el dashboard
     y devuelve JSON con el resultado (sin redirigir).
     """
     from django.http import JsonResponse
     try:
         sync_tickets_automatico_task.delay()
-        return JsonResponse({'status': 'ok', 'message': 'Sincronización iniciada en segundo plano.'})
+        return JsonResponse({'status': 'ok', 'message': 'SincronizaciÃ³n iniciada en segundo plano.'})
     except Exception as e:
-        logger.error(f"Error al iniciar sincronización desde dashboard: {e}")
+        logger.error(f"Error al iniciar sincronizaciÃ³n desde dashboard: {e}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 @staff_member_required
 def trigger_sync_by_folios(request):
     """
-    Inicia la sincronización de tickets específicos por folio.
-    Recibe un parámetro 'folios' (string separado por comas).
+    Inicia la sincronizaciÃ³n de tickets especÃ­ficos por folio.
+    Recibe un parÃ¡metro 'folios' (string separado por comas).
     """
     from .tasks import sync_tickets_by_folio_list_task
     folios_str = request.GET.get('folios', '').strip()
@@ -191,15 +191,15 @@ def trigger_sync_by_folios(request):
     folios_list = [f.strip() for f in folios_str.replace(',', ' ').split() if f.strip()]
     
     if not folios_list:
-        messages.error(request, "La lista de folios es inválida.")
+        messages.error(request, "La lista de folios es invÃ¡lida.")
         return redirect('admin:callcenter_solicitudticket_changelist')
         
     try:
         sync_tickets_by_folio_list_task.delay(folios_list)
-        messages.success(request, f"Se ha iniciado la sincronización de {len(folios_list)} tickets específicos en segundo plano.")
+        messages.success(request, f"Se ha iniciado la sincronizaciÃ³n de {len(folios_list)} tickets especÃ­ficos en segundo plano.")
     except Exception as e:
-        logger.error(f"Error al iniciar la sincronización por folios: {e}")
-        messages.error(request, f"Error al iniciar la sincronización: {e}")
+        logger.error(f"Error al iniciar la sincronizaciÃ³n por folios: {e}")
+        messages.error(request, f"Error al iniciar la sincronizaciÃ³n: {e}")
         
     return redirect('admin:callcenter_solicitudticket_changelist')
 
@@ -210,10 +210,10 @@ def send_ticket_to_power_automate_view(request, ticket_id):
     ticket_id = int(str(ticket_id).replace(',', ''))
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
-    # 0. Validación de campos obligatorios (Backend de seguridad)
+    # 0. ValidaciÃ³n de campos obligatorios (Backend de seguridad)
     missing = []
     if not ticket.fecha_cierre: missing.append("Fecha Cierre")
-    if not ticket.diagnostico: missing.append("Diagnóstico")
+    if not ticket.diagnostico: missing.append("DiagnÃ³stico")
     if not ticket.actividades: missing.append("Actividades")
     if not ticket.observaciones: missing.append("Observaciones")
     
@@ -221,12 +221,12 @@ def send_ticket_to_power_automate_view(request, ticket_id):
         messages.error(request, f"No se puede enviar el cierre. Faltan campos: {', '.join(missing)}")
         return redirect('admin:callcenter_solicitudticket_change', ticket_id)
 
-    # 1. Generar/Actualizar PDF automáticamente antes de enviar
+    # 1. Generar/Actualizar PDF automÃ¡ticamente antes de enviar
     try:
         pdf_url = save_ticket_pdf_helper(ticket, request=request)
     except Exception as e:
         logger.error(f"Error generando PDF para Power Automate: {e}")
-        pdf_url = "Error en generación"
+        pdf_url = "Error en generaciÃ³n"
 
     # 2. Calcular Tiempo Total Min
     tiempo_total = 0
@@ -297,12 +297,12 @@ def send_ticket_to_power_automate_view(request, ticket_id):
         if response.status_code in [200, 202]:
             ticket.cierre_enviado = True
             ticket.save(update_fields=['cierre_enviado'])
-            # Disparar sync SIG solo después de notificación exitosa
+            # Disparar sync SIG solo despuÃ©s de notificaciÃ³n exitosa
             from .tasks import sync_single_ticket_task
             sync_single_ticket_task.delay(ticket.id)
             messages.success(request, "Ticket enviado exitosamente a Power Automate.")
         else:
-            messages.warning(request, f"Power Automate respondió con error {response.status_code}")
+            messages.warning(request, f"Power Automate respondiÃ³ con error {response.status_code}")
     except Exception as e:
         logger.error(f"Error conectando a Power Automate: {e}")
         messages.error(request, f"Error al conectar con Power Automate: {str(e)}")
@@ -374,7 +374,7 @@ def webhook_new_ticket(request):
 def sync_single_ticket(request, ticket_id):
     from .tasks import sync_single_ticket_task
     sync_single_ticket_task.delay(ticket_id)
-    messages.info(request, f"Se ha iniciado la sincronización en segundo plano.")
+    messages.info(request, f"Se ha iniciado la sincronizaciÃ³n en segundo plano.")
     return redirect('admin:callcenter_solicitudticket_change', ticket_id)
 
 @csrf_exempt
@@ -387,7 +387,7 @@ def generate_ticket_pdf_view(request, folio):
     if not ticket:
         raise Http404("Ticket no encontrado")
 
-    # Delegar la generación y guardado al helper
+    # Delegar la generaciÃ³n y guardado al helper
     try:
         pdf_url = save_ticket_pdf_helper(ticket, request=request)
         return redirect(pdf_url)
@@ -413,13 +413,13 @@ def webhook_evidencia_ticket(request, folio):
                 ext = file_obj.name.split('.')[-1] if '.' in file_obj.name else 'jpg'
                 file_name = f'foto_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.{ext}'
                 evidencia.archivo.save(file_name, file_obj)
-            return JsonResponse({'success': True, 'msg': 'Imagen guardada vía FILES'})
+            return JsonResponse({'success': True, 'msg': 'Imagen guardada vÃ­a FILES'})
 
         # 2. Intentar por Cuerpo Binario Directo (n8n "Send Binary Data")
         # Si no es JSON y tiene longitud, y no hay FILES, probablemente es el binario crudo
         content_type = request.META.get('CONTENT_TYPE', '')
         if 'application/json' not in content_type and len(request.body) > 100:
-            # Detectar formato por bytes mágicos
+            # Detectar formato por bytes mÃ¡gicos
             ext = 'jpg'
             if request.body.startswith(b'\xff\xd8'): ext = 'jpg'
             elif request.body.startswith(b'\x89PNG'): ext = 'png'
@@ -428,8 +428,8 @@ def webhook_evidencia_ticket(request, folio):
             file_name = f'foto_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.{ext}'
             evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp (Body)')
             evidencia.archivo.save(file_name, ContentFile(request.body))
-            logger.info(f"Evidencia guardada vía BODY Raw: {file_name}")
-            return JsonResponse({'success': True, 'msg': 'Imagen guardada vía Body'})
+            logger.info(f"Evidencia guardada vÃ­a BODY Raw: {file_name}")
+            return JsonResponse({'success': True, 'msg': 'Imagen guardada vÃ­a Body'})
 
         # 3. Intentar por JSON (Base64)
         try:
@@ -460,7 +460,7 @@ def webhook_evidencia_ticket(request, folio):
                 file_name = f'foto_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.{ext}'
                 evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp (B64)')
                 evidencia.archivo.save(file_name, ContentFile(base64.b64decode(imgstr)))
-                return JsonResponse({'success': True, 'msg': 'Imagen guardada vía B64'})
+                return JsonResponse({'success': True, 'msg': 'Imagen guardada vÃ­a B64'})
         except: pass
 
         return JsonResponse({'success': False, 'msg': 'No image found', 'body_len': len(request.body)})
@@ -472,9 +472,9 @@ def webhook_evidencia_ticket(request, folio):
 @staff_member_required
 def ticket_search_view(request):
     """
-    Buscador Híbrido de tickets:
-    1. Semántico: Usa embeddings vectoriales (Ollama + PGVector).
-    2. Palabra Clave: Búsqueda tradicional icontains en campos clave.
+    Buscador HÃ­brido de tickets:
+    1. SemÃ¡ntico: Usa embeddings vectoriales (Ollama + PGVector).
+    2. Palabra Clave: BÃºsqueda tradicional icontains en campos clave.
     Combina ambos resultados para mayor robustez.
     """
     from django.shortcuts import render
@@ -487,8 +487,8 @@ def ticket_search_view(request):
     error = None
     
     if query:
-        # --- 1. BÚSQUEDA TRADICIONAL (Palabra Clave) ---
-        # Útil para tickets sin embedding o búsquedas exactas
+        # --- 1. BÃšSQUEDA TRADICIONAL (Palabra Clave) ---
+        # Ãštil para tickets sin embedding o bÃºsquedas exactas
         keyword_q = Q(folio__icontains=query) | \
                     Q(solicitud_descripcion__icontains=query) | \
                     Q(falla_descripcion__icontains=query) | \
@@ -504,41 +504,41 @@ def ticket_search_view(request):
             t.similitud = 70.0  # Puntaje base para coincidencia por palabra clave
             t.metodo = "Palabra Clave"
         
-        # --- 2. BÚSQUEDA SEMÁNTICA ---
+        # --- 2. BÃšSQUEDA SEMÃNTICA ---
         semantic_results = []
         try:
             ollama_url = f'{settings.OLLAMA_API_URL}/api/embeddings'
             resp = http_requests.post(ollama_url, json={
                 'model': 'mxbai-embed-large',
                 'prompt': f"Represent this query for retrieving relevant documents: {query}"
-            }, timeout=15) # Timeout más corto para no bloquear
+            }, timeout=15) # Timeout mÃ¡s corto para no bloquear
             
             if resp.status_code == 200:
                 query_embedding = resp.json().get('embedding')
                 if query_embedding:
-                    # Buscamos sin filtros estrictos para que la semántica trabaje el contexto
+                    # Buscamos sin filtros estrictos para que la semÃ¡ntica trabaje el contexto
                     semantic_results = SolicitudTicket.buscar_vectorial(query_embedding, limit=50)
                     for t in semantic_results:
                         t.similitud = round(max(0, min(100, (1 - t.distancia) * 100)), 1)
-                        t.metodo = "IA Semántica"
+                        t.metodo = "IA SemÃ¡ntica"
             else:
-                logger.warning(f"Ollama falló: {resp.status_code}")
+                logger.warning(f"Ollama fallÃ³: {resp.status_code}")
         except Exception as e:
-            logger.warning(f"Error en búsqueda semántica (posiblemente Ollama offline): {e}")
+            logger.warning(f"Error en bÃºsqueda semÃ¡ntica (posiblemente Ollama offline): {e}")
             # No bloqueamos el error para permitir que los resultados por palabra clave se vean
 
-        # --- 3. COMBINACIÓN Y RANKING ---
-        # Usamos un diccionario para evitar duplicados, priorizando el puntaje más alto
+        # --- 3. COMBINACIÃ“N Y RANKING ---
+        # Usamos un diccionario para evitar duplicados, priorizando el puntaje mÃ¡s alto
         seen_ids = {}
         
-        # Prioridad a los semánticos si son buenos matches (>75%)
+        # Prioridad a los semÃ¡nticos si son buenos matches (>75%)
         for t in semantic_results:
             seen_ids[t.id] = t
             
-        # Añadir keyword results
+        # AÃ±adir keyword results
         for t in keyword_results:
             if t.id in seen_ids:
-                # Si ya estaba, le damos un boost si también coincide por palabra clave
+                # Si ya estaba, le damos un boost si tambiÃ©n coincide por palabra clave
                 seen_ids[t.id].similitud = min(100, seen_ids[t.id].similitud + 5)
             else:
                 seen_ids[t.id] = t
@@ -583,7 +583,7 @@ def ticket_cierre_visual_view(request, ticket_id):
         ticket.actividades = request.POST.get('actividades', '')
         ticket.observaciones = request.POST.get('observaciones', '')
         
-        # Diagnóstico del Catálogo
+        # DiagnÃ³stico del CatÃ¡logo
         diagnostico_reportado_id = request.POST.get('diagnostico_reportado')
         if diagnostico_reportado_id:
             ticket.diagnostico_reportado_id = int(diagnostico_reportado_id)
@@ -642,7 +642,7 @@ def upload_evidencia_ajax(request, ticket_id):
                 descripcion=f"Foto Evidencia {datetime.now().strftime('%H:%M')}",
                 analizada=False
             )
-            # Extraer extensión y generar nombre único
+            # Extraer extensiÃ³n y generar nombre Ãºnico
             ext = f.name.split('.')[-1] if '.' in f.name else 'jpg'
             file_name = f'evidencia_{ticket.id}_{uuid.uuid4().hex[:6]}.{ext}'
             evidencia.archivo.save(file_name, f)
@@ -655,7 +655,7 @@ def analyze_evidence_ai_ajax(request, evidencia_id):
     if request.method == 'POST':
         from .tasks import analyze_image_ai
         analyze_image_ai.delay(evidencia_id)
-        return JsonResponse({'success': True, 'message': 'Análisis iniciado en segundo plano.'})
+        return JsonResponse({'success': True, 'message': 'AnÃ¡lisis iniciado en segundo plano.'})
     return JsonResponse({'success': False}, status=400)
 
 @csrf_exempt
@@ -704,7 +704,7 @@ def get_filtered_ticket_qs(request):
             qs = qs.filter(fecha_solicitud__gte=f_inicio)
         except ValueError: pass
     else:
-        # Default: últimos 30 días
+        # Default: Ãºltimos 30 dÃ­as
         f_inicio = datetime.now() - timedelta(days=30)
         qs = qs.filter(fecha_solicitud__gte=f_inicio)
         
@@ -736,7 +736,7 @@ def ticket_dashboard_view(request):
     fecha_inicio_str = request.GET.get('fecha_inicio')
     fecha_fin_str = request.GET.get('fecha_fin')
 
-    # Métricas Globales (Filtradas en una sola query)
+    # MÃ©tricas Globales (Filtradas en una sola query)
     metrics = ticket_qs.aggregate(
         total=Count('id'),
         cerrados=Count('id', filter=Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True))
@@ -745,7 +745,7 @@ def ticket_dashboard_view(request):
     tickets_cerrados = metrics['cerrados'] or 0
     tickets_abiertos = total_tickets - tickets_cerrados
     
-    # --- CACHE PARA DATOS PESADOS (Clusters y Árbol) ---
+    # --- CACHE PARA DATOS PESADOS (Clusters y Ãrbol) ---
     perfil = getattr(request.user, 'perfil', None)
     user_depto_id = perfil.departamento_id if perfil else None
     cache_key = f"ticket_dashboard_heavy_{request.user.id}_{user_depto_id}_{fecha_inicio_str}_{fecha_fin_str}"
@@ -758,7 +758,7 @@ def ticket_dashboard_view(request):
         cat_data = cached_data.get('cat_data', [])
         falla_diagnosticos_json_map = cached_data.get('falla_diagnosticos_json_map', {})
     else:
-        # 2. Cargar Catálogos (Necesarios para clusters y árbol)
+        # 2. Cargar CatÃ¡logos (Necesarios para clusters y Ã¡rbol)
         deptos = {d.id: d for d in Departamento.objects.all()}
         fallas = {f.id: f for f in FallaTicket.objects.all()}
         ubicaciones = {u.id: u for u in Ubicacion.objects.all()}
@@ -802,7 +802,7 @@ def ticket_dashboard_view(request):
                 grupos_por_depto[depto_name] = []
             grupos_por_depto[depto_name].append(g)
 
-        # --- AGREGACIÓN MULTIDIMENSIONAL ---
+        # --- AGREGACIÃ“N MULTIDIMENSIONAL ---
         raw_stats = ticket_qs.values(
             'falla_reportada__departamento_responsable_id',
             'falla_reportada_id', 
@@ -899,7 +899,7 @@ def ticket_dashboard_view(request):
         flat_nodes = []
         flatten_tree(temp_tree, flat_nodes)
         
-        # Gráficas - cached junto con el resto
+        # GrÃ¡ficas - cached junto con el resto
         cat_stats = ticket_qs.filter(ubicacion__categoria__isnull=False).values('ubicacion__categoria__nombre').annotate(
             total=Count('id')
         ).order_by('-total')[:10]
@@ -955,7 +955,7 @@ def ticket_dashboard_view(request):
     from django.core.cache import cache
     ultima_sincronizacion = cache.get('callcenter_last_sig_sync')
 
-    # Separar los últimos 4 clusters (recientes) del histórico por departamento
+    # Separar los Ãºltimos 4 clusters (recientes) del histÃ³rico por departamento
     CLUSTERS_RECIENTES = 4
     grupos_recientes_por_depto = {}
     grupos_historico_por_depto = {}
@@ -985,8 +985,8 @@ def ticket_dashboard_view(request):
 @staff_member_required
 def cluster_tickets_view(request, cluster_id):
     """
-    Lista todos los tickets de un grupo (cluster) específico con diseño Visual.
-    Incluye estadísticas y exportación a Excel/PDF.
+    Lista todos los tickets de un grupo (cluster) especÃ­fico con diseÃ±o Visual.
+    Incluye estadÃ­sticas y exportaciÃ³n a Excel/PDF.
     """
     from .models import GrupoTicket
     from django.db.models import Q
@@ -1001,7 +1001,7 @@ def cluster_tickets_view(request, cluster_id):
     cluster_id = int(str(cluster_id).replace(',', ''))
     cluster = get_object_or_404(GrupoTicket.objects.select_related('usuario_creador', 'departamento'), id=cluster_id)
     
-    # SEGURIDAD: Restricción por Departamento
+    # SEGURIDAD: RestricciÃ³n por Departamento
     if not request.user.is_superuser:
         user_depto_id = getattr(request.user.perfil, 'departamento_id', None) if hasattr(request.user, 'perfil') else None
         
@@ -1018,9 +1018,9 @@ def cluster_tickets_view(request, cluster_id):
         # Si no coincide con ninguno, denegar acceso
         if user_depto_id not in [cluster_depto_id, creator_depto_id]:
             from django.core.exceptions import PermissionDenied
-            raise PermissionDenied("No tienes permiso para acceder a este cluster (Restricción de Departamento).")
+            raise PermissionDenied("No tienes permiso para acceder a este cluster (RestricciÃ³n de Departamento).")
     
-    # Parámetros de Filtro y Búsqueda
+    # ParÃ¡metros de Filtro y BÃºsqueda
     q = request.GET.get('q', '').strip()
     status = request.GET.get('status')
     falla_id = request.GET.get('falla')
@@ -1041,7 +1041,7 @@ def cluster_tickets_view(request, cluster_id):
     else:
         tickets = tickets.order_by('falla_reportada__parent__nombre', 'falla_reportada__nombre', '-fecha_solicitud')
     
-    # Aplicar búsqueda por texto (q)
+    # Aplicar bÃºsqueda por texto (q)
     if q:
         search_q = Q(folio__icontains=q) | Q(solicitud_descripcion__icontains=q) | Q(responsable__icontains=q)
         if q.isdigit():
@@ -1058,7 +1058,7 @@ def cluster_tickets_view(request, cluster_id):
     if falla_id:
         tickets = tickets.filter(falla_reportada_id=falla_id)
 
-    # Filtro Especial (Interno, Restricción, Tiempo Acordado)
+    # Filtro Especial (Interno, RestricciÃ³n, Tiempo Acordado)
     filtro_especial = request.GET.get('filtro_especial')
     if filtro_especial == 'interno':
         tickets = tickets.filter(es_interno=True)
@@ -1076,11 +1076,11 @@ def cluster_tickets_view(request, cluster_id):
     elif correo_cierre == 'sin':
         tickets = tickets.filter(Q(correo_cierre=False) | Q(correo_cierre__isnull=True))
 
-    # Obtener fallas únicas presentes en este cluster para el filtro
+    # Obtener fallas Ãºnicas presentes en este cluster para el filtro
     fallas_ids = cluster.tickets.values_list('falla_reportada_id', flat=True).distinct()
     fallas_opciones = FallaTicket.objects.filter(id__in=fallas_ids).order_by('nombre')
 
-    # Calcular estadísticas dirigidas
+    # Calcular estadÃ­sticas dirigidas
     total = tickets.count()
     cerrados_count = tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).count()
     abiertos_count = total - cerrados_count
@@ -1090,7 +1090,7 @@ def cluster_tickets_view(request, cluster_id):
     total_deductiva_abiertos = tickets.exclude(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).aggregate(total=Sum('deductiva'))['total'] or 0.00
     total_deductiva_cerrados = tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).aggregate(total=Sum('deductiva'))['total'] or 0.00
     
-    # Manejo de Exportación
+    # Manejo de ExportaciÃ³n
     export_type = request.GET.get('export')
     if export_type == 'excel':
         data = []
@@ -1099,11 +1099,11 @@ def cluster_tickets_view(request, cluster_id):
                 'Folio/ID': t.folio or t.id_solicitud,
                 'Solicitante': t.solicitante,
                 'Resp. Solicitud': t.responsable or '-',
-                'Técnico Asignado': t.usuario_responsable.get_full_name() if t.usuario_responsable else 'Sin Asignar',
-                'Descripción': t.solicitud_descripcion,
+                'TÃ©cnico Asignado': t.usuario_responsable.get_full_name() if t.usuario_responsable else 'Sin Asignar',
+                'DescripciÃ³n': t.solicitud_descripcion,
                 'Fecha Solicitud': t.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if t.fecha_solicitud else '',
-                'Fecha Finalización': t.fecha_cierre.strftime('%d/%m/%Y %H:%M') if t.fecha_cierre else '',
-                'Diagnóstico': t.diagnostico or '',
+                'Fecha FinalizaciÃ³n': t.fecha_cierre.strftime('%d/%m/%Y %H:%M') if t.fecha_cierre else '',
+                'DiagnÃ³stico': t.diagnostico or '',
                 'Acciones Realizadas': t.actividades or '',
                 'Deductiva (USD)': float(t.deductiva) if t.deductiva else 0.0,
                 'Estado': 'Cerrado' if (t.fecha_cierre or t.cierre_enviado) else 'Abierto'
@@ -1133,7 +1133,7 @@ def cluster_tickets_view(request, cluster_id):
             return HttpResponse('Error al generar PDF', status=500)
         return response
 
-    # === Lógica para las Gráficas (Chart.js) - Exportación Plana para PowerBI-like filter ===
+    # === LÃ³gica para las GrÃ¡ficas (Chart.js) - ExportaciÃ³n Plana para PowerBI-like filter ===
     import json
     raw_tickets = []
     
@@ -1144,13 +1144,13 @@ def cluster_tickets_view(request, cluster_id):
         # Falla Padre
         fp_name = t.falla_reportada.parent.nombre if (t.falla_reportada and t.falla_reportada.parent) else (t.falla_reportada.nombre if t.falla_reportada else 'Sin Clasificar')
         
-        # Ubicación (Lista jerárquica)
+        # UbicaciÃ³n (Lista jerÃ¡rquica)
         ruta = t.ubicacion_jerarquica if hasattr(t, 'ubicacion_jerarquica') else (t.ubicacion.ruta_completa if t.ubicacion else (t.nivel or 'Otra'))
         
-        # Soportar separadores: ' → ' (unicode), ' > ', ' -> '
+        # Soportar separadores: ' â†’ ' (unicode), ' > ', ' -> '
         ruta_str = str(ruta) if ruta else 'Otra'
-        if ' → ' in ruta_str:
-            sep = ' → '
+        if ' â†’ ' in ruta_str:
+            sep = ' â†’ '
         elif ' -> ' in ruta_str:
             sep = ' -> '
         elif ' > ' in ruta_str:
@@ -1177,7 +1177,7 @@ def cluster_tickets_view(request, cluster_id):
             'diag': t.diagnostico_reportado.nombre if t.diagnostico_reportado else None
         })
 
-    # Catálogo de diagnósticos por tipo de falla
+    # CatÃ¡logo de diagnÃ³sticos por tipo de falla
     from callcenter.models import DiagnosticoTicket
     catalog_diags = DiagnosticoTicket.objects.select_related('falla').all()
     falla_diagnosticos_catalog = {}
@@ -1223,7 +1223,7 @@ def cluster_tickets_view(request, cluster_id):
 @staff_member_required
 def bulk_update_tickets_api(request, cluster_id):
     if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+        return JsonResponse({'success': False, 'error': 'MÃ©todo no permitido'}, status=405)
     import json
     from datetime import datetime
     from django.utils import timezone
@@ -1311,7 +1311,7 @@ def bulk_update_tickets_api(request, cluster_id):
             updated += 1
         return JsonResponse({'success': True, 'updated': updated})
     except DiagnosticoTicket.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Diagnóstico no encontrado'}, status=404)
+        return JsonResponse({'success': False, 'error': 'DiagnÃ³stico no encontrado'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
@@ -1357,7 +1357,7 @@ def assign_ticket_user_ajax(request, ticket_id):
 
 @staff_member_required
 def search_activos_ajax(request):
-    """Buscador de activos por nombre, código interno, serie o epc."""
+    """Buscador de activos por nombre, cÃ³digo interno, serie o epc."""
     q = request.GET.get('q', '').strip()
     if len(q) < 3:
         return JsonResponse({'results': []})
@@ -1408,18 +1408,18 @@ def update_ticket_activo_ajax(request, ticket_id):
 @staff_member_required
 @require_POST
 def notify_ticket_n8n_ajax(request, ticket_id):
-    """Envía los datos del ticket a n8n para notificaciones (WhatsApp, etc)."""
+    """EnvÃ­a los datos del ticket a n8n para notificaciones (WhatsApp, etc)."""
     # Limpiar ID de posibles comas de formateo regional
     ticket_id = int(str(ticket_id).replace(',', ''))
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
-    # Obtener el teléfono del técnico asignado si existe
-    phone = "Sin teléfono"
+    # Obtener el telÃ©fono del tÃ©cnico asignado si existe
+    phone = "Sin telÃ©fono"
     tech_name = "Sin asignar"
     
     if ticket.usuario_responsable:
         tech_name = ticket.usuario_responsable.get_full_name() or ticket.usuario_responsable.username
-        # Intentar obtener perfil para el teléfono
+        # Intentar obtener perfil para el telÃ©fono
         perfil = PerfilUsuario.objects.filter(usuario=ticket.usuario_responsable).first()
         if perfil and perfil.telefono:
             phone = perfil.telefono
@@ -1450,18 +1450,18 @@ def notify_ticket_n8n_ajax(request, ticket_id):
         if response.ok:
             return JsonResponse({'success': True})
         else:
-            return JsonResponse({'success': False, 'error': f'n8n respondió con error: {response.status_code}'})
+            return JsonResponse({'success': False, 'error': f'n8n respondiÃ³ con error: {response.status_code}'})
             
     except Exception as e:
-        logger.error(f"Error enviando notificación a n8n: {str(e)}")
+        logger.error(f"Error enviando notificaciÃ³n a n8n: {str(e)}")
         return JsonResponse({'success': False, 'error': str(e)})
 
 @staff_member_required
 def wizard_cluster_view(request):
     """
-    Wizard para agrupar tickets masivamente (Clusterización).
+    Wizard para agrupar tickets masivamente (ClusterizaciÃ³n).
     1. Filtra por Departamento y Rango de Fechas.
-    2. Asigna responsables del catálogo a tickets vacíos.
+    2. Asigna responsables del catÃ¡logo a tickets vacÃ­os.
     3. Crea o Actualiza un GrupoTicket (Cluster).
     """
     from core.models import Departamento
@@ -1472,7 +1472,7 @@ def wizard_cluster_view(request):
     departamentos = Departamento.objects.all().order_by('nombre')
     now_str = timezone.now().strftime('%Y-%m-%d')
     
-    # Soporte para actualización de clusters existentes
+    # Soporte para actualizaciÃ³n de clusters existentes
     cluster_id = request.GET.get('cluster_id') or request.POST.get('cluster_id')
     existing_cluster = None
     if cluster_id:
@@ -1504,7 +1504,7 @@ def wizard_cluster_view(request):
         manual_folios = re.split(r'[\s,]+', manual_folios_raw)
         manual_folios = [f.strip() for f in manual_folios if f.strip()]
 
-        # 1. Buscar Fallas del Catálogo vinculadas al departamento
+        # 1. Buscar Fallas del CatÃ¡logo vinculadas al departamento
         fallas_ids = FallaTicket.objects.filter(departamento_responsable=depto).values_list('id', flat=True)
         
         # 2. Construir Filtro
@@ -1513,7 +1513,7 @@ def wizard_cluster_view(request):
         
         # Opcional: Agregar folios pegados manualmente
         if manual_folios:
-            # Separar folios numéricos para id_solicitud (BigIntegerField) para evitar ValueError
+            # Separar folios numÃ©ricos para id_solicitud (BigIntegerField) para evitar ValueError
             numeric_folios = [f for f in manual_folios if f.isdigit()]
             q_filter_manual = Q(folio__in=manual_folios)
             if numeric_folios:
@@ -1535,7 +1535,7 @@ def wizard_cluster_view(request):
                 'tickets_preview': tickets_qs[:50], 
                 'preview_mode': True,
                 'manual_folios_raw': manual_folios_raw,
-                'title': 'Previsualización del Cluster',
+                'title': 'PrevisualizaciÃ³n del Cluster',
                 'now': now_str,
                 'existing_cluster': existing_cluster
             })
@@ -1543,13 +1543,13 @@ def wizard_cluster_view(request):
         elif action == 'execute':
             if existing_cluster:
                 cluster = existing_cluster
-                # Actualizar departamento si no lo tenía
+                # Actualizar departamento si no lo tenÃ­a
                 if not cluster.departamento:
                     cluster.departamento = depto
                     cluster.save(update_fields=['departamento'])
-                msg_prefix = f"¡Éxito! Se ha actualizado el cluster '{cluster.correlativo}'."
+                msg_prefix = f"Â¡Ã‰xito! Se ha actualizado el cluster '{cluster.correlativo}'."
             else:
-                # Nomenclatura Automática: [Departamento] - [Fecha Inicio] a [Fecha Fin]
+                # Nomenclatura AutomÃ¡tica: [Departamento] - [Fecha Inicio] a [Fecha Fin]
                 correlativo = f"{depto.nombre} - {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}"
                 
                 # Asegurar unicidad del correlativo
@@ -1562,14 +1562,14 @@ def wizard_cluster_view(request):
                 cluster = GrupoTicket.objects.create(
                     correlativo=correlativo,
                     departamento=depto,
-                    descripcion=f"Cluster generado automáticamente por Wizard para {depto.nombre}"
+                    descripcion=f"Cluster generado automÃ¡ticamente por Wizard para {depto.nombre}"
                 )
-                msg_prefix = f"¡Éxito! Se ha creado el cluster '{correlativo}'."
+                msg_prefix = f"Â¡Ã‰xito! Se ha creado el cluster '{correlativo}'."
             
             count_assigned = 0
             tickets_to_add = []
             
-            # Regla de Asignación: NO sobrescribir si ya tiene responsable
+            # Regla de AsignaciÃ³n: NO sobrescribir si ya tiene responsable
             for ticket in tickets_qs:
                 if not ticket.usuario_responsable and ticket.falla_reportada and ticket.falla_reportada.usuario_responsable:
                     ticket.usuario_responsable = ticket.falla_reportada.usuario_responsable
@@ -1586,7 +1586,7 @@ def wizard_cluster_view(request):
 
     return render(request, 'callcenter/wizard_cluster.html', {
         'departamentos': departamentos,
-        'title': 'Wizard de Clusterización de Tickets',
+        'title': 'Wizard de ClusterizaciÃ³n de Tickets',
         'now': now_str,
         'existing_cluster': existing_cluster,
         'selected_depto': existing_cluster.departamento if existing_cluster else None
@@ -1605,7 +1605,7 @@ def mobile_detalle_tiempo_acordado_view(request, pk):
     acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
     tareas = acuerdo.tareas.all().order_by('fecha_inicio')
     
-    # Cálculos para Diagrama de Gantt con manejo de zonas horarias
+    # CÃ¡lculos para Diagrama de Gantt con manejo de zonas horarias
     total_start = acuerdo.creado_en
     if total_start and timezone.is_naive(total_start):
         total_start = timezone.make_aware(total_start)
@@ -1628,7 +1628,7 @@ def mobile_detalle_tiempo_acordado_view(request, pk):
         
     total_seconds = (total_end - total_start).total_seconds()
     
-    # Si por algún motivo la duración es 0, evadir error
+    # Si por algÃºn motivo la duraciÃ³n es 0, evadir error
     if total_seconds <= 0:
         total_seconds = 1
         
@@ -1650,7 +1650,7 @@ def mobile_detalle_tiempo_acordado_view(request, pk):
         if tarea.width_percent < 1:
             tarea.width_percent = 2
             
-    # Título seguro
+    # TÃ­tulo seguro
     try:
         if acuerdo.ticket:
             ticket_label = acuerdo.ticket.folio or acuerdo.ticket.id_solicitud
@@ -1671,7 +1671,7 @@ def mobile_detalle_tiempo_acordado_view(request, pk):
 
 def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
     """
-    Función interna que centraliza la generación del reporte.
+    FunciÃ³n interna que centraliza la generaciÃ³n del reporte.
     Retorna una tupla: (archivo_bytes, nombre_archivo, content_type)
     """
     from django.utils.dateformat import format as django_date_format
@@ -1747,15 +1747,15 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
         m_step = gantt_w / max(1, len(day_markers)-1)
         
         # --- NUEVO: RELLENO DE CABECERA Y TITULOS ---
-        # Relleno cabecera (Días)
+        # Relleno cabecera (DÃ­as)
         draw.rectangle([0, 0, w, head_h], fill="#f2f5f9")
-        # Relleno columna títulos (Actividades)
+        # Relleno columna tÃ­tulos (Actividades)
         draw.rectangle([0, 0, title_w, h], fill="#fdfdfd")
         
         for i, m in enumerate(day_markers):
             x = gantt_x + (i * m_step)
             draw.line([(x, head_h), (x, h - foot_h)], fill="#e0e0e0", width=2)
-            draw.text((x - 20, (head_h-24)/2), f"Día {m}", fill="#34495e", font=font_small)
+            draw.text((x - 20, (head_h-24)/2), f"DÃ­a {m}", fill="#34495e", font=font_small)
             
         draw.line([(0, head_h), (w, head_h)], fill="#d5d8dc", width=3)
         draw.line([(title_w, 0), (title_w, h)], fill="#d5d8dc", width=3)
@@ -1785,7 +1785,7 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
         buf.seek(0)
         return buf
 
-    # --- LOGICA: GENERACIÓN DOCX USANDO DOCXTPL ---
+    # --- LOGICA: GENERACIÃ“N DOCX USANDO DOCXTPL ---
     template_path = os.path.join(settings.BASE_DIR, 'tiempo_acordado_template.docx')
     if os.path.exists(template_path):
         doc = DocxTemplate(template_path)
@@ -1793,7 +1793,7 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
         
         def get_base64_image_tag(base64_str, label=""):
             if not base64_str:
-                logger.debug(f"Firma {label} está vacía.")
+                logger.debug(f"Firma {label} estÃ¡ vacÃ­a.")
                 return ""
             
             try:
@@ -1818,11 +1818,11 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
                     new_img.paste(img_input, (0, 0))
                 
                 buf = io.BytesIO()
-                new_img.save(buf, format="JPEG", quality=95) # JPEG es más seguro para Word flat
+                new_img.save(buf, format="JPEG", quality=95) # JPEG es mÃ¡s seguro para Word flat
                 buf.seek(0)
                 
                 img_tag = InlineImage(doc, buf, width=Mm(50))
-                logger.info(f"Firma {label} re-procesada (Flattened) exitosamente. Orientación: {img_input.size}")
+                logger.info(f"Firma {label} re-procesada (Flattened) exitosamente. OrientaciÃ³n: {img_input.size}")
                 return img_tag
             except Exception as e:
                 logger.error(f"Error procesando firma {label} para Word: {e}")
@@ -1836,7 +1836,7 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
             'UBICACION': acuerdo.ticket.area or "Cuerpo bajo A Nivel 4",
             'FECHA_SOLUCION': django_date_format(acuerdo.fecha_solucion_final, "l d/m/Y g:i a") if acuerdo.fecha_solucion_final else '',
             'MOTIVO': acuerdo.motivo_extension or '',
-            'SOLUCION_PROVISIONAL': acuerdo.solucion_provisional or 'Se implementó solución de mitigación provisoria.',
+            'SOLUCION_PROVISIONAL': acuerdo.solucion_provisional or 'Se implementÃ³ soluciÃ³n de mitigaciÃ³n provisoria.',
             'OBSERVACIONES': acuerdo.observaciones or '',
             'GANTT': InlineImage(doc, gantt_stream, width=Mm(190)) if gantt_stream else "",
             # Tags principales
@@ -1855,11 +1855,25 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
         temp_docx = os.path.join(temp_dir, f"{uuid.uuid4()}.docx")
         temp_pdf = temp_docx.replace(".docx", ".pdf")
         doc.save(temp_docx)
+        
+        # Release docx template references to free file handles
+        del doc
+        if gantt_stream:
+            gantt_stream.close()
+        import gc
+        gc.collect()
+        
+        def _safe_remove(path):
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except OSError:
+                pass  # Windows file lock â€” will be cleaned by OS later
 
-        # 2. Intentar conversión con LibreOffice (LibreOffice debe estar en el servidor)
+        # 2. Intentar conversiÃ³n con LibreOffice (LibreOffice debe estar en el servidor)
         import subprocess
         try:
-            # Comando estándar para Linux: soffice --headless --convert-to pdf --outdir <dir> <archivo>
+            # Comando estÃ¡ndar para Linux: soffice --headless --convert-to pdf --outdir <dir> <archivo>
             subprocess.run([
                 'soffice', '--headless', '--convert-to', 'pdf',
                 '--outdir', temp_dir, temp_docx
@@ -1868,15 +1882,15 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
             if os.path.exists(temp_pdf):
                 with open(temp_pdf, "rb") as f:
                     data = f.read()
-                os.remove(temp_docx)
-                os.remove(temp_pdf)
-                logger.info(f"PDF de Tiempo Acordado {acuerdo.id} generado exitosamente vía LibreOffice.")
+                _safe_remove(temp_docx)
+                _safe_remove(temp_pdf)
+                logger.info(f"PDF de Tiempo Acordado {acuerdo.id} generado exitosamente vÃ­a LibreOffice.")
                 return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
         except Exception as e:
-            logger.warning(f"Fallo conversión LibreOffice para acuerdo {acuerdo.id}: {e}")
+            logger.warning(f"Fallo conversiÃ³n LibreOffice para acuerdo {acuerdo.id}: {e}")
             pass 
 
-        # 3. Intentar conversión con docx2pdf (Solo funciona en Windows)
+        # 3. Intentar conversiÃ³n con docx2pdf (Solo funciona en Windows)
         try:
             from docx2pdf import convert as docx2pdf_convert
             import pythoncom
@@ -1886,15 +1900,15 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
             if os.path.exists(temp_pdf):
                 with open(temp_pdf, "rb") as f:
                     data = f.read()
-                os.remove(temp_docx)
-                os.remove(temp_pdf)
-                logger.info(f"PDF de Tiempo Acordado {acuerdo.id} generado exitosamente vía docx2pdf (Windows).")
+                _safe_remove(temp_docx)
+                _safe_remove(temp_pdf)
+                logger.info(f"PDF de Tiempo Acordado {acuerdo.id} generado exitosamente vÃ­a docx2pdf (Windows).")
                 return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
         except Exception as e:
-            logger.warning(f"Fallo conversión docx2pdf para acuerdo {acuerdo.id}: {e}")
+            logger.warning(f"Fallo conversiÃ³n docx2pdf para acuerdo {acuerdo.id}: {e}")
             pass
 
-        # 4. ÚLTIMO RECURSO: PDF vía HTML (Si todo lo de Word falla o no está disponible)
+        # 4. ÃšLTIMO RECURSO: PDF vÃ­a HTML (Si todo lo de Word falla o no estÃ¡ disponible)
         from django.template.loader import render_to_string
         from playwright.sync_api import sync_playwright
         import base64 as b64_lib
@@ -1919,7 +1933,7 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
             'firma_e': firma_e
         }
         html_string = render_to_string('callcenter/tiempo_acordado_pdf.html', html_context)
-        logger.info(f"Generando PDF de Tiempo Acordado {acuerdo.id} vía Playwright (Fallback de alta fidelidad).")
+        logger.info(f"Generando PDF de Tiempo Acordado {acuerdo.id} vÃ­a Playwright (Fallback de alta fidelidad).")
         
         try:
             with sync_playwright() as p:
@@ -1928,20 +1942,20 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
                 page.set_content(html_string, wait_until='networkidle')
                 pdf_bytes = page.pdf(format="A4", print_background=True, margin={'top': '1cm', 'bottom': '1cm', 'left': '1cm', 'right': '1cm'})
                 browser.close()
-                os.remove(temp_docx)
+                _safe_remove(temp_docx)
                 return pdf_bytes, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
         except Exception as e:
-            logger.error(f"Fallo crítico en Playwright Fallback para acuerdo {acuerdo.id}: {e}")
+            logger.error(f"Fallo crÃ­tico en Playwright Fallback para acuerdo {acuerdo.id}: {e}")
             # Si falla Playwright, intentar mandar al menos el DOCX
             with open(temp_docx, "rb") as f:
                 data = f.read()
-            os.remove(temp_docx)
+            _safe_remove(temp_docx)
             return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
         # 5. RETORNO DE EMERGENCIA: Mandar el DOCX si nada pudo hacer el PDF
         with open(temp_docx, "rb") as f:
             data = f.read()
-        os.remove(temp_docx)
+        _safe_remove(temp_docx)
         return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
     # Si ni siquiera existe el template de Word, retornar error
@@ -1958,7 +1972,7 @@ def exportar_tiempo_acordado_pdf_view(request, pk):
 
     acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
     
-    # Si se pide formato manual, forzar firmas vacías
+    # Si se pide formato manual, forzar firmas vacÃ­as
     force_empty = request.GET.get('manual') == '1'
     
     try:
@@ -2002,11 +2016,11 @@ def enviar_tiempo_acordado_power_automate_ajax(request, pk):
         <html>
         <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f6f9;">
             <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 8px; border-top: 5px solid #0070f2; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <h2 style="color: #0070f2; margin-bottom: 20px;">Acuerdo de Tiempo y Solución Provisional</h2>
+                <h2 style="color: #0070f2; margin-bottom: 20px;">Acuerdo de Tiempo y SoluciÃ³n Provisional</h2>
                 <p>Se ha generado un nuevo acuerdo para el ticket <b>{acuerdo_folio}</b>.</p>
                 <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                     <tr>
-                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 40%;">Institución:</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 40%;">InstituciÃ³n:</td>
                         <td style="padding: 8px; border-bottom: 1px solid #eee;">{acuerdo.institucion.nombre if acuerdo.institucion else '-'}</td>
                     </tr>
                     <tr>
@@ -2014,13 +2028,13 @@ def enviar_tiempo_acordado_power_automate_ajax(request, pk):
                         <td style="padding: 8px; border-bottom: 1px solid #eee;">{acuerdo.enlace.nombre if acuerdo.enlace else '-'}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Fecha Solución Final:</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Fecha SoluciÃ³n Final:</td>
                         <td style="padding: 8px; border-bottom: 1px solid #eee; color: #d32f2f;">{acuerdo.fecha_solucion_final.strftime('%d/%m/%Y %I:%M %p') if acuerdo.fecha_solucion_final else '-'}</td>
                     </tr>
                 </table>
                 <p style="margin-top: 20px;">Por favor, encuentre adjunto el reporte detallado en formato PDF.</p>
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #777;">
-                    Este es un correo automático generado por el sistema <b>SoftCom Energy</b>.
+                    Este es un correo automÃ¡tico generado por el sistema <b>SoftCom Energy</b>.
                 </div>
             </div>
         </body>
@@ -2054,7 +2068,7 @@ def enviar_tiempo_acordado_power_automate_ajax(request, pk):
         else:
             return JsonResponse({
                 "status": "error", 
-                "message": f"Power Automate respondió con error {response.status_code}: {response.text}"
+                "message": f"Power Automate respondiÃ³ con error {response.status_code}: {response.text}"
             }, status=400)
 
     except Exception as e:
@@ -2063,7 +2077,7 @@ def enviar_tiempo_acordado_power_automate_ajax(request, pk):
 @staff_member_required
 @require_POST
 def create_ticket_in_cluster_ajax(request, cluster_id):
-    """Crea un ticket básico y lo vincula al cluster."""
+    """Crea un ticket bÃ¡sico y lo vincula al cluster."""
     # Limpiar ID de posibles comas de formateo regional
     cluster_id = int(str(cluster_id).replace(',', ''))
     
@@ -2075,7 +2089,7 @@ def create_ticket_in_cluster_ajax(request, cluster_id):
         data = json.loads(request.body)
         id_solicitud = data.get('id_solicitud')
         solicitante = data.get('solicitante', 'Manual')
-        descripcion = data.get('descripcion', 'Sin descripción')
+        descripcion = data.get('descripcion', 'Sin descripciÃ³n')
         es_interno = data.get('es_interno', False)
         
         if not id_solicitud:
@@ -2108,7 +2122,7 @@ def create_ticket_in_cluster_ajax(request, cluster_id):
 
 @staff_member_required
 def search_tickets_autocomplete_ajax(request):
-    """Búsqueda rápida de tickets para autocompletado."""
+    """BÃºsqueda rÃ¡pida de tickets para autocompletado."""
     from .models import SolicitudTicket
     from django.db.models import Q
     
@@ -2127,11 +2141,11 @@ def search_tickets_autocomplete_ajax(request):
         # Formatear fecha
         fecha_str = t.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if t.fecha_solicitud else "Sin fecha"
         
-        # Obtener ubicación
+        # Obtener ubicaciÃ³n
         ubicacion_str = t.ubicacion.ruta_completa if t.ubicacion else (t.area or "No especificada")
         
-        # Descripción completa
-        desc_completa = t.solicitud_descripcion or t.falla_descripcion or "Sin descripción"
+        # DescripciÃ³n completa
+        desc_completa = t.solicitud_descripcion or t.falla_descripcion or "Sin descripciÃ³n"
         
         results.append({
             'id': t.id,
@@ -2151,7 +2165,7 @@ def search_tickets_autocomplete_ajax(request):
 @csrf_exempt
 def webhook_correo_cierre_callback(request):
     """
-    Power Automate llama a este endpoint para confirmar que envió el correo de cierre.
+    Power Automate llama a este endpoint para confirmar que enviÃ³ el correo de cierre.
     Espera un POST con JSON: {"folio": "SS26-XXXXXX"}
     """
     if request.method != 'POST':
@@ -2190,7 +2204,7 @@ def webhook_correo_cierre_callback(request):
 def verify_correo_cierre_ajax(request, ticket_id):
     """
     AJAX: Verifica si el correo de cierre fue enviado mediante Power Automate.
-    Envía POST a Power Automate con el texto del ticket y actualiza el campo correo_cierre.
+    EnvÃ­a POST a Power Automate con el texto del ticket y actualiza el campo correo_cierre.
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
@@ -2240,18 +2254,18 @@ def verify_correo_cierre_ajax(request, ticket_id):
                     'message': 'SI SE ENCONTRO un correo de cierre'
                 })
             else:
-                logger.warning(f"Power Automate no devolvió HTML para ticket {ticket.folio}")
+                logger.warning(f"Power Automate no devolviÃ³ HTML para ticket {ticket.folio}")
                 return JsonResponse({
                     'success': False,
                     'correo_cierre': False,
-                    'message': 'Power Automate respondió OK pero sin contenido HTML'
+                    'message': 'Power Automate respondiÃ³ OK pero sin contenido HTML'
                 })
         else:
-            logger.warning(f"Power Automate respondió con código {response.status_code} para ticket {ticket.folio}")
+            logger.warning(f"Power Automate respondiÃ³ con cÃ³digo {response.status_code} para ticket {ticket.folio}")
             return JsonResponse({
                 'success': False,
                 'correo_cierre': False,
-                'message': f'Power Automate respondió con código {response.status_code}'
+                'message': f'Power Automate respondiÃ³ con cÃ³digo {response.status_code}'
             })
     except Exception as e:
         logger.error(f"Error verificando correo de cierre para ticket {ticket.folio}: {e}", exc_info=True)
@@ -2312,7 +2326,7 @@ def get_enlace_details_ajax(request, enlace_id):
 
 @staff_member_required
 def api_busqueda_enlaces_ajax(request):
-    """Búsqueda dinámica de Enlaces (Contactos) por nombre o institución."""
+    """BÃºsqueda dinÃ¡mica de Enlaces (Contactos) por nombre o instituciÃ³n."""
     from .models import Enlace
     from django.db.models import Q
     
@@ -2334,7 +2348,7 @@ def api_busqueda_enlaces_ajax(request):
             'ubicacion_id': e.ubicacion_id,
             'telefono': e.telefono or "No registrado",
             'email': e.email or "No registrado",
-            'ubicacion_nombre': e.ubicacion.nombre if e.ubicacion else "Misma de institución"
+            'ubicacion_nombre': e.ubicacion.nombre if e.ubicacion else "Misma de instituciÃ³n"
         })
         
     return JsonResponse({'results': results})
@@ -2394,20 +2408,20 @@ def tiempo_acordado_dashboard_view(request):
     except Exception as e:
         logger.warning(f"Error detectando departamento del usuario: {e}")
 
-    # 2. Queryset Base con optimización
+    # 2. Queryset Base con optimizaciÃ³n
     qs = TiempoAcordado.objects.select_related(
         'ticket', 'enlace', 'institucion', 'ubicacion', 'departamento', 'usuario_creador'
     ).prefetch_related('tareas').order_by('fecha_solucion_final')
 
-    # 3. Lógica de visibilidad por departamento
+    # 3. LÃ³gica de visibilidad por departamento
     if not request.user.is_superuser:
         if user_dept:
             qs = qs.filter(departamento=user_dept)
         else:
-            # Respaldo: si no hay departamento, solo ve los creados por él
+            # Respaldo: si no hay departamento, solo ve los creados por Ã©l
             qs = qs.filter(usuario_creador=request.user)
 
-    # 4. Estadísticas rápidas
+    # 4. EstadÃ­sticas rÃ¡pidas
     stats = {
         'total': qs.count(),
         'pendientes': qs.filter(estatus__in=['BORRADOR', 'PENDIENTE']).count(),
@@ -2470,7 +2484,7 @@ def mobile_crear_tiempo_acordado_view(request, pk=None):
             # Datos base
             fecha_final = safe_parse_dt(fecha_final_str)
             if not fecha_final:
-                return JsonResponse({'success': False, 'error': f'Formato de fecha final inválido: {fecha_final_str}'})
+                return JsonResponse({'success': False, 'error': f'Formato de fecha final invÃ¡lido: {fecha_final_str}'})
 
             datos_acuerdo = {
                 'ticket_id': ticket_id,
@@ -2525,11 +2539,11 @@ def mobile_crear_tiempo_acordado_view(request, pk=None):
             return JsonResponse({'success': True, 'id': acuerdo.id})
         except Exception as e:
             import traceback
-            logger.error(f"Error procesando Tiempo Acordado móvil: {e}\n{traceback.format_exc()}")
+            logger.error(f"Error procesando Tiempo Acordado mÃ³vil: {e}\n{traceback.format_exc()}")
             return JsonResponse({'success': False, 'error': str(e)})
 
     # Contexto para el GET
-    # Intentar obtener ticket de los parámetros GET para pre-vínculo
+    # Intentar obtener ticket de los parÃ¡metros GET para pre-vÃ­nculo
     ticket = None
     ticket_id = request.GET.get('ticket')
     if ticket_id:
@@ -2557,12 +2571,12 @@ def mobile_crear_tiempo_acordado_view(request, pk=None):
 
 @staff_member_required
 def api_get_cronograma_items_ajax(request, pk):
-    """Retorna los items de un cronograma predefinido para precargar en el móvil."""
+    """Retorna los items de un cronograma predefinido para precargar en el mÃ³vil."""
     from .models import CronogramaPredefinido
     crono = get_object_or_404(CronogramaPredefinido, pk=pk)
     
     items_data = []
-    # Ordenar por número para asegurar secuencia lógica
+    # Ordenar por nÃºmero para asegurar secuencia lÃ³gica
     for item in crono.items.all().order_by('numero'):
         items_data.append({
             'id': item.id,
@@ -2576,7 +2590,7 @@ def api_get_cronograma_items_ajax(request, pk):
 
 @staff_member_required
 def api_get_sububicaciones_ajax(request, parent_id):
-    """Retorna sub-ubicaciones (ej. Niveles de un Edificio) para el selector jerárquico."""
+    """Retorna sub-ubicaciones (ej. Niveles de un Edificio) para el selector jerÃ¡rquico."""
     from activos.models import Ubicacion
     sub_ubicaciones = Ubicacion.objects.filter(padre_id=parent_id).order_by('nombre')
     results = []
@@ -2609,7 +2623,7 @@ def cronograma_predefinido_edit_view(request, pk=None):
             formset.instance = cronograma
             items_guardados = formset.save()
             
-            # Segunda pasada: Mapear predecesores por número de tarea
+            # Segunda pasada: Mapear predecesores por nÃºmero de tarea
             # Solo si hubo cambios o se crearon items
             todos_los_items = cronograma.items.all()
             dict_items = {str(item.numero): item for item in todos_los_items}
@@ -2631,12 +2645,12 @@ def cronograma_predefinido_edit_view(request, pk=None):
             messages.success(request, f"Cronograma '{cronograma.nombre}' guardado exitosamente.")
             return redirect('callcenter:callcenter_cronogramas_lista')
         else:
-            messages.error(request, "Error de validación. Por favor revisa los campos.")
+            messages.error(request, "Error de validaciÃ³n. Por favor revisa los campos.")
     else:
         form = CronogramaPredefinidoForm(instance=instance)
         formset = CronogramaItemFormSet(instance=instance)
         
-    # Si es edición, calcular fechas relativas para el GANTT
+    # Si es ediciÃ³n, calcular fechas relativas para el GANTT
     gantt_data = []
     if instance:
         from django.utils import timezone
@@ -2644,13 +2658,13 @@ def cronograma_predefinido_edit_view(request, pk=None):
         base_date = timezone.now().replace(hour=8, minute=0, second=0, microsecond=0)
         items = list(instance.items.all().prefetch_related('predecesores'))
         
-        # Mapeo de fechas para cálculos rápidos
+        # Mapeo de fechas para cÃ¡lculos rÃ¡pidos
         fechas_finales = {} # {id: end_date}
         
-        # Procesar items en orden (asumimos numero refleja orden lógico)
+        # Procesar items en orden (asumimos numero refleja orden lÃ³gico)
         for item in items:
             start_date = base_date
-            # Si tiene predecesores, su inicio es el máximo de sus finales
+            # Si tiene predecesores, su inicio es el mÃ¡ximo de sus finales
             preds = item.predecesores.all()
             if preds:
                 fechas_preds = [fechas_finales.get(p.id, base_date) for p in preds]
@@ -2687,7 +2701,7 @@ def cronograma_predefinido_detalle_view(request, pk):
     """
     instance = get_object_or_404(CronogramaPredefinido, pk=pk)
     
-    # Cálculo de GANTT (igual que en Edit)
+    # CÃ¡lculo de GANTT (igual que en Edit)
     from django.utils import timezone
     from datetime import timedelta
     import json
@@ -2735,7 +2749,7 @@ def cronograma_predefinido_lista_view(request):
 @staff_member_required
 def get_diagnosticos_by_falla_ajax(request):
     """
-    Vista AJAX para obtener los diagnósticos asociados a una falla (y sus ancestros).
+    Vista AJAX para obtener los diagnÃ³sticos asociados a una falla (y sus ancestros).
     """
     falla_id = request.GET.get('falla_id')
     if not falla_id:
@@ -2769,19 +2783,19 @@ def ticket_detail_ajax(request, ticket_id):
     for ta in ticket.tiempos_acordados.all().order_by('-creado_en')[:5]:
         tiempos.append({
             'folio': str(ta.folio_ta) if hasattr(ta, 'folio_ta') else f"TA-{ta.id}",
-            'fecha_limite': ta.fecha_solucion_final.strftime('%d/%m/%Y %H:%M') if ta.fecha_solucion_final else '—',
+            'fecha_limite': ta.fecha_solucion_final.strftime('%d/%m/%Y %H:%M') if ta.fecha_solucion_final else 'â€”',
             'motivo': (ta.motivo_extension or '')[:120],
-            'creado_en': ta.creado_en.strftime('%d/%m/%Y %H:%M') if ta.creado_en else '—',
+            'creado_en': ta.creado_en.strftime('%d/%m/%Y %H:%M') if ta.creado_en else 'â€”',
         })
 
-    # Restricción de acceso
+    # RestricciÃ³n de acceso
     restriccion_data = None
     try:
         ra = ticket.restriccion_acceso
         restriccion_data = {
             'folio': str(ra.folio_ra),
             'horas': str(ra.horas_restriccion),
-            'creado_en': ra.creado_en.strftime('%d/%m/%Y %H:%M') if ra.creado_en else '—',
+            'creado_en': ra.creado_en.strftime('%d/%m/%Y %H:%M') if ra.creado_en else 'â€”',
         }
     except Exception:
         restriccion_data = None
@@ -2797,7 +2811,7 @@ def ticket_detail_ajax(request, ticket_id):
 
     def fmt(dt):
         if not dt:
-            return '—'
+            return 'â€”'
         from django.utils import timezone
         return timezone.localtime(dt).strftime('%d/%m/%Y %H:%M')
 
@@ -2814,21 +2828,21 @@ def ticket_detail_ajax(request, ticket_id):
         'correo_cierre': bool(ticket.correo_cierre),
 
         # Personas
-        'solicitante': ticket.solicitante or '—',
-        'responsable': ticket.responsable or '—',
-        'usuario_responsable': ticket.usuario_responsable.get_full_name() if ticket.usuario_responsable else '—',
+        'solicitante': ticket.solicitante or 'â€”',
+        'responsable': ticket.responsable or 'â€”',
+        'usuario_responsable': ticket.usuario_responsable.get_full_name() if ticket.usuario_responsable else 'â€”',
 
-        # Clasificación
-        'servicio': ticket.servicio or '—',
-        'subservicio': ticket.subservicio or '—',
-        'unidad': ticket.unidad or '—',
-        'area': ticket.area or '—',
-        'grupo': ticket.grupo or '—',
-        'nivel': ticket.nivel or '—',
+        # ClasificaciÃ³n
+        'servicio': ticket.servicio or 'â€”',
+        'subservicio': ticket.subservicio or 'â€”',
+        'unidad': ticket.unidad or 'â€”',
+        'area': ticket.area or 'â€”',
+        'grupo': ticket.grupo or 'â€”',
+        'nivel': ticket.nivel or 'â€”',
 
-        # Tipo y recepción
-        'tipo_recepcion': ticket.tipo_recepcion or '—',
-        'tipo_solicitud': ticket.tipo_solicitud or '—',
+        # Tipo y recepciÃ³n
+        'tipo_recepcion': ticket.tipo_recepcion or 'â€”',
+        'tipo_solicitud': ticket.tipo_solicitud or 'â€”',
 
         # Fechas
         'fecha_solicitud': fmt(ticket.fecha_solicitud),
@@ -2839,35 +2853,35 @@ def ticket_detail_ajax(request, ticket_id):
         # Descripciones
         'solicitud_descripcion': ticket.solicitud_descripcion or '',
         'falla_descripcion': ticket.falla_descripcion or '',
-        'falla_clasificacion': ticket.falla_clasificacion or '—',
-        'clasificacion_falla_final': ticket.clasificacion_falla_final or '—',
+        'falla_clasificacion': ticket.falla_clasificacion or 'â€”',
+        'clasificacion_falla_final': ticket.clasificacion_falla_final or 'â€”',
 
-        # Seguimiento técnico
+        # Seguimiento tÃ©cnico
         'diagnostico': ticket.diagnostico or '',
         'actividades': ticket.actividades or '',
         'observaciones': ticket.observaciones or '',
         'comentarios_internos': ticket.comentarios_internos or '',
 
         # Activo
-        'activo_nombre': ticket.activo.nombre if ticket.activo else '—',
-        'activo_codigo': ticket.activo.codigo_interno if ticket.activo else '—',
-        'activo_serie': ticket.activo.serie if ticket.activo else '—',
+        'activo_nombre': ticket.activo.nombre if ticket.activo else 'â€”',
+        'activo_codigo': ticket.activo.codigo_interno if ticket.activo else 'â€”',
+        'activo_serie': ticket.activo.serie if ticket.activo else 'â€”',
 
-        # Ubicación
-        'ubicacion_nombre': ticket.ubicacion.ruta_completa if ticket.ubicacion and hasattr(ticket.ubicacion, 'ruta_completa') else (str(ticket.ubicacion) if ticket.ubicacion else '—'),
+        # UbicaciÃ³n
+        'ubicacion_nombre': ticket.ubicacion.ruta_completa if ticket.ubicacion and hasattr(ticket.ubicacion, 'ruta_completa') else (str(ticket.ubicacion) if ticket.ubicacion else 'â€”'),
 
         # Financiero
         'deductiva': str(ticket.deductiva or '0.00'),
-        'proveedor_deductiva': ticket.proveedor_deductiva.nombre if ticket.proveedor_deductiva else '—',
+        'proveedor_deductiva': ticket.proveedor_deductiva.nombre if ticket.proveedor_deductiva else 'â€”',
 
-        # Falla Catálogo
+        # Falla CatÃ¡logo
         'falla_reportada_id': ticket.falla_reportada_id,
-        'falla_reportada': str(ticket.falla_reportada) if ticket.falla_reportada else '—',
+        'falla_reportada': str(ticket.falla_reportada) if ticket.falla_reportada else 'â€”',
 
-        # Diagnóstico Catálogo
+        # DiagnÃ³stico CatÃ¡logo
         'diagnostico_reportado_id': ticket.diagnostico_reportado_id,
-        'diagnostico_reportado_nombre': ticket.diagnostico_reportado.nombre if ticket.diagnostico_reportado else '—',
-        'diagnostico_reportado': str(ticket.diagnostico_reportado) if ticket.diagnostico_reportado else '—',
+        'diagnostico_reportado_nombre': ticket.diagnostico_reportado.nombre if ticket.diagnostico_reportado else 'â€”',
+        'diagnostico_reportado': str(ticket.diagnostico_reportado) if ticket.diagnostico_reportado else 'â€”',
 
         # Relaciones
         'tiempos_acordados': tiempos,
@@ -2875,17 +2889,17 @@ def ticket_detail_ajax(request, ticket_id):
         'evidencias': evidencias,
         'num_evidencias': ticket.evidencias.count(),
 
-        # URLs de acción rápida
+        # URLs de acciÃ³n rÃ¡pida
         # Historial
         'historial': [{
             'accion': h.accion,
             'accion_display': h.get_accion_display(),
-            'usuario': h.usuario.get_full_name() or h.usuario.username if h.usuario else '—',
+            'usuario': h.usuario.get_full_name() or h.usuario.username if h.usuario else 'â€”',
             'descripcion': h.descripcion,
             'creado_en': fmt(h.creado_en),
         } for h in ticket.historial.all().order_by('-creado_en')[:50]],
 
-        # URLs de acción rápida
+        # URLs de acciÃ³n rÃ¡pida
         'url_admin': f'/admin/callcenter/solicitudticket/{ticket.id}/change/',
         'url_cierre_visual': f'/callcenter/ticket/{ticket.id}/cierre-visual/',
         'url_sync': f'/admin/callcenter/solicitudticket/{ticket.id}/sync-singular/',
@@ -2893,9 +2907,9 @@ def ticket_detail_ajax(request, ticket_id):
 
         # Departamento actual
         'departamento_id': ticket.falla_reportada.departamento_responsable_id if ticket.falla_reportada and ticket.falla_reportada.departamento_responsable_id else None,
-        'departamento_nombre': ticket.falla_reportada.departamento_responsable.nombre if ticket.falla_reportada and ticket.falla_reportada.departamento_responsable else '—',
+        'departamento_nombre': ticket.falla_reportada.departamento_responsable.nombre if ticket.falla_reportada and ticket.falla_reportada.departamento_responsable else 'â€”',
 
-        # Listas para el formulario de edición
+        # Listas para el formulario de ediciÃ³n
         'departamentos': list(
             Departamento.objects.all().order_by('nombre')
             .values('id', 'nombre')
@@ -2969,7 +2983,7 @@ def ticket_quick_edit_ajax(request, ticket_id):
     ticket.comentarios_internos = body.get('comentarios_internos', ticket.comentarios_internos or '')
     ticket.clasificacion_falla_final = body.get('clasificacion_falla_final', ticket.clasificacion_falla_final or '')
 
-    # Diagnóstico del Catálogo
+    # DiagnÃ³stico del CatÃ¡logo
     diagnostico_reportado_id = body.get('diagnostico_reportado', '')
     if diagnostico_reportado_id:
         from .models import DiagnosticoTicket
@@ -3019,7 +3033,7 @@ def ticket_quick_edit_ajax(request, ticket_id):
 
 def mobile_ticket_detalle_view(request, pk):
     """
-    Vista premium y optimizada para móviles para visualizar el detalle de un ticket.
+    Vista premium y optimizada para mÃ³viles para visualizar el detalle de un ticket.
     """
     ticket = get_object_or_404(
         SolicitudTicket.objects.select_related('activo', 'ubicacion', 'usuario_responsable'), 
@@ -3032,7 +3046,7 @@ def mobile_ticket_detalle_view(request, pk):
     # Obtener Tiempos Acordados relacionados
     tiempos_acordados = ticket.tiempos_acordados.all().order_by('-creado_en')
     
-    # Obtener Restricción de Acceso si existe
+    # Obtener RestricciÃ³n de Acceso si existe
     restriccion = getattr(ticket, 'restriccion_acceso', None)
     
     context = {
@@ -3066,7 +3080,7 @@ def save_comentario_interno_ajax(request, ticket_id):
 
     return JsonResponse({
         'success': True,
-        'message': 'Comentario interno guardado con éxito.',
+        'message': 'Comentario interno guardado con Ã©xito.',
         'comentario': ticket.comentarios_internos
     })
 
@@ -3096,9 +3110,9 @@ def toggle_ticket_interno_ajax(request, ticket_id):
 @csrf_exempt
 def create_restriccion_acceso_ajax(request, ticket_id):
     """
-    Crea una Restricción de Acceso vinculada a un ticket cerrado.
+    Crea una RestricciÃ³n de Acceso vinculada a un ticket cerrado.
     Folio: RA-DEPT-2026-001
-    Horas: Calculadas según horario hábil (7-23h, 16h/día).
+    Horas: Calculadas segÃºn horario hÃ¡bil (7-23h, 16h/dÃ­a).
     """
     from .utils import calcular_horas_habiles
     
@@ -3107,10 +3121,10 @@ def create_restriccion_acceso_ajax(request, ticket_id):
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
     if not ticket.fecha_cierre:
-        return JsonResponse({'success': False, 'message': 'El ticket debe estar cerrado para crear una restricción.'}, status=400)
+        return JsonResponse({'success': False, 'message': 'El ticket debe estar cerrado para crear una restricciÃ³n.'}, status=400)
     
     if hasattr(ticket, 'restriccion_acceso'):
-        return JsonResponse({'success': False, 'message': 'Este ticket ya tiene una restricción de acceso asociada.'}, status=400)
+        return JsonResponse({'success': False, 'message': 'Este ticket ya tiene una restricciÃ³n de acceso asociada.'}, status=400)
 
     try:
         data = json.loads(request.body)
@@ -3123,7 +3137,7 @@ def create_restriccion_acceso_ajax(request, ticket_id):
     # 1. Resolver Departamento para el folio
     dept_nombre = "INST" # Fallback
     if hasattr(request.user, 'perfil') and request.user.perfil.departamento:
-        # Tomar las primeras 4 letras en mayúsculas, quitando caracteres no alfanuméricos
+        # Tomar las primeras 4 letras en mayÃºsculas, quitando caracteres no alfanumÃ©ricos
         raw_dept = request.user.perfil.departamento.nombre
         dept_nombre = "".join(filter(str.isalnum, raw_dept))[:4].upper()
     
@@ -3171,7 +3185,7 @@ def create_restriccion_acceso_ajax(request, ticket_id):
 @staff_member_required
 def export_restriccion_acceso_pdf(request, pk):
     """
-    Genera un PDF formal para una Restricción de Acceso.
+    Genera un PDF formal para una RestricciÃ³n de Acceso.
     """
     from .models import RestriccionAcceso
     ra = get_object_or_404(RestriccionAcceso, pk=pk)
@@ -3198,13 +3212,13 @@ def export_restriccion_acceso_pdf(request, pk):
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
     except Exception as e:
-        logger.error(f"Error generando PDF para Restricción {ra.id}: {e}")
+        logger.error(f"Error generando PDF para RestricciÃ³n {ra.id}: {e}")
         return HttpResponse(f"Error al generar el PDF: {e}", status=500)
 
 @staff_member_required
 def exportar_solicitudticket_pdf(request, ticket_id):
     """
-    Exporta un ticket individual a PDF como ficha técnica.
+    Exporta un ticket individual a PDF como ficha tÃ©cnica.
     """
     ticket_id = int(ticket_id.replace(',', '').replace('.', ''))
     ticket = get_object_or_404(SolicitudTicket.objects.select_related(
@@ -3313,16 +3327,16 @@ def vectorize_cluster_tickets_ajax(request, cluster_id):
         from .tasks import vectorize_ticket_n8n
         count = 0
         for ticket in tickets:
-            # Forzamos el envío a n8n independientemente de si ya tiene embedding
+            # Forzamos el envÃ­o a n8n independientemente de si ya tiene embedding
             vectorize_ticket_n8n.delay(ticket.id)
             count += 1
             
         return JsonResponse({
             'success': True, 
-            'message': f'Se han encolado {count} tickets para vectorización IA.'
+            'message': f'Se han encolado {count} tickets para vectorizaciÃ³n IA.'
         })
     except Exception as e:
-        logger.error(f"Error al encolar vectorización de cluster {cluster_id}: {e}")
+        logger.error(f"Error al encolar vectorizaciÃ³n de cluster {cluster_id}: {e}")
         return JsonResponse({'success': False, 'error': str(e)})
 
 
@@ -3338,22 +3352,22 @@ def add_tickets_to_cluster_ajax(request, cluster_id):
     if not folios_raw:
         return JsonResponse({'success': False, 'error': 'No se proporcionaron folios.'})
     
-    # Parsear folios (separados por comas, espacios o saltos de línea)
+    # Parsear folios (separados por comas, espacios o saltos de lÃ­nea)
     import re
     folios = list(set([f.strip() for f in re.split(r'[\s,]+', folios_raw) if f.strip()]))
     
     if not folios:
-        return JsonResponse({'success': False, 'error': 'No se encontraron folios válidos en el texto.'})
+        return JsonResponse({'success': False, 'error': 'No se encontraron folios vÃ¡lidos en el texto.'})
     
     try:
         from django.db.models import Q
         # Buscar tickets
         tickets_encontrados = SolicitudTicket.objects.filter(
-            Q(folio__in=folios) | Q(folio__iexact=folios) # __in es más eficiente para listas
+            Q(folio__in=folios) | Q(folio__iexact=folios) # __in es mÃ¡s eficiente para listas
         )
         
-        # Si falló la búsqueda masiva exacta (por temas de case sensitivity en algunos DBs)
-        # o si queremos ser más exhaustivos:
+        # Si fallÃ³ la bÃºsqueda masiva exacta (por temas de case sensitivity en algunos DBs)
+        # o si queremos ser mÃ¡s exhaustivos:
         if tickets_encontrados.count() < len(folios):
             query = Q()
             for f in folios:
@@ -3378,7 +3392,7 @@ def add_tickets_to_cluster_ajax(request, cluster_id):
 @staff_member_required
 @mobile_permission_required('mis_avisos')
 def mobile_ticket_cierre_view(request, pk):
-    """Vista optimizada para cerrar un ticket desde dispositivos móviles."""
+    """Vista optimizada para cerrar un ticket desde dispositivos mÃ³viles."""
     from django.utils import timezone
     from datetime import datetime
     
@@ -3414,7 +3428,7 @@ def mobile_ticket_cierre_view(request, pk):
 @staff_member_required
 def import_fallatickets_process(request):
     """
-    Vista para manejar el flujo de importación asíncrona del catálogo de fallas de tickets.
+    Vista para manejar el flujo de importaciÃ³n asÃ­ncrona del catÃ¡logo de fallas de tickets.
     """
     from django.core.cache import cache
     from django.core.files.storage import default_storage
@@ -3430,11 +3444,11 @@ def import_fallatickets_process(request):
             return JsonResponse(progress or {'status': 'idle'})
         
         return render(request, 'admin/callcenter/fallaticket/import_background.html', {
-            'title': 'Importación Asíncrona de Catálogo de Fallas'
+            'title': 'ImportaciÃ³n AsÃ­ncrona de CatÃ¡logo de Fallas'
         })
 
     if request.method == 'POST':
-        # Paso 1: Subida de archivo y validación inicial (Verification Mode)
+        # Paso 1: Subida de archivo y validaciÃ³n inicial (Verification Mode)
         if 'file' in request.FILES:
             file = request.FILES['file']
             file_path = default_storage.save(f'tmp/fallas_tickets_import_{request.user.id}.xlsx', file)
@@ -3443,11 +3457,11 @@ def import_fallatickets_process(request):
             # Guardar ruta en cache para el siguiente paso
             cache.set(f"import_fallatickets_file_{request.user.id}", full_path, 3600)
             
-            # Lanzar tarea en modo verificación
+            # Lanzar tarea en modo verificaciÃ³n
             import_fallatickets_task.delay(full_path, request.user.id, verification_mode=True)
             return JsonResponse({'status': 'started'})
 
-        # Paso 2: Confirmación de importación real
+        # Paso 2: ConfirmaciÃ³n de importaciÃ³n real
         if request.POST.get('confirm') == 'true':
             full_path = cache.get(f"import_fallatickets_file_{request.user.id}")
             if not full_path or not os.path.exists(full_path):
@@ -3457,13 +3471,13 @@ def import_fallatickets_process(request):
             import_fallatickets_task.delay(full_path, request.user.id, verification_mode=False)
             return JsonResponse({'status': 'started'})
 
-    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    return JsonResponse({'status': 'error', 'message': 'MÃ©todo no permitido'}, status=405)
 
 
 @staff_member_required
 def import_diagnosticos_process(request):
     """
-    Vista para manejar el flujo de importación asíncrona del catálogo de diagnósticos de tickets.
+    Vista para manejar el flujo de importaciÃ³n asÃ­ncrona del catÃ¡logo de diagnÃ³sticos de tickets.
     """
     from django.core.cache import cache
     from django.core.files.storage import default_storage
@@ -3479,11 +3493,11 @@ def import_diagnosticos_process(request):
             return JsonResponse(progress or {'status': 'idle'})
         
         return render(request, 'admin/callcenter/diagnosticoticket/import_background.html', {
-            'title': 'Importación Asíncrona de Catálogo de Diagnósticos'
+            'title': 'ImportaciÃ³n AsÃ­ncrona de CatÃ¡logo de DiagnÃ³sticos'
         })
 
     if request.method == 'POST':
-        # Paso 1: Subida de archivo y validación inicial (Verification Mode)
+        # Paso 1: Subida de archivo y validaciÃ³n inicial (Verification Mode)
         if 'file' in request.FILES:
             file = request.FILES['file']
             file_path = default_storage.save(f'tmp/diagnosticos_tickets_import_{request.user.id}.xlsx', file)
@@ -3492,11 +3506,11 @@ def import_diagnosticos_process(request):
             # Guardar ruta en cache para el siguiente paso
             cache.set(f"import_diagnosticos_file_{request.user.id}", full_path, 3600)
             
-            # Lanzar tarea en modo verificación
+            # Lanzar tarea en modo verificaciÃ³n
             import_diagnosticos_task.delay(full_path, request.user.id, verification_mode=True)
             return JsonResponse({'status': 'started'})
 
-        # Paso 2: Confirmación de importación real
+        # Paso 2: ConfirmaciÃ³n de importaciÃ³n real
         if request.POST.get('confirm') == 'true':
             full_path = cache.get(f"import_diagnosticos_file_{request.user.id}")
             if not full_path or not os.path.exists(full_path):
@@ -3506,13 +3520,13 @@ def import_diagnosticos_process(request):
             import_diagnosticos_task.delay(full_path, request.user.id, verification_mode=False)
             return JsonResponse({'status': 'started'})
 
-    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    return JsonResponse({'status': 'error', 'message': 'MÃ©todo no permitido'}, status=405)
 
 
 @staff_member_required
 def get_dashboard_node_tickets_ajax(request):
     """
-    Retorna el listado de tickets filtrado por nodo (Depto, Falla o Ubicación).
+    Retorna el listado de tickets filtrado por nodo (Depto, Falla o UbicaciÃ³n).
     """
     from django.template.loader import render_to_string
     from django.db.models import Q
@@ -3559,7 +3573,7 @@ def get_dashboard_node_tickets_ajax(request):
 @require_POST
 def update_ticket_deductiva_ajax(request, ticket_id):
     """
-    Actualiza la deductiva de un ticket específico vía AJAX y retorna los totales actualizados del cluster.
+    Actualiza la deductiva de un ticket especÃ­fico vÃ­a AJAX y retorna los totales actualizados del cluster.
     """
     from decimal import Decimal
     from django.db.models import Sum
@@ -3582,7 +3596,7 @@ def update_ticket_deductiva_ajax(request, ticket_id):
         clean_val = deductiva_val.replace(',', '').strip()
         ticket.deductiva = Decimal(clean_val)
     except Exception as e:
-        return JsonResponse({'success': False, 'error': f'Monto inválido: {str(e)}'}, status=400)
+        return JsonResponse({'success': False, 'error': f'Monto invÃ¡lido: {str(e)}'}, status=400)
         
     ticket.save()
     
@@ -3626,7 +3640,7 @@ def import_deductivas_excel_ajax(request, cluster_id):
 
     file = request.FILES.get('file')
     if not file:
-        return JsonResponse({'success': False, 'error': 'No se recibió ningún archivo.'}, status=400)
+        return JsonResponse({'success': False, 'error': 'No se recibiÃ³ ningÃºn archivo.'}, status=400)
 
     if not file.name.endswith('.xlsx'):
         return JsonResponse({'success': False, 'error': 'El archivo debe ser formato .xlsx'}, status=400)
@@ -3651,16 +3665,16 @@ def import_deductivas_excel_ajax(request, cluster_id):
     if not folio_col:
         return JsonResponse({
             'success': False,
-            'error': f'No se encontró la columna "Folio/ID" en el Excel. Columnas encontradas: {", ".join(df.columns.tolist())}'
+            'error': f'No se encontrÃ³ la columna "Folio/ID" en el Excel. Columnas encontradas: {", ".join(df.columns.tolist())}'
         }, status=400)
 
     if not deductiva_col:
         return JsonResponse({
             'success': False,
-            'error': f'No se encontró la columna "Deductiva (USD)" en el Excel. Columnas encontradas: {", ".join(df.columns.tolist())}'
+            'error': f'No se encontrÃ³ la columna "Deductiva (USD)" en el Excel. Columnas encontradas: {", ".join(df.columns.tolist())}'
         }, status=400)
 
-    # Pre-cargar todos los tickets del cluster en un dict para búsqueda O(1)
+    # Pre-cargar todos los tickets del cluster en un dict para bÃºsqueda O(1)
     all_tickets = cluster.tickets.all()
     tickets_by_folio = {}
     tickets_by_id = {}
@@ -3692,7 +3706,7 @@ def import_deductivas_excel_ajax(request, cluster_id):
         if not ticket and clean_folio.endswith('.0'):
             ticket = tickets_by_id.get(clean_folio[:-2])
 
-        # Si no está en el cluster, buscar globalmente y agregarlo
+        # Si no estÃ¡ en el cluster, buscar globalmente y agregarlo
         if not ticket:
             global_ticket = None
             try:
@@ -3701,7 +3715,7 @@ def import_deductivas_excel_ajax(request, cluster_id):
                 # Crear los filtros. Siempre buscamos en folio exacto primero
                 q_filter = Q(folio__iexact=folio_val) | Q(folio__iexact=clean_folio_no_decimals)
                 
-                # Solo buscamos en id_solicitud si el valor es numérico
+                # Solo buscamos en id_solicitud si el valor es numÃ©rico
                 if folio_val.isdigit():
                     q_filter |= Q(id_solicitud=int(folio_val))
                 elif clean_folio_no_decimals.isdigit():
@@ -3709,8 +3723,8 @@ def import_deductivas_excel_ajax(request, cluster_id):
                     
                 global_ticket = SolicitudTicket.objects.filter(q_filter).first()
 
-                # BÚSQUEDA A PRUEBA DE BALAS: Si no lo encontró, y tiene un guión, buscar la parte numérica
-                # (Esto resuelve los casos donde en la DB se guardó como 'SS26- 144975' con espacios)
+                # BÃšSQUEDA A PRUEBA DE BALAS: Si no lo encontrÃ³, y tiene un guiÃ³n, buscar la parte numÃ©rica
+                # (Esto resuelve los casos donde en la DB se guardÃ³ como 'SS26- 144975' con espacios)
                 if not global_ticket and '-' in folio_val:
                     number_part = folio_val.split('-')[-1].replace('.0', '').strip()
                     if number_part.isdigit():
@@ -3725,7 +3739,7 @@ def import_deductivas_excel_ajax(request, cluster_id):
                 pass
             
             if global_ticket:
-                # Añadir el ticket global al cluster
+                # AÃ±adir el ticket global al cluster
                 cluster.tickets.add(global_ticket)
                 ticket = global_ticket
                 agregados_al_cluster += 1
@@ -3757,7 +3771,7 @@ def import_deductivas_excel_ajax(request, cluster_id):
                 'folio': folio_val,
                 'deductiva': 0,
                 'status': 'error',
-                'msg': f'Valor inválido: {deductiva_val}'
+                'msg': f'Valor invÃ¡lido: {deductiva_val}'
             })
             continue
 
@@ -3804,7 +3818,7 @@ def import_deductivas_excel_ajax(request, cluster_id):
 @staff_member_required
 def download_deductivas_template(request):
     """
-    Descarga una plantilla vacía de Excel para la importación de deductivas.
+    Descarga una plantilla vacÃ­a de Excel para la importaciÃ³n de deductivas.
     """
     import pandas as pd
     from django.http import HttpResponse
