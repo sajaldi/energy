@@ -513,9 +513,10 @@
   var progressFill = document.getElementById('progress-fill');
   var progressText = document.getElementById('progress-text');
 
-  // Zoom limits (25% to 400%)
+  // Zoom limits (25% to 1000%)
   var MIN_ZOOM_RATIO = 0.25;
-  var MAX_ZOOM_RATIO = 4.0;
+  var MAX_ZOOM_RATIO = 10.0;
+  var lastRenderScale = 1; // Track at which scale we last rendered
 
   function xform() {
     stage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
@@ -548,7 +549,6 @@
   function zoomAt(f, vx, vy) {
     var ns = scale * f;
     var ratio = ns / base;
-    // Clamp to 25%-400%
     if (ratio < MIN_ZOOM_RATIO) ns = base * MIN_ZOOM_RATIO;
     if (ratio > MAX_ZOOM_RATIO) ns = base * MAX_ZOOM_RATIO;
     var r = ns / scale;
@@ -556,15 +556,57 @@
     ty = vy - r * (vy - ty);
     scale = ns;
     clamp(); xform(); setZoomLabel();
+    // Re-render at higher resolution if zoomed in significantly
+    scheduleRerender();
   }
 
   function zoom(f) { zoomAt(f, viewer.clientWidth / 2, viewer.clientHeight / 2); }
+
+  // Debounced re-render when zoom level exceeds current render resolution
+  var rerenderTimer = null;
+  function scheduleRerender() {
+    if (rerenderTimer) clearTimeout(rerenderTimer);
+    rerenderTimer = setTimeout(function() {
+      var currentZoomRatio = scale / base;
+      // Re-render if zoom exceeds 1.5x what was last rendered, or if significantly lower
+      if (currentZoomRatio > lastRenderScale * 1.5 || currentZoomRatio < lastRenderScale * 0.3) {
+        rerenderAtCurrentZoom();
+      }
+    }, 300);
+  }
+
+  function rerenderAtCurrentZoom() {
+    if (!pdfDoc) return;
+    var currentZoomRatio = scale / base;
+    pdfDoc.getPage(curPage).then(function(page) {
+      var dpr = window.devicePixelRatio || 1;
+      // Render at current zoom level * dpr for crisp display
+      var renderScale = base * Math.max(currentZoomRatio * dpr, 2);
+      var factor = renderScale / base;
+      var vp = page.getViewport({ scale: renderScale });
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      cssW = vp.width / factor;
+      cssH = vp.height / factor;
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      page.render({ canvasContext: ctx, viewport: vp, intent: 'print',
+                    background: 'rgba(255,255,255,1)' }).promise.then(function() {
+        lastRenderScale = currentZoomRatio;
+      });
+    });
+  }
 
   // Render a single PDF page
   function renderPage(n) {
     if (!pdfDoc) return Promise.resolve();
     return pdfDoc.getPage(n).then(function(page) {
-      var RENDER_FACTOR = 4;
+      var dpr = window.devicePixelRatio || 1;
+      var RENDER_FACTOR = Math.max(4, dpr * 2);
       // Store intrinsic PDF page dimensions (scale=1) — constant regardless of screen
       var vpIntrinsic = page.getViewport({ scale: 1 });
       pdfPageWidth = vpIntrinsic.width;
@@ -577,12 +619,14 @@
       cssH = vp.height / RENDER_FACTOR;
       canvas.style.width  = cssW + 'px';
       canvas.style.height = cssH + 'px';
-      ctx.imageSmoothingEnabled = false;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       return page.render({ canvasContext: ctx, viewport: vp, intent: 'print',
                            background: 'rgba(255,255,255,1)' }).promise;
     }).then(function() {
+      lastRenderScale = 1;
       curPage = n;
       pageInfo.textContent = 'Página ' + n + ' de ' + totPages;
       // Update active thumbnail
