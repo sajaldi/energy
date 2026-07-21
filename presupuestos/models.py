@@ -1406,3 +1406,53 @@ class ItemCotizacion(models.Model):
         verbose_name = "Item de Cotización"
         verbose_name_plural = "Items de Cotización"
         ordering = ['orden']
+
+
+class PaqueteMaterial(models.Model):
+    nombre = models.CharField(max_length=255, verbose_name="Nombre del paquete")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    departamento = models.ForeignKey(
+        'core.Departamento', on_delete=models.CASCADE,
+        related_name='paquetes_materiales', verbose_name="Departamento"
+    )
+    creado_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='paquetes_creados', verbose_name="Creado por"
+    )
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Creado el")
+    actualizado_en = models.DateTimeField(auto_now=True, verbose_name="Actualizado el")
+
+    class Meta:
+        verbose_name = "Paquete de Materiales"
+        verbose_name_plural = "Paquetes de Materiales"
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return self.nombre
+
+
+class PaqueteMaterialItem(models.Model):
+    paquete = models.ForeignKey(
+        PaqueteMaterial, on_delete=models.CASCADE,
+        related_name='items', verbose_name="Paquete"
+    )
+    material = models.ForeignKey(
+        'inventarios.Material', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='paquetes_items',
+        verbose_name="Material"
+    )
+    descripcion = models.CharField(max_length=1000, blank=True, verbose_name="Descripción / Detalle")
+    cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=1, verbose_name="Cantidad")
+    costo_aproximado = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True,
+        verbose_name="Costo Aproximado"
+    )
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+
+    class Meta:
+        verbose_name = "Item del Paquete"
+        verbose_name_plural = "Items del Paquete"
+        ordering = ['orden']
+
+    def __str__(self):
+        return self.descripcion or str(self.material) or f"Item #{self.orden}"

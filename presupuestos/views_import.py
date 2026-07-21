@@ -1214,3 +1214,236 @@ def actualizar_orden_compra(request, pk):
         import traceback
         print(traceback.format_exc())
         return JsonResponse({'success': False, 'message': f'Error interno: {str(e)}'}, status=500)
+
+
+# ═══════════════════════════════════════════════════════════════
+# PAQUETES DE MATERIALES
+# ═══════════════════════════════════════════════════════════════
+
+@staff_member_required
+def admin_paquetes_lista(request):
+    from .models import PaqueteMaterial
+    from core.models import Departamento
+    dept_id = request.GET.get('departamento')
+    paquetes = PaqueteMaterial.objects.all().select_related('departamento', 'creado_por')
+    if dept_id:
+        paquetes = paquetes.filter(departamento_id=dept_id)
+    paquetes = paquetes.order_by('-creado_en')
+    departamentos = Departamento.objects.all().order_by('nombre')
+    return render(request, 'presupuestos/admin/paquete_material_lista.html', {
+        'paquetes': paquetes,
+        'departamentos': departamentos,
+        'dept_id': int(dept_id) if dept_id else None,
+    })
+
+
+@staff_member_required
+def admin_paquete_editar(request, pk=None):
+    from .models import PaqueteMaterial, PaqueteMaterialItem
+    from inventarios.models import Material
+    paquete = get_object_or_404(PaqueteMaterial, pk=pk) if pk else None
+
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre', '').strip()
+        descripcion = request.POST.get('descripcion', '').strip()
+        departamento_id = request.POST.get('departamento')
+
+        if not nombre or not departamento_id:
+            from django.contrib import messages
+            messages.error(request, 'Nombre y departamento son obligatorios.')
+            return redirect(request.path)
+
+        if not paquete:
+            paquete = PaqueteMaterial.objects.create(
+                nombre=nombre, descripcion=descripcion,
+                departamento_id=departamento_id, creado_por=request.user,
+            )
+        else:
+            paquete.nombre = nombre
+            paquete.descripcion = descripcion
+            paquete.departamento_id = departamento_id
+            paquete.save()
+
+        return redirect('presupuestos:admin_paquete_editar', pk=paquete.pk)
+
+    items = paquete.items.select_related('material').order_by('orden') if paquete else []
+    from core.models import Departamento
+    departamentos = Departamento.objects.all().order_by('nombre')
+    return render(request, 'presupuestos/admin/paquete_material_form.html', {
+        'paquete': paquete,
+        'items': items,
+        'departamentos': departamentos,
+    })
+
+
+@login_required
+def api_paquetes_por_departamento(request):
+    from .models import PaqueteMaterial
+    dept_id = request.GET.get('departamento')
+    if not dept_id:
+        return JsonResponse({'error': 'departamento requerido'}, status=400)
+    paquetes = PaqueteMaterial.objects.filter(departamento_id=dept_id).order_by('nombre')
+    return JsonResponse({
+        'paquetes': [{'id': p.id, 'nombre': p.nombre, 'descripcion': p.descripcion} for p in paquetes],
+    })
+
+
+@login_required
+def api_paquete_items(request, pk):
+    from .models import PaqueteMaterial, PaqueteMaterialItem
+    paquete = get_object_or_404(PaqueteMaterial, pk=pk)
+    items = paquete.items.select_related('material').order_by('orden')
+    return JsonResponse({
+        'items': [{
+            'id': i.id,
+            'material_id': i.material_id,
+            'material_nombre': str(i.material) if i.material else '',
+            'material_sku': i.material.sku if i.material else '',
+            'descripcion': i.descripcion,
+            'cantidad': float(i.cantidad),
+            'costo_aproximado': float(i.costo_aproximado) if i.costo_aproximado else None,
+        } for i in items],
+    })
+
+
+@staff_member_required
+@require_POST
+def api_paquete_agregar_item(request, pk):
+    import json
+    from .models import PaqueteMaterial, PaqueteMaterialItem
+    paquete = get_object_or_404(PaqueteMaterial, pk=pk)
+    data = json.loads(request.body)
+    item = PaqueteMaterialItem.objects.create(
+        paquete=paquete,
+        material_id=data.get('material_id'),
+        descripcion=data.get('descripcion', ''),
+        cantidad=data.get('cantidad', 1),
+        costo_aproximado=data.get('costo_aproximado'),
+        orden=paquete.items.count() + 1,
+    )
+    return JsonResponse({'ok': True, 'id': item.id})
+
+
+@staff_member_required
+def api_paquete_actualizar_item(request, pk, item_id):
+    import json
+    from .models import PaqueteMaterialItem
+    item = get_object_or_404(PaqueteMaterialItem, pk=item_id, paquete_id=pk)
+    data = json.loads(request.body) if request.body else {}
+    cantidad = data.get('cantidad')
+    if cantidad is not None:
+        item.cantidad = float(cantidad)
+    descripcion = data.get('descripcion')
+    if descripcion is not None:
+        item.descripcion = descripcion
+    item.save()
+    return JsonResponse({'ok': True, 'cantidad': item.cantidad})
+
+
+@staff_member_required
+@require_POST
+def api_paquete_eliminar_item(request, pk, item_id):
+    from .models import PaqueteMaterialItem
+    item = get_object_or_404(PaqueteMaterialItem, pk=item_id, paquete_id=pk)
+    item.delete()
+    return JsonResponse({'ok': True})
+
+
+@staff_member_required
+@require_POST
+def api_paquete_exportar(request, pk):
+    """Lanza exportación Excel del paquete vía Celery."""
+    from .tasks import export_paquete_task
+    paquete = get_object_or_404(PaqueteMaterial, pk=pk)
+    task = export_paquete_task.delay(paquete_id=pk, user_id=request.user.id)
+    return JsonResponse({'task_id': task.id, 'paquete_id': pk, 'nombre': paquete.nombre})
+
+
+@staff_member_required
+def api_paquete_exportar_progress(request):
+    """Poll progress / download URL for package export."""
+    task_id = request.GET.get('task_id')
+    if not task_id:
+        return JsonResponse({'error': 'Falta task_id'}, status=400)
+    cache_key = f"export_paquete_progress_{request.user.id}"
+    progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
+    res = AsyncResult(task_id)
+    if res.state == 'SUCCESS':
+        if isinstance(res.result, dict):
+            progress.update(res.result)
+        progress['state'] = 'COMPLETED'
+        progress['percent'] = 100
+    elif res.state == 'FAILURE':
+        progress['error'] = str(res.result)
+        progress['state'] = 'FAILURE'
+    elif res.state == 'PROGRESS':
+        if isinstance(res.info, dict):
+            progress.update(res.info)
+        progress['state'] = 'PROGRESS'
+    else:
+        progress['state'] = res.state if res else 'PENDING'
+    return JsonResponse(progress)
+
+
+@staff_member_required
+def api_paquete_importar(request, pk):
+    """Recibe archivo Excel/CSV y lanza importación vía Celery."""
+    from .tasks import import_paquete_items_task
+    paquete = get_object_or_404(PaqueteMaterial, pk=pk)
+    file = request.FILES.get('file')
+    if not file:
+        return JsonResponse({'error': 'No se recibió archivo'}, status=400)
+
+    file_ext = os.path.splitext(file.name)[1].lower()
+    if file_ext == '.csv':
+        file_format = 'csv'
+    elif file_ext in ('.xls', '.xlsx'):
+        file_format = 'xlsx'
+    else:
+        return JsonResponse({'error': 'Formato no soportado. Use .csv o .xlsx'}, status=400)
+
+    path = default_storage.save(f"paquetes/import_{pk}_{int(time.time())}{file_ext}", file)
+    task = import_paquete_items_task.delay(
+        file_path=path, file_format=file_format,
+        paquete_id=pk, user_id=request.user.id
+    )
+    return JsonResponse({'task_id': task.id, 'paquete_id': pk})
+
+
+@staff_member_required
+def api_paquete_importar_progress(request):
+    """Poll progress / result for package import."""
+    task_id = request.GET.get('task_id')
+    if not task_id:
+        return JsonResponse({'error': 'Falta task_id'}, status=400)
+    cache_key = f"import_paquete_progress_{request.user.id}"
+    progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
+    res = AsyncResult(task_id)
+    if res.state == 'SUCCESS':
+        if isinstance(res.result, dict):
+            progress.update(res.result)
+        progress['state'] = 'COMPLETED'
+        progress['percent'] = 100
+    elif res.state == 'FAILURE':
+        progress['error'] = str(res.result)
+        progress['state'] = 'FAILURE'
+    elif res.state == 'PROGRESS':
+        if isinstance(res.info, dict):
+            progress.update(res.info)
+        progress['state'] = 'PROGRESS'
+    else:
+        progress['state'] = res.state if res else 'PENDING'
+    return JsonResponse(progress)
+
+
+@staff_member_required
+def api_paquete_descargar_template(request):
+    """Descarga plantilla Excel para importar items de paquete."""
+    import tablib
+    from django.http import HttpResponse
+    headers = ['SKU', 'Material', 'Descripcion', 'Cantidad', 'Unidad', 'Costo Aprox.', 'Orden']
+    dataset = tablib.Dataset(headers=headers)
+    dataset.append(['MAT-001', 'Ejemplo de material', 'Descripción opcional', 1, 'UNIDAD', 100.00, 1])
+    response = HttpResponse(dataset.export('xlsx'), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="plantilla_paquete.xlsx"'
+    return response

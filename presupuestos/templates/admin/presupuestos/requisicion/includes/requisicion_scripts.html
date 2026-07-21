@@ -1067,6 +1067,152 @@
             recalcTotals();
 
             console.log('Eventos del Wizard registrados correctamente');
+
+            // ═══════════════════════════════════════════════════
+            // PAQUETES DE MATERIALES
+            // ═══════════════════════════════════════════════════
+            const USER_DEPT_ID = {{ request.user.perfil.departamento_id|default:'null' }};
+
+            $('#btn-cargar-paquete').on('click', function() {
+                if (!USER_DEPT_ID) {
+                    Swal.fire({ icon: 'warning', title: 'Sin departamento',
+                        text: 'No tienes un departamento asignado en tu perfil.' });
+                    return;
+                }
+
+                // Fetch packages for this department
+                fetch('/presupuestos/api/paquetes/por-departamento/?departamento=' + USER_DEPT_ID)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.paquetes || data.paquetes.length === 0) {
+                            Swal.fire({ icon: 'info', title: 'Sin paquetes',
+                                text: 'No hay paquetes de materiales para tu departamento.' });
+                            return;
+                        }
+
+                        const buttons = data.paquetes.map(p =>
+                            `<button class="swal-paq-btn" data-id="${p.id}"
+                                style="display:block;width:100%;padding:10px 14px;margin-bottom:6px;
+                                border:1px solid #d1d5db;border-radius:6px;background:#fff;
+                                cursor:pointer;text-align:left;font-size:0.9rem;
+                                transition:all 0.15s;"
+                                onmouseover="this.style.borderColor='#3b82f6';this.style.background='#eff6ff'"
+                                onmouseout="this.style.borderColor='#d1d5db';this.style.background='#fff'">
+                                <strong>📦 ${p.nombre}</strong>
+                                ${p.descripcion ? '<br><span style="font-size:0.78rem;color:#64748b;">' + p.descripcion + '</span>' : ''}
+                            </button>`
+                        ).join('');
+
+                        Swal.fire({
+                            title: 'Seleccionar Paquete',
+                            html: `<div style="max-height:400px;overflow-y:auto;">${buttons}</div>`,
+                            showConfirmButton: false,
+                            showCancelButton: true,
+                            cancelButtonText: 'Cancelar',
+                            didOpen: () => {
+                                document.querySelectorAll('.swal-paq-btn').forEach(btn => {
+                                    btn.addEventListener('click', function() {
+                                        const paqId = this.dataset.id;
+                                        Swal.close();
+                                        cargarPaquete(paqId);
+                                    });
+                                });
+                            }
+                        });
+                    });
+            });
+
+            function cargarPaquete(paqId) {
+                Swal.fire({ title: 'Cargando...', allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading() });
+
+                fetch('/presupuestos/api/paquetes/' + paqId + '/items/')
+                    .then(r => r.json())
+                    .then(data => {
+                        Swal.close();
+                        if (!data.items || data.items.length === 0) {
+                            Swal.fire({ icon: 'info', title: 'Paquete vacío',
+                                text: 'Este paquete no tiene items.' });
+                            return;
+                        }
+
+                        let added = 0;
+                        data.items.forEach(item => {
+                            const materialData = item.material_id ? {
+                                id: item.material_id,
+                                nombre: item.material_nombre || item.descripcion,
+                                sku: item.material_sku || '',
+                                precio_estimado: item.costo_aproximado || 0,
+                            } : {
+                                id: '',
+                                nombre: item.descripcion || 'Item',
+                                sku: 'SOLICITUD',
+                                precio_estimado: item.costo_aproximado || 0,
+                            };
+
+                            // Check if this material already exists in formset
+                            let existingIndex = -1;
+                            let existingQty = 0;
+                            const prefix = 'articulos';
+                            const totalForms = parseInt($('#id_' + prefix + '-TOTAL_FORMS').val()) || 0;
+
+                            for (let i = 0; i < totalForms; i++) {
+                                const matVal = $('#id_' + prefix + '-' + i + '-material').val();
+                                if (matVal && matVal == materialData.id) {
+                                    existingIndex = i;
+                                    existingQty = parseFloat($('#id_' + prefix + '-' + i + '-cr8ca_cantidad').val()) || 0;
+                                    break;
+                                }
+                            }
+
+                            const desc = item.descripcion || materialData.nombre;
+                            const qty = item.cantidad || 1;
+                            const price = item.costo_aproximado || materialData.precio_estimado || 0;
+
+                            if (existingIndex >= 0) {
+                                // Sum quantities
+                                const newQty = existingQty + qty;
+                                $('#id_' + prefix + '-' + existingIndex + '-cr8ca_cantidad').val(newQty);
+                                // Trigger change event for recalculation
+                                $('#id_' + prefix + '-' + existingIndex + '-cr8ca_cantidad').trigger('change');
+                            } else {
+                                // Add new row
+                                const newIndex = totalForms;
+                                const newRowHtml = $('#empty-article-row').html().replace(/__prefix__/g, newIndex);
+                                const $newRow = $(newRowHtml);
+                                $('#articles-container').append($newRow);
+
+                                // Set values
+                                $('#id_' + prefix + '-' + newIndex + '-material').val(materialData.id);
+                                $('#id_' + prefix + '-' + newIndex + '-cr8ca_articulo').val(desc);
+                                $('#id_' + prefix + '-' + newIndex + '-cr8ca_cantidad').val(qty);
+                                $('#id_' + prefix + '-' + newIndex + '-cr8ca_costoaproximado').val(price);
+
+                                // Update TOTAL_FORMS
+                                $('#id_' + prefix + '-TOTAL_FORMS').val(newIndex + 1);
+                            }
+                            added++;
+                        });
+
+                        // Recalculate totals and regroup
+                        if (typeof refreshArticleGrouping === 'function') {
+                            refreshArticleGrouping();
+                        }
+                        recalcTotals();
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Paquete cargado',
+                            text: added + ' item(s) agregados al formulario.',
+                            timer: 2000,
+                            showConfirmButton: false,
+                        });
+                    })
+                    .catch(() => {
+                        Swal.close();
+                        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el paquete.' });
+                    });
+            }
         }
     })();
 </script>

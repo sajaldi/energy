@@ -1,9 +1,13 @@
+import io, os
+from datetime import datetime
 from celery import shared_task
 from django.core.files.storage import default_storage
 from django.core.cache import cache
+from django.utils import timezone
+from django.core.files.base import ContentFile
 from tablib import Dataset
 import time
-from .resources import RequisicionResource, ItemSolicitudPagoResource
+from .resources import RequisicionResource, ItemSolicitudPagoResource, PaqueteMaterialItemResource
 
 def try_decode(content, encodings=['utf-8-sig', 'utf-8', 'windows-1252', 'iso-8859-1', 'utf-16', 'mac_roman']):
     for encoding in encodings:
@@ -267,3 +271,137 @@ def import_items_solicitud_task(self, file_path, file_format, user_id=None, soli
 
     cache.set(cache_key, final_res, 3600)
     return final_res
+
+
+@shared_task(bind=True)
+def export_paquete_task(self, paquete_id, user_id=None):
+    from .models import PaqueteMaterial, PaqueteMaterialItem
+    cache_key = f"export_paquete_progress_{user_id}" if user_id else f"export_paquete_progress_{paquete_id}"
+
+    try:
+        paquete = PaqueteMaterial.objects.get(pk=paquete_id)
+        qs = PaqueteMaterialItem.objects.filter(paquete=paquete).select_related('material')
+    except PaqueteMaterial.DoesNotExist:
+        err = {'status': 'error', 'message': 'Paquete no encontrado'}
+        cache.set(cache_key, err, 3600)
+        return err
+
+    total = qs.count()
+    cache.set(cache_key, {'status': 'processing', 'percent': 0, 'current': 0, 'total': total}, 3600)
+    self.update_state(state='PROGRESS', meta={'percent': 0})
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Materiales"
+
+    hdr_font = Font(bold=True, color="FFFFFF", size=11)
+    hdr_fill = PatternFill(start_color="0070F2", end_color="0070F2", fill_type="solid")
+    thin = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    headers = ['SKU', 'Material', 'Descripcion', 'Cantidad', 'Unidad', 'Costo Aprox.', 'Orden']
+    for ci, h in enumerate(headers, 1):
+        c = ws.cell(row=1, column=ci, value=h)
+        c.font = hdr_font
+        c.fill = hdr_fill
+        c.alignment = Alignment(horizontal='center')
+        c.border = thin
+
+    for ri, item in enumerate(qs.iterator(), 2):
+        ws.cell(row=ri, column=1, value=item.material.sku if item.material else '').border = thin
+        ws.cell(row=ri, column=2, value=item.material.nombre if item.material else item.descripcion).border = thin
+        ws.cell(row=ri, column=3, value=item.descripcion).border = thin
+        ws.cell(row=ri, column=4, value=float(item.cantidad)).border = thin
+        ws.cell(row=ri, column=5, value=str(item.material.unidad_medida) if item.material and item.material.unidad_medida else '').border = thin
+        ws.cell(row=ri, column=6, value=float(item.costo_aproximado) if item.costo_aproximado else 0).border = thin
+        ws.cell(row=ri, column=7, value=item.orden).border = thin
+
+        if ri % 20 == 0:
+            pct = int((ri / max(total, 1)) * 100)
+            prog = {'status': 'processing', 'percent': pct, 'current': ri, 'total': total}
+            cache.set(cache_key, prog, 3600)
+            self.update_state(state='PROGRESS', meta=prog)
+
+    for col in ws.columns:
+        max_len = max((min(len(str(cell.value or '')), 50) for cell in col), default=10) + 3
+        ws.column_dimensions[col[0].column_letter].width = max_len
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    safe_name = "".join(c for c in paquete.nombre if c.isalnum() or c in ' _-').strip()[:50]
+    file_name = f"paquetes/export_{safe_name}_{ts}.xlsx"
+    path = default_storage.save(file_name, ContentFile(output.read()))
+
+    url = default_storage.url(path)
+    result = {'status': 'completed', 'file_path': path, 'url': url, 'total': total}
+    cache.set(cache_key, result, 3600)
+    return result
+
+
+@shared_task(bind=True)
+def import_paquete_items_task(self, file_path, file_format, paquete_id, user_id=None, dry_run=False):
+    from .models import PaqueteMaterial
+    resource = PaqueteMaterialItemResource()
+    cache_key = f"import_paquete_progress_{user_id}" if user_id else f"import_paquete_progress_{paquete_id}"
+
+    try:
+        paquete = PaqueteMaterial.objects.get(pk=paquete_id)
+    except PaqueteMaterial.DoesNotExist:
+        err = {'status': 'error', 'message': 'Paquete no encontrado'}
+        cache.set(cache_key, err, 3600)
+        return err
+
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            content = f.read()
+            if file_format == 'csv':
+                dataset = Dataset().load(try_decode(content), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(content, format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except Exception as e:
+        err = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+        cache.set(cache_key, err, 3600)
+        return err
+
+    total_rows = len(dataset)
+    prog = {'status': 'processing', 'percent': 0, 'current': 0, 'total': total_rows}
+    cache.set(cache_key, prog, 3600)
+    self.update_state(state='PROGRESS', meta=prog)
+
+    try:
+        result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False, paquete_id=paquete_id)
+
+        detailed_errors = []
+        for line, errors in result.row_errors():
+            for error in errors:
+                detailed_errors.append(f"Fila {line}: {str(error.error)}")
+
+        final = {
+            'status': 'completed',
+            'total': total_rows,
+            'new': result.totals.get('new', 0),
+            'updated': result.totals.get('update', 0),
+            'skipped': result.totals.get('skip', 0),
+            'deleted': result.totals.get('delete', 0),
+            'errors': len(detailed_errors),
+            'error_list': detailed_errors,
+        }
+    except Exception as e:
+        final = {'status': 'error', 'message': str(e)}
+
+    if not dry_run:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except:
+            pass
+
+    cache.set(cache_key, final, 3600)
+    return final

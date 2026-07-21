@@ -1,6 +1,7 @@
 from import_export import resources, fields, widgets
 from import_export.widgets import ForeignKeyWidget
-from .models import Requisicion, ItemSolicitudPago, SolicitudPago
+from .models import Requisicion, ItemSolicitudPago, SolicitudPago, PaqueteMaterialItem, PaqueteMaterial
+from inventarios.models import Material
 from mantenimiento.models import Empresa
 from django.contrib.auth.models import User
 import decimal
@@ -120,6 +121,32 @@ class RequisicionResource(resources.ModelResource):
         use_bulk = True
         batch_size = 1000
         skip_diff = True
+
+class PaqueteMaterialItemResource(resources.ModelResource):
+    paquete = fields.Field(
+        column_name='paquete_id',
+        attribute='paquete',
+        widget=CachedForeignKeyWidget(PaqueteMaterial, field='pk')
+    )
+    material = fields.Field(
+        column_name='sku',
+        attribute='material',
+        widget=CachedForeignKeyWidget(Material, field='sku')
+    )
+
+    def before_import_row(self, row, **kwargs):
+        if 'paquete_id' in kwargs:
+            row['paquete_id'] = kwargs['paquete_id']
+
+    class Meta:
+        model = PaqueteMaterialItem
+        import_id_fields = ('paquete', 'material')
+        fields = ('paquete', 'sku', 'descripcion', 'cantidad', 'costo_aproximado', 'orden')
+        export_order = ('paquete', 'sku', 'descripcion', 'cantidad', 'costo_aproximado', 'orden')
+        skip_diff = True
+        use_bulk = True
+        batch_size = 500
+
 
 class ItemSolicitudPagoResource(resources.ModelResource):
     solicitud = fields.Field(

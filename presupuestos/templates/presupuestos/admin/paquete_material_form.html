@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if paquete %}Editar: {{ paquete.nombre }}{% else %}Nuevo Paquete de Materiales{% endif %}</title>
+    {% include 'core/fiori_tokens.html' %}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { width: 100%; overflow-x: hidden; }
+        body {
+            font-family: var(--sap-font-family);
+            background: var(--sap-bg-color);
+            color: var(--sap-text-color);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        a { color: var(--sap-brand-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* ── Shell Header ── */
+        .shell-header {
+            background: var(--sap-shell-bg);
+            color: var(--sap-shell-color);
+            padding: 0 24px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .shell-header .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: rgba(255,255,255,0.8);
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 6px 10px;
+            border-radius: 4px;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .shell-header .back-btn:hover { background: rgba(255,255,255,0.12); color: #fff; text-decoration: none; }
+        .shell-header h1 {
+            flex: 1;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .shell-header .header-actions { display: flex; gap: 8px; }
+        .shell-header .header-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: rgba(255,255,255,0.9);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            text-decoration: none;
+        }
+        .shell-header .header-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .shell-header .header-btn.primary { background: var(--sap-brand-color); border-color: var(--sap-brand-color); color: #fff; }
+        .shell-header .header-btn.primary:hover { background: var(--sap-highlight-color); border-color: var(--sap-highlight-color); }
+
+        /* ── Container ── */
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px 80px; }
+
+        /* ── Breadcrumb ── */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--sap-text-muted);
+            margin-bottom: 20px;
+        }
+        .breadcrumb a { color: var(--sap-text-muted); }
+        .breadcrumb a:hover { color: var(--sap-brand-color); }
+        .breadcrumb .sep { color: var(--sap-border-color); }
+
+        /* ── Messages ── */
+        .messages { margin-bottom: 16px; }
+        .msg {
+            padding: 12px 16px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .msg.error { background: var(--sap-error-bg); color: var(--sap-error); border: 1px solid var(--sap-error); }
+        .msg.success { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+
+        /* ── Card ── */
+        .card {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border-color);
+            box-shadow: var(--sap-card-shadow);
+            margin-bottom: 20px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 14px 20px;
+            background: var(--sap-group-bg);
+            border-bottom: 1px solid var(--sap-border-color);
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-header .badge-count {
+            margin-left: auto;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--sap-text-muted);
+            background: var(--sap-bg-color);
+            padding: 2px 10px;
+            border-radius: 10px;
+        }
+        .card-body { padding: 20px; }
+
+        /* ── Form Fields ── */
+        .field-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+        .field-row:last-child { margin-bottom: 0; }
+        .field-group { flex: 1; min-width: 200px; }
+        .field-group label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--sap-text-color);
+        }
+        .field-group label .required { color: var(--sap-error); margin-left: 2px; }
+        .field-group input,
+        .field-group textarea,
+        .field-group select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 4px;
+            font-family: var(--sap-font-family);
+            font-size: 0.88rem;
+            background: #fff;
+            transition: border-color 0.15s;
+        }
+        .field-group input:focus,
+        .field-group textarea:focus,
+        .field-group select:focus {
+            outline: none;
+            border-color: var(--sap-brand-color);
+            box-shadow: 0 0 0 2px rgba(0,112,242,0.1);
+        }
+        .field-group textarea { resize: vertical; min-height: 70px; }
+        .field-group .help-text {
+            font-size: 0.72rem;
+            color: var(--sap-text-muted);
+            margin-top: 3px;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            font-family: var(--sap-font-family);
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: var(--sap-card-bg);
+            color: var(--sap-text-color);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .btn:hover { background: var(--sap-hover-bg); text-decoration: none; }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; border-color: var(--sap-brand-color); }
+        .btn-primary:hover { background: var(--sap-highlight-color); border-color: var(--sap-highlight-color); }
+        .btn-success { background: #16a34a; color: #fff; border-color: #16a34a; }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger { background: var(--sap-error); color: #fff; border-color: var(--sap-error); }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-outline { background: transparent; border-color: var(--sap-border-color); }
+        .btn-outline:hover { background: var(--sap-hover-bg); }
+        .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+        .btn-xs { padding: 3px 8px; font-size: 0.7rem; }
+        .btn-icon { padding: 6px; min-width: 32px; justify-content: center; }
+
+        /* ── Items Table ── */
+        .items-table { width: 100%; border-collapse: collapse; }
+        .items-table th {
+            text-align: left;
+            padding: 10px 14px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            background: var(--sap-bg-color);
+            border-bottom: 2px solid var(--sap-border-color);
+        }
+        .items-table td {
+            padding: 12px 14px;
+            font-size: 0.85rem;
+            border-bottom: 1px solid var(--sap-border-color);
+            vertical-align: middle;
+        }
+        .items-table tr:hover td { background: var(--sap-hover-bg); }
+        .items-table tr:last-child td { border-bottom: none; }
+        .items-table .col-actions { width: 60px; text-align: center; }
+        .items-table .col-qty { width: 100px; text-align: center; }
+        .items-table .col-price { width: 130px; text-align: right; }
+        .items-table .item-sku {
+            font-size: 0.72rem;
+            color: var(--sap-text-muted);
+            display: block;
+            margin-top: 2px;
+        }
+        .items-table .item-title { font-weight: 600; color: var(--sap-text-color); }
+        .items-table .item-desc { font-size: 0.78rem; color: var(--sap-text-muted); display: block; margin-top: 2px; }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--sap-text-muted);
+        }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+        .empty-state p { font-size: 0.9rem; }
+
+        /* ── Barcode tag ── */
+        .tag-depto {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: #e0f2fe;
+            color: #0284c7;
+        }
+        .tag-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--sap-brand-color);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 800;
+        }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-content {
+            background: #fff;
+            border-radius: 12px;
+            max-width: 700px;
+            width: 95%;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--sap-border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .modal-header h3 { flex: 1; font-size: 1rem; font-weight: 700; color: var(--sap-text-color); }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: var(--sap-text-muted);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+        .modal-close:hover { background: var(--sap-hover-bg); color: var(--sap-text-color); }
+        .modal-body {
+            padding: 16px 22px 22px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            margin-bottom: 14px;
+            transition: border-color 0.15s;
+        }
+        .search-box:focus { outline: none; border-color: var(--sap-brand-color); box-shadow: 0 0 0 2px rgba(0,112,242,0.1); }
+
+        .mat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+        }
+        .mat-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: #fff;
+        }
+        .mat-card:hover { border-color: var(--sap-brand-color); box-shadow: 0 2px 8px rgba(0,112,242,0.1); }
+        .mat-card .mat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            background: var(--sap-bg-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .mat-card .mat-info { flex: 1; min-width: 0; }
+        .mat-card .mat-name { font-weight: 600; font-size: 0.85rem; color: var(--sap-text-color); }
+        .mat-card .mat-meta { font-size: 0.72rem; color: var(--sap-text-muted); margin-top: 2px; }
+        .mat-card .mat-price { font-size: 0.82rem; font-weight: 700; color: var(--sap-brand-color); white-space: nowrap; }
+        .mat-card .mat-add {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--sap-brand-color);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            transition: transform 0.15s;
+        }
+        .mat-card:hover .mat-add { transform: scale(1.15); }
+
+        .mat-empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--sap-text-muted);
+        }
+
+        /* ── Scrollbar ── */
+        .modal-body::-webkit-scrollbar { width: 5px; }
+        .modal-body::-webkit-scrollbar-track { background: transparent; }
+        .modal-body::-webkit-scrollbar-thumb { background: var(--sap-border-color); border-radius: 3px; }
+
+        /* ── Animations ── */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.25s ease; }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .container { padding: 16px 12px 80px; }
+            .shell-header { padding: 0 16px; }
+            .shell-header h1 { font-size: 0.88rem; }
+            .field-row { flex-direction: column; }
+            .field-group { min-width: auto; }
+            .mat-grid { grid-template-columns: 1fr; }
+            .items-table { font-size: 0.8rem; }
+            .items-table .col-price, .items-table .col-qty { width: auto; }
+            .modal-content { max-width: 100%; margin: 10px; max-height: 90vh; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══ Shell Header ═══ -->
+    <header class="shell-header">
+        <a href="{% url 'presupuestos:admin_paquetes_lista' %}" class="back-btn">← Paquetes</a>
+        <h1>{% if paquete %}📦 {{ paquete.nombre }}{% else %}📦 Nuevo Paquete de Materiales{% endif %}</h1>
+        <div class="header-actions">
+            {% if paquete %}
+            <button type="button" class="header-btn" onclick="abrirSelector()">+ Agregar Material</button>
+            <button type="button" class="header-btn" onclick="abrirImportar()">📥 Importar</button>
+            <button type="button" class="header-btn" onclick="iniciarExportar()">📤 Exportar</button>
+            <button type="submit" form="paquete-form" class="header-btn primary">💾 Guardar</button>
+            {% else %}
+            <button type="submit" form="paquete-form" class="header-btn primary">💾 Crear Paquete</button>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- ═══ Messages ═══ -->
+    {% if messages %}
+    <div class="container" style="padding-bottom:0;">
+        <div class="messages">
+            {% for msg in messages %}
+            <div class="msg {{ msg.tags }}">{{ msg }}</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="container">
+
+        <!-- ═══ Breadcrumb ═══ -->
+        <div class="breadcrumb">
+            <a href="/">Inicio</a>
+            <span class="sep">/</span>
+            <a href="{% url 'presupuestos:admin_paquetes_lista' %}">Paquetes de Materiales</a>
+            <span class="sep">/</span>
+            <span>{% if paquete %}{{ paquete.nombre }}{% else %}Nuevo{% endif %}</span>
+        </div>
+
+        <!-- ═══ Card: Configuración ═══ -->
+        <div class="card fade-in">
+            <div class="card-header">
+                ⚙️ Configuración del Paquete
+                {% if paquete %}
+                <span class="badge-count">{{ paquete.items.count }} item(s)</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <form method="post" id="paquete-form">
+                    {% csrf_token %}
+                    <div class="field-row">
+                        <div class="field-group" style="flex:2;">
+                            <label>Nombre del paquete <span class="required">*</span></label>
+                            <input type="text" name="nombre" value="{{ paquete.nombre|default:'' }}" required
+                                placeholder="Ej: Kit básico de oficina">
+                        </div>
+                        <div class="field-group" style="flex:1;">
+                            <label>Departamento <span class="required">*</span></label>
+                            <select name="departamento" required>
+                                <option value="">— Seleccionar —</option>
+                                {% for d in departamentos %}
+                                <option value="{{ d.id }}" {% if paquete and paquete.departamento_id == d.id %}selected{% endif %}>
+                                    {{ d.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label>Descripción</label>
+                            <textarea name="descripcion" rows="3" placeholder="Descripción opcional del paquete...">{{ paquete.descripcion|default:'' }}</textarea>
+                            <div class="help-text">Descrive brevemente para qué sirve este paquete de materiales.</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if paquete %}
+        <!-- ═══ Card: Items ═══ -->
+        <div class="card fade-in" style="animation-delay:0.1s;">
+            <div class="card-header">
+                📋 Materiales del Paquete
+                <span class="badge-count">{{ items|length }} material(es)</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                {% if items %}
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">#</th>
+                            <th>Material</th>
+                            <th class="col-qty">Cantidad</th>
+                            <th class="col-price">Costo Aprox.</th>
+                            <th class="col-actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-tbody">
+                        {% for item in items %}
+                        <tr data-item-id="{{ item.id }}">
+                            <td><span class="tag-count">{{ forloop.counter }}</span></td>
+                            <td>
+                                <span class="item-title">{{ item.material.nombre|default:item.descripcion }}</span>
+                                {% if item.descripcion and item.material %}
+                                <span class="item-desc">{{ item.descripcion }}</span>
+                                {% endif %}
+                                {% if item.material %}
+                                <span class="item-sku">SKU: {{ item.material.sku }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="col-qty">
+                                <input type="number" class="qty-input" value="{{ item.cantidad|floatformat:0 }}"
+                                    data-item-id="{{ item.id }}" min="0.01" step="0.01"
+                                    style="width:70px;padding:4px 6px;border:1px solid var(--sap-border-color);border-radius:4px;font-size:0.85rem;text-align:center;">
+                                {% if item.material.unidad_medida %}
+                                <span style="font-size:0.72rem;color:var(--sap-text-muted);"> {{ item.material.unidad_medida }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="col-price">
+                                {% if item.costo_aproximado %}
+                                <strong>L {{ item.costo_aproximado|floatformat:2 }}</strong>
+                                {% else %}
+                                <span style="color:var(--sap-text-muted);">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="col-actions" style="white-space:nowrap;">
+                                <button type="button" class="btn btn-success btn-xs" onclick="guardarCantidad(this)" title="Guardar" style="display:none;">💾</button>
+                                <button type="button" class="btn btn-danger btn-xs" onclick="eliminarItem({{ item.id }})" title="Eliminar">✕</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div style="padding:12px 14px;border-top:1px solid var(--sap-border-color);">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="abrirSelector()">+ Agregar Material</button>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="icon">📦</div>
+                    <p>Este paquete no tiene materiales aún.</p>
+                    <button type="button" class="btn btn-primary" onclick="abrirSelector()" style="margin-top:12px;">
+                        + Agregar Material
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- ═══ Modal: Progreso Export/Import ═══ -->
+    <div class="modal-overlay" id="progress-modal">
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header">
+                <h3 id="progress-title">⏳ Procesando...</h3>
+                <button type="button" class="modal-close" onclick="cerrarProgress()">✕</button>
+            </div>
+            <div class="modal-body" style="text-align:center;padding:32px 22px;">
+                <div style="font-size:3rem;margin-bottom:16px;" id="progress-icon">⏳</div>
+                <div id="progress-status" style="font-size:0.95rem;font-weight:600;margin-bottom:8px;">Iniciando...</div>
+                <div id="progress-bar-wrap" style="width:100%;height:8px;background:var(--sap-border-color);border-radius:4px;margin:12px 0;overflow:hidden;display:none;">
+                    <div id="progress-bar" style="width:0%;height:100%;background:var(--sap-brand-color);border-radius:4px;transition:width 0.3s;"></div>
+                </div>
+                <div id="progress-detail" style="font-size:0.8rem;color:var(--sap-text-muted);margin-top:4px;"></div>
+                <div id="progress-result" style="margin-top:16px;display:none;">
+                    <div id="progress-result-msg" style="font-size:0.9rem;margin-bottom:12px;"></div>
+                    <div id="progress-result-actions"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Modal: Importar archivo ═══ -->
+    <div class="modal-overlay" id="import-modal">
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header">
+                <h3>📥 Importar Materiales</h3>
+                <button type="button" class="modal-close" onclick="cerrarImportar()">✕</button>
+            </div>
+            <div class="modal-body" style="padding:24px 22px;">
+                <p style="font-size:0.85rem;color:var(--sap-text-muted);margin-bottom:16px;">
+                    Sube un archivo Excel (.xlsx) o CSV con las columnas: SKU, Material, Descripcion, Cantidad, Costo Aprox.
+                    Los materiales existentes se actualizarán por SKU.
+                </p>
+                <div style="margin-bottom:16px;">
+                    <a href="{% url 'presupuestos:api_paquete_descargar_template' %}" class="btn btn-outline btn-sm" target="_blank">
+                        📄 Descargar Plantilla
+                    </a>
+                </div>
+                <div style="border:2px dashed var(--sap-border-color);border-radius:8px;padding:32px;text-align:center;cursor:pointer;transition:all 0.15s;"
+                    id="drop-zone" onclick="document.getElementById('file-input').click()">
+                    <div style="font-size:2.5rem;margin-bottom:8px;">📂</div>
+                    <div style="font-size:0.85rem;color:var(--sap-text-muted);">Haz clic o arrastra un archivo aquí</div>
+                    <div id="file-name" style="font-size:0.85rem;font-weight:600;margin-top:8px;display:none;"></div>
+                </div>
+                <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="previsualizarArchivo(this)">
+                <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
+                    <button type="button" class="btn" onclick="cerrarImportar()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btn-import-submit" disabled onclick="iniciarImportar()">📥 Importar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="material-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🛒 Seleccionar Material</h3>
+                <button type="button" class="modal-close" onclick="cerrarSelector()">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="search-box" id="mat-search"
+                    placeholder="🔍 Buscar material por nombre o SKU..."
+                    oninput="buscarMateriales(this.value)" autofocus>
+                <div id="mat-loading" style="display:none;text-align:center;padding:24px;color:var(--sap-text-muted);">
+                    Cargando...
+                </div>
+                <div id="mat-results" class="mat-grid">
+                    <div class="mat-empty">Escribe para buscar materiales...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const CSRF = '{{ csrf_token }}';
+    const PAQ_ID = {{ paquete.id|default:'null' }};
+
+    // ── Modal ──
+    function abrirSelector() {
+        document.getElementById('material-modal').classList.add('show');
+        document.getElementById('mat-search').value = '';
+        document.getElementById('mat-search').focus();
+        buscarMateriales('');
+    }
+    function cerrarSelector() {
+        document.getElementById('material-modal').classList.remove('show');
+    }
+    document.getElementById('material-modal').addEventListener('click', function(e) {
+        if (e.target === this) cerrarSelector();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') cerrarSelector();
+    });
+
+    // ── Buscar Materiales ──
+    let searchTimer;
+    function buscarMateriales(q) {
+        clearTimeout(searchTimer);
+        const loading = document.getElementById('mat-loading');
+        const results = document.getElementById('mat-results');
+        loading.style.display = 'block';
+        results.innerHTML = '';
+
+        searchTimer = setTimeout(() => {
+            fetch('/inventarios/api/materials/?q=' + encodeURIComponent(q) + '&page_size=50')
+                .then(r => r.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    const items = data.results || [];
+                    if (items.length === 0) {
+                        results.innerHTML = '<div class="mat-empty">😕 No se encontraron materiales</div>';
+                        return;
+                    }
+                    results.innerHTML = items.map(m => `
+                        <div class="mat-card" onclick="seleccionarMaterial(${JSON.stringify({
+                            id: m.id,
+                            nombre: m.nombre,
+                            sku: m.sku,
+                            precio: m.precio_estimado || 0,
+                            unidad: m.unidad || ''
+                        }).replace(/"/g, '&quot;')})">
+                            <div class="mat-icon">🔧</div>
+                            <div class="mat-info">
+                                <div class="mat-name">${escHtml(m.nombre)}</div>
+                                <div class="mat-meta">SKU: ${escHtml(m.sku)}${m.unidad ? ' · ' + escHtml(m.unidad) : ''}</div>
+                            </div>
+                            <div class="mat-price">L ${(m.precio_estimado || 0).toFixed(2)}</div>
+                            <div class="mat-add">+</div>
+                        </div>
+                    `).join('');
+                })
+                .catch(() => {
+                    loading.style.display = 'none';
+                    results.innerHTML = '<div class="mat-empty">⚠️ Error al cargar materiales</div>';
+                });
+        }, 300);
+    }
+
+    function escHtml(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ── Seleccionar Material ──
+    function seleccionarMaterial(matJson) {
+        const mat = (typeof matJson === 'string') ? JSON.parse(matJson) : matJson;
+        cerrarSelector();
+
+        // If it's a new paquete (no ID yet), save first
+        if (!PAQ_ID) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Guardar primero',
+                text: 'Debes guardar el paquete antes de agregar materiales.',
+                confirmButtonText: 'Guardar ahora',
+            }).then(() => {
+                document.getElementById('paquete-form').submit();
+            });
+            return;
+        }
+
+        Swal.fire({
+            title: 'Agregar al paquete',
+            html: `
+                <div style="text-align:left;">
+                    <div style="font-weight:600;margin-bottom:8px;font-size:0.95rem;">${escHtml(mat.nombre)}</div>
+                    <div style="font-size:0.78rem;color:var(--sap-text-muted);margin-bottom:16px;">SKU: ${escHtml(mat.sku)}</div>
+                    <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:4px;">Cantidad</label>
+                    <input id="swal-qty" type="number" value="1" min="0.01" step="0.01"
+                        style="width:100%;padding:8px 10px;border:1px solid var(--sap-border-color);border-radius:4px;font-size:0.9rem;margin-bottom:12px;">
+                    <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:4px;">
+                        Descripción / Detalle <span style="font-weight:400;color:var(--sap-text-muted);">(opcional)</span>
+                    </label>
+                    <input id="swal-desc" type="text" value="${escHtml(mat.nombre)}"
+                        style="width:100%;padding:8px 10px;border:1px solid var(--sap-border-color);border-radius:4px;font-size:0.9rem;">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '✅ Agregar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0070f2',
+            preConfirm: () => {
+                const qty = parseFloat(document.getElementById('swal-qty').value);
+                const desc = document.getElementById('swal-desc').value.trim();
+                if (!qty || qty <= 0) {
+                    Swal.showValidationMessage('La cantidad debe ser mayor a 0');
+                    return false;
+                }
+                return { cantidad: qty, descripcion: desc || mat.nombre };
+            }
+        }).then(result => {
+            if (result.isConfirmed) {
+                const { cantidad, descripcion } = result.value;
+                fetch('/presupuestos/api/paquetes/' + PAQ_ID + '/items/agregar/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        material_id: mat.id,
+                        cantidad: cantidad,
+                        descripcion: descripcion,
+                        costo_aproximado: mat.precio || null,
+                    }),
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ok) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '✓ Agregado',
+                            text: `${mat.nombre} (x${cantidad})`,
+                            timer: 1200,
+                            showConfirmButton: false,
+                        }).then(() => location.reload());
+                    }
+                });
+            }
+        });
+    }
+
+    // ── Eliminar Item ──
+    function eliminarItem(itemId) {
+        Swal.fire({
+            title: '¿Eliminar este material?',
+            text: 'Se quitará del paquete permanentemente.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            confirmButtonText: '✕ Eliminar',
+            cancelButtonText: 'Cancelar',
+        }).then(r => {
+            if (r.isConfirmed) {
+                fetch('/presupuestos/api/paquetes/' + PAQ_ID + '/items/' + itemId + '/eliminar/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': CSRF },
+                }).then(r => r.json()).then(data => {
+                    if (data.ok) location.reload();
+                });
+            }
+        });
+    }
+
+    // ── Inline quantity edit ──
+    document.querySelectorAll('.qty-input').forEach(inp => {
+        inp.addEventListener('input', function() {
+            const btn = this.closest('tr').querySelector('.btn-success');
+            const orig = parseFloat(this.getAttribute('data-orig') || this.value);
+            if (!this.getAttribute('data-orig')) this.setAttribute('data-orig', this.value);
+            btn.style.display = (this.value !== this.getAttribute('data-orig')) ? 'inline-flex' : 'none';
+        });
+        inp.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const btn = this.closest('tr').querySelector('.btn-success');
+                if (btn.style.display !== 'none') guardarCantidad(btn);
+            }
+        });
+    });
+
+    function guardarCantidad(btn) {
+        const tr = btn.closest('tr');
+        const inp = tr.querySelector('.qty-input');
+        const itemId = inp.getAttribute('data-item-id');
+        const cantidad = parseFloat(inp.value);
+        if (!cantidad || cantidad <= 0) {
+            Swal.fire({ icon: 'error', title: 'Cantidad inválida', text: 'Debe ser mayor a 0' });
+            return;
+        }
+        fetch('/presupuestos/api/paquetes/' + PAQ_ID + '/items/' + itemId + '/actualizar/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cantidad: cantidad }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                inp.setAttribute('data-orig', cantidad);
+                btn.style.display = 'none';
+                Swal.fire({ icon: 'success', title: '✓ Actualizado', timer: 800, showConfirmButton: false });
+            }
+        });
+    }
+
+    // ── Import / Export ──
+    let progressTimer = null;
+    let progressTaskId = null;
+
+    function mostrarProgress(titulo) {
+        document.getElementById('progress-title').textContent = titulo;
+        document.getElementById('progress-icon').textContent = '⏳';
+        document.getElementById('progress-status').textContent = 'Iniciando...';
+        document.getElementById('progress-bar-wrap').style.display = 'none';
+        document.getElementById('progress-detail').textContent = '';
+        document.getElementById('progress-result').style.display = 'none';
+        document.getElementById('progress-modal').classList.add('show');
+    }
+
+    function actualizarProgress(data) {
+        const barWrap = document.getElementById('progress-bar-wrap');
+        const bar = document.getElementById('progress-bar');
+        const status = document.getElementById('progress-status');
+        const detail = document.getElementById('progress-detail');
+
+        if (data.percent !== undefined && data.total) {
+            barWrap.style.display = 'block';
+            bar.style.width = Math.min(data.percent, 100) + '%';
+            status.textContent = `Procesando ${data.current || 0} de ${data.total}...`;
+        }
+
+        if (data.status === 'processing') {
+            document.getElementById('progress-icon').textContent = '⏳';
+        }
+    }
+
+    function completarProgress(data, tipo) {
+        clearInterval(progressTimer);
+        document.getElementById('progress-icon').textContent = data.status === 'error' ? '❌' : '✅';
+        document.getElementById('progress-bar-wrap').style.display = 'block';
+        document.getElementById('progress-bar').style.width = '100%';
+        const resultDiv = document.getElementById('progress-result');
+        const msgDiv = document.getElementById('progress-result-msg');
+        const actionsDiv = document.getElementById('progress-result-actions');
+
+        resultDiv.style.display = 'block';
+
+        if (tipo === 'export') {
+            if (data.url) {
+                msgDiv.innerHTML = `✅ Exportación completada.<br><strong>${data.total}</strong> material(es) exportados.`;
+                actionsDiv.innerHTML = `
+                    <a href="${data.url}" class="btn btn-primary" target="_blank" style="margin-right:8px;">⬇ Descargar Excel</a>
+                    <button type="button" class="btn" onclick="cerrarProgress()">Cerrar</button>
+                `;
+            } else {
+                msgDiv.textContent = '❌ Error: ' + (data.message || 'No se pudo generar el archivo');
+                actionsDiv.innerHTML = `<button type="button" class="btn" onclick="cerrarProgress()">Cerrar</button>`;
+            }
+        } else if (tipo === 'import') {
+            if (data.status === 'completed') {
+                const errs = data.error_list || [];
+                let html = `✅ Importación completada.<br>
+                    <strong>${data.new || 0}</strong> nuevos, <strong>${data.updated || 0}</strong> actualizados,
+                    <strong>${data.skipped || 0}</strong> omitidos.`;
+                if (errs.length > 0) {
+                    html += `<br><span style="color:var(--sap-error);">⚠ ${errs.length} error(es)</span>`;
+                }
+                msgDiv.innerHTML = html;
+                actionsDiv.innerHTML = `
+                    <button type="button" class="btn btn-primary" onclick="cerrarProgress();location.reload()">🔄 Recargar</button>
+                    <button type="button" class="btn" onclick="cerrarProgress()">Cerrar</button>
+                `;
+                if (errs.length > 0) {
+                    const errHtml = errs.slice(0, 20).map(e => `<div style="font-size:0.78rem;color:var(--sap-error);padding:2px 0;">• ${escHtml(e)}</div>`).join('');
+                    actionsDiv.innerHTML += `<div style="margin-top:10px;max-height:150px;overflow-y:auto;text-align:left;">${errHtml}</div>`;
+                }
+            } else {
+                msgDiv.textContent = '❌ Error: ' + (data.message || 'Error en la importación');
+                actionsDiv.innerHTML = `<button type="button" class="btn" onclick="cerrarProgress()">Cerrar</button>`;
+            }
+        }
+    }
+
+    function cerrarProgress() {
+        clearInterval(progressTimer);
+        document.getElementById('progress-modal').classList.remove('show');
+    }
+
+    // ── Exportar ──
+    function iniciarExportar() {
+        if (!PAQ_ID) return;
+        mostrarProgress('📤 Exportando Paquete');
+        fetch('/presupuestos/api/paquetes/' + PAQ_ID + '/exportar/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.task_id) {
+                progressTaskId = data.task_id;
+                document.getElementById('progress-status').textContent = 'Generando archivo Excel...';
+                progressTimer = setInterval(() => pollExportar(data.task_id), 1000);
+            }
+        });
+    }
+
+    function pollExportar(taskId) {
+        fetch('/presupuestos/api/paquetes/exportar/progress/?task_id=' + taskId)
+            .then(r => r.json())
+            .then(data => {
+                if (data.state === 'COMPLETED' || data.status === 'completed') {
+                    completarProgress(data, 'export');
+                } else if (data.state === 'FAILURE' || data.status === 'error') {
+                    completarProgress({ status: 'error', message: data.error || data.message }, 'export');
+                } else {
+                    actualizarProgress(data);
+                }
+            });
+    }
+
+    // ── Importar ──
+    function abrirImportar() {
+        document.getElementById('import-modal').classList.add('show');
+        document.getElementById('file-input').value = '';
+        document.getElementById('file-name').style.display = 'none';
+        document.getElementById('btn-import-submit').disabled = true;
+        document.getElementById('drop-zone').style.borderColor = 'var(--sap-border-color)';
+    }
+
+    function cerrarImportar() {
+        document.getElementById('import-modal').classList.remove('show');
+    }
+
+    function previsualizarArchivo(input) {
+        const file = input.files[0];
+        if (file) {
+            document.getElementById('file-name').textContent = '📄 ' + file.name;
+            document.getElementById('file-name').style.display = 'block';
+            document.getElementById('btn-import-submit').disabled = false;
+            document.getElementById('drop-zone').style.borderColor = 'var(--sap-brand-color)';
+        }
+    }
+
+    // Drag & drop
+    const dropZone = document.getElementById('drop-zone');
+    if (dropZone) {
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.style.borderColor = 'var(--sap-brand-color)';
+            this.style.background = 'rgba(0,112,242,0.04)';
+        });
+        dropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.style.borderColor = 'var(--sap-border-color)';
+            this.style.background = 'transparent';
+        });
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.style.borderColor = 'var(--sap-border-color)';
+            this.style.background = 'transparent';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('file-input').files = files;
+                previsualizarArchivo(document.getElementById('file-input'));
+            }
+        });
+    }
+
+    function iniciarImportar() {
+        const fileInput = document.getElementById('file-input');
+        if (!fileInput.files.length) return;
+        cerrarImportar();
+        mostrarProgress('📥 Importando Materiales');
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        fetch('/presupuestos/api/paquetes/' + PAQ_ID + '/importar/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF },
+            body: formData,
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.task_id) {
+                progressTaskId = data.task_id;
+                document.getElementById('progress-status').textContent = 'Procesando archivo...';
+                progressTimer = setInterval(() => pollImportar(data.task_id), 1000);
+            } else {
+                completarProgress({ status: 'error', message: data.error }, 'import');
+            }
+        });
+    }
+
+    function pollImportar(taskId) {
+        fetch('/presupuestos/api/paquetes/importar/progress/?task_id=' + taskId)
+            .then(r => r.json())
+            .then(data => {
+                if (data.state === 'COMPLETED' || data.status === 'completed') {
+                    completarProgress(data, 'import');
+                } else if (data.state === 'FAILURE' || data.status === 'error') {
+                    completarProgress({ status: 'error', message: data.error || data.message }, 'import');
+                } else {
+                    actualizarProgress(data);
+                }
+            });
+    }
+    </script>
+
+</body>
+</html>

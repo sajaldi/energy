@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paquetes de Materiales</title>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--sap-font-family); background: var(--sap-bg-color); color: var(--sap-text-color); min-height: 100vh; }
+        .header { background: var(--sap-shell-bg); color: var(--sap-shell-color); padding: 16px 32px; display: flex; align-items: center; gap: 16px; }
+        .header h1 { font-size: 1.15rem; font-weight: 600; flex: 1; }
+        .header a { color: rgba(255,255,255,0.75); font-size: 0.85rem; text-decoration: none; }
+        .header a:hover { color: #fff; }
+
+        .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+        
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+        .filter-bar { display: flex; gap: 8px; align-items: center; }
+        .filter-bar select { padding: 6px 10px; border: 1px solid var(--sap-border-color); font-family: inherit; font-size: 0.85rem; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--sap-border-color); cursor: pointer; text-decoration: none; border-radius: 4px; background: var(--sap-card-bg); color: var(--sap-text-color); }
+        .btn-primary { background: var(--sap-brand-color); color: #fff; border-color: var(--sap-brand-color); }
+        .btn-primary:hover { background: var(--sap-highlight-color); }
+
+        .card { background: var(--sap-card-bg); border: 1px solid var(--sap-border-color); box-shadow: var(--sap-card-shadow); margin-bottom: 12px; overflow: hidden; }
+        .card-body { padding: 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 16px; font-size: 0.78rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; background: var(--sap-bg-color); border-bottom: 1px solid var(--sap-border-color); }
+        td { padding: 12px 16px; font-size: 0.88rem; border-bottom: 1px solid var(--sap-border-color); }
+        tr:hover td { background: var(--sap-hover-bg); }
+        .empty { text-align: center; padding: 48px 20px; color: var(--sap-text-muted); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/">← Inicio</a>
+        <h1>📦 Paquetes de Materiales</h1>
+        <a href="{% url 'presupuestos:admin_paquete_nuevo' %}" class="btn" style="background:var(--sap-brand-color);color:#fff;border-color:var(--sap-brand-color);">+ Nuevo Paquete</a>
+    </div>
+    <div class="container">
+        <div class="top-bar">
+            <div class="filter-bar">
+                <label style="font-size:0.82rem;font-weight:600;">Filtrar por departamento:</label>
+                <select onchange="if(this.value) location.href='?departamento='+this.value; else location.href='.'">
+                    <option value="">Todos</option>
+                    {% for d in departamentos %}
+                    <option value="{{ d.id }}" {% if dept_id == d.id %}selected{% endif %}>{{ d.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                {% if paquetes %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Departamento</th>
+                            <th>Items</th>
+                            <th>Creado por</th>
+                            <th>Fecha</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in paquetes %}
+                        <tr>
+                            <td><strong>{{ p.nombre }}</strong></td>
+                            <td>{{ p.departamento.nombre }}</td>
+                            <td>{{ p.items.count }}</td>
+                            <td>{{ p.creado_por.get_full_name|default:p.creado_por.username }}</td>
+                            <td>{{ p.creado_en|date:"d/m/Y" }}</td>
+                            <td><a href="{% url 'presupuestos:admin_paquete_editar' p.pk %}" class="btn" style="padding:4px 10px;font-size:0.75rem;">✏️ Editar</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty">No hay paquetes de materiales registrados.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

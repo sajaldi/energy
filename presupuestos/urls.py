@@ -113,4 +113,19 @@ urlpatterns = [
     path('admin/items-predefinidos/', views.lista_items_predefinidos, name='lista_items_predefinidos_legacy'),
     path('admin/items-predefinidos/nuevo/', views.crear_item_predefinido, name='crear_item_predefinido_legacy'),
     path('admin/items-predefinidos/<int:pk>/editar/', views.editar_item_predefinido, name='editar_item_predefinido_legacy'),
+    
+    # Paquetes de Materiales
+    path('admin/paquetes/', views_import.admin_paquetes_lista, name='admin_paquetes_lista'),
+    path('admin/paquetes/nuevo/', views_import.admin_paquete_editar, name='admin_paquete_nuevo'),
+    path('admin/paquetes/<int:pk>/', views_import.admin_paquete_editar, name='admin_paquete_editar'),
+    path('api/paquetes/por-departamento/', views_import.api_paquetes_por_departamento, name='api_paquetes_por_departamento'),
+    path('api/paquetes/<int:pk>/items/', views_import.api_paquete_items, name='api_paquete_items'),
+    path('api/paquetes/<int:pk>/items/agregar/', views_import.api_paquete_agregar_item, name='api_paquete_agregar_item'),
+    path('api/paquetes/<int:pk>/items/<int:item_id>/actualizar/', views_import.api_paquete_actualizar_item, name='api_paquete_actualizar_item'),
+    path('api/paquetes/<int:pk>/items/<int:item_id>/eliminar/', views_import.api_paquete_eliminar_item, name='api_paquete_eliminar_item'),
+    path('api/paquetes/<int:pk>/exportar/', views_import.api_paquete_exportar, name='api_paquete_exportar'),
+    path('api/paquetes/exportar/progress/', views_import.api_paquete_exportar_progress, name='api_paquete_exportar_progress'),
+    path('api/paquetes/<int:pk>/importar/', views_import.api_paquete_importar, name='api_paquete_importar'),
+    path('api/paquetes/importar/progress/', views_import.api_paquete_importar_progress, name='api_paquete_importar_progress'),
+    path('api/paquetes/descargar-template/', views_import.api_paquete_descargar_template, name='api_paquete_descargar_template'),
 ]
