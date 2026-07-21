@@ -1393,7 +1393,7 @@ def eliminar_area_plano_api(request, pk, plano_id, area_id):
 def api_elementos_lista(request, pk):
     """Lista los elementos del proyecto."""
     proyecto = get_object_or_404(Proyecto, pk=pk)
-    elementos = proyecto.elementos.select_related('item_cotizacion__cotizacion').prefetch_related('documentos').order_by('orden')
+    elementos = proyecto.elementos.select_related('item_cotizacion__cotizacion', 'disciplina').prefetch_related('documentos').order_by('disciplina__nombre', 'area', 'orden')
     data = []
     for e in elementos:
         docs = [{'id': d.id, 'url': d.archivo.url, 'descripcion': d.descripcion, 'tipo': d.tipo} for d in e.documentos.all()]
@@ -1402,6 +1402,12 @@ def api_elementos_lista(request, pk):
             'nombre': e.nombre,
             'descripcion': e.descripcion,
             'estado': e.estado,
+            'disciplina': e.disciplina.nombre if e.disciplina else None,
+            'disciplina_id': e.disciplina_id,
+            'area': e.area or '',
+            'unidad_medida': e.unidad_medida or '',
+            'precio_unitario': float(e.precio_unitario),
+            'total': float(e.total),
             'fecha_inicio': e.fecha_ejecucion_inicio.isoformat() if e.fecha_ejecucion_inicio else None,
             'fecha_fin': e.fecha_ejecucion_fin.isoformat() if e.fecha_ejecucion_fin else None,
             'cantidad': float(e.cantidad),

@@ -399,12 +399,20 @@ class ElementoProyecto(models.Model):
         null=True, blank=True, related_name='elementos_proyecto',
         verbose_name="Item de Cotización"
     )
+    disciplina = models.ForeignKey(
+        'documentos.Disciplina', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='elementos_proyecto',
+        verbose_name="Disciplina"
+    )
+    area = models.CharField(max_length=200, blank=True, default='', verbose_name="Área / Nivel")
     nombre = models.CharField(max_length=300, verbose_name="Nombre del elemento")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     estado = models.CharField(max_length=20, choices=ESTADOS, default='PENDIENTE', verbose_name="Estado")
     fecha_ejecucion_inicio = models.DateField(null=True, blank=True, verbose_name="Fecha inicio ejecución")
     fecha_ejecucion_fin = models.DateField(null=True, blank=True, verbose_name="Fecha fin ejecución")
     cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=1, verbose_name="Cantidad")
+    unidad_medida = models.CharField(max_length=50, blank=True, default='', verbose_name="Unidad de medida")
+    precio_unitario = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Precio unitario")
     orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
@@ -412,7 +420,11 @@ class ElementoProyecto(models.Model):
     class Meta:
         verbose_name = "Elemento de Proyecto"
         verbose_name_plural = "Elementos del Proyecto"
-        ordering = ['orden', 'creado_en']
+        ordering = ['disciplina__nombre', 'area', 'orden', 'creado_en']
+
+    @property
+    def total(self):
+        return self.cantidad * self.precio_unitario
 
     def __str__(self):
         return f"{self.proyecto.codigo} - {self.nombre}"

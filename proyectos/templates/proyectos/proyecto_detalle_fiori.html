@@ -4219,29 +4219,52 @@
                     '</div>';
                     return;
                 }
-                var html = '<div style="overflow-x:auto;"><table class="sap-table"><thead><tr>' +
-                    '<th>Nombre</th><th>Estado</th><th>Cant.</th><th>Inicio</th><th>Fin</th><th>Docs</th><th>Items Cotiz.</th><th></th>' +
-                '</tr></thead><tbody>';
+                // Group by disciplina > area
+                var groups = {};
+                var totalGeneral = 0;
                 data.forEach(function(e) {
-                    var estadoColor = {'PENDIENTE':'#f1f5f9;color:#475569','EN_PROCESO':'#fef3c7;color:#92400e','COMPLETADO':'#dcfce7;color:#166534','CANCELADO':'#fee2e2;color:#991b1b'};
-                    var ec = estadoColor[e.estado] || '#f1f5f9;color:#475569';
-                    var docsHtml = e.documentos.length ? '<span title="' + e.documentos.length + ' archivo(s)">📎 ' + e.documentos.length + '</span>' : '—';
-                    var cotRef = e.cotizacion_numero ? '<span style="font-size:11px;color:#6a6d70;">' + escHtml(e.cotizacion_numero) + '</span>' : '—';
-                    html += '<tr>' +
-                        '<td style="font-weight:600;">' + escHtml(e.nombre) + '</td>' +
-                        '<td><span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:' + ec + '">' + e.estado.replace('_',' ') + '</span></td>' +
-                        '<td>' + e.cantidad + '</td>' +
-                        '<td style="font-size:12px;">' + (e.fecha_inicio || '—') + '</td>' +
-                        '<td style="font-size:12px;">' + (e.fecha_fin || '—') + '</td>' +
-                        '<td>' + docsHtml + '</td>' +
-                        '<td>' + cotRef + '</td>' +
-                        '<td>' +
-                            '<button class="sap-btn sap-btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="elementoModalEditar(' + e.id + ')"><i class="fas fa-edit"></i></button> ' +
-                            '<button class="sap-btn sap-btn-secondary" style="padding:2px 8px;font-size:11px;color:#dc2626;" onclick="elementoEliminarDirecto(' + e.id + ',\'' + escHtml(e.nombre) + '\')"><i class="fas fa-trash"></i></button>' +
-                        '</td>' +
-                    '</tr>';
+                    var disc = e.disciplina || 'Sin disciplina';
+                    var area = e.area || 'General';
+                    var key = disc + '|||' + area;
+                    if (!groups[key]) groups[key] = { disciplina: disc, area: area, items: [] };
+                    groups[key].items.push(e);
+                    totalGeneral += e.total || 0;
                 });
-                html += '</tbody></table></div>';
+
+                var html = '<div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;margin-bottom:12px;">' +
+                    '<span style="font-size:12px;color:#6a6d70;">' + data.length + ' elemento(s)</span>' +
+                    '<span style="font-size:13px;font-weight:700;color:#2c3e50;">Total: L ' + totalGeneral.toLocaleString('es-HN', {minimumFractionDigits:2}) + '</span>' +
+                '</div>';
+
+                Object.values(groups).forEach(function(group) {
+                    html += '<div style="margin:0 16px 16px;border:1px solid #e2e8f0;border-radius:4px;overflow:hidden;">';
+                    html += '<div style="background:#f8f9fa;padding:8px 12px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">' +
+                        '<span style="font-weight:700;font-size:12px;color:#2c3e50;">📐 ' + escHtml(group.disciplina) + '</span>' +
+                        '<span style="font-size:11px;color:#6a6d70;background:#e2e8f0;padding:1px 8px;border-radius:10px;">' + escHtml(group.area) + '</span>' +
+                    '</div>';
+                    html += '<table class="sap-table" style="margin:0;"><thead><tr>' +
+                        '<th>Elemento</th><th>Estado</th><th>Cant.</th><th>U.M.</th><th>P.U.</th><th>Total</th><th>Docs</th><th></th>' +
+                    '</tr></thead><tbody>';
+                    group.items.forEach(function(e) {
+                        var estadoColor = {'PENDIENTE':'#f1f5f9;color:#475569','EN_PROCESO':'#fef3c7;color:#92400e','COMPLETADO':'#dcfce7;color:#166534','CANCELADO':'#fee2e2;color:#991b1b'};
+                        var ec = estadoColor[e.estado] || '#f1f5f9;color:#475569';
+                        var docsHtml = e.documentos.length ? '<span title="' + e.documentos.length + ' archivo(s)">📎 ' + e.documentos.length + '</span>' : '—';
+                        html += '<tr>' +
+                            '<td style="font-weight:600;font-size:12px;">' + escHtml(e.nombre) + '</td>' +
+                            '<td><span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:' + ec + '">' + e.estado.replace('_',' ') + '</span></td>' +
+                            '<td>' + e.cantidad + '</td>' +
+                            '<td style="font-size:11px;color:#6a6d70;">' + (e.unidad_medida || '—') + '</td>' +
+                            '<td style="font-size:11px;">L ' + (e.precio_unitario || 0).toLocaleString('es-HN', {minimumFractionDigits:2}) + '</td>' +
+                            '<td style="font-weight:600;font-size:12px;">L ' + (e.total || 0).toLocaleString('es-HN', {minimumFractionDigits:2}) + '</td>' +
+                            '<td>' + docsHtml + '</td>' +
+                            '<td>' +
+                                '<button class="sap-btn sap-btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="elementoModalEditar(' + e.id + ')"><i class="fas fa-edit"></i></button> ' +
+                                '<button class="sap-btn sap-btn-secondary" style="padding:2px 8px;font-size:11px;color:#dc2626;" onclick="elementoEliminarDirecto(' + e.id + ',\'' + escHtml(e.nombre) + '\')"><i class="fas fa-trash"></i></button>' +
+                            '</td>' +
+                        '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                });
                 container.innerHTML = html;
             })
             .catch(function() {

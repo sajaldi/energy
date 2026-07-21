@@ -3307,9 +3307,13 @@ def api_cotizacion_guardar(request, pk):
                 ElementoProyecto.objects.create(
                     proyecto=cotizacion.proyecto,
                     item_cotizacion=item_obj,
+                    disciplina=item_obj.disciplina,
+                    area=item_obj.area or '',
                     nombre=item_obj.descripcion[:300],
-                    descripcion=f"Área: {item_obj.area}" if item_obj.area else '',
+                    descripcion='',
                     cantidad=item_obj.cantidad,
+                    unidad_medida=item_obj.unidad_medida or '',
+                    precio_unitario=item_obj.precio_unitario,
                     estado='PENDIENTE',
                     orden=cotizacion.proyecto.elementos.count() + 1,
                 )
