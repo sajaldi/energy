@@ -49,6 +49,9 @@ def requisicion_webhook_update(request):
         comentarios_raw = data.get('comentarios')
         comentarios = comentarios_raw.strip() if comentarios_raw else ""
         
+        aprobado_por = data.get('aprobado_por', '').strip()
+        timestamp_pa = data.get('timestamp', '')  # timestamp de Power Automate
+        
         if not numero_requisicion:
             return JsonResponse({
                 'success': False, 
@@ -71,7 +74,7 @@ def requisicion_webhook_update(request):
             }, status=404)
         
         # Mapear acción a estado
-        # Soportamos APROBAR, RECHAZAR y DENEGAR (alias de RECHAZAR)
+        # Soportamos APROBAR, RECHAZAR, DENEGAR y REGISTRAR (solo documenta sin cambiar estado)
         if accion == 'APROBAR':
             nuevo_estado = 'AUTORIZADO'
             tipo_notif = 'SUCCESS'
@@ -80,10 +83,43 @@ def requisicion_webhook_update(request):
             nuevo_estado = 'RECHAZADO'
             tipo_notif = 'ERROR'
             mensaje_usuario = 'rechazada'
+        elif accion == 'REGISTRAR':
+            # Solo registra en el historial sin cambiar estado (aprobación parcial/intermedia)
+            desc_parts = ["Aprobación parcial"]
+            if aprobado_por:
+                desc_parts.append(f"por {aprobado_por}")
+            if timestamp_pa:
+                desc_parts.append(f"({timestamp_pa})")
+            if comentarios:
+                desc_parts.append(f"- {comentarios}")
+            descripcion_registro = " ".join(desc_parts)
+            
+            _registrar_historial(requisicion, requisicion.estado_requisicion, descripcion=descripcion_registro)
+            
+            # Agregar al campo de comentarios también
+            from django.utils import timezone
+            ts = timezone.now().strftime("%Y-%m-%d %H:%M")
+            nuevo_comentario = f"[{ts}] ✅ Aprobado por: {aprobado_por or 'Gerente'}"
+            if comentarios:
+                nuevo_comentario += f" — {comentarios}"
+            existing = requisicion.cr8ca_comentarios or ""
+            requisicion.cr8ca_comentarios = f"{existing}\n{nuevo_comentario}".strip()
+            requisicion.save(update_fields=['cr8ca_comentarios'])
+            
+            logger.info(f"Requisición {numero_requisicion}: aprobación parcial registrada por {aprobado_por}")
+            return JsonResponse({
+                'success': True,
+                'message': f'Aprobación parcial registrada para {numero_requisicion} por {aprobado_por}',
+                'data': {
+                    'numero_requisicion': numero_requisicion,
+                    'accion': 'REGISTRAR',
+                    'aprobado_por': aprobado_por,
+                }
+            }, status=200)
         else:
             return JsonResponse({
                 'success': False, 
-                'message': f'Acción desconocida: "{accion}". Valores válidos: APROBAR, RECHAZAR, DENEGAR'
+                'message': f'Acción desconocida: "{accion}". Valores válidos: APROBAR, RECHAZAR, DENEGAR, REGISTRAR'
             }, status=400)
         
         # Verificar que la requisición esté en un estado que permita aprobación/rechazo
@@ -96,8 +132,18 @@ def requisicion_webhook_update(request):
         
         # Actualizar estado
         estado_anterior = requisicion.estado_requisicion
-        _registrar_historial(requisicion, nuevo_estado,
-                             descripcion=f"Webhook Power Automate: {accion}{' - ' + comentarios if comentarios else ''}")
+        
+        # Construir descripción detallada para el historial
+        desc_parts = [f"Webhook Power Automate: {accion}"]
+        if aprobado_por:
+            desc_parts.append(f"por {aprobado_por}")
+        if timestamp_pa:
+            desc_parts.append(f"({timestamp_pa})")
+        if comentarios:
+            desc_parts.append(f"- {comentarios}")
+        descripcion_historial = " ".join(desc_parts)
+        
+        _registrar_historial(requisicion, nuevo_estado, descripcion=descripcion_historial)
         requisicion.estado_requisicion = nuevo_estado
         
         # Guardar fecha de aprobación si aplica

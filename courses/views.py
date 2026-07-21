@@ -1212,6 +1212,11 @@ def libro_pdf(request, pk):
 
     secciones = curso.secciones.all()
 
+    import re
+
+    def _limpiar_css_vars(html):
+        return re.sub(r'var\(--[^)]+\)', 'inherit', html)
+
     context = {
         'curso': curso,
         'secciones': secciones,
@@ -1220,6 +1225,8 @@ def libro_pdf(request, pk):
 
     template = get_template('courses/libro_pdf.html')
     html = template.render(context)
+
+    html = _limpiar_css_vars(html)
 
     response = HttpResponse(content_type='application/pdf')
     filename = f"Libro_{curso.titulo}.pdf"
