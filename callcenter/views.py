@@ -1944,25 +1944,33 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
         os.remove(temp_docx)
         return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
-    # Si ni siquiera existe el template de Word, retornar error vacío (pero no debería pasar)
+    # Si ni siquiera existe el template de Word, retornar error
     return b"", "error.txt", "text/plain"
 
-    # Si ni siquiera existe el template de Word, retornar error vacío (pero no debería pasar)
-    return b"", "error.txt", "text/plain"
 
 def exportar_tiempo_acordado_pdf_view(request, pk):
     """Vista de descarga directa del PDF."""
     from .models import TiempoAcordado
     from django.shortcuts import get_object_or_404
     from django.http import HttpResponse
+    import logging
+    logger = logging.getLogger(__name__)
 
     acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
     
     # Si se pide formato manual, forzar firmas vacías
     force_empty = request.GET.get('manual') == '1'
-    data, filename, content_type = _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=force_empty)
     
-    if force_empty:
+    try:
+        data, filename, content_type = _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=force_empty)
+    except Exception as e:
+        logger.exception(f"Error generando PDF para acuerdo {pk}: {e}")
+        return HttpResponse(f"Error generando documento: {e}", status=500, content_type='text/plain')
+    
+    if not data:
+        return HttpResponse("No se pudo generar el documento. Contacte al administrador.", status=500, content_type='text/plain')
+    
+    if force_empty and content_type == 'application/pdf':
         filename = f"Plantilla_Manual_Acuerdo_{acuerdo.id}.pdf"
     
     response = HttpResponse(data, content_type=content_type)
