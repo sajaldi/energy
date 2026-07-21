@@ -338,20 +338,46 @@ def eliminar_entregable(request, doc_id):
 def enviar_expediente(request, mes, anio):
     empresa = get_empresa(request)
     expediente_obj = get_object_or_404(ExpedienteMensual, empresa=empresa, mes=mes, anio=anio)
-    if expediente_obj.estado == 'BORRADOR':
-        expediente_obj.estado = 'ENVIADO'
-        expediente_obj.fecha_envio = timezone.now()
-        expediente_obj.save()
-        notificar_a_grupo(
-            grupo_nombre='Administradores',
-            titulo="Expediente Mensual Enviado",
-            mensaje=f"{empresa.nombre} ha enviado el expediente de {mes}/{anio} para revisión.",
-            tipo='INFO',
-            modulo='PORTAL_SUB',
-            enlace=f"/admin/portalsub/expedientemensual/",
-            icono='document-text-outline',
+    if expediente_obj.estado != 'BORRADOR':
+        messages.warning(request, 'El expediente ya fue enviado o está en otro estado.')
+        return redirect('portalsub:expediente_mes', mes=mes, anio=anio)
+
+    # Validar que todos los entregables aplicables estén completos
+    configs = EntregableContratista.objects.filter(
+        empresa=empresa, activo=True,
+        tipo_entregable__activo=True,
+    ).select_related('tipo_entregable')
+    incompletos = []
+    for c in configs:
+        if mes not in c.get_meses():
+            continue
+        doc = DocumentoEntregable.objects.filter(
+            empresa=empresa, tipo_entregable=c.tipo_entregable,
+            mes=mes, anio=anio, es_valido=True,
+        ).first()
+        if not doc:
+            incompletos.append(c.tipo_entregable.nombre)
+
+    if incompletos:
+        messages.error(
+            request,
+            f'No se puede enviar el expediente. Faltan los siguientes entregables: {", ".join(incompletos)}.'
         )
-    return redirect('portalsub:expediente', mes=mes, anio=anio)
+        return redirect('portalsub:expediente_mes', mes=mes, anio=anio)
+
+    expediente_obj.estado = 'ENVIADO'
+    expediente_obj.fecha_envio = timezone.now()
+    expediente_obj.save()
+    notificar_a_grupo(
+        grupo_nombre='Administradores',
+        titulo="Expediente Mensual Enviado",
+        mensaje=f"{empresa.nombre} ha enviado el expediente de {mes}/{anio} para revisión.",
+        tipo='INFO',
+        modulo='PORTAL_SUB',
+        enlace=f"/admin/portalsub/expedientemensual/",
+        icono='document-text-outline',
+    )
+    return redirect('portalsub:expediente_mes', mes=mes, anio=anio)
 
 
 @contratista_required

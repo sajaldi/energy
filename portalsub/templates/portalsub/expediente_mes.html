@@ -90,12 +90,17 @@
     </table>
 
     {% if expediente.estado == 'BORRADOR' %}
-    <form method="post" action="{% url 'portalsub:enviar_expediente' mes anio %}" style="margin-top: 12px;">
+    <form method="post" action="{% url 'portalsub:enviar_expediente' mes anio %}" style="margin-top: 12px;" id="enviarForm" onsubmit="return validarEnvio()">
         {% csrf_token %}
-        <button type="submit" class="btn btn-success btn-block">
+        <button type="submit" class="btn btn-success btn-block" id="btnEnviar" {% if complete_count < total_count %}disabled style="opacity:0.5;cursor:not-allowed;"{% endif %}>
             <ion-icon name="send-outline"></ion-icon> Enviar para Revisión
         </button>
-</form>
+        {% if complete_count < total_count %}
+        <div style="font-size:12px;color:#dc3545;margin-top:6px;text-align:center;">
+            ⚠ Debes completar todos los entregables antes de enviar.
+        </div>
+        {% endif %}
+    </form>
 {% endif %}
 </div>
 
@@ -200,5 +205,20 @@
             }
         });
     });
+
+    function validarEnvio() {
+        const completados = {{ complete_count }};
+        const total = {{ total_count }};
+        if (completados < total) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Entregables pendientes',
+                text: 'Debes completar todos los entregables antes de enviar el expediente.',
+                confirmButtonText: 'Entendido',
+            });
+            return false;
+        }
+        return true;
+    }
 </script>
 {% endblock %}
