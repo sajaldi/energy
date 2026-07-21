@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Equipo - Cursos</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #ecf0f1; color: #2c3e50; min-height: 100vh; }
+        .header { background: #fff; padding: 24px 32px; border-bottom: 1px solid #dee2e6; }
+        .header h1 { font-size: 1.5rem; font-weight: 700; }
+        .header p { font-size: 0.9rem; color: #7b8a8b; margin-top: 4px; }
+        .header .btn-back { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 8px 20px; background: #2c3e50; color: white; border-radius: 2px; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px 32px; }
+        .stats-row { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0; }
+        .stat-card { background: white; border-radius: 2px; padding: 16px 20px; flex: 1; min-width: 160px; border: 1px solid #dee2e6; }
+        .stat-card .val { font-size: 1.5rem; font-weight: 800; color: #2c3e50; }
+        .stat-card .lbl { font-size: 0.78rem; color: #7b8a8b; margin-top: 4px; }
+
+        .sub-card { background: white; border: 1px solid #dee2e6; border-radius: 2px; margin-bottom: 20px; overflow: hidden; }
+        .sub-header { padding: 16px 20px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; cursor: pointer; }
+        .sub-header:hover { background: #f1f3f5; }
+        .sub-header h2 { font-size: 1rem; font-weight: 700; color: #2c3e50; display: flex; align-items: center; gap: 8px; }
+        .sub-header .sub-meta { font-size: 0.78rem; color: #7b8a8b; }
+        .sub-header .sub-arrow { font-size: 0.85rem; color: #95a5a6; transition: transform 0.2s; }
+        .sub-card.collapsed .sub-body { display: none; }
+        .sub-card.collapsed .sub-arrow { transform: rotate(-90deg); }
+
+        .sub-body { padding: 16px 20px; }
+
+        .curso-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid #f1f3f5; flex-wrap: wrap; }
+        .curso-row:last-child { border-bottom: none; }
+        .curso-info { flex: 1; min-width: 200px; }
+        .curso-info .titulo { font-weight: 600; font-size: 0.9rem; color: #2c3e50; }
+        .curso-info .meta { font-size: 0.78rem; color: #7b8a8b; margin-top: 2px; }
+
+        .curso-progress { width: 140px; }
+        .curso-progress .bar { height: 6px; background: #dee2e6; border-radius: 2px; overflow: hidden; }
+        .curso-progress .bar-fill { height: 100%; background: #18bc9c; border-radius: 2px; transition: width 0.3s; }
+        .curso-progress .label { font-size: 0.72rem; color: #95a5a6; margin-top: 2px; text-align: center; }
+
+        .curso-status { font-size: 0.78rem; font-weight: 600; padding: 3px 10px; border-radius: 2px; }
+        .curso-status.completado { background: #d4edda; color: #155724; }
+        .curso-status.en-curso { background: #fff3cd; color: #856404; }
+
+        .intentos-mini { font-size: 0.75rem; color: #7b8a8b; margin-top: 4px; }
+        .intentos-mini .aprobado { color: #18bc9c; font-weight: 600; }
+        .intentos-mini .no-aprobado { color: #e74c3c; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: #95a5a6; }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+        .search-input { width: 100%; max-width: 400px; padding: 10px 16px; border: 1px solid #dee2e6; border-radius: 2px; font-size: 0.9rem; font-family: inherit; margin-bottom: 20px; }
+        .search-input:focus { outline: none; border-color: #2c3e50; box-shadow: 0 0 0 2px rgba(44,62,80,0.15); }
+
+        @media (max-width: 640px) {
+            .header { padding: 20px 16px; }
+            .container { padding: 16px; }
+            .curso-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .curso-progress { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>👥 Reporte de Equipo</h1>
+        <p>Progreso en cursos de tus colaboradores</p>
+        <a href="{% url 'courses:lista' %}" class="btn-back">← Mis Cursos</a>
+    </div>
+
+    <div class="container">
+        {% if not equipo %}
+        <div class="empty-state">
+            <div class="icon">👤</div>
+            <p>No tienes colaboradores asignados.</p>
+        </div>
+        {% else %}
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="val">{{ equipo|length }}</div>
+                <div class="lbl">Colaboradores</div>
+            </div>
+            <div class="stat-card">
+                <div class="val">{{ total_cursos_asignados }}</div>
+                <div class="lbl">Cursos asignados</div>
+            </div>
+            <div class="stat-card">
+                <div class="val">{{ total_cursos_completados }}</div>
+                <div class="lbl">Cursos completados</div>
+            </div>
+        </div>
+
+        <input type="text" class="search-input" placeholder="🔍 Buscar colaborador..." oninput="filtrarColaboradores(this.value)">
+
+        {% for miembro in equipo %}
+        <div class="sub-card" data-nombre="{{ miembro.usuario.get_full_name|default:miembro.usuario.username }}">
+            <div class="sub-header" onclick="this.closest('.sub-card').classList.toggle('collapsed')">
+                <h2>
+                    👤 {{ miembro.usuario.get_full_name|default:miembro.usuario.username }}
+                    <span class="sub-arrow">▼</span>
+                </h2>
+                <span class="sub-meta">
+                    {{ miembro.completados }}/{{ miembro.total_cursos }} cursos completados
+                </span>
+            </div>
+            <div class="sub-body">
+                {% for c in miembro.cursos %}
+                <div class="curso-row">
+                    <div class="curso-info">
+                        <div class="titulo">{{ c.curso.titulo }}</div>
+                        <div class="meta">{{ c.completadas }}/{{ c.total }} secciones</div>
+                        {% if c.intentos %}
+                        <div class="intentos-mini">
+                            Evaluaciones:
+                            {% for intento in c.intentos %}
+                            <span class="{% if intento.completado %}{% if intento.aprobado %}aprobado{% else %}no-aprobado{% endif %}{% endif %}">
+                                {{ intento.evaluacion.titulo }}: {{ intento.puntaje_obtenido }}/{{ intento.puntaje_maximo }}
+                                {% if intento.aprobado %}✔{% else %}✖{% endif %}
+                            </span>
+                            {% if not forloop.last %}&middot;{% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="curso-progress">
+                        <div class="bar">
+                            <div class="bar-fill" style="width:{{ c.progreso }}%"></div>
+                        </div>
+                        <div class="label">{{ c.progreso }}%</div>
+                    </div>
+                    <span class="curso-status {% if c.asignacion.completado %}completado{% else %}en-curso{% endif %}">
+                        {% if c.asignacion.completado %}✔ Completado{% else %}▶ En curso{% endif %}
+                    </span>
+                    {% if c.asignacion.fecha_completado %}
+                    <span style="font-size:0.72rem;color:#95a5a6;">{{ c.asignacion.fecha_completado|date:"d/m/Y" }}</span>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <div style="color:#95a5a6;font-size:0.85rem;padding:12px 0;">Sin cursos asignados</div>
+                {% endfor %}
+
+                {% if miembro.otros_intentos %}
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f1f3f5;">
+                    <div style="font-size:0.78rem;font-weight:600;color:#7b8a8b;margin-bottom:6px;">Otros intentos de evaluación:</div>
+                    {% for intento in miembro.otros_intentos %}
+                    <span style="font-size:0.75rem;color:#7b8a8b;margin-right:12px;">
+                        {{ intento.evaluacion.titulo }}:
+                        <span class="{% if intento.aprobado %}aprobado{% else %}no-aprobado{% endif %}">
+                            {{ intento.puntaje_obtenido }}/{{ intento.puntaje_maximo }}
+                            {% if intento.aprobado %}✔{% else %}✖{% endif %}
+                        </span>
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <script>
+    function filtrarColaboradores(valor) {
+        const q = valor.toLowerCase().trim();
+        document.querySelectorAll('.sub-card').forEach(card => {
+            const nombre = (card.dataset.nombre || '').toLowerCase();
+            card.style.display = (!q || nombre.includes(q)) ? '' : 'none';
+        });
+    }
+    </script>
+</body>
+</html>

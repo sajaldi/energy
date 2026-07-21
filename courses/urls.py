@@ -32,4 +32,18 @@ urlpatterns = [
     path('<int:pk>/certificado/', views.certificado_curso, name='certificado'),
     path('<int:pk>/heartbeat/', views.heartbeat_curso, name='heartbeat'),
     path('<int:pk>/seccion/<int:seccion_id>/completar/', views.marcar_completada, name='marcar_completada'),
+    # Evaluaciones
+    path('admin/<int:pk>/evaluacion/', views.admin_evaluaciones, name='admin_evaluaciones'),
+    path('admin/evaluacion/<int:eval_id>/', views.admin_evaluacion_editar, name='admin_evaluacion_editar'),
+    path('admin/evaluacion/<int:eval_id>/pregunta/agregar/', views.api_agregar_pregunta, name='api_agregar_pregunta'),
+    path('admin/evaluacion/<int:eval_id>/pregunta/<int:preg_id>/eliminar/', views.api_eliminar_pregunta, name='api_eliminar_pregunta'),
+    path('admin/evaluacion/<int:eval_id>/pregunta/<int:preg_id>/opcion/agregar/', views.api_agregar_opcion, name='api_agregar_opcion'),
+    path('admin/evaluacion/<int:eval_id>/pregunta/<int:preg_id>/opcion/<int:op_id>/eliminar/', views.api_eliminar_opcion, name='api_eliminar_opcion'),
+    # Estudiante
+    path('<int:pk>/evaluacion/<int:eval_id>/datos/', views.api_datos_evaluacion, name='api_datos_evaluacion'),
+    path('<int:pk>/evaluacion/<int:eval_id>/iniciar/', views.iniciar_evaluacion, name='iniciar_evaluacion'),
+    path('<int:pk>/evaluacion/<int:eval_id>/responder/', views.api_responder_pregunta, name='api_responder_pregunta'),
+    path('<int:pk>/evaluacion/<int:eval_id>/finalizar/', views.finalizar_evaluacion, name='finalizar_evaluacion'),
+    path('reporte-equipo/', views.reporte_equipo, name='reporte_equipo'),
+    path('mis-cursos/', views.mis_cursos_realizados, name='mis_cursos_realizados'),
 ]

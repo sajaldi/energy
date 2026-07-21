@@ -1,0 +1,263 @@
+{% comment %}
+Student evaluation UI — rendered inline inside detalle.html lesson-content area.
+Uses EVAL_DATA global JS variable set before rendering.
+{% endcomment %}
+{% load static %}
+<style>
+.eval-ui { padding: 24px 0; max-width: 780px; }
+.eval-ui .eval-header { margin-bottom: 24px; }
+.eval-ui .eval-header h2 { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin: 0 0 6px; }
+.eval-ui .eval-header p { color: #64748b; font-size: 0.9rem; margin: 0; line-height: 1.5; }
+.eval-ui .eval-meta { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0 20px; }
+.eval-ui .eval-meta .meta-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #475569; background: #f8fafc; padding: 6px 14px; border-radius: 20px; }
+.eval-ui .eval-meta .meta-item strong { color: #0f172a; }
+
+.eval-ui .start-screen { text-align: center; padding: 40px 20px; }
+.eval-ui .start-screen .icon { font-size: 4rem; margin-bottom: 16px; }
+.eval-ui .start-screen h3 { font-size: 1.3rem; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+.eval-ui .start-screen p { color: #64748b; max-width: 500px; margin: 0 auto 24px; line-height: 1.6; }
+
+.eval-ui .btn-eval { padding: 12px 28px; border-radius: 8px; font-size: 0.9rem; font-weight: 700; border: none; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 8px; transition: all 0.15s; }
+.eval-ui .btn-eval.primary { background: #3b82f6; color: #fff; }
+.eval-ui .btn-eval.primary:hover { background: #2563eb; }
+.eval-ui .btn-eval.success { background: #16a34a; color: #fff; }
+.eval-ui .btn-eval.success:hover { background: #15803d; }
+.eval-ui .btn-eval:disabled { opacity: 0.5; cursor: default; }
+
+.eval-ui .timer-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; font-weight: 700; color: #92400e; }
+.eval-ui .timer-bar.warning { background: #fee2e2; border-color: #fecaca; color: #b91c1c; }
+
+.eval-ui .pregunta-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+.eval-ui .pregunta-card .preg-numero { padding: 12px 18px; background: #f8fafc; font-size: 0.78rem; font-weight: 700; color: #64748b; border-bottom: 1px solid #f1f5f9; }
+.eval-ui .pregunta-card .preg-texto { padding: 16px 18px 8px; font-size: 0.95rem; font-weight: 700; color: #0f172a; line-height: 1.5; }
+.eval-ui .pregunta-card .preg-puntaje { float: right; font-size: 0.75rem; font-weight: 600; color: #3b82f6; }
+.eval-ui .pregunta-card .opciones { padding: 8px 18px 16px; }
+.eval-ui .pregunta-card .opcion-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: all 0.1s; margin-bottom: 4px; border: 1px solid transparent; }
+.eval-ui .pregunta-card .opcion-item:hover { background: #f8fafc; border-color: #e2e8f0; }
+.eval-ui .pregunta-card .opcion-item.selected { background: #eff6ff; border-color: #3b82f6; }
+.eval-ui .pregunta-card .opcion-item input[type="radio"] { margin-top: 3px; flex-shrink: 0; accent-color: #3b82f6; }
+.eval-ui .pregunta-card .opcion-item .op-texto { flex: 1; font-size: 0.88rem; color: #334155; line-height: 1.4; }
+
+.eval-ui .result-screen { text-align: center; padding: 40px 20px; }
+.eval-ui .result-screen .icon { font-size: 4rem; margin-bottom: 12px; }
+.eval-ui .result-screen h3 { font-size: 1.3rem; font-weight: 800; margin-bottom: 6px; }
+.eval-ui .result-screen .score { font-size: 2.5rem; font-weight: 900; margin: 12px 0; }
+.eval-ui .result-screen .score .max { font-size: 1.2rem; color: #94a3b8; font-weight: 600; }
+.eval-ui .result-screen .badge-result { display: inline-block; padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; margin-bottom: 16px; }
+.eval-ui .result-screen .badge-result.aprobado { background: #dcfce7; color: #16a34a; }
+.eval-ui .result-screen .badge-result.no-aprobado { background: #fee2e2; color: #ef4444; }
+.eval-ui .result-screen .detalle { font-size: 0.85rem; color: #64748b; max-width: 500px; margin: 0 auto 20px; line-height: 1.6; }
+.eval-ui .result-screen .feedback { text-align: left; margin-top: 24px; }
+.eval-ui .result-screen .feedback-item { padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; border: 1px solid #e2e8f0; }
+.eval-ui .result-screen .feedback-item.correcta { border-color: #86efac; background: #f0fdf4; }
+.eval-ui .result-screen .feedback-item.incorrecta { border-color: #fecaca; background: #fef2f2; }
+</style>
+
+<div class="eval-ui" id="eval-ui-root">
+  <!-- Rendered by JavaScript -->
+  <div id="eval-ui-content" style="min-height:200px;">
+    <div style="text-align:center;padding:60px 20px;color:#94a3b8;">Cargando evaluación...</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const EVAL_DATA = window._evalData || {};
+  const CSRF = window._evalCSRF || '';
+  const CURSO_ID = window._evalCursoId || 0;
+  const ROOT = document.getElementById('eval-ui-content');
+  let respuestasUsuario = {};
+  let intentoActivo = EVAL_DATA.intento_activo;
+  let timerInterval = null;
+  let tiempoRestante = 0;
+
+  function render() {
+    if (intentoActivo) {
+      renderQuiz();
+    } else if (EVAL_DATA.ultimo_intento) {
+      renderResultados(EVAL_DATA.ultimo_intento);
+    } else {
+      renderInicio();
+    }
+  }
+
+  function renderInicio() {
+    const p = EVAL_DATA;
+    const totalPreg = p.preguntas ? p.preguntas.length : 0;
+    ROOT.innerHTML = `
+      <div class="start-screen">
+        <div class="icon">📝</div>
+        <h3>${escHtml(p.titulo)}</h3>
+        ${p.descripcion ? `<p>${escHtml(p.descripcion)}</p>` : ''}
+        <div class="eval-meta" style="justify-content:center;">
+          <span class="meta-item">📄 <strong>${totalPreg}</strong> preguntas</span>
+          <span class="meta-item">🎯 <strong>${p.puntaje_maximo}</strong> pts máx</span>
+          ${p.tiempo_limite_minutos ? `<span class="meta-item">⏱️ <strong>${p.tiempo_limite_minutos}</strong> min</span>` : ''}
+          <span class="meta-item">🔄 Intentos: <strong>${p.total_intentos}</strong></span>
+        </div>
+        <button class="btn-eval primary" onclick="iniciarEval()">▶ Comenzar Evaluación</button>
+      </div>
+    `;
+  }
+
+  function renderQuiz() {
+    const p = EVAL_DATA;
+    const preguntas = p.preguntas || [];
+    let html = `
+      <div class="eval-header">
+        <h2>${escHtml(p.titulo)}</h2>
+        <p>${escHtml(p.descripcion || '')}</p>
+        ${p.tiempo_limite_minutos ? '<div class="timer-bar" id="timer-bar">⏱️ Tiempo restante: <span id="timer-display">' + formatTiempo(p.tiempo_limite_minutos * 60) + '</span></div>' : ''}
+      </div>
+    `;
+    preguntas.forEach((q, i) => {
+      const sel = respuestasUsuario[q.id];
+      html += `
+        <div class="pregunta-card" id="preg-card-${q.id}">
+          <div class="preg-numero">
+            Pregunta ${i + 1} de ${preguntas.length}
+            <span class="preg-puntaje">${q.puntaje} pts</span>
+          </div>
+          <div class="preg-texto">${escHtml(q.texto)}</div>
+          <div class="opciones">
+            ${(q.opciones || []).map(o => `
+              <div class="opcion-item ${sel === o.id ? 'selected' : ''}" onclick="seleccionarOpcion(${q.id}, ${o.id})">
+                <input type="radio" name="preg_${q.id}" value="${o.id}" ${sel === o.id ? 'checked' : ''}>
+                <span class="op-texto">${escHtml(o.texto)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    });
+    html += `<div style="text-align:center;margin-top:20px;">
+      <button class="btn-eval success" onclick="finalizarEval()">✅ Finalizar Evaluación</button>
+    </div>`;
+    ROOT.innerHTML = html;
+
+    if (p.tiempo_limite_minutos) {
+      tiempoRestante = p.tiempo_limite_minutos * 60;
+      iniciarTimer();
+    }
+  }
+
+  function renderResultados(ultimo) {
+    const p = EVAL_DATA;
+    ROOT.innerHTML = `
+      <div class="result-screen">
+        <div class="icon">${ultimo.aprobado ? '🎉' : '😞'}</div>
+        <h3 style="color:${ultimo.aprobado ? '#16a34a' : '#ef4444'};">${ultimo.aprobado ? '¡Aprobado!' : 'No aprobado'}</h3>
+        <div class="score">${ultimo.puntaje_obtenido.toFixed(1)} <span class="max">/ ${ultimo.puntaje_maximo.toFixed(1)}</span></div>
+        <div class="badge-result ${ultimo.aprobado ? 'aprobado' : 'no-aprobado'}">${ultimo.aprobado ? '✔ Aprobado' : '✖ No aprobado'}</div>
+        <div class="detalle">Intento #${ultimo.intento_numero} — ${new Date(ultimo.fecha_fin).toLocaleString()}</div>
+        <button class="btn-eval primary" onclick="iniciarEval()">🔄 Reintentar</button>
+      </div>
+    `;
+  }
+
+  window.iniciarEval = async function() {
+    try {
+      const resp = await fetch('/courses/' + CURSO_ID + '/evaluacion/' + EVAL_DATA.id + '/iniciar/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        // Reload evaluation data
+        await cargarDatosEvaluacion();
+        render();
+      }
+    } catch(e) {
+      console.error('Error al iniciar evaluación:', e);
+    }
+  };
+
+  window.seleccionarOpcion = async function(pregId, opId) {
+    respuestasUsuario[pregId] = opId;
+    document.querySelectorAll(`#preg-card-${pregId} .opcion-item`).forEach(el => {
+      el.classList.toggle('selected', el.querySelector('input')?.value == opId);
+    });
+    if (intentoActivo) {
+      try {
+        await fetch('/courses/' + CURSO_ID + '/evaluacion/' + EVAL_DATA.id + '/responder/', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ intento_id: intentoActivo.id, pregunta_id: pregId, opcion_id: opId }),
+        });
+      } catch(e) {}
+    }
+  };
+
+  window.finalizarEval = async function() {
+    if (!intentoActivo) return;
+    try {
+      const resp = await fetch('/courses/' + CURSO_ID + '/evaluacion/' + EVAL_DATA.id + '/finalizar/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intento_id: intentoActivo.id }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        intentoActivo = null;
+        if (timerInterval) clearInterval(timerInterval);
+        EVAL_DATA.ultimo_intento = {
+          id: 0,
+          intento_numero: 0,
+          puntaje_obtenido: data.puntaje_obtenido,
+          puntaje_maximo: data.puntaje_maximo,
+          aprobado: data.aprobado,
+          completado: true,
+          fecha_fin: new Date().toISOString(),
+        };
+        renderResultados(EVAL_DATA.ultimo_intento);
+      }
+    } catch(e) {
+      console.error('Error al finalizar:', e);
+    }
+  };
+
+  function iniciarTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      tiempoRestante--;
+      const display = document.getElementById('timer-display');
+      if (display) display.textContent = formatTiempo(tiempoRestante);
+      const bar = document.getElementById('timer-bar');
+      if (bar && tiempoRestante <= 60) bar.classList.add('warning');
+      if (tiempoRestante <= 0) {
+        clearInterval(timerInterval);
+        finalizarEval();
+      }
+    }, 1000);
+  }
+
+  function formatTiempo(segundos) {
+    const m = Math.floor(segundos / 60);
+    const s = segundos % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function escHtml(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  async function cargarDatosEvaluacion() {
+    try {
+      const resp = await fetch('/courses/' + CURSO_ID + '/evaluacion/' + EVAL_DATA.id + '/datos/');
+      const data = await resp.json();
+      Object.assign(EVAL_DATA, data);
+      intentoActivo = EVAL_DATA.intento_activo;
+      if (intentoActivo) {
+        respuestasUsuario = {};
+      }
+    } catch(e) {
+      console.error('Error cargando datos:', e);
+    }
+  }
+
+  render();
+})();
+</script>

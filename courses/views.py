@@ -180,6 +180,8 @@ def detalle_curso(request, pk):
                 curso=curso, usuario=request.user
             )
         else:
+            from django.contrib import messages
+            messages.error(request, 'No estás inscrito en este curso.')
             return redirect('courses:lista')
 
     secciones = curso.secciones.all()
@@ -223,6 +225,7 @@ def detalle_curso(request, pk):
         'progreso': pct,
         'completadas': completadas,
         'total': total,
+        'evaluaciones': list(curso.evaluaciones.filter(activo=True).values('id', 'titulo', 'descripcion', 'puntaje_maximo', 'tiempo_limite_minutos')),
     })
 
 
@@ -1194,6 +1197,7 @@ def guardar_carrusel(request):
 def libro_pdf(request, pk):
     from django.template.loader import get_template
     from xhtml2pdf import pisa
+    import re
 
     curso = get_object_or_404(Curso.objects.prefetch_related(
         'secciones__paginas',
@@ -1211,10 +1215,35 @@ def libro_pdf(request, pk):
 
     secciones = curso.secciones.all()
 
-    import re
+    from django.conf import settings
+    site_url = settings.SITE_URL.rstrip('/')
 
-    def _limpiar_css_vars(html):
-        return re.sub(r'var\(--[^)]+\)', 'inherit', html)
+    def _abs_url(html):
+        html = re.sub(r'var\(--[^)]+\)', 'inherit', html)
+        html = re.sub(r'(src=["\'])/(media|static)', rf'\1{site_url}/\2', html)
+        html = re.sub(r'(href=["\'])/(media|static)', rf'\1{site_url}/\2', html)
+        return html
+
+    for sec in secciones:
+        if sec.contenido_html:
+            sec.contenido_html = _abs_url(sec.contenido_html)
+        for pag in sec.paginas.all():
+            if pag.contenido_html:
+                pag.contenido_html = _abs_url(pag.contenido_html)
+            for ac in pag.acordeones.all():
+                if ac.contenido_html:
+                    ac.contenido_html = _abs_url(ac.contenido_html)
+            for car in pag.carruseles.all():
+                for tarj in car.tarjetas.all():
+                    if tarj.contenido_html:
+                        tarj.contenido_html = _abs_url(tarj.contenido_html)
+        for ac in sec.acordeones.all():
+            if ac.contenido_html:
+                ac.contenido_html = _abs_url(ac.contenido_html)
+        for car in sec.carruseles.all():
+            for tarj in car.tarjetas.all():
+                if tarj.contenido_html:
+                    tarj.contenido_html = _abs_url(tarj.contenido_html)
 
     context = {
         'curso': curso,
@@ -1225,8 +1254,6 @@ def libro_pdf(request, pk):
     template = get_template('courses/libro_pdf.html')
     html = template.render(context)
 
-    html = _limpiar_css_vars(html)
-
     response = HttpResponse(content_type='application/pdf')
     filename = f"Libro_{curso.titulo}.pdf"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -1235,3 +1262,328 @@ def libro_pdf(request, pk):
     if pisa_status.err:
         return HttpResponse('Error al generar el PDF', status=500)
     return response
+
+
+# ═══════════════════════════════════════════════════════════════
+# EVALUACIONES
+# ═══════════════════════════════════════════════════════════════
+
+@staff_member_required
+def admin_evaluaciones(request, pk):
+    from .models import Curso, Evaluacion
+    curso = get_object_or_404(Curso, pk=pk)
+    if request.method == 'POST' and request.POST.get('accion') == 'crear':
+        titulo = request.POST.get('titulo', '').strip() or f"Evaluación #{curso.evaluaciones.count() + 1}"
+        ev = Evaluacion.objects.create(curso=curso, titulo=titulo, orden=curso.evaluaciones.count() + 1)
+        return redirect('courses:admin_evaluacion_editar', eval_id=ev.id)
+    evaluaciones = curso.evaluaciones.all().prefetch_related('preguntas')
+    from django.contrib.admin import site as admin_site
+    return render(request, 'courses/admin/evaluacion_list.html', {
+        'curso': curso,
+        'evaluaciones': evaluaciones,
+        **admin_site.each_context(request),
+    })
+
+
+@staff_member_required
+def admin_evaluacion_editar(request, eval_id):
+    import json
+    from .models import Evaluacion, Pregunta, Opcion
+    evaluacion = get_object_or_404(Evaluacion, pk=eval_id)
+
+    if request.method == 'POST':
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+            actualizar_id = data.get('actualizar')
+            if actualizar_id:
+                preg = get_object_or_404(Pregunta, pk=actualizar_id, evaluacion=evaluacion)
+                preg.texto = data.get('texto', preg.texto)
+                preg.puntaje = data.get('puntaje', preg.puntaje)
+                preg.explicacion = data.get('explicacion', '')
+                preg.save()
+                return JsonResponse({'ok': True})
+        # Form POST
+        evaluacion.titulo = request.POST.get('titulo', evaluacion.titulo)
+        evaluacion.tipo = request.POST.get('tipo', evaluacion.tipo)
+        evaluacion.descripcion = request.POST.get('descripcion', '')
+        try:
+            evaluacion.puntaje_maximo = float(request.POST.get('puntaje_maximo', 0))
+            evaluacion.puntaje_aprobacion = float(request.POST.get('puntaje_aprobacion', 0))
+            evaluacion.tiempo_limite_minutos = int(request.POST.get('tiempo_limite_minutos', 0))
+        except ValueError:
+            pass
+        evaluacion.activo = request.POST.get('activo') == '1'
+        evaluacion.save()
+        return JsonResponse({'ok': True})
+
+    preguntas = evaluacion.preguntas.all().prefetch_related('opciones')
+    from django.contrib.admin import site as admin_site
+    return render(request, 'courses/admin/evaluacion_form.html', {
+        'evaluacion': evaluacion,
+        'preguntas': preguntas,
+        **admin_site.each_context(request),
+    })
+
+
+@staff_member_required
+@require_POST
+def api_agregar_pregunta(request, eval_id):
+    import json
+    from .models import Evaluacion, Pregunta
+    evaluacion = get_object_or_404(Evaluacion, pk=eval_id)
+    data = json.loads(request.body)
+    tipo = data.get('tipo', 'MULTIPLE')
+    pregunta = Pregunta.objects.create(
+        evaluacion=evaluacion,
+        texto=data.get('texto', ''),
+        tipo=tipo,
+        puntaje=data.get('puntaje', 1),
+        orden=evaluacion.preguntas.count() + 1,
+    )
+    if tipo == 'V_F':
+        Opcion.objects.create(pregunta=pregunta, texto='Verdadero', es_correcta=True, orden=1)
+        Opcion.objects.create(pregunta=pregunta, texto='Falso', es_correcta=False, orden=2)
+    return JsonResponse({'ok': True, 'id': pregunta.id})
+
+
+@staff_member_required
+@require_POST
+def api_eliminar_pregunta(request, eval_id, preg_id):
+    from .models import Pregunta
+    pregunta = get_object_or_404(Pregunta, pk=preg_id, evaluacion_id=eval_id)
+    pregunta.delete()
+    return JsonResponse({'ok': True})
+
+
+@staff_member_required
+@require_POST
+def api_agregar_opcion(request, eval_id, preg_id):
+    import json
+    from .models import Pregunta, Opcion
+    pregunta = get_object_or_404(Pregunta, pk=preg_id, evaluacion_id=eval_id)
+    data = json.loads(request.body)
+    Opcion.objects.create(
+        pregunta=pregunta,
+        texto=data.get('texto', ''),
+        es_correcta=data.get('es_correcta', False),
+        orden=pregunta.opciones.count() + 1,
+    )
+    return JsonResponse({'ok': True})
+
+
+@staff_member_required
+@require_POST
+def api_eliminar_opcion(request, eval_id, preg_id, op_id):
+    from .models import Opcion
+    opcion = get_object_or_404(Opcion, pk=op_id, pregunta_id=preg_id, pregunta__evaluacion_id=eval_id)
+    opcion.delete()
+    return JsonResponse({'ok': True})
+
+
+# ─── Estudiante ────────────────────────────────────────────────────────────
+
+@login_required
+def api_datos_evaluacion(request, pk, eval_id):
+    from .models import Curso, Evaluacion, IntentoEvaluacion, Pregunta
+    curso = get_object_or_404(Curso, pk=pk, activo=True)
+    evaluacion = get_object_or_404(Evaluacion, pk=eval_id, curso=curso, activo=True)
+    intento = IntentoEvaluacion.objects.filter(evaluacion=evaluacion, usuario=request.user, completado=False).first()
+    ultimo_intento = IntentoEvaluacion.objects.filter(evaluacion=evaluacion, usuario=request.user).order_by('-intento_numero').first()
+    preguntas_qs = evaluacion.preguntas.all().prefetch_related('opciones')
+    return JsonResponse({
+        'id': evaluacion.id,
+        'titulo': evaluacion.titulo,
+        'descripcion': evaluacion.descripcion,
+        'puntaje_maximo': float(evaluacion.puntaje_maximo),
+        'puntaje_aprobacion': float(evaluacion.puntaje_aprobacion),
+        'tiempo_limite_minutos': evaluacion.tiempo_limite_minutos,
+        'intento_activo': {
+            'id': intento.id,
+            'intento_numero': intento.intento_numero,
+            'fecha_inicio': intento.fecha_inicio.isoformat(),
+        } if intento else None,
+        'ultimo_intento': {
+            'id': ultimo_intento.id,
+            'intento_numero': ultimo_intento.intento_numero,
+            'puntaje_obtenido': float(ultimo_intento.puntaje_obtenido or 0),
+            'puntaje_maximo': float(ultimo_intento.puntaje_maximo or 0),
+            'aprobado': ultimo_intento.aprobado,
+            'completado': ultimo_intento.completado,
+            'fecha_fin': ultimo_intento.fecha_fin.isoformat() if ultimo_intento.fecha_fin else None,
+        } if ultimo_intento and ultimo_intento.completado else None,
+        'total_intentos': IntentoEvaluacion.objects.filter(evaluacion=evaluacion, usuario=request.user).count(),
+        'preguntas': [{
+            'id': p.id,
+            'texto': p.texto,
+            'tipo': p.tipo,
+            'puntaje': float(p.puntaje),
+            'orden': p.orden,
+            'opciones': [{
+                'id': o.id,
+                'texto': o.texto,
+                'orden': o.orden,
+            } for o in p.opciones.all().order_by('orden')],
+        } for p in preguntas_qs.order_by('orden')],
+    })
+
+
+@login_required
+def iniciar_evaluacion(request, pk, eval_id):
+    from .models import Curso, Evaluacion, IntentoEvaluacion, AsignacionCurso
+    curso = get_object_or_404(Curso, pk=pk, activo=True)
+    evaluacion = get_object_or_404(Evaluacion, pk=eval_id, curso=curso, activo=True)
+
+    # Check for existing active intento
+    activo = IntentoEvaluacion.objects.filter(evaluacion=evaluacion, usuario=request.user, completado=False).first()
+    if activo:
+        intento = activo
+    else:
+        asignacion = AsignacionCurso.objects.filter(curso=curso, usuario=request.user).first()
+        ultimo_intento = IntentoEvaluacion.objects.filter(evaluacion=evaluacion, usuario=request.user).order_by('-intento_numero').first()
+        intento_numero = (ultimo_intento.intento_numero + 1) if ultimo_intento else 1
+        intento = IntentoEvaluacion.objects.create(
+            evaluacion=evaluacion, usuario=request.user, asignacion=asignacion,
+            intento_numero=intento_numero, puntaje_maximo=evaluacion.puntaje_maximo,
+        )
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return JsonResponse({'ok': True, 'intento_id': intento.id})
+    return redirect('courses:detalle', pk=pk)
+
+
+@login_required
+@require_POST
+def api_responder_pregunta(request, pk, eval_id):
+    import json
+    from .models import IntentoEvaluacion, Pregunta, Opcion, RespuestaUsuario
+    data = json.loads(request.body)
+    intento = get_object_or_404(IntentoEvaluacion, pk=data['intento_id'], evaluacion_id=eval_id, usuario=request.user, completado=False)
+    pregunta = get_object_or_404(Pregunta, pk=data['pregunta_id'])
+    opcion = get_object_or_404(Opcion, pk=data['opcion_id'], pregunta=pregunta) if data.get('opcion_id') else None
+    es_correcta = opcion.es_correcta if opcion else False
+    puntaje = pregunta.puntaje if es_correcta else 0
+    RespuestaUsuario.objects.update_or_create(
+        intento=intento, pregunta=pregunta,
+        defaults={'opcion_seleccionada': opcion, 'es_correcta': es_correcta, 'puntaje_obtenido': puntaje},
+    )
+    return JsonResponse({'ok': True, 'es_correcta': es_correcta, 'explicacion': pregunta.explicacion})
+
+
+@login_required
+@require_POST
+def finalizar_evaluacion(request, pk, eval_id):
+    from django.db.models import Sum
+    from .models import IntentoEvaluacion, RespuestaUsuario
+    from decimal import Decimal
+    try:
+        intento_id = request.POST.get('intento_id') or json.loads(request.body).get('intento_id')
+    except Exception:
+        return JsonResponse({'error': 'intento_id requerido'}, status=400)
+    intento = get_object_or_404(IntentoEvaluacion, pk=intento_id, evaluacion_id=eval_id, usuario=request.user, completado=False)
+    total = RespuestaUsuario.objects.filter(intento=intento).aggregate(s=Sum('puntaje_obtenido'))['s'] or Decimal('0')
+    intento.puntaje_obtenido = total
+    intento.fecha_fin = timezone.now()
+    intento.completado = True
+    intento.aprobado = total >= intento.evaluacion.puntaje_aprobacion
+    intento.save()
+    return JsonResponse({
+        'ok': True, 'puntaje_obtenido': float(total),
+        'puntaje_maximo': float(intento.puntaje_maximo),
+        'aprobado': intento.aprobado,
+    })
+
+
+@login_required
+def reporte_equipo(request):
+    from django.contrib.auth.models import User
+    from .models import AsignacionCurso, ProgresoSeccion, IntentoEvaluacion, Curso
+
+    subordinates = User.objects.filter(perfil__responsable=request.user).select_related('perfil').order_by('first_name', 'last_name')
+
+    if not subordinates.exists():
+        departamentos = request.user.departamentos_a_cargo.all()
+        if departamentos.exists():
+            subordinates = User.objects.filter(perfil__departamento__in=departamentos).exclude(pk=request.user.pk).select_related('perfil').order_by('first_name', 'last_name')
+
+    equipo = []
+    for user in subordinates:
+        asignaciones = AsignacionCurso.objects.filter(
+            usuario=user
+        ).select_related('curso').order_by('-fecha_asignacion')
+
+        cursos_data = []
+        for a in asignaciones:
+            total = a.curso.total_secciones()
+            completadas = ProgresoSeccion.objects.filter(asignacion=a, usuario=user, completado=True).count()
+            pct = int((completadas / total * 100)) if total else 0
+
+            intentos = IntentoEvaluacion.objects.filter(
+                usuario=user, asignacion=a
+            ).select_related('evaluacion').order_by('-fecha_inicio')[:5]
+
+            cursos_data.append({
+                'curso': a.curso,
+                'asignacion': a,
+                'progreso': pct,
+                'completadas': completadas,
+                'total': total,
+                'intentos': list(intentos),
+            })
+
+        # Get recent evaluation attempts not tied to an assignment
+        otros_intentos = IntentoEvaluacion.objects.filter(
+            usuario=user, asignacion__isnull=True
+        ).select_related('evaluacion').order_by('-fecha_inicio')[:10]
+
+        equipo.append({
+            'usuario': user,
+            'cursos': cursos_data,
+            'otros_intentos': list(otros_intentos),
+            'total_cursos': len(cursos_data),
+            'completados': sum(1 for c in cursos_data if c['asignacion'].completado),
+        })
+
+    return render(request, 'courses/reporte_equipo.html', {
+        'equipo': equipo,
+        'total_colaboradores': len(equipo),
+        'total_cursos_asignados': sum(m['total_cursos'] for m in equipo),
+        'total_cursos_completados': sum(m['completados'] for m in equipo),
+    })
+
+
+@login_required
+def mis_cursos_realizados(request):
+    from .models import CursoExterno
+
+    if request.method == 'POST':
+        titulo = request.POST.get('titulo', '').strip()
+        descripcion = request.POST.get('descripcion', '').strip()
+        institucion = request.POST.get('institucion', '').strip()
+        fecha_diploma = request.POST.get('fecha_diploma', '').strip()
+        diploma = request.FILES.get('diploma')
+
+        errors = []
+        if not titulo:
+            errors.append('El título es obligatorio.')
+        if not fecha_diploma:
+            errors.append('La fecha del diploma es obligatoria.')
+
+        if not errors:
+            CursoExterno.objects.create(
+                usuario=request.user,
+                titulo=titulo,
+                descripcion=descripcion,
+                institucion=institucion,
+                fecha_diploma=fecha_diploma,
+                diploma=diploma,
+            )
+            return redirect('courses:mis_cursos_realizados')
+
+        from django.contrib import messages
+        for e in errors:
+            messages.error(request, e)
+
+    cursos = CursoExterno.objects.filter(usuario=request.user).order_by('-fecha_diploma')
+    return render(request, 'courses/cursos_realizados.html', {
+        'cursos': cursos,
+    })

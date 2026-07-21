@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
+from django.conf import settings
 from django.utils import timezone
 
 
@@ -246,3 +247,132 @@ class RegistroTiempo(models.Model):
 
     def __str__(self):
         return f"{self.usuario} - {self.curso.titulo}: {self.duracion_segundos}s"
+
+
+class Evaluacion(models.Model):
+    TIPOS = (
+        ('MULTIPLE', 'Opción Múltiple'),
+        ('V_F', 'Verdadero/Falso'),
+        ('MIXTA', 'Mixta'),
+    )
+    curso = models.ForeignKey('Curso', on_delete=models.CASCADE, related_name='evaluaciones', verbose_name="Curso")
+    seccion = models.ForeignKey('Seccion', on_delete=models.SET_NULL, null=True, blank=True, related_name='evaluaciones', verbose_name="Sección")
+    pagina = models.ForeignKey('Pagina', on_delete=models.SET_NULL, null=True, blank=True, related_name='evaluaciones', verbose_name="Página")
+    titulo = models.CharField(max_length=255, verbose_name="Título")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    tipo = models.CharField(max_length=10, choices=TIPOS, default='MULTIPLE', verbose_name="Tipo")
+    puntaje_maximo = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name="Puntaje máximo")
+    puntaje_aprobacion = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name="Puntaje para aprobar")
+    tiempo_limite_minutos = models.PositiveIntegerField(default=0, verbose_name="Tiempo límite (min)", help_text="0 = sin límite")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['orden']
+        verbose_name = "Evaluación"
+        verbose_name_plural = "Evaluaciones"
+
+    def __str__(self):
+        return f"{self.titulo} ({self.curso.titulo})"
+
+
+class Pregunta(models.Model):
+    TIPOS = (
+        ('MULTIPLE', 'Opción Múltiple'),
+        ('V_F', 'Verdadero/Falso'),
+    )
+    evaluacion = models.ForeignKey('Evaluacion', on_delete=models.CASCADE, related_name='preguntas', verbose_name="Evaluación")
+    texto = models.TextField(verbose_name="Texto de la pregunta")
+    tipo = models.CharField(max_length=10, choices=TIPOS, default='MULTIPLE', verbose_name="Tipo de respuesta")
+    puntaje = models.DecimalField(max_digits=6, decimal_places=2, default=1, verbose_name="Puntaje")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+    explicacion = models.TextField(blank=True, verbose_name="Explicación", help_text="Se muestra después de responder")
+    obligatorio = models.BooleanField(default=True, verbose_name="Obligatorio")
+
+    class Meta:
+        ordering = ['orden']
+        verbose_name = "Pregunta"
+        verbose_name_plural = "Preguntas"
+
+    def __str__(self):
+        return self.texto[:80]
+
+
+class Opcion(models.Model):
+    pregunta = models.ForeignKey('Pregunta', on_delete=models.CASCADE, related_name='opciones', verbose_name="Pregunta")
+    texto = models.CharField(max_length=500, verbose_name="Texto de la opción")
+    es_correcta = models.BooleanField(default=False, verbose_name="Correcta")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+
+    class Meta:
+        ordering = ['orden']
+        verbose_name = "Opción"
+        verbose_name_plural = "Opciones"
+
+    def __str__(self):
+        return self.texto[:60]
+
+
+class IntentoEvaluacion(models.Model):
+    evaluacion = models.ForeignKey('Evaluacion', on_delete=models.CASCADE, related_name='intentos', verbose_name="Evaluación")
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='intentos_evaluaciones', verbose_name="Usuario")
+    asignacion = models.ForeignKey('AsignacionCurso', on_delete=models.SET_NULL, null=True, blank=True, related_name='intentos', verbose_name="Asignación")
+    fecha_inicio = models.DateTimeField(auto_now_add=True, verbose_name="Inicio")
+    fecha_fin = models.DateTimeField(null=True, blank=True, verbose_name="Fin")
+    puntaje_obtenido = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name="Puntaje obtenido")
+    puntaje_maximo = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name="Puntaje máximo")
+    aprobado = models.BooleanField(default=False, verbose_name="Aprobado")
+    intento_numero = models.PositiveIntegerField(default=1, verbose_name="Número de intento")
+    completado = models.BooleanField(default=False, verbose_name="Completado")
+
+    class Meta:
+        ordering = ['-fecha_inicio']
+        verbose_name = "Intento de Evaluación"
+        verbose_name_plural = "Intentos de Evaluación"
+        unique_together = ['evaluacion', 'usuario', 'intento_numero']
+
+    def __str__(self):
+        return f"{self.usuario} - {self.evaluacion.titulo} (#{self.intento_numero})"
+
+
+class RespuestaUsuario(models.Model):
+    intento = models.ForeignKey('IntentoEvaluacion', on_delete=models.CASCADE, related_name='respuestas', verbose_name="Intento")
+    pregunta = models.ForeignKey('Pregunta', on_delete=models.CASCADE, related_name='respuestas_usuarios', verbose_name="Pregunta")
+    opcion_seleccionada = models.ForeignKey('Opcion', on_delete=models.SET_NULL, null=True, blank=True, related_name='respuestas_usuarios', verbose_name="Opción seleccionada")
+    es_correcta = models.BooleanField(default=False, verbose_name="Correcta")
+    puntaje_obtenido = models.DecimalField(max_digits=6, decimal_places=2, default=0, verbose_name="Puntaje obtenido")
+
+    class Meta:
+        verbose_name = "Respuesta de Usuario"
+        verbose_name_plural = "Respuestas de Usuarios"
+        unique_together = ['intento', 'pregunta']
+
+    def __str__(self):
+        return f"{self.intento.usuario} - {self.pregunta.texto[:50]}"
+
+
+class CursoExterno(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='cursos_externos', verbose_name="Usuario"
+    )
+    titulo = models.CharField(max_length=255, verbose_name="Título del curso")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    institucion = models.CharField(max_length=255, blank=True, verbose_name="Institución / Plataforma")
+    diploma = models.FileField(
+        upload_to='diplomas/',
+        null=True, blank=True,
+        verbose_name="Diploma / Certificado"
+    )
+    fecha_diploma = models.DateField(verbose_name="Fecha del diploma")
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Registrado el")
+
+    class Meta:
+        verbose_name = "Curso externo"
+        verbose_name_plural = "Cursos externos"
+        ordering = ['-fecha_diploma']
+
+    def __str__(self):
+        return f"{self.titulo} - {self.usuario}"

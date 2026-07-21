@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+body { font-family: 'Inter', system-ui, sans-serif; background: #f1f5f9; }
+.eval-list-wrap { max-width: 960px; margin: 30px auto; }
+.eval-list-wrap h1 { font-size: 1.5rem; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+.eval-list-wrap .subtitle { color: #64748b; font-size: 0.85rem; margin-bottom: 24px; }
+.eval-card { background: #fff; border-radius: 10px; padding: 20px 24px; margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between;
+  transition: box-shadow 0.15s; }
+.eval-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.eval-card .info h3 { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
+.eval-card .info p { font-size: 0.82rem; color: #64748b; margin: 0; }
+.eval-card .actions { display: flex; gap: 8px; }
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-primary:hover { background: #2563eb; }
+.btn-outline { background: transparent; border: 1px solid #d1d5db; color: #374151; }
+.btn-outline:hover { background: #f9fafb; }
+.btn-success { background: #16a34a; color: #fff; }
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+.empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
+.empty-state ion-icon { font-size: 3rem; margin-bottom: 12px; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'courses:lista_admin' %}">Cursos</a>
+  &rsaquo; <a href="{% url 'courses:editar_curso' curso.pk %}">{{ curso.titulo }}</a>
+  &rsaquo; Evaluaciones
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="eval-list-wrap">
+  <h1>📝 Evaluaciones</h1>
+  <p class="subtitle">{{ curso.titulo }}</p>
+
+  <div style="margin-bottom: 20px;">
+    <a href="{% url 'courses:editar_curso' curso.pk %}" class="btn btn-outline">← Volver al curso</a>
+  </div>
+
+  {% if evaluaciones %}
+    {% for ev in evaluaciones %}
+    <div class="eval-card">
+      <div class="info">
+        <h3>{{ ev.titulo }}</h3>
+        <p>
+          {{ ev.preguntas.count }} preguntas · {{ ev.puntaje_maximo }} pts máx ·
+          {% if ev.tiempo_limite_minutos %}{{ ev.tiempo_limite_minutos }} min{% else %}sin límite{% endif %}
+          {% if ev.activo %}<span style="color:#16a34a;font-weight:600;"> · Activo</span>{% endif %}
+        </p>
+      </div>
+      <div class="actions">
+        <a href="{% url 'courses:admin_evaluacion_editar' ev.id %}" class="btn btn-primary btn-sm">
+          ✏️ Editar
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <p>No hay evaluaciones en este curso.</p>
+    </div>
+  {% endif %}
+
+  <div style="margin-top: 24px; text-align: center;">
+    <form method="post" action="{% url 'courses:admin_evaluaciones' curso.pk %}" style="display:inline;">
+      {% csrf_token %}
+      <input type="hidden" name="accion" value="crear">
+      <button type="submit" class="btn btn-success">+ Nueva Evaluación</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

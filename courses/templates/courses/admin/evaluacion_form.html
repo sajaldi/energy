@@ -1,0 +1,250 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+body { font-family: 'Inter', system-ui, sans-serif; background: #f1f5f9; }
+.eval-edit-wrap { max-width: 900px; margin: 30px auto; }
+.eval-edit-wrap h1 { font-size: 1.5rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+.card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 16px; overflow: hidden; }
+.card-header { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; font-weight: 700; font-size: 0.95rem; color: #0f172a; display: flex; align-items: center; justify-content: space-between; }
+.card-body { padding: 20px; }
+.field-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.field-row label { font-size: 0.82rem; font-weight: 600; color: #374151; display: block; margin-bottom: 4px; }
+.field-row input, .field-row select, .field-row textarea { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; width: 100%; box-sizing: border-box; }
+.field-row input:focus, .field-row select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.field-group { flex: 1; min-width: 180px; }
+.pregunta-card { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+.pregunta-header { padding: 12px 16px; background: #f8fafc; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.pregunta-header .preg-num { width: 26px; height: 26px; border-radius: 50%; background: #3b82f6; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 800; flex-shrink: 0; }
+.pregunta-header .preg-texto { flex: 1; margin: 0 12px; font-weight: 600; font-size: 0.9rem; color: #0f172a; }
+.pregunta-body { padding: 16px; display: none; }
+.pregunta-card.open .pregunta-body { display: block; }
+.opcion-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; margin-bottom: 4px; }
+.opcion-row:hover { background: #f9fafb; }
+.opcion-row input[type="text"] { flex: 1; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.85rem; }
+.opcion-row input[type="radio"] { cursor: pointer; }
+.badge-correcta { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; background: #dcfce7; color: #16a34a; }
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: #3b82f6; color: #fff; }
+.btn-primary:hover { background: #2563eb; }
+.btn-outline { background: transparent; border: 1px solid #d1d5db; color: #374151; }
+.btn-outline:hover { background: #f9fafb; }
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+.btn-xs { padding: 3px 8px; font-size: 0.7rem; }
+.tag-tipo { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; background: #e0f2fe; color: #0284c7; font-weight: 600; }
+.empty-opts { color: #94a3b8; font-size: 0.8rem; padding: 8px; text-align: center; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'courses:lista_admin' %}">Cursos</a>
+  &rsaquo; <a href="{% url 'courses:admin_evaluaciones' evaluacion.curso_id %}">Evaluaciones</a>
+  &rsaquo; {{ evaluacion.titulo }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="eval-edit-wrap">
+  <h1>📝 {{ evaluacion.titulo }}</h1>
+
+  <!-- Config -->
+  <div class="card">
+    <div class="card-header">Configuración</div>
+    <div class="card-body">
+      <form method="post" id="configForm">
+        {% csrf_token %}
+        <div class="field-row">
+          <div class="field-group">
+            <label>Título</label>
+            <input type="text" name="titulo" value="{{ evaluacion.titulo }}" required>
+          </div>
+          <div class="field-group">
+            <label>Tipo</label>
+            <select name="tipo">
+              <option value="MULTIPLE" {% if evaluacion.tipo == 'MULTIPLE' %}selected{% endif %}>Opción Múltiple</option>
+              <option value="V_F" {% if evaluacion.tipo == 'V_F' %}selected{% endif %}>Verdadero/Falso</option>
+              <option value="MIXTA" {% if evaluacion.tipo == 'MIXTA' %}selected{% endif %}>Mixta</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Descripción</label>
+            <textarea name="descripcion" rows="2">{{ evaluacion.descripcion }}</textarea>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Puntaje máximo</label>
+            <input type="number" name="puntaje_maximo" value="{{ evaluacion.puntaje_maximo }}" step="0.01">
+          </div>
+          <div class="field-group">
+            <label>Puntaje para aprobar</label>
+            <input type="number" name="puntaje_aprobacion" value="{{ evaluacion.puntaje_aprobacion }}" step="0.01">
+          </div>
+          <div class="field-group">
+            <label>Tiempo límite (min, 0 = sin límite)</label>
+            <input type="number" name="tiempo_limite_minutos" value="{{ evaluacion.tiempo_limite_minutos }}">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>
+              <input type="checkbox" name="activo" value="1" {% if evaluacion.activo %}checked{% endif %}>
+              Activo
+            </label>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">💾 Guardar cambios</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Preguntas -->
+  <div class="card">
+    <div class="card-header">
+      <span>Preguntas</span>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm btn-outline" onclick="agregarPregunta('MULTIPLE')">+ Opción Múltiple</button>
+        <button class="btn btn-sm btn-outline" onclick="agregarPregunta('V_F')">+ V/F</button>
+      </div>
+    </div>
+    <div class="card-body" id="preguntasContainer">
+      {% for preg in preguntas %}
+      <div class="pregunta-card" data-preg-id="{{ preg.id }}">
+        <div class="pregunta-header" onclick="this.closest('.pregunta-card').classList.toggle('open')">
+          <span class="preg-num">{{ forloop.counter }}</span>
+          <span class="preg-texto">{{ preg.texto|default:'(sin texto)' }}</span>
+          <span class="tag-tipo">{{ preg.get_tipo_display }}</span>
+          <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();eliminarPregunta({{ preg.id }})">✕</button>
+        </div>
+        <div class="pregunta-body">
+          <div class="field-row">
+            <div class="field-group" style="flex:3;">
+              <label>Texto de la pregunta</label>
+              <textarea class="preg-textarea" rows="2" style="width:100%;">{{ preg.texto }}</textarea>
+            </div>
+            <div class="field-group" style="flex:1;">
+              <label>Puntaje</label>
+              <input type="number" class="preg-puntaje" value="{{ preg.puntaje }}" step="0.5" style="width:100%;">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label>Explicación (se muestra al responder)</label>
+              <textarea class="preg-explicacion" rows="2" style="width:100%;">{{ preg.explicacion }}</textarea>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline" onclick="guardarPregunta({{ preg.id }})">💾 Guardar pregunta</button>
+          <hr style="margin:12px 0;border:none;border-top:1px solid #f1f5f9;">
+          <div style="font-size:0.82rem;font-weight:600;color:#374151;margin-bottom:8px;">Opciones</div>
+          <div class="opciones-list">
+            {% for op in preg.opciones.all %}
+            <div class="opcion-row" data-op-id="{{ op.id }}">
+              <input type="radio" name="correcta_{{ preg.id }}" value="{{ op.id }}"
+                {% if op.es_correcta %}checked{% endif %}
+                onchange="marcarCorrecta({{ preg.id }}, {{ op.id }})">
+              <input type="text" class="op-texto" value="{{ op.texto }}" placeholder="Texto de la opción">
+              {% if op.es_correcta %}<span class="badge-correcta">✔ Correcta</span>{% endif %}
+              <button class="btn btn-danger btn-xs" onclick="eliminarOpcion({{ preg.id }}, {{ op.id }})">✕</button>
+            </div>
+            {% empty %}
+            <div class="empty-opts">Sin opciones</div>
+            {% endfor %}
+          </div>
+          <button class="btn btn-sm btn-outline" style="margin-top:8px;" onclick="agregarOpcion({{ preg.id }})">+ Opción</button>
+        </div>
+      </div>
+      {% empty %}
+      <div style="text-align:center;padding:40px 0;color:#94a3b8;">
+        <p>No hay preguntas. Crea una con los botones de arriba.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div style="margin-top:12px;">
+    <a href="{% url 'courses:admin_evaluaciones' evaluacion.curso_id %}" class="btn btn-outline">← Volver</a>
+  </div>
+</div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+const EVAL_ID = {{ evaluacion.id }};
+
+$('#configForm').on('submit', function(e) {
+  e.preventDefault();
+  $.post(window.location.href, $(this).serialize(), function(resp) {
+    if (resp.ok) Swal.fire({ icon: 'success', title: 'Guardado', timer: 1200, showConfirmButton: false });
+  });
+});
+
+function agregarPregunta(tipo) {
+  $.ajax({
+    url: '/courses/admin/evaluacion/' + EVAL_ID + '/pregunta/agregar/',
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF },
+    contentType: 'application/json',
+    data: JSON.stringify({ tipo: tipo, texto: 'Nueva pregunta', puntaje: 1 }),
+  }).done(function(resp) {
+    if (resp.ok) location.reload();
+  });
+}
+function eliminarPregunta(id) {
+  Swal.fire({ title: '¿Eliminar pregunta?', icon: 'warning', showCancelButton: true,
+    confirmButtonText: 'Eliminar', confirmButtonColor: '#ef4444' })
+  .then(r => {
+    if (r.isConfirmed) {
+      $.ajax({
+        url: '/courses/admin/evaluacion/' + EVAL_ID + '/pregunta/' + id + '/eliminar/',
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF },
+      }).done(() => location.reload());
+    }
+  });
+}
+function guardarPregunta(id) {
+  const card = document.querySelector(`.pregunta-card[data-preg-id="${id}"]`);
+  const texto = card.querySelector('.preg-textarea').value;
+  const puntaje = card.querySelector('.preg-puntaje').value;
+  const explicacion = card.querySelector('.preg-explicacion').value;
+  $.ajax({
+    url: '/courses/admin/evaluacion/' + EVAL_ID + '/pregunta/agregar/',
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF },
+    contentType: 'application/json',
+    data: JSON.stringify({ tipo: 'MULTIPLE', texto, puntaje, explicacion, actualizar: id }),
+  }).done(function(resp) {
+    if (resp.ok) Swal.fire({ icon: 'success', title: 'Pregunta guardada', timer: 1000, showConfirmButton: false });
+  });
+}
+
+function agregarOpcion(pregId) {
+  $.ajax({
+    url: '/courses/admin/evaluacion/' + EVAL_ID + '/pregunta/' + pregId + '/opcion/agregar/',
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF },
+    contentType: 'application/json',
+    data: JSON.stringify({ texto: 'Nueva opción', es_correcta: false }),
+  }).done(resp => { if (resp.ok) location.reload(); });
+}
+function eliminarOpcion(pregId, opId) {
+  $.ajax({
+    url: '/courses/admin/evaluacion/' + EVAL_ID + '/pregunta/' + pregId + '/opcion/' + opId + '/eliminar/',
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF },
+  }).done(() => location.reload());
+}
+function marcarCorrecta(pregId, opId) {
+  // Deseleccionar todas y marcar esta
+  document.querySelectorAll(`input[name="correcta_${pregId}"]`).forEach(r => r.checked = r.value == opId);
+}
+</script>
+{% endblock %}
