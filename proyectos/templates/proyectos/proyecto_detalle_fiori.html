@@ -535,6 +535,7 @@
         <div class="sap-tab" data-target="visor">Órdenes de Trabajo</div>
         <div class="sap-tab" data-target="financiero">Requisiciones</div>
         <div class="sap-tab" data-target="cotizaciones">Cotizaciones</div>
+        <div class="sap-tab" data-target="elementos">Elementos</div>
         <div class="sap-tab" data-target="observaciones">Observaciones</div>
         <div class="sap-tab" data-target="tareas">Tareas</div>
     </nav>
@@ -1013,11 +1014,18 @@
                                 ">{{ cot.get_estado_display }}</span>
                             </td>
                             <td>
+                                <div style="display:flex;gap:4px;">
                                 <a href="{% url 'presupuestos:ver_cotizacion' cot.pk %}"
                                    class="sap-btn sap-btn-secondary"
                                    style="padding:4px 10px;font-size:11px;text-decoration:none;">
                                     <i class="fas fa-eye"></i> Ver
                                 </a>
+                                <button type="button" class="sap-btn sap-btn-secondary"
+                                   style="padding:4px 10px;font-size:11px;"
+                                   onclick="editarCotizacion({{ cot.pk }})">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -1073,6 +1081,173 @@
             {% endif %}
         </div>
     </section>
+
+    <!-- ═══ MODAL: Editar Cotización ═══ -->
+    <div class="modal fade" id="modalEditarCotizacion" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content" style="border-radius:12px;overflow:hidden;">
+                <div class="modal-header" style="background:var(--fiori-primary);color:#fff;padding:14px 20px;">
+                    <h5 class="modal-title" id="modal-cot-title" style="font-weight:700;font-size:1rem;">✏️ Editar Cotización</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="padding:20px;background:#f8fafc;">
+
+                    <!-- Cabecera -->
+                    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:12px;">
+                            <div>
+                                <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Fecha</label>
+                                <input type="date" id="cot-fecha" class="form-control form-control-sm">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Versión</label>
+                                <input type="number" id="cot-version" class="form-control form-control-sm" min="1" value="1">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Válida hasta</label>
+                                <input type="date" id="cot-valida" class="form-control form-control-sm">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Estado</label>
+                                <select id="cot-estado" class="form-select form-select-sm">
+                                    <option value="BORRADOR">Borrador</option>
+                                    <option value="ENVIADA">Enviada</option>
+                                    <option value="APROBADA">Aprobada</option>
+                                    <option value="RECHAZADA">Rechazada</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Notas</label>
+                            <textarea id="cot-notas" class="form-control form-control-sm" rows="2" placeholder="Condiciones comerciales, tiempos de entrega..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Items -->
+                    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                        <div style="padding:10px 14px;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <span style="font-weight:700;font-size:13px;color:#32363a;">📋 Items</span>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <input type="text" id="nueva-area-input" placeholder="Área" class="form-control form-control-sm" style="width:120px;">
+                                <select id="nueva-disc-select" class="form-select form-select-sm" style="width:140px;">
+                                    <option value="">— Disciplina —</option>
+                                </select>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="cotAgregarSeccion()">＋ Sección</button>
+                            </div>
+                        </div>
+                        <div id="cot-secciones-container" style="padding:12px 14px;">
+                            <div id="cot-empty-state" style="text-align:center;padding:32px;color:#94a3b8;">
+                                <div style="font-size:2rem;margin-bottom:6px;">📋</div>
+                                <div style="font-size:14px;">Agrega una sección para comenzar</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total -->
+                    <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:12px 0;margin-top:8px;">
+                        <span style="font-size:13px;color:#6a6d70;font-weight:600;">Total General</span>
+                        <span id="cot-total-general" style="font-size:18px;font-weight:800;color:#166534;">L 0.00</span>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;">
+                    <div style="display:flex;gap:6px;">
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="btn-cot-eliminar" onclick="cotEliminar()">
+                            🗑 Eliminar cotización
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="cotCrearElementosAprobados()">
+                            🔧 Crear Elementos
+                        </button>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-sm btn-success" id="btn-cot-guardar" onclick="cotGuardar()">
+                            💾 Guardar cambios
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION: ELEMENTOS -->
+    <section id="elementos" class="sap-section">
+        <div class="sap-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--fiori-border);">
+                <div class="sap-card-title" style="margin:0;">🔧 Elementos del Proyecto</div>
+                <button type="button" class="sap-btn sap-btn-primary" onclick="elementoModalNuevo()">
+                    <i class="fas fa-plus"></i> Nuevo Elemento
+                </button>
+            </div>
+            <div id="elementos-container" style="padding:0;">
+                <div style="text-align:center;padding:40px;color:#94a3b8;" id="elementos-loading">Cargando...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ MODAL: Elemento (detalle/editar) ═══ -->
+    <div class="modal fade" id="modalElemento" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content" style="border-radius:12px;overflow:hidden;">
+                <div class="modal-header" style="background:var(--fiori-primary);color:#fff;">
+                    <h5 class="modal-title" id="modal-elem-title" style="font-weight:700;">🔧 Elemento</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="padding:20px;">
+                    <input type="hidden" id="elem-id">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                        <div style="grid-column:1/-1;">
+                            <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Nombre</label>
+                            <input type="text" id="elem-nombre" class="form-control form-control-sm">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Estado</label>
+                            <select id="elem-estado" class="form-select form-select-sm">
+                                <option value="PENDIENTE">Pendiente</option>
+                                <option value="EN_PROCESO">En Proceso</option>
+                                <option value="COMPLETADO">Completado</option>
+                                <option value="CANCELADO">Cancelado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Cantidad</label>
+                            <input type="number" id="elem-cantidad" class="form-control form-control-sm" min="0" step="0.01" value="1">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Fecha inicio ejecución</label>
+                            <input type="date" id="elem-fecha-inicio" class="form-control form-control-sm">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Fecha fin ejecución</label>
+                            <input type="date" id="elem-fecha-fin" class="form-control form-control-sm">
+                        </div>
+                        <div style="grid-column:1/-1;">
+                            <label style="display:block;font-size:11px;font-weight:700;color:#6a6d70;text-transform:uppercase;margin-bottom:2px;">Descripción</label>
+                            <textarea id="elem-descripcion" class="form-control form-control-sm" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                        <div style="padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-weight:700;font-size:12px;color:#32363a;">📎 Documentos / Fotos</span>
+                            <label class="btn btn-sm btn-outline-primary" style="cursor:pointer;padding:2px 8px;font-size:11px;margin:0;">
+                                <i class="fas fa-upload"></i> Subir
+                                <input type="file" id="elem-file-input" accept="image/*,.pdf,.doc,.docx" style="display:none;" onchange="elementoSubirDocumento(this)">
+                            </label>
+                        </div>
+                        <div id="elem-documentos" style="padding:8px 12px;min-height:60px;">
+                            <div style="text-align:center;color:#94a3b8;font-size:13px;padding:16px;">Sin documentos</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="btn-elem-eliminar" onclick="elementoEliminar()" style="display:none;">🗑 Eliminar</button>
+                    <div style="display:flex;gap:6px;margin-left:auto;">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-sm btn-success" onclick="elementoGuardar()">💾 Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- SECTION: OBSERVACIONES -->
     <section id="observaciones" class="sap-section">
@@ -1165,6 +1340,9 @@
                                 <td style="padding:10px 12px;font-size:0.82rem;color:#64748b;">{{ obs.usuario.get_full_name|default:obs.usuario.username }}</td>
                                 <td style="padding:10px 12px;">
                                     <div style="display:flex;gap:4px;">
+                                        {% for pin in obs.pines_plano.all %}
+                                        <a href="/proyectos/proyecto/{{ proyecto.pk }}/planos/{{ pin.plano_id }}/visor/?pin_id={{ pin.id }}" target="_blank" style="background:none;border:none;cursor:pointer;color:#10b981;font-size:0.85rem;padding:2px 6px;text-decoration:none;" title="Ver en plano: {{ pin.plano.titulo }}">👁️</a>
+                                        {% endfor %}
                                         <button onclick="editarObservacion({{ obs.id }})" style="background:none;border:none;cursor:pointer;color:#3b82f6;font-size:0.85rem;padding:2px 6px;" title="Editar">✏️</button>
                                         <button onclick="eliminarObservacion({{ obs.id }})" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:0.85rem;padding:2px 6px;" title="Eliminar">🗑️</button>
                                     </div>
@@ -1191,7 +1369,7 @@
             <div class="sap-card-title">Planos PDF del Proyecto</div>
 
             <!-- Input file oculto (fuera del dropzone para evitar que se destruya al cambiar innerHTML) -->
-            <input type="file" id="planos-file-input" accept=".pdf" style="display: none;">
+            <input type="file" id="planos-file-input" accept=".pdf" multiple style="display: none;">
 
             <!-- Dropzone de carga -->
             <div class="planos-dropzone" id="planos-dropzone" onclick="document.getElementById('planos-file-input').click()">
@@ -2000,6 +2178,9 @@
                     // Redraw gantt because it needs visibility for calculation
                     if (!gantt) initGantt();
                 }
+                if (target === 'elementos') {
+                    cargarElementos();
+                }
             });
         });
 
@@ -2659,7 +2840,7 @@
     <!-- PlanosManager Module -->
     <script>
         const PlanosManager = {
-            state: { proyectoId: null, currentPage: 1, totalPages: 1, loaded: false, selectedFile: null },
+            state: { proyectoId: null, currentPage: 1, totalPages: 1, loaded: false, selectedFile: null, selectedFiles: [] },
 
             init(proyectoId) {
                 this.state.proyectoId = proyectoId;
@@ -2748,80 +2929,131 @@
                 dropzone.addEventListener('drop', (e) => {
                     e.preventDefault();
                     dropzone.classList.remove('drag-over');
-                    const file = e.dataTransfer.files[0];
-                    if (file) this.handleFileSelect(file);
+                    const files = Array.from(e.dataTransfer.files);
+                    if (files.length > 0) this.handleFilesSelect(files);
                 });
 
                 fileInput.addEventListener('change', (e) => {
-                    if (e.target.files[0]) this.handleFileSelect(e.target.files[0]);
+                    const files = Array.from(e.target.files);
+                    if (files.length > 0) this.handleFilesSelect(files);
                 });
             },
 
             handleFileSelect(file) {
-                // Client-side validation
-                if (!file.name.toLowerCase().endsWith('.pdf')) {
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Solo se aceptan archivos PDF', showConfirmButton: false, timer: 4000 });
-                    return;
+                this.handleFilesSelect([file]);
+            },
+
+            handleFilesSelect(files) {
+                // Filter only valid PDFs
+                const validFiles = [];
+                for (const file of files) {
+                    if (!file.name.toLowerCase().endsWith('.pdf')) {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: `"${file.name}" no es un PDF`, showConfirmButton: false, timer: 3000 });
+                        continue;
+                    }
+                    if (file.size > 50 * 1024 * 1024) {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: `"${file.name}" excede 50 MB`, showConfirmButton: false, timer: 3000 });
+                        continue;
+                    }
+                    validFiles.push(file);
                 }
-                if (file.size > 50 * 1024 * 1024) {
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'El archivo excede el tamaño máximo (50 MB)', showConfirmButton: false, timer: 4000 });
-                    return;
+                if (validFiles.length === 0) return;
+
+                this.state.selectedFiles = validFiles;
+                this.state.selectedFile = validFiles[0]; // backwards compat
+
+                const dropzone = document.getElementById('planos-dropzone');
+                if (validFiles.length === 1) {
+                    document.getElementById('plano-titulo').value = validFiles[0].name.replace(/\.pdf$/i, '');
+                    dropzone.innerHTML = `<i class="fas fa-file-pdf" style="font-size:2rem;color:#cc0000;display:block;margin-bottom:8px;"></i><p style="margin:0;font-size:0.85rem;">${validFiles[0].name} (${(validFiles[0].size/1024/1024).toFixed(1)} MB)</p>`;
+                    document.getElementById('planos-upload-form').style.display = 'flex';
+                } else {
+                    // Multiple files: show summary, hide title field (will use filenames)
+                    const totalSize = validFiles.reduce((s, f) => s + f.size, 0);
+                    dropzone.innerHTML = `<i class="fas fa-file-pdf" style="font-size:2rem;color:#cc0000;display:block;margin-bottom:8px;"></i><p style="margin:0;font-size:0.85rem;"><strong>${validFiles.length} archivos PDF</strong> seleccionados (${(totalSize/1024/1024).toFixed(1)} MB total)</p><ul style="text-align:left;font-size:0.78rem;margin-top:8px;color:#6c757d;list-style:none;padding:0;">${validFiles.map(f => `<li>📄 ${f.name}</li>`).join('')}</ul>`;
+                    document.getElementById('plano-titulo').value = '';
+                    document.getElementById('planos-upload-form').style.display = 'flex';
+                    document.getElementById('plano-titulo').placeholder = validFiles.length + ' archivos (se usará el nombre de cada archivo como título)';
                 }
-                this.state.selectedFile = file;
-                document.getElementById('planos-upload-form').style.display = 'flex';
-                document.getElementById('planos-dropzone').innerHTML = `<i class="fas fa-file-pdf" style="font-size:2rem;color:#cc0000;display:block;margin-bottom:8px;"></i><p style="margin:0;font-size:0.85rem;">${file.name} (${(file.size/1024/1024).toFixed(1)} MB)</p>`;
             },
 
             async submitUpload() {
-                const file = this.state.selectedFile;
-                if (!file) return;
+                const files = this.state.selectedFiles;
+                if (!files || files.length === 0) return;
 
-                const titulo = document.getElementById('plano-titulo').value.trim();
+                const tituloInput = document.getElementById('plano-titulo').value.trim();
                 const descripcion = document.getElementById('plano-descripcion').value.trim();
 
-                if (!titulo) {
+                // Single file: require title
+                if (files.length === 1 && !tituloInput) {
                     Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'El título es obligatorio', showConfirmButton: false, timer: 3000 });
                     return;
                 }
 
-                const formData = new FormData();
-                formData.append('archivo', file);
-                formData.append('titulo', titulo);
-                formData.append('descripcion', descripcion);
-
                 const btn = document.getElementById('planos-upload-btn');
                 btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subiendo...';
 
-                try {
-                    const response = await fetch(`/proyectos/proyecto/${this.state.proyectoId}/planos/upload/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: formData,
-                    });
-                    const data = await response.json();
+                let uploaded = 0;
+                let errors = 0;
 
-                    if (data.status === 'success') {
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Plano cargado exitosamente', showConfirmButton: false, timer: 3000 });
-                        this.resetUploadForm();
-                        this.loadPlanos(1);
-                    } else {
-                        throw new Error(data.message);
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const titulo = files.length === 1 ? tituloInput : (tituloInput || file.name.replace(/\.pdf$/i, ''));
+
+                    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Subiendo ${i + 1}/${files.length}...`;
+
+                    const formData = new FormData();
+                    formData.append('archivo', file);
+                    formData.append('titulo', titulo);
+                    formData.append('descripcion', descripcion);
+
+                    try {
+                        const response = await fetch(`/proyectos/proyecto/${this.state.proyectoId}/planos/upload/`, {
+                            method: 'POST',
+                            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                            body: formData,
+                        });
+                        const data = await response.json();
+                        if (data.status === 'success') {
+                            uploaded++;
+                        } else {
+                            errors++;
+                            console.error(`Error subiendo ${file.name}:`, data.message);
+                        }
+                    } catch (error) {
+                        errors++;
+                        console.error(`Error subiendo ${file.name}:`, error);
                     }
-                } catch (error) {
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: error.message || 'Error al subir el plano', showConfirmButton: false, timer: 5000 });
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-upload"></i> Subir Plano';
                 }
+
+                // Show result
+                if (errors === 0) {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: uploaded === 1 ? 'Plano cargado exitosamente' : `${uploaded} planos cargados exitosamente`, showConfirmButton: false, timer: 3000 });
+                } else {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: `${uploaded} subidos, ${errors} con error`, showConfirmButton: false, timer: 5000 });
+                }
+
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-upload"></i> Subir Plano';
+                this.resetUploadForm();
+                this.loadPlanos(1);
             },
 
             resetUploadForm() {
                 this.state.selectedFile = null;
+                this.state.selectedFiles = [];
                 document.getElementById('plano-titulo').value = '';
+                document.getElementById('plano-titulo').placeholder = 'Título del plano';
                 document.getElementById('plano-descripcion').value = '';
                 document.getElementById('planos-upload-form').style.display = 'none';
-                document.getElementById('planos-file-input').value = '';
+                // Reemplazar el input file
+                const oldInput = document.getElementById('planos-file-input');
+                const newInput = oldInput.cloneNode(true);
+                oldInput.parentNode.replaceChild(newInput, oldInput);
+                newInput.addEventListener('change', (e) => {
+                    const files = Array.from(e.target.files);
+                    if (files.length > 0) PlanosManager.handleFilesSelect(files);
+                });
                 const dropzone = document.getElementById('planos-dropzone');
                 dropzone.innerHTML = '<i class="fas fa-cloud-upload-alt" style="font-size:2.5rem;color:#6c757d;margin-bottom:12px;display:block;"></i><p style="margin:0;color:var(--fiori-text-secondary);font-size:0.9rem;">Arrastra archivos PDF aquí o haz clic para seleccionar</p>';
             },
@@ -3601,6 +3833,613 @@
 
         // Initialize Kanban with project ID from Django template context
         KanbanBoard.init({{ proyecto.pk }});
+    </script>
+
+    <script>
+    // ═══ Editar Cotización (Modal) ═══
+    var COT_PK = null;
+    var DISCIPLINAS = [
+        {% for d in disciplinas %}
+        { id: {{ d.id }}, nombre: '{{ d.nombre|escapejs }}' }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Poblar select de disciplinas en el modal
+    document.addEventListener('DOMContentLoaded', function() {
+        var sel = document.getElementById('nueva-disc-select');
+        if (sel) {
+            DISCIPLINAS.forEach(function(d) {
+                var opt = document.createElement('option');
+                opt.value = d.id;
+                opt.textContent = d.nombre;
+                sel.appendChild(opt);
+            });
+        }
+    });
+
+    function editarCotizacion(pk) {
+        COT_PK = pk;
+        document.getElementById('btn-cot-eliminar').style.display = 'inline-flex';
+        document.getElementById('btn-cot-guardar').disabled = false;
+        document.getElementById('btn-cot-guardar').innerHTML = '💾 Guardar cambios';
+        document.getElementById('modal-cot-title').textContent = '✏️ Cargando...';
+
+        var modal = new bootstrap.Modal(document.getElementById('modalEditarCotizacion'));
+        modal.show();
+
+        fetch('/presupuestos/api/cotizaciones/' + pk + '/datos/')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('modal-cot-title').textContent = '✏️ ' + data.numero;
+                document.getElementById('cot-fecha').value = data.fecha || '';
+                document.getElementById('cot-version').value = data.version || 1;
+                document.getElementById('cot-valida').value = data.valida_hasta || '';
+                document.getElementById('cot-estado').value = data.estado || 'BORRADOR';
+                document.getElementById('cot-notas').value = data.notas || '';
+
+                var container = document.getElementById('cot-secciones-container');
+                container.innerHTML = '';
+                (data.secciones || []).forEach(function(sec) {
+                    cotCrearSeccion(sec.area, sec.disciplina_id, sec.disciplina_nombre, sec.items);
+                });
+                cotActualizarEmptyState();
+                cotCalcularTotalGeneral();
+            })
+            .catch(function() {
+                document.getElementById('modal-cot-title').textContent = '✏️ Error al cargar';
+            });
+    }
+
+    function cotCrearSeccion(area, discId, discNombre, items) {
+        var container = document.getElementById('cot-secciones-container');
+        var key = discId + '||' + (area || '');
+        if (container.querySelector('[data-sec-key="' + CSS.escape(key) + '"]')) return null;
+
+        var wrap = document.createElement('div');
+        wrap.className = 'cot-seccion';
+        wrap.dataset.secKey = key;
+        wrap.dataset.area = area || '';
+        wrap.dataset.discId = discId;
+        wrap.dataset.discNombre = discNombre;
+        wrap.style.cssText = 'border:1px solid #e2e8f0;border-radius:8px;margin-bottom:12px;background:#fff;overflow:hidden;';
+
+        wrap.innerHTML =
+            '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;">' +
+                '<span style="background:#e0f2fe;color:#0284c7;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">📍 ' + escHtml(area || 'Sin área') + '</span>' +
+                '<span style="background:#0070f2;color:#fff;padding:2px 8px;border-radius:2px;font-size:11px;font-weight:700;">' + escHtml(discNombre) + '</span>' +
+                '<span style="flex:1;"></span>' +
+                '<span class="cot-subtotal-label" style="font-size:11px;color:#6a6d70;">Subtotal</span>' +
+                '<span class="cot-subtotal-val" style="font-size:14px;font-weight:700;color:#0070f2;min-width:80px;text-align:right;">L 0.00</span>' +
+                '<button type="button" class="btn btn-sm btn-outline-danger" style="padding:2px 6px;font-size:10px;" onclick="cotEliminarSeccion(this)">✕</button>' +
+            '</div>' +
+            '<div style="overflow-x:auto;">' +
+                '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+                    '<thead>' +
+                        '<tr style="background:#f8fafc;">' +
+                            '<th style="padding:6px 6px;font-size:10px;font-weight:700;color:#6a6d70;text-transform:uppercase;border-bottom:1px solid #e2e8f0;width:30px;" title="Aprobado">✓</th>' +
+                            '<th style="padding:6px 8px;font-size:10px;font-weight:700;color:#6a6d70;text-transform:uppercase;border-bottom:1px solid #e2e8f0;width:28px;">#</th>' +
+                            '<th style="padding:6px 8px;font-size:10px;font-weight:700;color:#6a6d70;text-transform:uppercase;border-bottom:1px solid #e2e8f0;">Descripción</th>' +
+                            '<th style="padding:6px 8px;font-size:10px;font-weight:700;color:#6a6d70;text-transform:uppercase;border-bottom:1px solid #e2e8f0;width:55px;">U.M.</th>' +
+                            '<th style="padding:6px 8px;font-size:10px;font-weight:700;color:#6a6d70;text-transform:uppercase;border-bottom:1px solid #e2e8f0;width:70px;">Cantidad</th>' +
+                            '<th style="padding:6px 8px;font-size:10px;font-weight:700;color:#6a6d70;text-transform:uppercase;border-bottom:1px solid #e2e8f0;width:90px;">P. Unit.</th>' +
+                            '<th style="padding:6px 8px;font-size:10px;font-weight:700;color:#6a6d70;text-transform:uppercase;border-bottom:1px solid #e2e8f0;width:55px;">Dto %</th>' +
+                            '<th style="padding:6px 8px;font-size:10px;font-weight:700;color:#6a6d70;text-transform:uppercase;border-bottom:1px solid #e2e8f0;width:90px;text-align:right;">Total</th>' +
+                            '<th style="padding:6px 8px;font-size:10px;font-weight:700;color:#6a6d70;text-transform:uppercase;border-bottom:1px solid #e2e8f0;width:30px;"></th>' +
+                        '</tr>' +
+                    '</thead>' +
+                    '<tbody class="cot-items-body">' +
+                    '</tbody>' +
+                '</table>' +
+            '</div>' +
+            '<div style="padding:6px 10px;border-top:1px solid #e2e8f0;background:#fafafa;display:flex;gap:4px;">' +
+                '<button type="button" class="btn btn-sm btn-outline-primary" style="padding:2px 8px;font-size:11px;" onclick="cotAgregarItem(this)">＋ Ítem</button>' +
+            '</div>';
+
+        container.appendChild(wrap);
+
+        if (items && items.length) {
+            var tbody = wrap.querySelector('.cot-items-body');
+            items.forEach(function(item) {
+                    cotAgregarItemRow(tbody, item.descripcion, item.unidad_medida, item.cantidad, item.precio_unitario, item.descuento_porcentaje, item.aprobado);
+                });
+        }
+
+        cotActualizarEmptyState();
+        cotRecalcularSeccion(wrap);
+        cotCalcularTotalGeneral();
+        return wrap;
+    }
+
+    function cotAgregarSeccion() {
+        var area = document.getElementById('nueva-area-input').value.trim();
+        var sel = document.getElementById('nueva-disc-select');
+        var discId = sel.value;
+        if (!discId) { alert('Selecciona una disciplina.'); return; }
+        var discNombre = sel.options[sel.selectedIndex].text;
+        cotCrearSeccion(area, discId, discNombre, null);
+        document.getElementById('nueva-area-input').value = '';
+        sel.value = '';
+    }
+
+    function cotAgregarItem(btn) {
+        var wrap = btn.closest('.cot-seccion');
+        var tbody = wrap.querySelector('.cot-items-body');
+        cotAgregarItemRow(tbody, '', 'und', 1, 0, 0);
+        cotRecalcularSeccion(wrap);
+        cotCalcularTotalGeneral();
+    }
+
+    function cotAgregarItemRow(tbody, desc, um, cant, pu, dto, aprobado) {
+        var tr = document.createElement('tr');
+        var total = (parseFloat(cant)||0) * (parseFloat(pu)||0) * (1 - (parseFloat(dto)||0)/100);
+        var idx = tbody.children.length + 1;
+        var checked = aprobado ? 'checked' : '';
+        tr.innerHTML =
+            '<td style="padding:4px 6px;">' +
+                '<input type="checkbox" class="cot-aprobado-chk" ' + checked + ' style="cursor:pointer;" title="Aprobado para ejecución">' +
+            '</td>' +
+            '<td style="padding:4px 8px;color:#94a3b8;font-size:11px;">' + idx + '</td>' +
+            '<td style="padding:2px 4px;"><input type="text" value="' + escHtml(desc) + '" placeholder="Descripción" class="form-control form-control-sm" style="font-size:12px;border:1px solid transparent;" onfocus="this.style.borderColor=\'#0070f2\'" onblur="this.style.borderColor=\'transparent\'"></td>' +
+            '<td style="padding:2px 4px;"><input type="text" value="' + escHtml(um) + '" class="form-control form-control-sm" style="font-size:12px;width:50px;border:1px solid transparent;" onfocus="this.style.borderColor=\'#0070f2\'" onblur="this.style.borderColor=\'transparent\'"></td>' +
+            '<td style="padding:2px 4px;"><input type="number" value="' + (parseFloat(cant)||1) + '" min="0" step="0.01" class="form-control form-control-sm cot-num-input" style="font-size:12px;width:65px;text-align:right;border:1px solid transparent;" onfocus="this.style.borderColor=\'#0070f2\'" onblur="this.style.borderColor=\'transparent\'" oninput="cotRecalcularItem(this)"></td>' +
+            '<td style="padding:2px 4px;"><input type="number" value="' + (parseFloat(pu)||0) + '" min="0" step="0.01" class="form-control form-control-sm cot-num-input" style="font-size:12px;width:85px;text-align:right;border:1px solid transparent;" onfocus="this.style.borderColor=\'#0070f2\'" onblur="this.style.borderColor=\'transparent\'" oninput="cotRecalcularItem(this)"></td>' +
+            '<td style="padding:2px 4px;"><input type="number" value="' + (parseFloat(dto)||0) + '" min="0" max="100" step="0.01" class="form-control form-control-sm cot-num-input" style="font-size:12px;width:50px;text-align:right;border:1px solid transparent;" onfocus="this.style.borderColor=\'#0070f2\'" onblur="this.style.borderColor=\'transparent\'" oninput="cotRecalcularItem(this)"></td>' +
+            '<td class="cot-item-total" style="padding:4px 8px;text-align:right;font-weight:600;font-size:12px;">' + cotFmt(total) + '</td>' +
+            '<td style="padding:2px 4px;"><button type="button" class="btn btn-sm" style="padding:0 4px;font-size:10px;color:#dc2626;background:none;border:none;" onclick="cotEliminarItem(this)" title="Eliminar ítem">✕</button></td>';
+        tbody.appendChild(tr);
+    }
+
+    function cotAgregarItemRowCat(tbody, desc, um, cant, pu, dto, predId) {
+        cotAgregarItemRow(tbody, desc, um, cant, pu, dto, false);
+    }
+
+    function cotEliminarItem(btn) {
+        var tr = btn.closest('tr');
+        var tbody = tr.closest('tbody');
+        var wrap = tr.closest('.cot-seccion');
+        var idx = 1;
+        Array.from(tbody.rows).forEach(function(r) {
+            var cell = r.cells[0];
+            if (cell) cell.textContent = idx++;
+        });
+        tr.remove();
+        cotRecalcularSeccion(wrap);
+        cotCalcularTotalGeneral();
+    }
+
+    function cotEliminarSeccion(btn) {
+        if (!confirm('¿Eliminar esta sección y todos sus ítems?')) return;
+        var wrap = btn.closest('.cot-seccion');
+        wrap.remove();
+        cotActualizarEmptyState();
+        cotCalcularTotalGeneral();
+    }
+
+    function cotRecalcularItem(el) {
+        var tr = el.closest('tr');
+        var inputs = tr.querySelectorAll('.cot-num-input');
+        var cant = parseFloat(inputs[0] ? inputs[0].value : 0) || 0;
+        var pu = parseFloat(inputs[1] ? inputs[1].value : 0) || 0;
+        var dto = parseFloat(inputs[2] ? inputs[2].value : 0) || 0;
+        var total = cant * pu * (1 - dto / 100);
+        var tCell = tr.querySelector('.cot-item-total');
+        if (tCell) tCell.textContent = cotFmt(total);
+        cotRecalcularSeccion(tr.closest('.cot-seccion'));
+    }
+
+    function cotRecalcularSeccion(wrap) {
+        if (!wrap) return;
+        var totals = wrap.querySelectorAll('.cot-item-total');
+        var sum = 0;
+        totals.forEach(function(el) {
+            sum += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
+        });
+        var subVal = wrap.querySelector('.cot-subtotal-val');
+        if (subVal) subVal.textContent = cotFmt(sum);
+        cotCalcularTotalGeneral();
+    }
+
+    function cotCalcularTotalGeneral() {
+        var subs = document.querySelectorAll('.cot-subtotal-val');
+        var total = 0;
+        subs.forEach(function(el) {
+            total += parseFloat(el.textContent.replace(/[^0-9.\-]/g,'')) || 0;
+        });
+        document.getElementById('cot-total-general').textContent = cotFmt(total);
+    }
+
+    function cotActualizarEmptyState() {
+        var container = document.getElementById('cot-secciones-container');
+        var empty = document.getElementById('cot-empty-state');
+        if (empty) empty.style.display = container.querySelectorAll('.cot-seccion').length === 0 ? 'block' : 'none';
+    }
+
+    function cotFmt(n) {
+        return 'L ' + parseFloat(n || 0).toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    function cotRecolectarItems() {
+        var items = [];
+        document.querySelectorAll('.cot-seccion').forEach(function(wrap) {
+            var area = wrap.dataset.area || '';
+            var discId = wrap.dataset.discId ? parseInt(wrap.dataset.discId) : null;
+            wrap.querySelectorAll('.cot-items-body tr').forEach(function(tr) {
+                var chk = tr.querySelector('.cot-aprobado-chk');
+                var inputs = tr.querySelectorAll('input[type="text"], input[type="number"]');
+                var descEl = inputs[0];
+                var umEl = inputs[1];
+                var nums = tr.querySelectorAll('.cot-num-input');
+                items.push({
+                    disciplina_id: discId,
+                    area: area,
+                    descripcion: descEl ? descEl.value : '',
+                    unidad_medida: umEl ? umEl.value : 'und',
+                    cantidad: parseFloat(nums[0] ? nums[0].value : 1) || 1,
+                    precio_unitario: parseFloat(nums[1] ? nums[1].value : 0) || 0,
+                    descuento_porcentaje: parseFloat(nums[2] ? nums[2].value : 0) || 0,
+                    aprobado: chk ? chk.checked : false,
+                });
+            });
+        });
+        return items;
+    }
+
+    function cotGuardar() {
+        if (!COT_PK) return;
+        var btn = document.getElementById('btn-cot-guardar');
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Guardando...';
+
+        var items = cotRecolectarItems();
+        var data = {
+            fecha: document.getElementById('cot-fecha').value,
+            version: parseInt(document.getElementById('cot-version').value) || 1,
+            valida_hasta: document.getElementById('cot-valida').value || null,
+            estado: document.getElementById('cot-estado').value,
+            notas: document.getElementById('cot-notas').value,
+            items: items,
+        };
+
+        fetch('/presupuestos/api/cotizaciones/' + COT_PK + '/guardar/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify(data),
+        })
+        .then(r => r.json())
+        .then(function(resp) {
+            if (resp.ok) {
+                btn.innerHTML = '✅ Guardado';
+                setTimeout(function() { location.reload(); }, 800);
+            } else {
+                alert('Error al guardar: ' + (resp.error || 'Error desconocido'));
+                btn.disabled = false;
+                btn.innerHTML = '💾 Guardar cambios';
+            }
+        })
+        .catch(function() {
+            alert('Error de red al guardar');
+            btn.disabled = false;
+            btn.innerHTML = '💾 Guardar cambios';
+        });
+    }
+
+    function cotCrearElementosAprobados() {
+        var items = cotRecolectarItems();
+        var aprobados = items.filter(function(i) { return i.aprobado; });
+        if (!aprobados.length) {
+            Swal.fire({ icon: 'info', title: 'Sin items aprobados', text: 'Marca items como aprobados primero.' });
+            return;
+        }
+        var pendientes = [];
+        // Check which items are already elements
+        aprobados.forEach(function(item) {
+            var existing = ELEMENTOS.some(function(e) { return e.item_descripcion === item.descripcion; });
+            if (!existing) pendientes.push(item);
+        });
+        if (!pendientes.length) {
+            Swal.fire({ icon: 'info', title: 'Todos los items aprobados ya son elementos.' });
+            return;
+        }
+        Swal.fire({
+            title: 'Crear ' + pendientes.length + ' elemento(s)',
+            text: 'Se crearán desde los items aprobados de esta cotización.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '✅ Crear',
+        }).then(function(r) {
+            if (!r.isConfirmed) return;
+            var count = 0;
+            var body = JSON.stringify({ items: pendientes });
+            pendientes.forEach(function(item, i) {
+                setTimeout(function() {
+                    fetch('/proyectos/proyecto/' + PROYECTO_ID + '/elementos/crear/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify({
+                            item_cotizacion_id: null,
+                            nombre: item.descripcion,
+                            descripcion: item.area ? 'Área: ' + item.area : '',
+                            cantidad: item.cantidad,
+                        }),
+                    })
+                    .then(function(resp) { return resp.json(); })
+                    .then(function(resp) {
+                        if (resp.ok) count++;
+                        if (i === pendientes.length - 1) {
+                            Swal.fire({ icon: 'success', title: count + ' elemento(s) creados', timer: 1500, showConfirmButton: false });
+                            cargarElementos();
+                        }
+                    });
+                }, i * 200);
+            });
+        });
+    }
+
+    function cotEliminar() {
+        if (!COT_PK) return;
+        if (!confirm('¿Eliminar esta cotización permanentemente?')) return;
+        var f = document.createElement('form');
+        f.method = 'POST';
+        f.action = '/presupuestos/admin/cotizaciones/' + COT_PK + '/';
+        var inp1 = document.createElement('input');
+        inp1.type = 'hidden';
+        inp1.name = 'accion';
+        inp1.value = 'eliminar';
+        var inp2 = document.createElement('input');
+        inp2.type = 'hidden';
+        inp2.name = 'csrfmiddlewaretoken';
+        inp2.value = '{{ csrf_token }}';
+        f.appendChild(inp1);
+        f.appendChild(inp2);
+        document.body.appendChild(f);
+        f.submit();
+    }
+
+    function escHtml(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ═══ Elementos del Proyecto ═══
+    var PROYECTO_ID = {{ proyecto.pk }};
+    var ELEMENTOS = [];
+    var ELEM_EDITANDO = null;
+
+    function cargarElementos() {
+        var container = document.getElementById('elementos-container');
+        fetch('/proyectos/proyecto/' + PROYECTO_ID + '/elementos/')
+            .then(r => r.json())
+            .then(function(data) {
+                ELEMENTOS = data;
+                if (data.length === 0) {
+                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;border:2px dashed #e2e8f0;margin:16px;border-radius:8px;">' +
+                        '<div style="font-size:2.5rem;margin-bottom:8px;">🔧</div>' +
+                        '<div style="font-size:14px;font-weight:600;margin-bottom:4px;">Sin elementos todavía</div>' +
+                        '<div style="font-size:12px;">Aprueba items en las cotizaciones o crea elementos manualmente.</div>' +
+                        '<button class="sap-btn sap-btn-primary" style="margin-top:12px;" onclick="elementoModalNuevo()"><i class="fas fa-plus"></i> Nuevo Elemento</button>' +
+                    '</div>';
+                    return;
+                }
+                var html = '<div style="overflow-x:auto;"><table class="sap-table"><thead><tr>' +
+                    '<th>Nombre</th><th>Estado</th><th>Cant.</th><th>Inicio</th><th>Fin</th><th>Docs</th><th>Items Cotiz.</th><th></th>' +
+                '</tr></thead><tbody>';
+                data.forEach(function(e) {
+                    var estadoColor = {'PENDIENTE':'#f1f5f9;color:#475569','EN_PROCESO':'#fef3c7;color:#92400e','COMPLETADO':'#dcfce7;color:#166534','CANCELADO':'#fee2e2;color:#991b1b'};
+                    var ec = estadoColor[e.estado] || '#f1f5f9;color:#475569';
+                    var docsHtml = e.documentos.length ? '<span title="' + e.documentos.length + ' archivo(s)">📎 ' + e.documentos.length + '</span>' : '—';
+                    var cotRef = e.cotizacion_numero ? '<span style="font-size:11px;color:#6a6d70;">' + escHtml(e.cotizacion_numero) + '</span>' : '—';
+                    html += '<tr>' +
+                        '<td style="font-weight:600;">' + escHtml(e.nombre) + '</td>' +
+                        '<td><span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:' + ec + '">' + e.estado.replace('_',' ') + '</span></td>' +
+                        '<td>' + e.cantidad + '</td>' +
+                        '<td style="font-size:12px;">' + (e.fecha_inicio || '—') + '</td>' +
+                        '<td style="font-size:12px;">' + (e.fecha_fin || '—') + '</td>' +
+                        '<td>' + docsHtml + '</td>' +
+                        '<td>' + cotRef + '</td>' +
+                        '<td>' +
+                            '<button class="sap-btn sap-btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="elementoModalEditar(' + e.id + ')"><i class="fas fa-edit"></i></button> ' +
+                            '<button class="sap-btn sap-btn-secondary" style="padding:2px 8px;font-size:11px;color:#dc2626;" onclick="elementoEliminarDirecto(' + e.id + ',\'' + escHtml(e.nombre) + '\')"><i class="fas fa-trash"></i></button>' +
+                        '</td>' +
+                    '</tr>';
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            })
+            .catch(function() {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;">Error al cargar elementos</div>';
+            });
+    }
+
+    function elementoModalNuevo(itemId, itemDesc) {
+        ELEM_EDITANDO = null;
+        document.getElementById('elem-id').value = '';
+        document.getElementById('modal-elem-title').textContent = '🔧 Nuevo Elemento';
+        document.getElementById('elem-nombre').value = itemDesc || '';
+        document.getElementById('elem-descripcion').value = '';
+        document.getElementById('elem-estado').value = 'PENDIENTE';
+        document.getElementById('elem-cantidad').value = 1;
+        document.getElementById('elem-fecha-inicio').value = '';
+        document.getElementById('elem-fecha-fin').value = '';
+        document.getElementById('btn-elem-eliminar').style.display = 'none';
+        document.getElementById('elem-documentos').innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:16px;">Sin documentos</div>';
+
+        var modal = new bootstrap.Modal(document.getElementById('modalElemento'));
+        modal.show();
+
+        if (itemId) {
+            // Create element from approved item
+            fetch('/proyectos/proyecto/' + PROYECTO_ID + '/elementos/crear/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ item_cotizacion_id: itemId, nombre: itemDesc }),
+            })
+            .then(r => r.json())
+            .then(function(resp) {
+                if (resp.ok) {
+                    document.getElementById('elem-id').value = resp.id;
+                    document.getElementById('modal-elem-title').textContent = '🔧 ' + (itemDesc || 'Elemento');
+                    document.getElementById('btn-elem-eliminar').style.display = 'inline-flex';
+                    cargarElementos();
+                }
+            });
+        }
+    }
+
+    function elementoModalEditar(id) {
+        ELEM_EDITANDO = id;
+        var e = ELEMENTOS.find(function(x) { return x.id === id; });
+        if (!e) return;
+        document.getElementById('elem-id').value = e.id;
+        document.getElementById('modal-elem-title').textContent = '🔧 ' + e.nombre;
+        document.getElementById('elem-nombre').value = e.nombre;
+        document.getElementById('elem-descripcion').value = e.descripcion || '';
+        document.getElementById('elem-estado').value = e.estado;
+        document.getElementById('elem-cantidad').value = e.cantidad;
+        document.getElementById('elem-fecha-inicio').value = e.fecha_inicio || '';
+        document.getElementById('elem-fecha-fin').value = e.fecha_fin || '';
+        document.getElementById('btn-elem-eliminar').style.display = 'inline-flex';
+
+        // Load documents
+        var docsDiv = document.getElementById('elem-documentos');
+        if (e.documentos && e.documentos.length) {
+            docsDiv.innerHTML = e.documentos.map(function(d) {
+                var isImg = d.tipo === 'FOTO' || d.url.match(/\.(jpg|jpeg|png|gif|webp)/i);
+                return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">' +
+                    (isImg ? '<img src="' + d.url + '" style="width:48px;height:48px;object-fit:cover;border-radius:4px;">' : '<span style="font-size:1.5rem;">📄</span>') +
+                    '<span style="flex:1;font-size:13px;">' + escHtml(d.descripcion || 'Sin descripción') + '</span>' +
+                    '<a href="' + d.url + '" target="_blank" class="btn btn-sm" style="padding:2px 6px;font-size:10px;">⬇</a>' +
+                    '<button class="btn btn-sm" style="padding:2px 6px;font-size:10px;color:#dc2626;" onclick="elementoEliminarDoc(' + d.id + ')">✕</button>' +
+                '</div>';
+            }).join('');
+        } else {
+            docsDiv.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:16px;">Sin documentos</div>';
+        }
+
+        var modal = new bootstrap.Modal(document.getElementById('modalElemento'));
+        modal.show();
+    }
+
+    function elementoGuardar() {
+        var id = document.getElementById('elem-id').value;
+        var data = {
+            nombre: document.getElementById('elem-nombre').value,
+            descripcion: document.getElementById('elem-descripcion').value,
+            estado: document.getElementById('elem-estado').value,
+            cantidad: parseFloat(document.getElementById('elem-cantidad').value) || 1,
+            fecha_inicio: document.getElementById('elem-fecha-inicio').value || null,
+            fecha_fin: document.getElementById('elem-fecha-fin').value || null,
+        };
+        if (!data.nombre) { alert('El nombre es requerido'); return; }
+
+        if (id) {
+            fetch('/proyectos/proyecto/' + PROYECTO_ID + '/elementos/' + id + '/actualizar/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify(data),
+            })
+            .then(r => r.json())
+            .then(function(resp) {
+                if (resp.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalElemento')).hide();
+                    cargarElementos();
+                    // Update Gantt: add task if dates set
+                    if (data.fecha_inicio || data.fecha_fin) {
+                        actualizarGanttElemento(id, data);
+                    }
+                }
+            });
+        } else {
+            fetch('/proyectos/proyecto/' + PROYECTO_ID + '/elementos/crear/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify(data),
+            })
+            .then(r => r.json())
+            .then(function(resp) {
+                if (resp.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalElemento')).hide();
+                    cargarElementos();
+                }
+            });
+        }
+    }
+
+    function elementoEliminar() {
+        var id = document.getElementById('elem-id').value;
+        if (!id) return;
+        if (!confirm('¿Eliminar este elemento permanentemente?')) return;
+        fetch('/proyectos/proyecto/' + PROYECTO_ID + '/elementos/' + id + '/eliminar/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+        })
+        .then(r => r.json())
+        .then(function(resp) {
+            if (resp.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('modalElemento')).hide();
+                cargarElementos();
+            }
+        });
+    }
+
+    function elementoEliminarDirecto(id, nombre) {
+        if (!confirm('¿Eliminar "' + nombre + '" permanentemente?')) return;
+        fetch('/proyectos/proyecto/' + PROYECTO_ID + '/elementos/' + id + '/eliminar/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+        })
+        .then(r => r.json())
+        .then(function(resp) {
+            if (resp.ok) cargarElementos();
+        });
+    }
+
+    function elementoSubirDocumento(input) {
+        var id = document.getElementById('elem-id').value;
+        if (!id) { alert('Guarda el elemento primero.'); return; }
+        var file = input.files[0];
+        if (!file) return;
+        var formData = new FormData();
+        formData.append('archivo', file);
+        formData.append('descripcion', file.name);
+        formData.append('tipo', file.type.startsWith('image/') ? 'FOTO' : 'DOCUMENTO');
+        fetch('/proyectos/proyecto/' + PROYECTO_ID + '/elementos/' + id + '/documentos/subir/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            body: formData,
+        })
+        .then(r => r.json())
+        .then(function(resp) {
+            if (resp.ok) {
+                input.value = '';
+                elementoModalEditar(parseInt(id));
+            }
+        });
+    }
+
+    function elementoEliminarDoc(docId) {
+        var id = document.getElementById('elem-id').value;
+        if (!confirm('¿Eliminar este documento?')) return;
+        fetch('/proyectos/proyecto/' + PROYECTO_ID + '/elementos/' + id + '/documentos/' + docId + '/eliminar/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+        })
+        .then(r => r.json())
+        .then(function(resp) {
+            if (resp.ok) elementoModalEditar(parseInt(id));
+        });
+    }
+
+    function actualizarGanttElemento(id, data) {
+        // Add a Gantt task if the Gantt is initialized
+        if (typeof gantt !== 'undefined') {
+            gantt.addTask({
+                id: 'elem-' + id,
+                name: data.nombre,
+                start: data.fecha_inicio || new Date().toISOString().split('T')[0],
+                end: data.fecha_fin || data.fecha_inicio || new Date().toISOString().split('T')[0],
+                progress: data.estado === 'COMPLETADO' ? 100 : data.estado === 'EN_PROCESO' ? 50 : 0,
+            });
+        }
+    }
     </script>
 </body>
 </html>
