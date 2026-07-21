@@ -951,12 +951,11 @@ def crear_imagen_interactiva(request):
         obj.save()
 
         from django.urls import reverse
+        from django.conf import settings
         return JsonResponse({
             'ok': True,
             'id': obj.id,
-            'url': request.build_absolute_uri(
-                reverse('courses:editar_imagen_interactiva', args=[obj.id])
-            ),
+            'url': settings.SITE_URL.rstrip('/') + reverse('courses:editar_imagen_interactiva', args=[obj.id]),
         })
 
     return JsonResponse({'error': 'Método no permitido'}, status=405)
