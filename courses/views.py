@@ -342,7 +342,9 @@ def gestionar_pagina(request, curso_id, seccion_id, pagina_id=None):
             pagina.save()
 
         # Return updated page list HTML
-        paginas = seccion.paginas.all().order_by('orden')
+        paginas = seccion.paginas.prefetch_related(
+            'imagenes_interactivas__hotspots', 'acordeones', 'carruseles__tarjetas'
+        ).order_by('orden')
         return render(request, 'courses/_paginas_list.html', {
             'curso_id': curso_id,
             'seccion': seccion,
@@ -351,7 +353,9 @@ def gestionar_pagina(request, curso_id, seccion_id, pagina_id=None):
 
     # GET — return page list HTML or single page JSON
     if not pagina_id:
-        paginas = seccion.paginas.all().order_by('orden')
+        paginas = seccion.paginas.prefetch_related(
+            'imagenes_interactivas__hotspots', 'acordeones', 'carruseles__tarjetas'
+        ).order_by('orden')
         return render(request, 'courses/_paginas_list.html', {
             'curso_id': curso_id,
             'seccion': seccion,
@@ -1185,3 +1189,43 @@ def guardar_carrusel(request):
         return JsonResponse({'tarjetas': tarjetas, 'titulo': carrusel.titulo})
 
     return JsonResponse({'error': 'Acción no válida'}, status=400)
+
+
+@login_required
+def libro_pdf(request, pk):
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+
+    curso = get_object_or_404(Curso.objects.prefetch_related(
+        'secciones__paginas',
+        'secciones__acordeones',
+        'secciones__carruseles__tarjetas',
+    ), pk=pk)
+
+    if not request.user.is_staff:
+        tiene_acceso = AsignacionCurso.objects.filter(
+            models.Q(usuario=request.user) | models.Q(grupo__user=request.user),
+            curso=curso
+        ).exists()
+        if not tiene_acceso and not curso.disponible_para_todos:
+            return redirect('courses:lista')
+
+    secciones = curso.secciones.all()
+
+    context = {
+        'curso': curso,
+        'secciones': secciones,
+        'fecha': timezone.now(),
+    }
+
+    template = get_template('courses/libro_pdf.html')
+    html = template.render(context)
+
+    response = HttpResponse(content_type='application/pdf')
+    filename = f"Libro_{curso.titulo}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    if pisa_status.err:
+        return HttpResponse('Error al generar el PDF', status=500)
+    return response

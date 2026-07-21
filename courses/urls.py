@@ -27,6 +27,7 @@ urlpatterns = [
     path('admin/acordeon/guardar/', views.guardar_acordeones, name='guardar_acordeones'),
     # Carruseles
     path('admin/carrusel/guardar/', views.guardar_carrusel, name='guardar_carrusel'),
+    path('admin/<int:pk>/libro-pdf/', views.libro_pdf, name='libro_pdf'),
     path('<int:pk>/', views.detalle_curso, name='detalle'),
     path('<int:pk>/certificado/', views.certificado_curso, name='certificado'),
     path('<int:pk>/heartbeat/', views.heartbeat_curso, name='heartbeat'),

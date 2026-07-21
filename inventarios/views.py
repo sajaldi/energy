@@ -2946,3 +2946,347 @@ def admin_catalogos(request):
         'title': 'Administrar Catálogos',
     }
     return render(request, 'inventarios/admin_catalogos.html', context)
+
+
+# ─── Calendario de Almacén ─────────────────────────────────────────────────
+
+@login_required
+def calendario_view(request):
+    from django.contrib.auth.models import User
+    es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+    usuarios_almacen = User.objects.filter(groups__name='Almacenes', is_active=True).order_by('first_name')
+    context = {
+        'es_almacen': es_almacen,
+        'usuarios_almacen': usuarios_almacen,
+        'active_tab': 'calendario',
+        'title': 'Calendario de Recepciones - Almacén',
+    }
+    return render(request, 'inventarios/calendario.html', context)
+
+
+@login_required
+def api_calendario_eventos(request):
+    from datetime import datetime, timedelta
+    from .models import SlotAlmacenCalendario
+    start_str = request.GET.get('start')
+    end_str = request.GET.get('end')
+    events = []
+    try:
+        start = datetime.strptime(start_str[:10], '%Y-%m-%d').date() if start_str else None
+        end = datetime.strptime(end_str[:10], '%Y-%m-%d').date() if end_str else None
+    except (ValueError, TypeError):
+        start = end = None
+    if not start or not end:
+        from django.utils import timezone
+        today = timezone.localdate()
+        start = today - timedelta(days=30)
+        end = today + timedelta(days=60)
+
+    # 1. Requisiciones con fecha_probable_entrega
+    try:
+        from presupuestos.models import Requisicion
+        requisiciones = Requisicion.objects.filter(
+            recepcion_notificada=True,
+            fecha_probable_entrega__isnull=False,
+            fecha_probable_entrega__gte=start,
+            fecha_probable_entrega__lte=end,
+        ).select_related('usuario_solicitante', 'proveedor')
+        # Prefetch slots vinculados a requisiciones
+        req_ids = [r.cr8ca_requisicionid for r in requisiciones]
+        slots_por_req = {}
+        if req_ids:
+            for s in SlotAlmacenCalendario.objects.filter(requisicion_id__in=req_ids).exclude(estado='CANCELADO'):
+                slots_por_req[str(s.requisicion_id)] = s.id
+        for req in requisiciones:
+            f = req.fecha_probable_entrega
+            req_uuid = str(req.cr8ca_requisicionid)
+            slot_id = slots_por_req.get(req_uuid)
+            events.append({
+                'id': f'req-{req_uuid}',
+                'title': f'Entrega: {req.cr8ca_requisicion}',
+                'start': f.isoformat(),
+                'end': f.isoformat(),
+                'allDay': True,
+                'backgroundColor': '#0a6ed1',
+                'borderColor': '#0a6ed1',
+                'textColor': '#fff',
+                'extendedProps': {
+                    'tipo': 'entrega_notificada',
+                    'requisicion_uuid': req_uuid,
+                    'requisicion': req.cr8ca_requisicion,
+                    'asunto': req.cr8ca_asunto or '',
+                    'proveedor': str(req.proveedor) if req.proveedor else '',
+                    'solicitante': req.usuario_solicitante.get_full_name() if req.usuario_solicitante else '',
+                    'slot_id': slot_id,
+                    'readOnly': True,
+                },
+            })
+    except Exception:
+        pass
+
+    # 2. Slots del calendario
+    slots = SlotAlmacenCalendario.objects.filter(
+        fecha__gte=start, fecha__lte=end,
+    ).exclude(estado='CANCELADO').select_related('creado_por', 'asignado_a', 'requisicion')
+
+    COLORS = {
+        'ENTREGA': '#10b981',
+        'RECOLECCION': '#f59e0b',
+        'INVENTARIO': '#8b5cf6',
+        'CAPACITACION': '#3b82f6',
+        'OTRO': '#64748b',
+    }
+    for s in slots:
+        color = COLORS.get(s.tipo, '#64748b')
+        if s.estado == 'PENDIENTE':
+            border = color
+            bg = '#fff'
+            txt = color
+        elif s.estado == 'COMPLETADO':
+            bg = '#d1fae5'
+            border = '#10b981'
+            txt = '#065f46'
+        else:
+            bg = color
+            border = color
+            txt = '#fff'
+        start_dt = f'{s.fecha.isoformat()}T{s.hora_inicio.isoformat()}'
+        end_dt = f'{s.fecha.isoformat()}T{s.hora_fin.isoformat()}'
+        events.append({
+            'id': f'slot-{s.id}',
+            'title': s.titulo,
+            'start': start_dt,
+            'end': end_dt,
+            'backgroundColor': bg,
+            'borderColor': border,
+            'textColor': txt,
+            'extendedProps': {
+                'tipo': 'slot',
+                'slot_id': s.id,
+                'descripcion': s.descripcion or '',
+                'tipo_slot': s.tipo,
+                'estado': s.estado,
+                'creado_por': s.creado_por.get_full_name() or s.creado_por.username,
+                'asignado_a': s.asignado_a.get_full_name() if s.asignado_a else '',
+                'requisicion': str(s.requisicion) if s.requisicion else '',
+                'readOnly': s.estado != 'PENDIENTE' or (s.creado_por != request.user and not request.user.groups.filter(name='Almacenes').exists() and not request.user.is_superuser),
+            },
+        })
+
+    # 3. Disponibilidad diaria (bloque rojo de ocupado)
+    try:
+        from .models import DisponibilidadDiaria
+        bloques = DisponibilidadDiaria.objects.filter(
+            fecha__gte=start, fecha__lte=end, activo=True,
+        ).select_related('usuario')
+        for b in bloques:
+            start_dt = f'{b.fecha.isoformat()}T{b.hora_inicio.isoformat()}'
+            end_dt = f'{b.fecha.isoformat()}T{b.hora_fin.isoformat()}'
+            events.append({
+                'id': f'disp-{b.id}',
+                'title': '🏴 Ocupado',
+                'start': start_dt,
+                'end': end_dt,
+                'backgroundColor': '#fee2e2',
+                'borderColor': '#ef4444',
+                'textColor': '#dc2626',
+                'display': 'block',
+                'extendedProps': {
+                    'tipo': 'disponibilidad',
+                    'disp_id': b.id,
+                    'usuario': b.usuario.get_full_name() or b.usuario.username,
+                    'readOnly': True,
+                },
+            })
+    except Exception:
+        pass
+
+    return JsonResponse(events, safe=False)
+
+
+@login_required
+@csrf_exempt
+def api_calendario_slots(request, slot_id=None):
+    from .models import SlotAlmacenCalendario
+    import json as j
+    es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+
+    if request.method == 'GET' and slot_id:
+        s = get_object_or_404(SlotAlmacenCalendario, id=slot_id)
+        return JsonResponse({
+            'id': s.id,
+            'titulo': s.titulo,
+            'descripcion': s.descripcion,
+            'fecha': s.fecha.isoformat(),
+            'hora_inicio': s.hora_inicio.isoformat(),
+            'hora_fin': s.hora_fin.isoformat(),
+            'tipo': s.tipo,
+            'estado': s.estado,
+            'asignado_a_id': s.asignado_a_id,
+            'requisicion_id': str(s.requisicion_id) if s.requisicion_id else '',
+            'creado_por': s.creado_por.get_full_name() or s.creado_por.username,
+        })
+
+    if request.method in ('POST', 'PUT'):
+        data = j.loads(request.body)
+        titulo = data.get('titulo', '').strip()
+        if not titulo:
+            return JsonResponse({'success': False, 'message': 'El título es obligatorio.'}, status=400)
+        try:
+            from datetime import datetime as dt
+            fecha = dt.strptime(data['fecha'], '%Y-%m-%d').date()
+            hora_inicio = dt.strptime(data['hora_inicio'], '%H:%M').time()
+            hora_fin = dt.strptime(data['hora_fin'], '%H:%M').time()
+        except (KeyError, ValueError) as e:
+            return JsonResponse({'success': False, 'message': f'Fecha/hora inválida: {e}'}, status=400)
+        if hora_fin <= hora_inicio:
+            return JsonResponse({'success': False, 'message': 'La hora fin debe ser posterior a la hora inicio.'}, status=400)
+        if slot_id:
+            s = get_object_or_404(SlotAlmacenCalendario, id=slot_id)
+            if not es_almacen and s.creado_por != request.user:
+                return JsonResponse({'success': False, 'message': 'No tienes permiso para editar este slot.'}, status=403)
+        else:
+            s = SlotAlmacenCalendario(creado_por=request.user, estado='PENDIENTE')
+        s.titulo = titulo
+        s.descripcion = data.get('descripcion', '')
+        s.fecha = fecha
+        s.hora_inicio = hora_inicio
+        s.hora_fin = hora_fin
+        s.tipo = data.get('tipo', 'OTRO')
+        if es_almacen:
+            if 'estado' in data:
+                s.estado = data['estado']
+            if 'asignado_a_id' in data and data['asignado_a_id']:
+                from django.contrib.auth.models import User
+                s.asignado_a = User.objects.filter(id=data['asignado_a_id']).first()
+        req_uuid = data.get('requisicion_uuid', '').strip()
+        if req_uuid:
+            try:
+                from uuid import UUID
+                from presupuestos.models import Requisicion
+                s.requisicion = Requisicion.objects.filter(cr8ca_requisicionid=UUID(req_uuid)).first()
+            except Exception:
+                pass
+        if not s.asignado_a_id and es_almacen:
+            s.asignado_a = request.user
+        s.save()
+        return JsonResponse({'success': True, 'message': 'Slot guardado.', 'id': s.id})
+
+    if request.method == 'DELETE' and slot_id:
+        s = get_object_or_404(SlotAlmacenCalendario, id=slot_id)
+        if not es_almacen and s.creado_por != request.user:
+            return JsonResponse({'success': False, 'message': 'No tienes permiso para eliminar este slot.'}, status=403)
+        s.delete()
+        return JsonResponse({'success': True, 'message': 'Slot eliminado.'})
+
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
+
+
+@login_required
+@csrf_exempt
+def api_calendario_horarios(request):
+    from .models import HorarioAlmacen
+    import json as j
+    es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+    if not es_almacen:
+        return JsonResponse({'success': False, 'message': 'Solo el personal de Almacenes puede gestionar horarios.'}, status=403)
+
+    if request.method == 'GET':
+        queryset = HorarioAlmacen.objects.filter(usuario=request.user, activo=True).order_by('dia_semana', 'hora_inicio')
+        data = [{
+            'id': h.id,
+            'dia_semana': h.dia_semana,
+            'hora_inicio': h.hora_inicio.isoformat(),
+            'hora_fin': h.hora_fin.isoformat(),
+        } for h in queryset]
+        return JsonResponse(data, safe=False)
+
+    if request.method == 'POST':
+        data = j.loads(request.body)
+        horarios = data.get('horarios', [])
+        with transaction.atomic():
+            HorarioAlmacen.objects.filter(usuario=request.user).delete()
+            for h in horarios:
+                dia = h.get('dia_semana')
+                hi = h.get('hora_inicio')
+                hf = h.get('hora_fin')
+                if dia is not None and hi and hf:
+                    try:
+                        from datetime import datetime as dt
+                        hi_t = dt.strptime(hi, '%H:%M').time()
+                        hf_t = dt.strptime(hf, '%H:%M').time()
+                        HorarioAlmacen.objects.create(
+                            usuario=request.user,
+                            dia_semana=dia,
+                            hora_inicio=hi_t,
+                            hora_fin=hf_t,
+                        )
+                    except ValueError:
+                        pass
+        return JsonResponse({'success': True, 'message': 'Horarios guardados.'})
+
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
+
+
+@login_required
+@csrf_exempt
+def api_calendario_disponibilidad_diaria(request, fecha):
+    from .models import DisponibilidadDiaria
+    import json as j
+    es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+    if not es_almacen:
+        return JsonResponse({'success': False, 'message': 'Solo almacenistas.'}, status=403)
+    try:
+        from datetime import datetime as dt
+        fecha_obj = dt.strptime(fecha, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'success': False, 'message': 'Fecha inválida.'}, status=400)
+    if request.method == 'GET':
+        bloques = DisponibilidadDiaria.objects.filter(usuario=request.user, fecha=fecha_obj, activo=True).order_by('hora_inicio')
+        data = [{'id': b.id, 'hora_inicio': b.hora_inicio.isoformat()[:5], 'hora_fin': b.hora_fin.isoformat()[:5]} for b in bloques]
+        return JsonResponse(data, safe=False)
+    if request.method == 'POST':
+        data = j.loads(request.body)
+        bloques = data.get('bloques', [])
+        with transaction.atomic():
+            DisponibilidadDiaria.objects.filter(usuario=request.user, fecha=fecha_obj).delete()
+            for b in bloques:
+                hi = b.get('hora_inicio')
+                hf = b.get('hora_fin')
+                if hi and hf:
+                    try:
+                        hi_t = dt.strptime(hi, '%H:%M').time()
+                        hf_t = dt.strptime(hf, '%H:%M').time()
+                        DisponibilidadDiaria.objects.create(usuario=request.user, fecha=fecha_obj, hora_inicio=hi_t, hora_fin=hf_t)
+                    except ValueError:
+                        pass
+        return JsonResponse({'success': True, 'message': 'Disponibilidad guardada.'})
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
+
+
+@login_required
+def api_calendario_requisicion_items(request, pk):
+    try:
+        from presupuestos.models import Requisicion, ArticuloRequisicion
+        req = get_object_or_404(Requisicion, cr8ca_requisicionid=pk)
+        items = ArticuloRequisicion.objects.filter(requisicion=req).select_related('material', 'proveedor')
+        data = {
+            'requisicion': req.cr8ca_requisicion,
+            'asunto': req.cr8ca_asunto or '',
+            'comentarios': req.cr8ca_comentarios or '',
+            'proveedor': str(req.proveedor) if req.proveedor else '',
+            'solicitante': req.usuario_solicitante.get_full_name() if req.usuario_solicitante else '',
+            'fecha': req.fecha_probable_entrega.isoformat() if req.fecha_probable_entrega else '',
+            'articulos': [{
+                'descripcion': a.cr8ca_articulo,
+                'cantidad': str(a.cr8ca_cantidad),
+                'costo': str(a.cr8ca_costoaproximado) if a.cr8ca_costoaproximado else '',
+                'material': str(a.material) if a.material else '',
+                'proveedor': str(a.proveedor) if a.proveedor else '',
+            } for a in items],
+        }
+        return JsonResponse(data)
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)

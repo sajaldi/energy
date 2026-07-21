@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ curso.titulo }} - Libro del Curso</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2.5cm 2cm 2.5cm 2cm;
+            @frame footer {
+                -pdf-frame-content: footer;
+                right: 2cm; left: 2cm; bottom: 1cm; height: 1cm;
+            }
+            @frame header {
+                -pdf-frame-content: header;
+                right: 2cm; left: 2cm; top: 1cm; height: 1cm;
+            }
+        }
+
+        @page cover {
+            margin: 0;
+            @frame header { -pdf-frame-content: none; }
+            @frame footer { -pdf-frame-content: none; }
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.6;
+            color: #1a1a1a;
+        }
+
+        /* ── Cover Page ── */
+        .cover {
+            page: cover;
+            width: 100%;
+            text-align: center;
+            padding-top: 35%;
+        }
+        .cover h1 {
+            font-size: 28pt;
+            font-weight: bold;
+            color: #0e7c86;
+            margin-bottom: 12pt;
+        }
+        .cover .subtitle {
+            font-size: 14pt;
+            color: #555;
+            margin-bottom: 30pt;
+        }
+        .cover .meta {
+            font-size: 10pt;
+            color: #888;
+            margin-top: 40pt;
+        }
+        .cover .line {
+            width: 120px;
+            height: 3px;
+            background: #0e7c86;
+            margin: 20pt auto;
+        }
+
+        /* ── TOC ── */
+        .toc {
+            page-break-before: always;
+        }
+        .toc h2 {
+            font-size: 18pt;
+            color: #0e7c86;
+            border-bottom: 2px solid #0e7c86;
+            padding-bottom: 6pt;
+            margin-bottom: 16pt;
+        }
+        .toc-entry {
+            display: block;
+            margin: 4pt 0;
+            font-size: 11pt;
+        }
+        .toc-entry a { color: #333; text-decoration: none; }
+        .toc-entry-sec { font-weight: bold; margin-top: 8pt; }
+        .toc-entry-pag { padding-left: 20pt; font-size: 10pt; color: #555; }
+        .toc .dot-leader { color: #aaa; }
+
+        /* ── Section Content ── */
+        .section {
+            page-break-before: always;
+        }
+        .section h2 {
+            font-size: 20pt;
+            color: #0e7c86;
+            border-bottom: 2px solid #0e7c86;
+            padding-bottom: 6pt;
+            margin-bottom: 14pt;
+        }
+
+        .pagina {
+            margin-top: 20pt;
+        }
+        .pagina h3 {
+            font-size: 14pt;
+            color: #333;
+            margin-bottom: 8pt;
+        }
+
+        /* ── HTML Content Styles ── */
+        .contenido {
+            font-size: 11pt;
+            line-height: 1.7;
+        }
+        .contenido p { margin: 6pt 0; }
+        .contenido img {
+            max-width: 100%;
+            height: auto;
+            margin: 8pt 0;
+        }
+        .contenido iframe, .contenido video {
+            display: none;
+        }
+        .contenido table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 8pt 0;
+        }
+        .contenido th, .contenido td {
+            border: 1px solid #ccc;
+            padding: 6pt 8pt;
+            text-align: left;
+            font-size: 10pt;
+        }
+        .contenido th { background: #f0f0f0; font-weight: bold; }
+        .contenido ul, .contenido ol { margin: 6pt 0; padding-left: 24pt; }
+        .contenido li { margin: 2pt 0; }
+        .contenido blockquote {
+            border-left: 3px solid #0e7c86;
+            padding-left: 12pt;
+            margin: 8pt 0;
+            color: #555;
+            font-style: italic;
+        }
+        .contenido code {
+            background: #f4f4f4;
+            padding: 1pt 4pt;
+            font-size: 10pt;
+            font-family: Courier, monospace;
+        }
+        .contenido pre {
+            background: #f4f4f4;
+            padding: 8pt;
+            font-size: 9pt;
+            font-family: Courier, monospace;
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+            margin: 8pt 0;
+        }
+
+        /* ── Accordion ── */
+        .accordion-block {
+            margin: 12pt 0;
+            border: 1px solid #ddd;
+            padding: 10pt 12pt;
+        }
+        .accordion-block h4 {
+            font-size: 12pt;
+            color: #0e7c86;
+            margin-bottom: 6pt;
+        }
+
+        /* ── Carousel Cards ── */
+        .carousel-block {
+            margin: 12pt 0;
+        }
+        .carousel-block h4 {
+            font-size: 12pt;
+            color: #0e7c86;
+            margin-bottom: 6pt;
+        }
+        .carousel-card {
+            border: 1px solid #eee;
+            padding: 8pt 10pt;
+            margin: 6pt 0;
+            background: #fafafa;
+        }
+        .carousel-card h5 { font-size: 11pt; margin-bottom: 4pt; }
+        .carousel-card img { max-width: 100%; margin: 4pt 0; }
+
+        /* ── Footer ── */
+        #footer {
+            font-size: 9pt;
+            color: #999;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            padding-top: 4pt;
+        }
+        #header {
+            font-size: 9pt;
+            color: #999;
+            text-align: right;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 4pt;
+        }
+
+        .page-break { page-break-before: always; }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════════════ COVER ═══════════════ -->
+    <div id="header">{{ curso.titulo }}</div>
+    <div id="footer">Página <pdf:pagenumber> de <pdf:pagecount> — {{ curso.titulo }}</div>
+
+    <div class="cover">
+        <div class="line"></div>
+        <h1>{{ curso.titulo }}</h1>
+        {% if curso.descripcion %}
+        <div class="subtitle">{{ curso.descripcion }}</div>
+        {% endif %}
+        <div class="line"></div>
+        <div class="meta">
+            Generado el {{ fecha|date:"d/m/Y" }}<br>
+            {% if secciones %}{{ secciones|length }} sección(es){% endif %}
+            {% with total_paginas=0 %}{% endwith %}
+        </div>
+    </div>
+
+    <!-- ═══════════════ TOC ═══════════════ -->
+    <div class="toc">
+        <h2>Índice</h2>
+        <pdf:toc />
+    </div>
+
+    <!-- ═══════════════ SECTIONS ═══════════════ -->
+    {% for sec in secciones %}
+    <div class="section">
+        <h2><pdf:tocitem>{{ sec.titulo }}</pdf:tocitem></h2>
+
+        <div class="contenido">
+            {{ sec.contenido_html|safe }}
+        </div>
+
+        {% with paginas=sec.paginas.all %}
+        {% if paginas %}
+        {% for pag in paginas %}
+        <div class="pagina">
+            <h3><pdf:tocitem>{{ pag.titulo }}</pdf:tocitem></h3>
+            <div class="contenido">
+                {{ pag.contenido_html|safe }}
+            </div>
+            {% for ac in pag.acordeones.all %}
+            <div class="accordion-block">
+                <h4>📌 {{ ac.titulo }}</h4>
+                <div class="contenido">{{ ac.contenido_html|safe }}</div>
+            </div>
+            {% endfor %}
+            {% for car in pag.carruseles.all %}
+            <div class="carousel-block">
+                <h4>{{ car.titulo|default:"Carrusel" }}</h4>
+                {% for tarj in car.tarjetas.all %}
+                <div class="carousel-card">
+                    <h5>{{ tarj.titulo }}</h5>
+                    <div class="contenido">{{ tarj.contenido_html|safe }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% with acordeones=sec.acordeones.all %}
+        {% if acordeones %}
+        {% for ac in acordeones %}
+        <div class="accordion-block">
+            <h4>📌 {{ ac.titulo }}</h4>
+            <div class="contenido">{{ ac.contenido_html|safe }}</div>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% with carruseles=sec.carruseles.all %}
+        {% if carruseles %}
+        {% for car in carruseles %}
+        <div class="carousel-block">
+            <h4>{{ car.titulo|default:"Carrusel" }}</h4>
+            {% for tarj in car.tarjetas.all %}
+            <div class="carousel-card">
+                <h5>{{ tarj.titulo }}</h5>
+                <div class="contenido">{{ tarj.contenido_html|safe }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+    </div>
+    {% endfor %}
+
+</body>
+</html>

@@ -1,0 +1,916 @@
+{% extends "inventarios/base_inventarios.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales-all.min.js"></script>
+<style>
+.calendar-page {
+    max-width: 1400px; margin: 0 auto; padding: 0 0 40px;
+}
+.calendar-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+}
+.calendar-toolbar h1 {
+    font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0;
+}
+.calendar-toolbar-actions {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.calendar-page .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 4px; font-weight: 600;
+    font-size: 0.85rem; cursor: pointer; border: none; transition: all 0.2s;
+    text-decoration: none;
+}
+.calendar-page .btn-primary {
+    background: #0a6ed1; color: #fff;
+}
+.calendar-page .btn-primary:hover { background: #0854a0; }
+.calendar-page .btn-outline {
+    background: #fff; color: #475569; border: 2px solid #e2e8f0;
+}
+.calendar-page .btn-outline:hover { border-color: #0a6ed1; color: #0a6ed1; }
+.calendar-page .btn-success {
+    background: #10b981; color: #fff;
+}
+.calendar-page .btn-danger {
+    background: #ef4444; color: #fff;
+}
+.calendar-page .btn-sm { padding: 6px 14px; font-size: 0.78rem; }
+
+#calendar { background: #fff; border-radius: 4px; padding: 20px; }
+
+.fc { font-family: inherit; }
+.fc .fc-event { border-radius: 3px; padding: 2px 4px; font-size: 0.8rem; cursor: pointer; }
+
+/* Modal */
+.cal-modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+    backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center;
+}
+.cal-modal-overlay.active { display: flex; }
+.cal-modal {
+    background: #fff; border-radius: 8px; width: 100%; max-width: 520px;
+    max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+}
+.cal-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 24px; border-bottom: 1px solid #f1f5f9;
+}
+.cal-modal-header h2 { margin: 0; font-size: 1.2rem; font-weight: 700; color: #0f172a; }
+.cal-modal-close {
+    background: none; border: none; font-size: 1.5rem; color: #94a3b8;
+    cursor: pointer; width: 36px; height: 36px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+}
+.cal-modal-close:hover { background: #f1f5f9; color: #0f172a; }
+.cal-modal-body { padding: 24px; }
+.cal-modal-body .form-group { margin-bottom: 16px; }
+.cal-modal-body label {
+    display: block; font-weight: 600; font-size: 0.8rem; color: #475569;
+    margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.cal-modal-body input,
+.cal-modal-body select,
+.cal-modal-body textarea {
+    width: 100%; padding: 10px 14px; border: 2px solid #e2e8f0; border-radius: 4px;
+    font-size: 0.9rem; font-family: inherit; box-sizing: border-box;
+}
+.cal-modal-body input:focus,
+.cal-modal-body select:focus,
+.cal-modal-body textarea:focus {
+    border-color: #0a6ed1; outline: none; box-shadow: 0 0 0 3px rgba(10,110,209,0.1);
+}
+.cal-modal-body textarea { resize: vertical; min-height: 60px; }
+.cal-modal-body .form-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.cal-modal-footer {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 16px 24px; border-top: 1px solid #f1f5f9;
+}
+
+/* Horarios modal — estilo Cal.com */
+.horarios-page { padding: 0; }
+.horarios-intro {
+    font-size: 0.85rem; color: #64748b; margin: 0 0 20px;
+    line-height: 1.5;
+}
+.horario-dia-card {
+    background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 6px;
+    margin-bottom: 12px; overflow: hidden;
+}
+.horario-dia-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; cursor: pointer; user-select: none;
+    background: #fff; border-bottom: 1px solid #f1f5f9;
+}
+.horario-dia-header:hover { background: #f1f5f9; }
+.horario-dia-header h4 { margin: 0; font-size: 0.9rem; font-weight: 700; color: #0f172a; }
+.horario-dia-toggle {
+    width: 20px; height: 20px; border-radius: 4px; border: 2px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; color: #94a3b8; transition: all 0.2s; cursor: pointer;
+}
+.horario-dia-toggle.active { background: #0a6ed1; border-color: #0a6ed1; color: #fff; }
+.horario-dia-body {
+    padding: 12px 16px; display: none;
+}
+.horario-dia-body.open { display: block; }
+.horario-slot-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.horario-slot-row input[type="time"] {
+    width: 100px; padding: 6px 10px; border: 2px solid #e2e8f0; border-radius: 4px;
+    font-size: 0.82rem; font-family: inherit;
+}
+.horario-slot-row input[type="time"]:focus {
+    border-color: #0a6ed1; outline: none;
+}
+.horario-slot-row .sep { color: #94a3b8; font-weight: 600; font-size: 0.85rem; }
+.horario-slot-row .btn-remove-slot {
+    background: none; border: none; color: #ef4444; cursor: pointer;
+    font-size: 1.1rem; padding: 2px 4px; line-height: 1; border-radius: 4px;
+}
+.horario-slot-row .btn-remove-slot:hover { background: #fef2f2; }
+.btn-add-slot {
+    background: none; border: 1px dashed #cbd5e1; color: #64748b;
+    padding: 6px 14px; border-radius: 4px; font-size: 0.78rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;
+}
+.btn-add-slot:hover { border-color: #0a6ed1; color: #0a6ed1; background: #f0f7ff; }
+
+/* Context menu */
+.cal-context-menu {
+    display: none; position: fixed; z-index: 99999; min-width: 200px;
+    background: #fff; border-radius: 6px; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    border: 1px solid #e2e8f0; padding: 4px 0; overflow: hidden;
+}
+.cal-context-menu.active { display: block; }
+.cal-context-menu-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; font-size: 0.85rem; color: #0f172a;
+    cursor: pointer; transition: background 0.15s; border: none;
+    background: none; width: 100%; text-align: left; font-family: inherit;
+}
+.cal-context-menu-item:hover { background: #f1f5f9; }
+.cal-context-menu-item ion-icon { font-size: 1.2rem; color: #64748b; }
+.cal-context-menu-item .cm-desc { font-size: 0.72rem; color: #94a3b8; margin-left: auto; }
+
+/* Info panel */
+.event-info { line-height: 1.6; }
+.event-info .ei-label { font-weight: 600; color: #64748b; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.event-info .ei-value { color: #0f172a; margin-bottom: 12px; }
+.event-info .ei-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 3px;
+    font-size: 0.72rem; font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block inventarios_content %}
+<div class="calendar-page">
+    <div class="calendar-toolbar">
+        <h1>Calendario de Recepciones</h1>
+        <div class="calendar-toolbar-actions">
+            {% if es_almacen %}
+            <button class="btn btn-outline" onclick="configurarHorarios()">
+                Horarios
+            </button>
+            {% endif %}
+            <button class="btn btn-primary" onclick="nuevoSlot()">
+                + Nuevo Slot
+            </button>
+        </div>
+    </div>
+    <div id="calendar" style="min-height: 600px; background: #fff; border-radius: 4px; padding: 20px;"></div>
+</div>
+
+<!-- Context Menu -->
+<div class="cal-context-menu" id="contextMenu">
+    <button class="cal-context-menu-item" onclick="ctxAgregarEvento()">
+        <ion-icon name="add-circle-outline"></ion-icon> Agregar evento
+        <span class="cm-desc">Nuevo slot</span>
+    </button>
+    <button class="cal-context-menu-item" onclick="ctxRestricciones()">
+        <ion-icon name="time-outline"></ion-icon> Restricciones de horario
+        <span class="cm-desc">Configurar disponibilidad</span>
+    </button>
+</div>
+
+<!-- Slot Modal -->
+<div class="cal-modal-overlay" id="slotModal">
+    <div class="cal-modal">
+        <div class="cal-modal-header">
+            <h2 id="slotModalTitle">Nuevo Slot</h2>
+            <button class="cal-modal-close" onclick="cerrarModal('slotModal')">&times;</button>
+        </div>
+        <div class="cal-modal-body">
+            <input type="hidden" id="slotId">
+            <input type="hidden" id="slotRequisicionUuid">
+
+            <div id="reqItemsSection" style="display:none; margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px;">
+                <div style="font-weight:700;font-size:0.85rem;color:#0f172a;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+                    Datos de la requisición
+                </div>
+                <div id="reqItemsSummary" style="font-size:0.82rem;color:#475569;margin-bottom:10px;"></div>
+                <div style="max-height:200px;overflow-y:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+                        <thead>
+                            <tr style="border-bottom:2px solid #e2e8f0;">
+                                <th style="text-align:left;padding:4px 6px;color:#64748b;font-weight:600;">Artículo</th>
+                                <th style="text-align:center;padding:4px 6px;color:#64748b;font-weight:600;">Cantidad</th>
+                                <th style="text-align:right;padding:4px 6px;color:#64748b;font-weight:600;">Proveedor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reqItemsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Título</label>
+                <input type="text" id="slotTitulo" placeholder="Ej: Entrega de materiales OT-123" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Fecha</label>
+                    <input type="date" id="slotFecha" required>
+                </div>
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="slotTipo">
+                        <option value="ENTREGA">Entrega de materiales</option>
+                        <option value="RECOLECCION">Recolección</option>
+                        <option value="INVENTARIO">Conteo de inventario</option>
+                        <option value="CAPACITACION">Capacitación</option>
+                        <option value="OTRO">Otro</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Hora inicio</label>
+                    <input type="time" id="slotHoraInicio" required>
+                </div>
+                <div class="form-group">
+                    <label>Hora fin</label>
+                    <input type="time" id="slotHoraFin" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <textarea id="slotDescripcion" placeholder="Detalles opcionales..."></textarea>
+            </div>
+            {% if es_almacen %}
+            <div class="form-group">
+                <label>Asignar a</label>
+                <select id="slotAsignado">
+                    <option value="">-- Sin asignar --</option>
+                    {% for u in usuarios_almacen %}
+                    <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" id="estadoGroup">
+                <label>Estado</label>
+                <select id="slotEstado">
+                    <option value="PENDIENTE">Pendiente</option>
+                    <option value="CONFIRMADO">Confirmado</option>
+                    <option value="CANCELADO">Cancelado</option>
+                    <option value="COMPLETADO">Completado</option>
+                </select>
+            </div>
+            {% endif %}
+        </div>
+        <div class="cal-modal-footer">
+            <button class="btn btn-outline" onclick="cerrarModal('slotModal')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarSlot()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Detalle Modal -->
+<div class="cal-modal-overlay" id="detalleModal">
+    <div class="cal-modal">
+        <div class="cal-modal-header">
+            <h2>Detalle del evento</h2>
+            <button class="cal-modal-close" onclick="cerrarModal('detalleModal')">&times;</button>
+        </div>
+        <div class="cal-modal-body">
+            <div id="detalleContent" class="event-info"></div>
+        </div>
+        <div class="cal-modal-footer" id="detalleFooter"></div>
+    </div>
+</div>
+
+<!-- Disponibilidad Diaria Modal -->
+<div class="cal-modal-overlay" id="dispDiariaModal">
+    <div class="cal-modal" style="max-width: 480px;">
+        <div class="cal-modal-header">
+            <h2>Restricciones del día</h2>
+            <button class="cal-modal-close" onclick="cerrarModal('dispDiariaModal')">&times;</button>
+        </div>
+        <div class="cal-modal-body">
+            <p style="font-size:0.85rem;color:#64748b;margin:0 0 16px;">
+                Define los bloques de tiempo disponible para el <strong id="dispFechaLabel"></strong>.
+            </p>
+            <div id="dispBloquesContainer"></div>
+            <button class="btn-add-slot" onclick="addDispBloque()">+ Agregar bloque</button>
+        </div>
+        <div class="cal-modal-footer">
+            <button class="btn btn-outline" onclick="cerrarModal('dispDiariaModal')">Cerrar</button>
+            <button class="btn btn-primary" onclick="guardarDispDiaria()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Horarios Modal -->
+<div class="cal-modal-overlay" id="horariosModal">
+    <div class="cal-modal" style="max-width: 650px;">
+        <div class="cal-modal-header">
+            <h2>Mis Horarios de Atención</h2>
+            <button class="cal-modal-close" onclick="cerrarModal('horariosModal')">&times;</button>
+        </div>
+        <div class="cal-modal-body horarios-page">
+            <p class="horarios-intro">
+                Define los bloques de tiempo en que estás disponible cada día.
+                Los usuarios podrán agendar slots solo dentro de estos horarios.
+            </p>
+            <div id="horariosGrid"></div>
+        </div>
+        <div class="cal-modal-footer">
+            <button class="btn btn-outline" onclick="cerrarModal('horariosModal')">Cerrar</button>
+            <button class="btn btn-primary" onclick="guardarHorarios()">Guardar Horarios</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+let calendar;
+let currentEditId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const calEl = document.getElementById('calendar');
+    if (!calEl) return;
+
+    calendar = new FullCalendar.Calendar(calEl, {
+        locale: 'es',
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        height: 'auto',
+        weekends: true,
+        slotMinTime: '06:00:00',
+        slotMaxTime: '22:00:00',
+        slotDuration: '00:30:00',
+        allDaySlot: true,
+        nowIndicator: true,
+        editable: false,
+        selectable: true,
+        selectMirror: true,
+        eventSources: [
+            {
+                url: '{% url "inventarios:api_calendario_eventos" %}',
+                method: 'GET',
+                failure: function() { console.error('Error cargando eventos'); }
+            }
+        ],
+        eventSourceFailure: function() { console.error('Error en event source'); },
+        select: function(info) {
+            if (info.allDay) {
+                const fecha = info.startStr.slice(0, 10);
+                abrirSlotModal(null, fecha, '08:00', '09:00');
+            } else {
+                const fecha = info.startStr.slice(0, 10);
+                const hi = info.startStr.slice(11, 16);
+                const hf = info.endStr ? info.endStr.slice(11, 16) : ajustarHora(hi, 1);
+                abrirSlotModal(null, fecha, hi, hf);
+            }
+        },
+        eventClick: function(info) {
+            mostrarDetalle(info.event);
+        }
+    });
+
+    calendar.render();
+});
+
+function cargarEventos() {
+    if (!calendar) return;
+    calendar.refetchEvents();
+}
+
+function ajustarHora(hora, minutos) {
+    const [h, m] = hora.split(':').map(Number);
+    const total = h * 60 + m + minutos;
+    return String(Math.floor(total / 60) % 24).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+}
+
+function abrirSlotModal(id, fecha, horaInicio, horaFin, titulo, requisicionUuid) {
+    // Verificar si el horario elegido choca con un bloque Ocupado
+    if (fecha && horaInicio && horaFin && calendar) {
+        const selStart = new Date(fecha + 'T' + horaInicio);
+        const selEnd = new Date(fecha + 'T' + horaFin);
+        const conflicto = calendar.getEvents().some(function(ev) {
+            if (ev.extendedProps.tipo !== 'disponibilidad') return false;
+            const evStart = new Date(ev.start);
+            const evEnd = ev.end ? new Date(ev.end) : new Date(evStart.getTime() + 30*60000);
+            return selStart < evEnd && selEnd > evStart;
+        });
+        if (conflicto) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Espacio ocupado',
+                html: 'Este horario está dentro de un bloque de <strong>Ocupado</strong>. ' +
+                      'Primero debes quitar la restricción desde <em>"Restricciones de horario"</em> ' +
+                      'en el menú contextual (clic derecho).',
+                confirmButtonText: 'Entendido',
+            });
+            return;
+        }
+    }
+
+    currentEditId = id || null;
+    document.getElementById('slotModalTitle').textContent = id ? 'Editar Slot' : 'Nuevo Slot';
+    document.getElementById('slotId').value = id || '';
+    document.getElementById('slotRequisicionUuid').value = requisicionUuid || '';
+    document.getElementById('reqItemsSection').style.display = 'none';
+    document.getElementById('slotTitulo').value = titulo || '';
+    document.getElementById('slotFecha').value = fecha || new Date().toISOString().slice(0, 10);
+    document.getElementById('slotHoraInicio').value = horaInicio || '08:00';
+    document.getElementById('slotHoraFin').value = horaFin || '09:00';
+    document.getElementById('slotTipo').value = 'ENTREGA';
+    document.getElementById('slotDescripcion').value = '';
+    document.getElementById('slotAsignado').value = '';
+    document.getElementById('slotEstado').value = 'PENDIENTE';
+    document.getElementById('estadoGroup').style.display = '{% if es_almacen %}block{% else %}none{% endif %}';
+
+    if (id) {
+        fetch('/inventarios/api/calendario/slots/' + id + '/')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('slotTitulo').value = data.titulo || '';
+                document.getElementById('slotFecha').value = data.fecha || '';
+                document.getElementById('slotHoraInicio').value = data.hora_inicio?.slice(0, 5) || '';
+                document.getElementById('slotHoraFin').value = data.hora_fin?.slice(0, 5) || '';
+                document.getElementById('slotTipo').value = data.tipo || 'ENTREGA';
+                document.getElementById('slotDescripcion').value = data.descripcion || '';
+                document.getElementById('slotAsignado').value = data.asignado_a_id || '';
+                document.getElementById('slotEstado').value = data.estado || 'PENDIENTE';
+            });
+    }
+
+    document.getElementById('slotModal').classList.add('active');
+}
+
+function nuevoSlot() {
+    abrirSlotModal(null, new Date().toISOString().slice(0, 10), '08:00', '09:00');
+}
+
+function programarRecepcion(reqUuid, fecha, titulo) {
+    cerrarModal('detalleModal');
+    setTimeout(() => {
+        abrirSlotModal(null, fecha, '08:00', '09:00', 'Recepción: ' + titulo, reqUuid);
+        fetch('/inventarios/api/calendario/requisicion/' + reqUuid + '/items/')
+            .then(r => r.json())
+            .then(data => {
+                const section = document.getElementById('reqItemsSection');
+                section.style.display = 'block';
+                document.getElementById('reqItemsSummary').innerHTML = `
+                    <strong>${data.requisicion}</strong> — ${data.asunto}<br>
+                    ${data.proveedor ? 'Proveedor: ' + data.proveedor : ''}
+                    ${data.solicitante ? ' | Solicitante: ' + data.solicitante : ''}
+                `;
+                const tbody = document.getElementById('reqItemsTableBody');
+                tbody.innerHTML = '';
+                if (data.articulos && data.articulos.length > 0) {
+                    data.articulos.forEach(a => {
+                        const tr = document.createElement('tr');
+                        tr.style.borderBottom = '1px solid #f1f5f9';
+                        tr.innerHTML = `
+                            <td style="padding:4px 6px;">${a.descripcion}${a.material ? '<br><span style="color:#94a3b8;font-size:0.7rem;">' + a.material + '</span>' : ''}</td>
+                            <td style="text-align:center;padding:4px 6px;font-weight:600;">${a.cantidad}</td>
+                            <td style="text-align:right;padding:4px 6px;color:#64748b;">${a.proveedor || '---'}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:10px;color:#94a3b8;">Sin artículos</td></tr>';
+                }
+            })
+            .catch(e => {
+                console.error('Error fetching requisicion items:', e);
+            });
+    }, 200);
+}
+
+function guardarSlot() {
+    const id = document.getElementById('slotId').value;
+    const payload = {
+        titulo: document.getElementById('slotTitulo').value.trim(),
+        fecha: document.getElementById('slotFecha').value,
+        hora_inicio: document.getElementById('slotHoraInicio').value,
+        hora_fin: document.getElementById('slotHoraFin').value,
+        tipo: document.getElementById('slotTipo').value,
+        descripcion: document.getElementById('slotDescripcion').value.trim(),
+        asignado_a_id: document.getElementById('slotAsignado')?.value || '',
+        requisicion_uuid: document.getElementById('slotRequisicionUuid').value || '',
+    };
+
+    if (document.getElementById('slotEstado')) {
+        payload.estado = document.getElementById('slotEstado').value;
+    }
+
+    if (!payload.titulo) { alert('El título es obligatorio.'); return; }
+    if (!payload.fecha || !payload.hora_inicio || !payload.hora_fin) { alert('Completa fecha y hora.'); return; }
+
+    let url = '{% url "inventarios:api_calendario_slots" %}';
+    if (id) url += id + '/';
+    const method = id ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp.success) {
+            cerrarModal('slotModal');
+            calendar.refetchEvents();
+        } else {
+            alert(resp.message || 'Error al guardar');
+        }
+    })
+    .catch(e => { alert('Error de red: ' + e); });
+}
+
+function formatearFecha(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + (dateStr.includes('T') ? '' : 'T00:00:00'));
+    return d.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+function formatearFechaHora(dateObj) {
+    if (!dateObj) return '';
+    return dateObj.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) +
+        ' ' + dateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+function formatearHora(dateObj) {
+    if (!dateObj) return '';
+    return dateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+
+function mostrarDetalle(event) {
+    const props = event.extendedProps;
+    const info = document.getElementById('detalleContent');
+    const footer = document.getElementById('detalleFooter');
+    footer.innerHTML = '';
+
+    if (props.tipo === 'entrega_notificada') {
+        const esAlmacen = '{{ es_almacen|yesno:"true,false" }}' === 'true';
+        const tieneSlot = props.slot_id && props.slot_id !== 'None';
+        const fechaStr = formatearFecha(event.startStr);
+        info.innerHTML = `
+            <div class="ei-label">Fecha de entrega</div>
+            <div class="ei-value" style="font-size:1.1rem;font-weight:600;">${fechaStr}</div>
+            <div class="ei-label">Requisición</div>
+            <div class="ei-value">${props.requisicion || ''}</div>
+            <div class="ei-label">Asunto</div>
+            <div class="ei-value">${props.asunto || '---'}</div>
+            <div class="ei-label">Proveedor</div>
+            <div class="ei-value">${props.proveedor || '---'}</div>
+            <div class="ei-label">Solicitante</div>
+            <div class="ei-value">${props.solicitante || '---'}</div>
+            <div style="margin-top:8px;">
+                <span class="ei-badge" style="background:#eff6ff;color:#0a6ed1;">Entrega notificada</span>
+                ${tieneSlot ? '<span class="ei-badge" style="background:#d1fae5;color:#065f46;margin-left:6px;">Horario asignado</span>' : ''}
+            </div>
+            ${tieneSlot ? `
+                <div style="margin-top:12px;padding:10px;background:#f0fdf4;border-radius:4px;border:1px solid #bbf7d0;">
+                    <div class="ei-label">Horario programado</div>
+                    <div class="ei-value" style="font-size:1rem;">Ya se asignó un slot para esta recepción.</div>
+                </div>
+            ` : `
+                <div style="margin-top:12px;padding:10px;background:#fffbeb;border-radius:4px;border:1px solid #fde68a;">
+                    <div class="ei-label">Pendiente de programar</div>
+                    <div class="ei-value" style="font-size:0.85rem;color:#92400e;">El almacenista debe definir la hora exacta de recepción.</div>
+                </div>
+            `}
+        `;
+        let btns = '<button class="btn btn-outline" onclick="cerrarModal(\'detalleModal\')">Cerrar</button>';
+        if (esAlmacen) {
+            if (tieneSlot) {
+                btns += `<button class="btn btn-primary" onclick="editarSlot(${props.slot_id})">Editar horario</button>`;
+            } else {
+                btns += `<button class="btn btn-success" onclick="programarRecepcion('${props.requisicion_uuid}', '${fecha}', '${props.requisicion}')">Programar recepción</button>`;
+            }
+        }
+        footer.innerHTML = btns;
+    } else {
+        const estadosColor = { PENDIENTE: '#f59e0b', CONFIRMADO: '#10b981', CANCELADO: '#ef4444', COMPLETADO: '#64748b' };
+        const estadoColor = estadosColor[props.estado] || '#64748b';
+        const esPropio = props.creado_por === '{{ request.user.get_full_name|default:request.user.username }}';
+        const puedeEditar = '{{ es_almacen|yesno:"true,false" }}' === 'true' || esPropio;
+
+        const inicio = formatearFechaHora(event.start);
+        const fin = event.end ? formatearHora(event.end) : '';
+        info.innerHTML = `
+            <div class="ei-label">Fecha y hora</div>
+            <div class="ei-value" style="font-size:1.1rem;font-weight:600;">${inicio} ${fin ? '— ' + fin : ''}</div>
+            <div class="ei-label">Título</div>
+            <div class="ei-value">${event.title}</div>
+            <div class="ei-label">Descripción</div>
+            <div class="ei-value">${props.descripcion || '---'}</div>
+            <div class="ei-label">Tipo</div>
+            <div class="ei-value">${props.tipo_slot || ''}</div>
+            <div class="ei-label">Estado</div>
+            <div class="ei-value"><span class="ei-badge" style="background:${estadoColor}20;color:${estadoColor};">${props.estado || ''}</span></div>
+            <div class="ei-label">Creado por</div>
+            <div class="ei-value">${props.creado_por || ''}</div>
+            <div class="ei-label">Asignado a</div>
+            <div class="ei-value">${props.asignado_a || '---'}</div>
+            <div class="ei-label">Requisición</div>
+            <div class="ei-value">${props.requisicion || '---'}</div>
+        `;
+        let btns = '<button class="btn btn-outline" onclick="cerrarModal(\'detalleModal\')">Cerrar</button>';
+        if (puedeEditar) {
+            btns += `<button class="btn btn-primary" onclick="editarSlot(${props.slot_id})">Editar</button>`;
+            btns += `<button class="btn btn-danger" onclick="eliminarSlot(${props.slot_id})">Eliminar</button>`;
+        }
+        footer.innerHTML = btns;
+    }
+
+    document.getElementById('detalleModal').classList.add('active');
+}
+
+function editarSlot(id) {
+    cerrarModal('detalleModal');
+    setTimeout(() => {
+        fetch('/inventarios/api/calendario/slots/' + id + '/')
+            .then(r => r.json())
+            .then(data => {
+                abrirSlotModal(id, data.fecha, data.hora_inicio?.slice(0,5), data.hora_fin?.slice(0,5));
+            });
+    }, 200);
+}
+
+function eliminarSlot(id) {
+    if (!confirm('Eliminar este slot?')) return;
+    fetch('/inventarios/api/calendario/slots/' + id + '/', {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp.success) {
+            cerrarModal('detalleModal');
+            calendar.refetchEvents();
+        } else {
+            alert(resp.message || 'Error al eliminar');
+        }
+    });
+}
+
+function cerrarModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+// ─── Context Menu ──────────────────────────────────────────────────────────
+
+let ctxFecha = '';
+
+document.addEventListener('click', function(e) {
+    document.getElementById('contextMenu').classList.remove('active');
+});
+
+document.getElementById('calendar').addEventListener('contextmenu', function(e) {
+    const target = e.target.closest('[data-date]');
+    if (!target) return;
+    e.preventDefault();
+    ctxFecha = target.getAttribute('data-date');
+    const menu = document.getElementById('contextMenu');
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    menu.classList.add('active');
+});
+
+function ctxAgregarEvento() {
+    document.getElementById('contextMenu').classList.remove('active');
+    abrirSlotModal(null, ctxFecha, '08:00', '09:00');
+}
+
+function ctxRestricciones() {
+    document.getElementById('contextMenu').classList.remove('active');
+    abrirDispDiaria(ctxFecha);
+}
+
+// ─── Disponibilidad Diaria ────────────────────────────────────────────────
+
+let dispBloques = [];
+
+function abrirDispDiaria(fecha) {
+    if (!fecha) return;
+    document.getElementById('dispFechaLabel').textContent = formatearFecha(fecha);
+    document.getElementById('dispDiariaModal').classList.add('active');
+    fetch('/inventarios/api/calendario/disponibilidad/' + fecha + '/')
+        .then(r => r.json())
+        .then(data => {
+            dispBloques = data.length > 0 ? data : [{ hora_inicio: '08:00', hora_fin: '09:00' }];
+            renderDispBloques();
+        })
+        .catch(() => {
+            dispBloques = [{ hora_inicio: '08:00', hora_fin: '09:00' }];
+            renderDispBloques();
+        });
+}
+
+function renderDispBloques() {
+    const container = document.getElementById('dispBloquesContainer');
+    container.innerHTML = '';
+    if (dispBloques.length === 0) {
+        container.innerHTML = '<div style="color:#94a3b8;font-size:0.82rem;padding:8px 0;">Sin bloques definidos.</div>';
+        return;
+    }
+    dispBloques.forEach((b, i) => {
+        const row = document.createElement('div');
+        row.className = 'horario-slot-row';
+        row.innerHTML = `
+            <input type="time" class="dhi-${i}" value="${b.hora_inicio.slice(0,5)}">
+            <span class="sep">—</span>
+            <input type="time" class="dhf-${i}" value="${b.hora_fin.slice(0,5)}">
+            <button class="btn-remove-slot" onclick="removeDispBloque(${i})" title="Quitar bloque">&times;</button>
+        `;
+        container.appendChild(row);
+    });
+}
+
+function addDispBloque() {
+    dispBloques.push({ hora_inicio: '08:00', hora_fin: '09:00' });
+    renderDispBloques();
+}
+
+function removeDispBloque(idx) {
+    dispBloques.splice(idx, 1);
+    renderDispBloques();
+}
+
+function guardarDispDiaria() {
+    const fecha = ctxFecha;
+    const bloques = [];
+    dispBloques.forEach((_, i) => {
+        const hi = document.querySelector('.dhi-' + i)?.value;
+        const hf = document.querySelector('.dhf-' + i)?.value;
+        if (hi && hf) bloques.push({ hora_inicio: hi, hora_fin: hf });
+    });
+    fetch('/inventarios/api/calendario/disponibilidad/' + fecha + '/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ bloques: bloques }),
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp.success) cerrarModal('dispDiariaModal');
+        else alert(resp.message || 'Error');
+    })
+    .catch(e => alert('Error: ' + e));
+}
+
+// ─── Horarios (estilo Cal.com) ────────────────────────────────────────────
+
+let horariosData = {};
+
+function configurarHorarios() {
+    fetch('{% url "inventarios:api_calendario_horarios" %}')
+        .then(r => r.json())
+        .then(horarios => {
+            horariosData = {};
+            horarios.forEach(h => {
+                if (!horariosData[h.dia_semana]) horariosData[h.dia_semana] = [];
+                horariosData[h.dia_semana].push(h);
+            });
+            renderHorariosGrid();
+            document.getElementById('horariosModal').classList.add('active');
+        });
+}
+
+function renderHorariosGrid() {
+    const grid = document.getElementById('horariosGrid');
+    grid.innerHTML = '';
+    DIAS.forEach((dia, idx) => {
+        const slots = horariosData[idx] || [];
+        const activo = slots.length > 0;
+        const card = document.createElement('div');
+        card.className = 'horario-dia-card';
+        card.innerHTML = `
+            <div class="horario-dia-header" onclick="toggleDiaHorario(event, ${idx})">
+                <h4>${dia}</h4>
+                <div class="horario-dia-toggle ${activo ? 'active' : ''}" id="toggle-${idx}">
+                    ${activo ? '✓' : ''}
+                </div>
+            </div>
+            <div class="horario-dia-body ${activo ? 'open' : ''}" id="body-${idx}">
+                <div id="slots-${idx}">
+                    ${renderSlots(idx, slots)}
+                </div>
+                <button class="btn-add-slot" onclick="addSlot(${idx})">+ Agregar bloque</button>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function renderSlots(dia, slots) {
+    if (!slots || slots.length === 0) {
+        return `<div style="color:#94a3b8;font-size:0.82rem;padding:4px 0 8px;">Sin horarios — haz clic en "+ Agregar bloque"</div>`;
+    }
+    return slots.map((s, i) => `
+        <div class="horario-slot-row">
+            <input type="time" class="hi-${dia}-${i}" value="${s.hora_inicio.slice(0,5)}">
+            <span class="sep">—</span>
+            <input type="time" class="hf-${dia}-${i}" value="${s.hora_fin.slice(0,5)}">
+            <button class="btn-remove-slot" onclick="removeSlot(${dia}, ${i})" title="Quitar bloque">&times;</button>
+        </div>
+    `).join('');
+}
+
+function toggleDiaHorario(event, dia) {
+    const body = document.getElementById('body-' + dia);
+    const toggle = document.getElementById('toggle-' + dia);
+    if (body.classList.contains('open')) {
+        body.classList.remove('open');
+    } else {
+        body.classList.add('open');
+    }
+    const hasSlots = horariosData[dia] && horariosData[dia].length > 0;
+    toggle.classList.toggle('active', hasSlots);
+    if (!hasSlots) toggle.textContent = '';
+    else toggle.textContent = '✓';
+}
+
+function addSlot(dia) {
+    if (!horariosData[dia]) horariosData[dia] = [];
+    horariosData[dia].push({ hora_inicio: '08:00', hora_fin: '09:00' });
+    refreshSlots(dia);
+    // asegurar que el body esté abierto
+    document.getElementById('body-' + dia).classList.add('open');
+    document.getElementById('toggle-' + dia).classList.add('active');
+    document.getElementById('toggle-' + dia).textContent = '✓';
+}
+
+function removeSlot(dia, idx) {
+    if (horariosData[dia]) {
+        horariosData[dia].splice(idx, 1);
+        refreshSlots(dia);
+        if (horariosData[dia].length === 0) {
+            document.getElementById('toggle-' + dia).classList.remove('active');
+            document.getElementById('toggle-' + dia).textContent = '';
+        }
+    }
+}
+
+function refreshSlots(dia) {
+    const container = document.getElementById('slots-' + dia);
+    if (!container) return;
+    const slots = horariosData[dia] || [];
+    container.innerHTML = renderSlots(dia, slots);
+}
+
+function guardarHorarios() {
+    const horarios = [];
+    DIAS.forEach((_, dia) => {
+        const slots = horariosData[dia] || [];
+        slots.forEach((s, i) => {
+            const hiInput = document.querySelector(`.hi-${dia}-${i}`);
+            const hfInput = document.querySelector(`.hf-${dia}-${i}`);
+            const hi = hiInput ? hiInput.value : s.hora_inicio;
+            const hf = hfInput ? hfInput.value : s.hora_fin;
+            if (hi && hf) {
+                horarios.push({ dia_semana: dia, hora_inicio: hi, hora_fin: hf });
+            }
+        });
+    });
+
+    fetch('{% url "inventarios:api_calendario_horarios" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ horarios: horarios }),
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp.success) {
+            cerrarModal('horariosModal');
+        } else {
+            alert(resp.message || 'Error al guardar horarios');
+        }
+    });
+}
+</script>
+{% endblock %}

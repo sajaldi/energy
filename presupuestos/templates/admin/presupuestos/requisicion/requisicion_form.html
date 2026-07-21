@@ -153,7 +153,17 @@
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                             <div class="form-group"><label class="form-label">Fecha</label>{{ form.fecha }}</div>
-                            <div class="form-group"><label class="form-label">Prioridad</label>{{ form.cr8ca_prioridad }}</div>
+                            <div class="form-group">
+                                <label class="form-label">Prioridad</label>{{ form.cr8ca_prioridad }}
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group"><label class="form-label">Tipo</label>{{ form.tipo }}</div>
+                            <div class="form-group" id="fpe-group" style="display:none;">
+                                <label class="form-label">📅 Fecha Probable de Entrega</label>
+                                <input type="date" name="fecha_probable_entrega" id="id_fecha_probable_entrega"
+                                    class="form-control" value="{{ instance.fecha_probable_entrega|date:'Y-m-d' }}">
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -623,7 +633,7 @@
     </form>
 </div>
 
-{% if historial %}
+{% if historial or notas %}
 <div class="main-surface" style="margin-top:20px;">
     <div class="surface-header" style="border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
         <h3 style="margin:0; font-size:1rem; font-weight:600; color:#1e293b;">📋 Línea de Tiempo</h3>
@@ -656,6 +666,21 @@
             {% endif %}
             {% if h.descripcion %}
             <div style="font-size:0.8rem; color:#475569; margin-top:2px;">{{ h.descripcion }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% for n in notas %}
+        <div style="position:relative; padding-bottom:20px;">
+            <div style="position:absolute; left:-20px; top:4px; width:12px; height:12px; border-radius:50%;
+                background:#0ea5e9; border:2px solid white; box-shadow:0 1px 3px rgba(0,0,0,0.15);"></div>
+            <div style="font-size:0.75rem; color:#64748b; margin-bottom:2px;">
+                {{ n.creado_en|date:"d/m/Y H:i" }}
+            </div>
+            <div style="font-size:0.9rem; color:#1e293b;">
+                {{ n.texto }}
+            </div>
+            {% if n.usuario %}
+            <div style="font-size:0.8rem; color:#64748b;">por {{ n.usuario.get_full_name|default:n.usuario.username }}</div>
             {% endif %}
         </div>
         {% endfor %}
@@ -701,5 +726,17 @@
             });
         }
     });
+
+    // ─── Toggle Fecha Probable de Entrega según tipo ────────────────────────
+    const tipoSelect = document.querySelector('select[name="tipo"]');
+    const fpeGroup = document.getElementById('fpe-group');
+    function toggleFPE() {
+        if (!fpeGroup) return;
+        fpeGroup.style.display = tipoSelect && tipoSelect.value === 'BIEN' ? 'block' : 'none';
+    }
+    if (tipoSelect) {
+        toggleFPE();
+        tipoSelect.addEventListener('change', toggleFPE);
+    }
 </script>
 {% endblock %}

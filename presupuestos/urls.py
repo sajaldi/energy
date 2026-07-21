@@ -27,6 +27,7 @@ urlpatterns = [
     path('requisiciones/<uuid:pk>/pdf/', views_import.requisicion_pdf, name='requisicion_pdf'),
     path('requisiciones/<uuid:pk>/docx/', views_import.requisicion_docx, name='requisicion_docx'),
     path('requisiciones/<uuid:pk>/unlock/', views_import.requisicion_unlock_edit, name='requisicion_unlock_edit'),
+    path('requisiciones/<uuid:pk>/update-fecha-entrega/', views_import.api_update_fecha_entrega, name='api_update_requisicion_fecha_entrega'),
     path('requisiciones/autorizar/<uuid:pk>/', views_autorizar.requisicion_autorizar, name='requisicion_autorizar'),
     path('requisiciones/<uuid:pk>/notificar-recepcion/', views_import.notificar_recepcion, name='requisicion_notificar_recepcion'),
     path('requisiciones/<uuid:pk>/procesar/', views_import.procesar_requisicion, name='requisicion_procesar'),

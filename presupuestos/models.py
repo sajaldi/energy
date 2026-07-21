@@ -576,6 +576,17 @@ class Requisicion(models.Model):
         verbose_name="Proyecto"
     )
 
+    TIPO_REQUISICION_CHOICES = (
+        ('BIEN', 'Bien'),
+        ('SERVICIO', 'Servicio'),
+    )
+    tipo = models.CharField(
+        max_length=10,
+        choices=TIPO_REQUISICION_CHOICES,
+        default='BIEN',
+        verbose_name="Tipo"
+    )
+
     recepcion_notificada = models.BooleanField(
         default=False,
         verbose_name="Notificación de Recepción Enviada"

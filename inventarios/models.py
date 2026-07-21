@@ -487,3 +487,77 @@ class HistorialCambioMaterial(models.Model):
 
     def __str__(self):
         return f"{self.material.sku} - {self.campo}: {self.valor_anterior} → {self.valor_nuevo}"
+
+
+class SlotAlmacenCalendario(models.Model):
+    TIPO_CHOICES = [
+        ('ENTREGA', 'Entrega de materiales'),
+        ('RECOLECCION', 'Recolección'),
+        ('INVENTARIO', 'Conteo de inventario'),
+        ('CAPACITACION', 'Capacitación'),
+        ('OTRO', 'Otro'),
+    ]
+    ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
+        ('CONFIRMADO', 'Confirmado'),
+        ('CANCELADO', 'Cancelado'),
+        ('COMPLETADO', 'Completado'),
+    ]
+    titulo = models.CharField(max_length=200, verbose_name="Título")
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
+    fecha = models.DateField(verbose_name="Fecha")
+    hora_inicio = models.TimeField(verbose_name="Hora inicio")
+    hora_fin = models.TimeField(verbose_name="Hora fin")
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='ENTREGA', verbose_name="Tipo")
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE', verbose_name="Estado")
+    creado_por = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='slots_almacen_creados', verbose_name="Creado por")
+    asignado_a = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='slots_almacen_asignados', verbose_name="Asignado a")
+    requisicion = models.ForeignKey('presupuestos.Requisicion', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Requisición")
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de creación")
+    fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name="Última actualización")
+
+    class Meta:
+        ordering = ['fecha', 'hora_inicio']
+        verbose_name = "Slot de calendario de almacén"
+        verbose_name_plural = "Slots de calendario de almacén"
+
+    def __str__(self):
+        return f"{self.titulo} - {self.fecha} {self.hora_inicio}-{self.hora_fin}"
+
+
+class HorarioAlmacen(models.Model):
+    DIAS_SEMANA = [
+        (0, 'Lunes'), (1, 'Martes'), (2, 'Miércoles'),
+        (3, 'Jueves'), (4, 'Viernes'), (5, 'Sábado'), (6, 'Domingo'),
+    ]
+    usuario = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='horarios_almacen', verbose_name="Usuario")
+    dia_semana = models.IntegerField(choices=DIAS_SEMANA, verbose_name="Día de la semana")
+    hora_inicio = models.TimeField(verbose_name="Hora inicio")
+    hora_fin = models.TimeField(verbose_name="Hora fin")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        unique_together = ['usuario', 'dia_semana', 'hora_inicio', 'hora_fin']
+        verbose_name = "Horario de almacén"
+        verbose_name_plural = "Horarios de almacén"
+
+    def __str__(self):
+        dia = dict(self.DIAS_SEMANA).get(self.dia_semana, '?')
+        return f"{self.usuario.get_full_name()} - {dia} {self.hora_inicio}-{self.hora_fin}"
+
+
+class DisponibilidadDiaria(models.Model):
+    usuario = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='disp_diaria_almacen', verbose_name="Usuario")
+    fecha = models.DateField(verbose_name="Fecha")
+    hora_inicio = models.TimeField(verbose_name="Hora inicio")
+    hora_fin = models.TimeField(verbose_name="Hora fin")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        unique_together = ['usuario', 'fecha', 'hora_inicio', 'hora_fin']
+        verbose_name = "Disponibilidad diaria"
+        verbose_name_plural = "Disponibilidades diarias"
+        ordering = ['fecha', 'hora_inicio']
+
+    def __str__(self):
+        return f"{self.usuario.get_full_name()} - {self.fecha} {self.hora_inicio}-{self.hora_fin}"

@@ -13,7 +13,7 @@
         a:hover { text-decoration: underline; }
 
         /* ── Container ── */
-        .container { max-width: 1400px; margin: 0 auto; padding: 24px 16px 80px; overflow: hidden; width: 100%; }
+        .container { max-width: 100%; margin: 0 auto; padding: 24px 16px 80px; overflow: hidden; width: 100%; }
 
         /* ── Messages ── */
         .messages { margin-bottom: 16px; }
@@ -189,6 +189,38 @@
             .html-split { grid-template-columns: 1fr; }
             .html-preview { border-left: none; border-top: 1px solid var(--sap-border-color); }
         }
+
+        /* ── Page Component Styles ── */
+        .pag-comp-list { margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 4px; }
+        .pag-comp-item { margin-top: 4px; border-radius: 6px; overflow: hidden; font-size: 0.78rem; }
+        .pag-comp-img { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #f0fdfa; border: 1px solid #99f6e4; }
+        .pag-comp-img img { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #d1d5db; }
+        .pag-comp-label { flex: 1; font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pag-comp-badge { font-size: 0.65rem; color: #64748b; background: #e2e8f0; padding: 1px 6px; border-radius: 6px; }
+        .pag-comp-badge-img { font-size: 0.6rem; background: #dcfce7; color: #16a34a; padding: 1px 5px; border-radius: 4px; }
+        .pag-comp-edit { font-size: 0.7rem; padding: 3px 8px; background: #0e7c86; color: #fff; border-radius: 4px; text-decoration: none; font-weight: 600; }
+        .pag-comp-del { font-size: 0.7rem; padding: 3px 8px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 4px; cursor: pointer; font-weight: 600; font-family: inherit; }
+        .pag-comp-del-sm { font-size: 0.68rem; padding: 2px 6px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 3px; cursor: pointer; font-family: inherit; }
+        .pag-comp-ac { border: 1px solid #e9d5ff; }
+        .pag-comp-car { border: 1px solid #fed7aa; }
+        .pag-comp-head { display: flex; align-items: center; gap: 6px; padding: 6px 8px; cursor: pointer; }
+        .pag-comp-ac .pag-comp-head { background: #faf5ff; }
+        .pag-comp-car .pag-comp-head { background: #fff7ed; }
+        .pag-comp-body { padding: 6px; border-top: 1px solid inherit; }
+        .pag-comp-body label { font-size: 0.68rem; font-weight: 600; color: #64748b; display: block; margin-bottom: 2px; }
+        .pag-comp-body input[type="text"] { width: 100%; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 3px; font-size: 0.78rem; font-family: inherit; }
+        .pag-comp-body div[contenteditable] { width: 100%; min-height: 60px; padding: 6px; border: 1px solid #d1d5db; border-radius: 3px; font-size: 0.78rem; line-height: 1.5; overflow-y: auto; max-height: 200px; background: #fff; }
+        .pag-comp-meta { font-size: 0.68rem; color: #64748b; margin-bottom: 4px; }
+        .pag-comp-add-sm { color: #e06c00; background: none; border: none; cursor: pointer; font-size: 0.68rem; font-weight: 600; font-family: inherit; }
+        .pag-comp-tarjeta { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 3px; margin-bottom: 3px; overflow: hidden; }
+        .pag-comp-tarjeta-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer; font-size: 0.75rem; }
+        .pag-comp-tarjeta-num { font-weight: 700; color: #e06c00; }
+        .pag-comp-tarjeta-body { display: none; padding: 6px; border-top: 1px solid #e2e8f0; }
+        .pag-comp-tarjeta-body textarea { width: 100%; min-height: 50px; padding: 3px 5px; border: 1px solid #d1d5db; border-radius: 3px; font-size: 0.7rem; font-family: Consolas, monospace; resize: vertical; }
+        .pag-comp-thumb { width: 50px; height: 30px; object-fit: cover; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+        .pag-comp-actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .pag-comp-actions button { padding: 4px 10px; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--sap-border-color); background: transparent; cursor: pointer; font-family: inherit; transition: all 0.1s; }
+        .pag-comp-actions button:hover { background: var(--sap-hover-bg); }
 
         /* ── Add Section Button ── */
         .add-section-btn {
@@ -453,6 +485,8 @@
                                     {% endfor %}
                                     {% endif %}
                                 </div>
+                            </div>
+                        </div>
                         {% endwith %}
                         {% endfor %}
 
@@ -745,25 +779,30 @@
         function tbCmd(cmd, val) {
             const sel = window.getSelection();
             if (!sel.rangeCount) return;
-            const preview = sel.anchorNode?.closest('.html-preview.edit-mode');
+            const host = sel.anchorNode ? ph(sel.anchorNode) : null;
+            const preview = host?.matches('.edit-mode') ? host : null;
             if (!preview) return;
-            preview.focus();
+            const c=pc(preview);
+            c.focus();
             document.execCommand(cmd, false, val || null);
-            preview.dispatchEvent(new Event('input', { bubbles: true }));
+            c.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
         function tbInsertImage(textareaId) {
             activeToolbarTextareaId = textareaId;
             const sel = window.getSelection();
-            const preview = sel.anchorNode?.closest('.html-preview.edit-mode');
+            const host = sel.anchorNode ? ph(sel.anchorNode) : null;
+            const preview = host?.matches('.edit-mode') ? host : null;
+            if (!preview) return;
+            const c=pc(preview);
             const url = prompt('URL de la imagen (o dejar vacío para subir archivo):');
-            if (url) {
-                preview.focus();
-                document.execCommand('insertImage', false, url);
-                preview.dispatchEvent(new Event('input', { bubbles: true }));
-            } else {
+            if (!url) {
                 document.getElementById('image-upload-input').click();
+                return;
             }
+            c.focus();
+            document.execCommand('insertImage', false, url);
+            c.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
         function handleImageUpload(input) {
@@ -776,13 +815,14 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.url) {
-                        const preview = document.querySelector(`#${activeToolbarTextareaId}`)
+                        const host = document.querySelector(`#${activeToolbarTextareaId}`)
                             ?.closest('.field-group')
                             ?.querySelector('.html-preview.edit-mode');
-                        if (preview) {
-                            preview.focus();
+                        if (host) {
+                            const c=pc(host);
+                            c.focus();
                             document.execCommand('insertImage', false, data.url);
-                            preview.dispatchEvent(new Event('input', { bubbles: true }));
+                            c.dispatchEvent(new Event('input', { bubbles: true }));
                         }
                     }
                 })
@@ -792,7 +832,8 @@
 
         // ── Interceptar PASTE de imágenes → subir a MinIO ──
         document.addEventListener('paste', function(e) {
-            const preview = e.target.closest('.html-preview.edit-mode');
+            const host = ph(e.target);
+            const preview = host?.matches('.edit-mode') ? host : null;
             if (!preview) return;
 
             const items = e.clipboardData?.items;
@@ -829,7 +870,7 @@
                                 setTimeout(() => placeholder.remove(), 2000);
                             }
                             // Sync al textarea
-                            preview.dispatchEvent(new Event('input', { bubbles: true }));
+                            pc(preview).dispatchEvent(new Event('input', { bubbles: true }));
                         })
                         .catch(err => {
                             const placeholder = document.getElementById(placeholderId);
@@ -865,7 +906,7 @@
 
         function observeEditablePreviews() {
             document.querySelectorAll('.html-preview').forEach(function(preview) {
-                base64Observer.observe(preview, { childList: true, subtree: true });
+                base64Observer.observe(pc(preview), { childList: true, subtree: true });
             });
         }
 
@@ -898,8 +939,8 @@
                         img.style.maxWidth = '100%';
                         img.alt = data.filename || 'imagen';
                         // Sync al textarea
-                        const preview = img.closest('.html-preview');
-                        if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+                        const preview = ph(img);
+                        if (preview) pc(preview).dispatchEvent(new Event('input', { bubbles: true }));
                     }
                 })
                 .catch(err => {
@@ -914,7 +955,10 @@
 
         function tbInsertVideo(textareaId) {
             const sel = window.getSelection();
-            const preview = sel.anchorNode?.closest('.html-preview.edit-mode');
+            const host = sel.anchorNode ? ph(sel.anchorNode) : null;
+            const preview = host?.matches('.edit-mode') ? host : null;
+            if (!preview) return;
+            const c=pc(preview);
             const url = prompt('URL del video (YouTube, Vimeo, etc.):');
             if (!url) return;
             let embed = '';
@@ -924,9 +968,9 @@
             } else {
                 embed = `<iframe src="${url}" frameborder="0" allowfullscreen style="width:100%;aspect-ratio:16/9;"></iframe>`;
             }
-            preview.focus();
+            c.focus();
             document.execCommand('insertHTML', false, embed);
-            preview.dispatchEvent(new Event('input', { bubbles: true }));
+            c.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
         // ── Modo Visual / Código ──
@@ -945,21 +989,23 @@
                 split.style.gridTemplateColumns = '1fr';
                 textarea.style.display = 'none';
                 const html = textarea.value.trim() || '<p style="color:#94a3b8;">Empezá a escribir aquí...</p>';
-                preview.innerHTML = html;
+                const c=pc(preview);
+                c.innerHTML = sanitizarPreview(html);
+                c.classList.remove('pw-empty');
                 preview.classList.remove('empty');
-                preview.contentEditable = true;
+                c.contentEditable = true;
                 preview.classList.add('edit-mode');
                 toolbar?.classList.add('show');
-                preview.focus();
-                // Observar para imágenes base64
-                base64Observer.observe(preview, { childList: true, subtree: true });
+                c.focus();
+                base64Observer.observe(c, { childList: true, subtree: true });
             } else {
                 split.style.gridTemplateColumns = '';
-                preview.contentEditable = false;
+                const c=pc(preview);
+                c.contentEditable = false;
                 preview.classList.remove('edit-mode');
                 toolbar?.classList.remove('show');
                 textarea.style.display = '';
-                const previewHtml = preview.innerHTML;
+                const previewHtml = c.innerHTML;
                 const textareaVal = textarea.value || '';
                 if (previewHtml !== textareaVal && previewHtml !== '<p style="color:#94a3b8;">Empezá a escribir aquí...</p>') {
                     textarea.value = previewHtml;
@@ -968,30 +1014,48 @@
             }
         }
 
-        // Sync contenteditable preview back to textarea on input
-        document.addEventListener('input', function(e) {
-            if (e.target.matches('.html-preview.edit-mode')) {
-                const split = e.target.closest('.html-split');
-                if (!split) return;
-                const textarea = split.querySelector('textarea');
-                if (textarea) {
-                    textarea.value = e.target.innerHTML;
-                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-            }
-        });
+        // ── Sanitize HTML (security only: strip scripts/events, keep styles) ──
+        function sanitizarPreview(html) {
+            return html
+                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                .replace(/<script[\s\S]*?\/>/gi, '')
+                .replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, '')
+                .replace(/ on\w+\s*=\s*["'][^"']*["']/gi, '');
+            // <style> tags preserved — CSS isolation via Shadow DOM
+        }
+
+        // ── Shadow DOM helper for CSS-isolated preview ──
+        function pc(el) {
+            if (el._pw) return el._pw;
+            const root = el.attachShadow({mode:'open'});
+            const s=document.createElement('style');
+            s.textContent='.pw{padding:12px 14px;font-size:.9rem;line-height:1.7;color:#334155;height:100%;word-wrap:break-word;overflow-wrap:break-word}.pw>:first-child{margin-top:0}.pw>:last-child{margin-bottom:0}.pw img{max-width:100%;border-radius:6px;margin:8px 0}.pw iframe{max-width:100%;border-radius:6px;margin:8px 0;aspect-ratio:16/9;width:100%}.pw video{max-width:100%;border-radius:6px;margin:8px 0}.pw *{max-width:100%!important;word-wrap:break-word;overflow-wrap:break-word}.pw.pw-empty{display:flex;align-items:center;justify-content:center;color:#94a3b8;font-style:italic;min-height:200px;padding:0}';
+            root.appendChild(s);
+            const w=document.createElement('div');
+            w.className='pw';
+            root.appendChild(w);
+            el._pw=w;
+            return w;
+        }
+        function ph(el) {
+            const r=el.getRootNode?.();
+            return r instanceof ShadowRoot ? r.host : el.closest('.html-preview');
+        }
 
         // ── Live HTML Preview (source mode) ──
         function actualizarPreview(textarea) {
             const preview = document.querySelector(`[data-preview-for="${textarea.id}"]`);
             if (!preview) return;
-            if (preview.contentEditable === 'true') return;
+            const c=pc(preview);
+            if (c.contentEditable === 'true') return;
             const val = textarea.value.trim();
             if (val) {
-                preview.innerHTML = val;
+                c.innerHTML = sanitizarPreview(val);
+                c.classList.remove('pw-empty');
                 preview.classList.remove('empty');
             } else {
-                preview.innerHTML = '🪞 Vista previa en vivo';
+                c.innerHTML = '🪞 Vista previa en vivo';
+                c.classList.add('pw-empty');
                 preview.classList.add('empty');
             }
         }
@@ -1013,25 +1077,27 @@
             const textarea = document.getElementById('ta-' + uid);
             const preview = document.getElementById('prev-' + uid);
             const toolbar = document.getElementById('tb-' + uid);
+            const c=pc(preview);
 
             if (mode === 'visual') {
                 split.style.gridTemplateColumns = '1fr';
                 textarea.style.display = 'none';
                 const html = textarea.value.trim() || '<p style="color:#94a3b8;">Empezá a escribir aquí...</p>';
-                preview.innerHTML = html;
+                c.innerHTML = sanitizarPreview(html);
+                c.classList.remove('pw-empty');
                 preview.classList.remove('empty');
-                preview.contentEditable = true;
+                c.contentEditable = true;
                 preview.classList.add('edit-mode');
                 if (toolbar) toolbar.style.display = 'flex';
-                preview.focus();
-                base64Observer.observe(preview, { childList: true, subtree: true });
+                c.focus();
+                base64Observer.observe(c, { childList: true, subtree: true });
             } else {
                 split.style.gridTemplateColumns = '';
-                preview.contentEditable = false;
+                c.contentEditable = false;
                 preview.classList.remove('edit-mode');
                 if (toolbar) toolbar.style.display = 'none';
                 textarea.style.display = '';
-                const previewHtml = preview.innerHTML;
+                const previewHtml = c.innerHTML;
                 if (previewHtml && previewHtml !== '<p style="color:#94a3b8;">Empezá a escribir aquí...</p>') {
                     textarea.value = previewHtml;
                 }
@@ -1043,43 +1109,47 @@
             const textarea = document.getElementById('ta-' + uid);
             const preview = document.getElementById('prev-' + uid);
             if (!textarea || !preview) return;
-            if (preview.contentEditable === 'true') return;
+            const c=pc(preview);
+            if (c.contentEditable === 'true') return;
             const val = textarea.value.trim();
             if (val) {
-                preview.innerHTML = val;
+                c.innerHTML = sanitizarPreview(val);
+                c.classList.remove('pw-empty');
                 preview.classList.remove('empty');
             } else {
-                preview.innerHTML = '🪞 Vista previa';
+                c.innerHTML = '🪞 Vista previa';
+                c.classList.add('pw-empty');
                 preview.classList.add('empty');
             }
         }
 
         function tbCmdPag(cmd, uid) {
             const preview = document.getElementById('prev-' + uid);
-            if (!preview || preview.contentEditable !== 'true') return;
-            preview.focus();
+            if (!preview) return;
+            const c=pc(preview);
+            if (c.contentEditable !== 'true') return;
+            c.focus();
             if (cmd === 'createLink') {
                 const url = prompt('URL del enlace:');
                 if (url) document.execCommand(cmd, false, url);
             } else {
                 document.execCommand(cmd, false, null);
             }
-            // Sync to textarea
             const textarea = document.getElementById('ta-' + uid);
-            if (textarea) textarea.value = preview.innerHTML;
+            if (textarea) textarea.value = c.innerHTML;
         }
 
         function tbInsertImagePag(uid) {
             const preview = document.getElementById('prev-' + uid);
             if (!preview) return;
+            const c=pc(preview);
             const url = prompt('URL de la imagen (o dejar vacío para subir archivo):');
             if (url) {
-                preview.focus();
+                c.focus();
                 document.execCommand('insertImage', false, url);
                 const textarea = document.getElementById('ta-' + uid);
-                if (textarea) textarea.value = preview.innerHTML;
+                if (textarea) textarea.value = c.innerHTML;
             } else {
-                // Trigger file upload
                 activePagUploadUid = uid;
                 const input = document.createElement('input');
                 input.type = 'file';
@@ -1102,11 +1172,13 @@
                 .then(data => {
                     if (data.url) {
                         const preview = document.getElementById('prev-' + uid);
-                        if (preview && preview.contentEditable === 'true') {
-                            preview.focus();
+                        if (!preview) return;
+                        const c=pc(preview);
+                        if (c.contentEditable === 'true') {
+                            c.focus();
                             document.execCommand('insertImage', false, data.url);
                             const textarea = document.getElementById('ta-' + uid);
-                            if (textarea) textarea.value = preview.innerHTML;
+                            if (textarea) textarea.value = c.innerHTML;
                         }
                     }
                 })
@@ -1116,6 +1188,7 @@
         function tbInsertVideoPag(uid) {
             const preview = document.getElementById('prev-' + uid);
             if (!preview) return;
+            const c=pc(preview);
             const url = prompt('URL del video (YouTube, Vimeo, etc.):');
             if (!url) return;
             let embed = '';
@@ -1125,28 +1198,30 @@
             } else {
                 embed = `<iframe src="${url}" frameborder="0" allowfullscreen style="width:100%;aspect-ratio:16/9;"></iframe>`;
             }
-            preview.focus();
+            c.focus();
             document.execCommand('insertHTML', false, embed);
             const textarea = document.getElementById('ta-' + uid);
-            if (textarea) textarea.value = preview.innerHTML;
+            if (textarea) textarea.value = c.innerHTML;
         }
 
         function syncPagEditorToTextarea(item) {
-            const preview = item.querySelector('.html-preview.edit-mode');
+            const host = item.querySelector('.html-preview');
+            if (!host) return;
+            const c = pc(host);
             const textarea = item.querySelector('.pag-edit-contenido');
-            if (preview && textarea && preview.contentEditable === 'true') {
-                textarea.value = preview.innerHTML;
+            if (c && textarea && c.contentEditable === 'true') {
+                textarea.value = c.innerHTML;
             }
         }
 
         // Sync contenteditable for page editors
         document.addEventListener('input', function(e) {
-            if (e.target.matches('.pag-editor-wrap .html-preview.edit-mode')) {
-                const wrap = e.target.closest('.pag-editor-wrap');
-                if (!wrap) return;
-                const textarea = wrap.querySelector('.pag-edit-contenido');
-                if (textarea) textarea.value = e.target.innerHTML;
-            }
+            const preview = ph(e.target);
+            if (!preview || !preview.matches?.('.edit-mode')) return;
+            const wrap = preview.closest('.pag-editor-wrap') || preview.closest('.html-split')?.parentElement;
+            if (!wrap) return;
+            const textarea = wrap.querySelector('.pag-edit-contenido') || wrap.querySelector('textarea');
+            if (textarea) textarea.value = pc(preview).innerHTML;
         });
 
         // ── Page Management ──
@@ -1210,7 +1285,7 @@
             form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             // Observar para base64 images
             const prev = form.querySelector('.html-preview');
-            if (prev) base64Observer.observe(prev, { childList: true, subtree: true });
+            if (prev) base64Observer.observe(pc(prev), { childList: true, subtree: true });
         }
 
         function guardarPagina(btn, seccionId, cursoId) {
@@ -1303,7 +1378,7 @@
                 actualizarPreviewPag(uid);
                 // Observar para base64 images
                 const prev = body.querySelector('.html-preview');
-                if (prev) base64Observer.observe(prev, { childList: true, subtree: true });
+                if (prev) base64Observer.observe(pc(prev), { childList: true, subtree: true });
             })
             .catch(e => alert('Error: ' + e.message));
         }
@@ -1670,18 +1745,18 @@
         document.addEventListener('click', function(e) {
             var img = e.target;
             if (img.tagName !== 'IMG') return;
-            var preview = img.closest('.html-preview.edit-mode');
-            if (!preview) return;
-
-            // Es una imagen dentro del editor visual
+            var host = ph(img);
+            if (!host?.matches('.edit-mode')) return;
             selectImage(img);
         });
 
-        // Click fuera para deseleccionar
         document.addEventListener('mousedown', function(e) {
             if (!selectedImage) return;
             if (e.target.closest('#img-resize-popover')) return;
-            if (e.target.tagName === 'IMG' && e.target.closest('.html-preview.edit-mode')) return;
+            if (e.target.tagName === 'IMG') {
+                var host = ph(e.target);
+                if (host?.matches('.edit-mode')) return;
+            }
             deselectImage();
         });
 
@@ -1739,8 +1814,8 @@
             selectedImage.style.maxWidth = (maxW || 100) + '%';
             selectedImage.removeAttribute('width');
             selectedImage.removeAttribute('height');
-            var preview = selectedImage.closest('.html-preview');
-            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+            var host = selectedImage.getRootNode?.().host;
+            if (host) pc(host).dispatchEvent(new Event('input', { bubbles: true }));
             deselectImage();
         };
 
@@ -1756,19 +1831,19 @@
             if (wInput) wInput.value = selectedImage.naturalWidth;
             if (hInput) hInput.value = selectedImage.naturalHeight;
             document.getElementById('img-resize-maxw').value = 100;
-            var preview = selectedImage.closest('.html-preview');
-            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+            var host = selectedImage.getRootNode?.().host;
+            if (host) pc(host).dispatchEvent(new Event('input', { bubbles: true }));
         };
 
         window.removeSelectedImage = function() {
             if (!selectedImage) return;
             if (!confirm('¿Eliminar esta imagen?')) return;
-            var preview = selectedImage.closest('.html-preview');
+            var host = selectedImage.getRootNode?.().host;
             selectedImage.remove();
             selectedImage = null;
             var popover = document.getElementById('img-resize-popover');
             if (popover) popover.classList.remove('show');
-            if (preview) preview.dispatchEvent(new Event('input', { bubbles: true }));
+            if (host) pc(host).dispatchEvent(new Event('input', { bubbles: true }));
         };
 
         // Sync width/height

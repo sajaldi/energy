@@ -1,3 +1,4 @@
+{% load static %}
 {% for p in paginas %}
 <div class="pagina-item" data-pagina-id="{{ p.id }}">
   <div class="pagina-head" onclick="togglePagina(this)">
@@ -10,6 +11,86 @@
   </div>
   <div class="pagina-body">
     <div class="pagina-content">{{ p.contenido_html|safe }}</div>
+
+    {% with img_list=p.imagenes_interactivas.all %}
+    {% if img_list %}
+    <div class="pag-comp-list">
+      {% for img in img_list %}
+      <div class="pag-comp-item pag-comp-img">
+        <span>🎯</span>
+        <img src="{{ img.imagen.url }}" alt="">
+        <span class="pag-comp-label">{{ img.titulo }}</span>
+        <span class="pag-comp-badge">{{ img.hotspots.count }} pts</span>
+        <a href="{% url 'courses:editar_imagen_interactiva' img.id %}" target="_blank" class="pag-comp-edit">✎ Editar</a>
+        <button type="button" onclick="eliminarImagenInteractiva({{ img.id }}, this)" class="pag-comp-del">✕</button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% with ac_list=p.acordeones.all %}
+    {% if ac_list %}
+    <div class="pag-comp-list">
+      {% for ac in ac_list %}
+      <div class="pag-comp-item pag-comp-ac" data-ac-id="{{ ac.id }}">
+        <div class="pag-comp-head" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <span>📂</span>
+          <span class="pag-comp-label">{{ ac.titulo }}</span>
+          <button type="button" onclick="event.stopPropagation();eliminarAcordeon({{ ac.id }},this)" class="pag-comp-del-sm">✕</button>
+        </div>
+        <div class="pag-comp-body" style="display:none;">
+          <div><label>Título</label><input type="text" value="{{ ac.titulo }}" onchange="actualizarAcordeon({{ ac.id }},{titulo:this.value})"></div>
+          <div><label>Contenido</label><div contenteditable="true" onblur="actualizarAcordeon({{ ac.id }},{contenido_html:this.innerHTML})">{{ ac.contenido_html|safe }}</div></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% with car_list=p.carruseles.all %}
+    {% if car_list %}
+    <div class="pag-comp-list">
+      {% for car in car_list %}
+      <div class="pag-comp-item pag-comp-car" data-car-id="{{ car.id }}">
+        <div class="pag-comp-head" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <span>🎠</span>
+          <span class="pag-comp-label">{{ car.titulo }} ({{ car.tarjetas.count }} tarjetas)</span>
+          <button type="button" onclick="event.stopPropagation();eliminarCarrusel({{ car.id }},this)" class="pag-comp-del-sm">✕</button>
+        </div>
+        <div class="pag-comp-body" style="display:none;">
+          <div class="pag-comp-meta">Tarjetas: {{ car.tarjetas.count }} · <button type="button" onclick="agregarTarjeta({{ car.id }})" class="pag-comp-add-sm">+ Agregar tarjeta</button></div>
+          {% for t in car.tarjetas.all %}
+          <div class="pag-comp-tarjeta">
+            <div class="pag-comp-tarjeta-head" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+              <span class="pag-comp-tarjeta-num">{{ t.orden }}.</span>
+              <span class="pag-comp-label">{{ t.titulo }}</span>
+              {% if t.imagen %}<span class="pag-comp-badge-img">IMG</span>{% endif %}
+              <button type="button" onclick="event.stopPropagation();eliminarTarjeta({{ t.id }},this)" class="pag-comp-del-sm">✕</button>
+            </div>
+            <div class="pag-comp-tarjeta-body" style="display:none;">
+              <div><label>TÍTULO</label><input type="text" value="{{ t.titulo }}" onchange="actualizarTarjeta({{ t.id }},{titulo:this.value})"></div>
+              <div><label>CONTENIDO</label><textarea onchange="actualizarTarjeta({{ t.id }},{contenido_html:this.value})">{{ t.contenido_html }}</textarea></div>
+              <div><label>IMAGEN</label>
+                {% if t.imagen %}<img src="{{ t.imagen.url }}" class="pag-comp-thumb">{% endif %}
+                <input type="file" accept="image/*" onchange="subirImagenTarjeta({{ t.id }},this)">
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="pag-comp-actions">
+      <button type="button" onclick="crearImagenInteractiva(null, {{ p.id }})">🎯 Imagen</button>
+      <button type="button" onclick="agregarAcordeon(null, {{ p.id }})">📂 Expandible</button>
+      <button type="button" onclick="crearCarrusel(null, {{ p.id }})">🎠 Carrusel</button>
+    </div>
   </div>
 </div>
 {% empty %}

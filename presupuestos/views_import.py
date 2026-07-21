@@ -223,6 +223,17 @@ def requisicion_upsert(request, pk=None):
              messages.error(request, "No se pueden guardar cambios: La requisición está bloqueada para edición.")
              return redirect('presupuestos:requisicion_dashboard')
 
+        # Guardar fecha_probable_entrega manualmente (campo no incluido en el form)
+        fpe = request.POST.get('fecha_probable_entrega', '').strip()
+        if fpe:
+            try:
+                from datetime import datetime as dt
+                instance.fecha_probable_entrega = dt.strptime(fpe, '%Y-%m-%d').date()
+                instance.recepcion_notificada = True
+                instance.save(update_fields=['fecha_probable_entrega', 'recepcion_notificada'])
+            except ValueError:
+                pass
+
         form = RequisicionForm(request.POST, instance=instance, user=request.user)
         articulo_formset = ArticuloFormSet(request.POST, instance=instance, prefix='articulos')
         documento_formset = DocumentoFormSet(request.POST, request.FILES, instance=instance, prefix='documentos')
@@ -347,6 +358,7 @@ def requisicion_upsert(request, pk=None):
         'is_readonly': is_readonly,
         'can_unlock': can_unlock,
         'historial': instance.historial.all() if instance else [],
+        'notas': instance.notas.all()[:10] if instance else [],
     }
     return render(request, 'admin/presupuestos/requisicion/requisicion_form.html', context)
 
@@ -759,6 +771,7 @@ def notificar_recepcion(request, pk):
     from django.contrib.auth.models import Group, User
     from django.utils import timezone
     try:
+        from .models import Requisicion
         requisicion = get_object_or_404(Requisicion, pk=pk)
 
         if requisicion.estado_requisicion not in ['EN_ORDEN_COMPRA', 'AUTORIZADO']:
@@ -800,6 +813,37 @@ def notificar_recepcion(request, pk):
         import traceback
         print(traceback.format_exc())
         return JsonResponse({'success': False, 'message': f'Error interno: {str(e)}'}, status=500)
+
+
+@staff_member_required
+@login_required
+@require_POST
+def api_update_fecha_entrega(request, pk):
+    import json
+    from datetime import datetime
+    from .models import Requisicion, NotaRequisicion
+    try:
+        requisicion = get_object_or_404(Requisicion, pk=pk)
+        data = json.loads(request.body)
+        fecha_str = data.get('fecha_probable_entrega', '').strip()
+        if not fecha_str:
+            return JsonResponse({'success': False, 'message': 'Debe indicar una fecha.'}, status=400)
+        try:
+            fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'success': False, 'message': 'Formato de fecha inválido.'}, status=400)
+        vieja = requisicion.fecha_probable_entrega
+        requisicion.fecha_probable_entrega = fecha
+        requisicion.recepcion_notificada = True
+        requisicion.save(update_fields=['fecha_probable_entrega', 'recepcion_notificada'])
+        NotaRequisicion.objects.create(
+            requisicion=requisicion,
+            usuario=request.user,
+            texto=f"📅 Fecha probable de entrega actualizada: {vieja.isoformat() if vieja else '—'} → {fecha.isoformat()}"
+        )
+        return JsonResponse({'success': True, 'message': 'Fecha probable de entrega actualizada.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'}, status=500)
 
 
 @staff_member_required

@@ -634,14 +634,15 @@ def orden_detalle(request, oc_id):
     puede_subir = oc.estado in ('CONFIRMADA', 'RECIBIDA')
 
     documentos_dict = {doc.tipo: doc for doc in documentos}
-
     tipos_doc = DocumentoOrdenCompra.TIPO_DOC_CHOICES
+    documentos_items = [(key, label, documentos_dict.get(key)) for key, label in tipos_doc]
+
     context = {
         'active_tab': 'ordenes',
         'empresa': empresa,
         'oc': oc,
         'documentos': documentos,
-        'documentos_dict': documentos_dict,
+        'documentos_items': documentos_items,
         'puede_subir': puede_subir,
         'tipos_doc': tipos_doc,
     }

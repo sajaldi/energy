@@ -274,6 +274,29 @@
                 // Habilitar botones de navegación (aunque los inputs estén disabled)
                 $('.next-step, .prev-step').prop('disabled', false).show();
 
+                // Re-habilitar solo el campo fecha probable de entrega
+                $('#id_fecha_probable_entrega').prop('disabled', false).closest('.form-group').find('label, small').css('opacity', '1');
+
+                // Auto-guardar fecha probable de entrega al cambiar
+                $('#id_fecha_probable_entrega').on('change', function () {
+                    const val = $(this).val();
+                    if (!val) return;
+                    fetch('{% url "presupuestos:api_update_requisicion_fecha_entrega" pk=instance.pk %}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify({ fecha_probable_entrega: val })
+                    })
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d.success) {
+                            Swal.fire({ icon: 'success', title: 'Guardado', text: d.message, timer: 1500, showConfirmButton: false });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Error', text: d.message });
+                        }
+                    })
+                    .catch(e => Swal.fire({ icon: 'error', title: 'Error', text: 'Error de conexión: ' + e }));
+                });
+
                 // Mensaje informativo
             if ($('.alert-readonly').length === 0 && estadoRequisicion !== 'AUTORIZADO') {
                 const msg = estadoRequisicion === 'PENDIENTE'
@@ -980,6 +1003,30 @@
                 document.querySelectorAll('.doc-download-link').forEach(el => {
                     el.style.pointerEvents = 'auto';
                 });
+
+                // Re-habilitar solo el campo fecha probable de entrega
+                const fpe = document.getElementById('id_fecha_probable_entrega');
+                if (fpe) {
+                    fpe.disabled = false;
+                    fpe.addEventListener('change', function () {
+                        const val = this.value;
+                        if (!val) return;
+                        fetch('{% url "presupuestos:api_update_requisicion_fecha_entrega" pk=instance.pk %}', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                            body: JSON.stringify({ fecha_probable_entrega: val })
+                        })
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.success) {
+                                Swal.fire({ icon: 'success', title: 'Guardado', text: d.message, timer: 1500, showConfirmButton: false });
+                            } else {
+                                Swal.fire({ icon: 'error', title: 'Error', text: d.message });
+                            }
+                        })
+                        .catch(e => Swal.fire({ icon: 'error', title: 'Error', text: 'Error de conexión: ' + e }));
+                    });
+                }
             })();
             {% endif %}
 

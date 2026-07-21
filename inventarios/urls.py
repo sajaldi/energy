@@ -75,4 +75,12 @@ urlpatterns = [
     path('api/racks/<int:rack_id>/position/', views.api_rack_update_position, name='api_rack_position'),
     path('api/bodega/<int:bodega_id>/racks/', views.api_bodega_racks, name='api_bodega_racks'),
     path('bodega/<int:pk>/3d/', views.bodega_3d_view, name='bodega_3d'),
+    # Calendario de Almacén
+    path('calendario/', views.calendario_view, name='calendario'),
+    path('api/calendario/eventos/', views.api_calendario_eventos, name='api_calendario_eventos'),
+    path('api/calendario/slots/', views.api_calendario_slots, name='api_calendario_slots'),
+    path('api/calendario/slots/<int:slot_id>/', views.api_calendario_slots, name='api_calendario_slots_detail'),
+    path('api/calendario/horarios/', views.api_calendario_horarios, name='api_calendario_horarios'),
+    path('api/calendario/requisicion/<uuid:pk>/items/', views.api_calendario_requisicion_items, name='api_calendario_requisicion_items'),
+    path('api/calendario/disponibilidad/<str:fecha>/', views.api_calendario_disponibilidad_diaria, name='api_calendario_disponibilidad'),
 ]
