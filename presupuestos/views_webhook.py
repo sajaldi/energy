@@ -85,7 +85,8 @@ def requisicion_webhook_update(request):
             mensaje_usuario = 'rechazada'
         elif accion == 'REGISTRAR':
             # Solo registra en el historial sin cambiar estado (aprobación parcial/intermedia)
-            desc_parts = ["Aprobación parcial"]
+            from .models import RequisicionHistorial
+            desc_parts = ["✅ Aprobación parcial"]
             if aprobado_por:
                 desc_parts.append(f"por {aprobado_por}")
             if timestamp_pa:
@@ -94,7 +95,14 @@ def requisicion_webhook_update(request):
                 desc_parts.append(f"- {comentarios}")
             descripcion_registro = " ".join(desc_parts)
             
-            _registrar_historial(requisicion, requisicion.estado_requisicion, descripcion=descripcion_registro)
+            # Crear historial directamente (sin la validación de estado_anterior == estado_nuevo)
+            RequisicionHistorial.objects.create(
+                requisicion=requisicion,
+                estado_anterior=requisicion.estado_requisicion,
+                estado_nuevo=requisicion.estado_requisicion,
+                usuario=None,
+                descripcion=descripcion_registro,
+            )
             
             # Agregar al campo de comentarios también
             from django.utils import timezone
