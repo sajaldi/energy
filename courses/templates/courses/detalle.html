@@ -209,14 +209,14 @@
             max-width: none; margin: 0; padding-top: 32px;
             font-size: 1rem; line-height: 1.85; color: #334155;
         }
-        .content-body .lesson-content h1,
-        .content-body .lesson-content h2,
-        .content-body .lesson-content h3 {
+        .content-body .lesson-content > h1:not([style]),
+        .content-body .lesson-content > h2:not([style]),
+        .content-body .lesson-content > h3:not([style]) {
             color: #0f172a; margin: 24px 0 12px; font-weight: 700;
         }
-        .content-body .lesson-content h2 { font-size: 1.4rem; }
-        .content-body .lesson-content h3 { font-size: 1.15rem; }
-        .content-body .lesson-content p { margin-bottom: 16px; }
+        .content-body .lesson-content > h2:not([style]) { font-size: 1.4rem; }
+        .content-body .lesson-content > h3:not([style]) { font-size: 1.15rem; }
+        .content-body .lesson-content > p:not([style]) { margin-bottom: 16px; }
         .content-body .lesson-content img {
             max-width: 100%; height: auto; border-radius: 10px;
             margin: 20px 0; box-shadow: 0 2px 12px rgba(0,0,0,0.1);
@@ -642,14 +642,7 @@
 </div>
 
 <!-- Hidden content containers for each section/page -->
-{% for item in secciones %}
-{% with s=item.seccion %}
-<template id="content-sec-{{ s.id }}">{{ s.contenido_html|safe }}{% for img in item.imagenes_interactivas %}<div class="interactive-image-wrap" data-img-id="{{ img.id }}"><img src="{{ img.imagen.url }}" alt="{{ img.titulo }}" class="interactive-base-img">{% for hs in img.hotspots.all %}<div class="hs-bubble" data-numero="{{ hs.numero }}" data-x="{{ hs.pos_x }}" data-y="{{ hs.pos_y }}" data-titulo="{{ hs.titulo }}" data-contenido="{{ hs.contenido_html|escape }}">{{ hs.numero }}</div>{% endfor %}</div>{% endfor %}{% if item.acordeones %}<div class="accordion-group">{% for ac in item.acordeones %}<div class="accordion-item"><div class="accordion-header" onclick="this.parentElement.classList.toggle('open')"><span class="accordion-title">{{ ac.titulo }}</span><span class="accordion-icon">+</span></div><div class="accordion-body">{{ ac.contenido_html|safe }}</div></div>{% endfor %}</div>{% endif %}{% for car in item.carruseles %}<div class="carousel-wrap">{% if car.titulo %}<div class="carousel-title">{{ car.titulo }}</div>{% endif %}<div class="carousel-container"><button class="carousel-nav prev" onclick="this.nextElementSibling.scrollBy({left:-280,behavior:'smooth'})">‹</button><div class="carousel-track">{% for t in car.tarjetas.all %}<div class="carousel-card">{% if t.imagen %}<img src="{{ t.imagen.url }}" class="carousel-card-img" alt="{{ t.titulo }}">{% endif %}<h4>{{ t.titulo }}</h4><div class="card-content">{{ t.contenido_html|safe }}</div></div>{% endfor %}</div><button class="carousel-nav next" onclick="this.previousElementSibling.scrollBy({left:280,behavior:'smooth'})">›</button></div></div>{% endfor %}</template>
-{% for p in item.paginas %}
-<template id="content-page-{{ p.id }}">{{ p.contenido_html|safe }}{% for img in p.imgs_interactivas %}<div class="interactive-image-wrap" data-img-id="{{ img.id }}"><img src="{{ img.imagen.url }}" alt="{{ img.titulo }}" class="interactive-base-img">{% for hs in img.hotspots.all %}<div class="hs-bubble" data-numero="{{ hs.numero }}" data-x="{{ hs.pos_x }}" data-y="{{ hs.pos_y }}" data-titulo="{{ hs.titulo }}" data-contenido="{{ hs.contenido_html|escape }}">{{ hs.numero }}</div>{% endfor %}</div>{% endfor %}{% if p.acordeones_list %}<div class="accordion-group">{% for ac in p.acordeones_list %}<div class="accordion-item"><div class="accordion-header" onclick="this.parentElement.classList.toggle('open')"><span class="accordion-title">{{ ac.titulo }}</span><span class="accordion-icon">+</span></div><div class="accordion-body">{{ ac.contenido_html|safe }}</div></div>{% endfor %}</div>{% endif %}{% for car in p.carruseles_list %}<div class="carousel-wrap">{% if car.titulo %}<div class="carousel-title">{{ car.titulo }}</div>{% endif %}<div class="carousel-container"><button class="carousel-nav prev" onclick="this.nextElementSibling.scrollBy({left:-280,behavior:'smooth'})">‹</button><div class="carousel-track">{% for t in car.tarjetas.all %}<div class="carousel-card">{% if t.imagen %}<img src="{{ t.imagen.url }}" class="carousel-card-img" alt="{{ t.titulo }}">{% endif %}<h4>{{ t.titulo }}</h4><div class="card-content">{{ t.contenido_html|safe }}</div></div>{% endfor %}</div><button class="carousel-nav next" onclick="this.previousElementSibling.scrollBy({left:280,behavior:'smooth'})">›</button></div></div>{% endfor %}</template>
-{% endfor %}
-{% endwith %}
-{% endfor %}
+<!-- Content is loaded via AJAX -->
 
 <!-- Evaluation UI templates (hidden, rendered by JS) -->
 {% for ev in evaluaciones %}
@@ -675,10 +668,9 @@ const SECCIONES = [
     completado: {{ item.completado|yesno:"true,false" }},
     obligatorio: {{ s.obligatorio|yesno:"true,false" }},
     duracion: {{ s.duracion_minutos }},
-    contentId: 'content-sec-{{ s.id }}',
     paginas: [
         {% for p in item.paginas %}
-        { id: {{ p.id }}, titulo: '{{ p.titulo|escapejs }}', contentId: 'content-page-{{ p.id }}', duracion: {{ p.duracion_minutos }} },
+        { id: {{ p.id }}, titulo: '{{ p.titulo|escapejs }}', duracion: {{ p.duracion_minutos }} },
         {% endfor %}
     ]
 },
@@ -693,53 +685,60 @@ const EVALUACIONES = [
 {% endfor %}
 ];
 
-// Helper: get HTML from a <template> element by ID
-function getTemplateContent(id) {
-    const tpl = document.getElementById(id);
-    if (!tpl) return '';
-    return tpl.innerHTML.trim();
+// Helper: fetch content from API
+const contentCache = {};
+async function fetchContent(seccionId, pageIdx) {
+    const page = PAGES.find(p => p.seccionId === seccionId && p.pageIdx === pageIdx);
+    if (!page) return '';
+    
+    const cacheKey = `${page.seccionId}-${page.pageIdx}-${page.tipo}`;
+    if (contentCache[cacheKey]) return contentCache[cacheKey];
+    
+    let url;
+    if (page.tipo === 'seccion') {
+        url = `/courses/${CURSO_ID}/api/contenido/${page.seccionId}/`;
+    } else {
+        url = `/courses/${CURSO_ID}/api/contenido/${page.seccionId}/pagina/${page.paginaDbId}/`;
+    }
+    
+    try {
+        const resp = await fetch(url);
+        if (resp.ok) {
+            const html = await resp.text();
+            contentCache[cacheKey] = html;
+            return html;
+        }
+    } catch (e) {
+        console.error('Error fetching content:', e);
+    }
+    return '';
 }
 
 // Build flat navigation pages: each seccion content + each page inside it
 let PAGES = [];
 SECCIONES.forEach((sec, secIdx) => {
-    const secContent = getTemplateContent(sec.contentId);
-    // If section has its own content, add it as first page
-    if (secContent) {
-        PAGES.push({
-            seccionId: sec.id,
-            seccionIdx: secIdx,
-            pageIdx: 0,
-            titulo: sec.titulo,
-            subtitulo: 'Información general',
-            contentId: sec.contentId,
-            tipo: 'seccion'
-        });
-    }
+    // If section has content or interactive elements, add as first page
+    PAGES.push({
+        seccionId: sec.id,
+        seccionIdx: secIdx,
+        pageIdx: 0,
+        paginaDbId: null,
+        titulo: sec.titulo,
+        subtitulo: 'Información general',
+        tipo: 'seccion'
+    });
     // Add each page
     sec.paginas.forEach((p, pIdx) => {
         PAGES.push({
             seccionId: sec.id,
             seccionIdx: secIdx,
             pageIdx: pIdx + 1,
+            paginaDbId: p.id,
             titulo: p.titulo,
             subtitulo: sec.titulo,
-            contentId: p.contentId,
             tipo: 'pagina'
         });
     });
-    // If section has no content and no pages, add placeholder
-    if (!secContent && sec.paginas.length === 0) {
-        PAGES.push({
-            seccionId: sec.id,
-            seccionIdx: secIdx,
-            pageIdx: 0,
-            titulo: sec.titulo,
-            subtitulo: '',
-            contentId: null,
-            tipo: 'seccion'
-        });
-    }
 });
 
 let currentPageIdx = 0;
@@ -855,7 +854,7 @@ function volverASecciones() {
     mostrarPagina(targetIdx);
 }
 
-function mostrarPagina(idx) {
+async function mostrarPagina(idx) {
     if (idx < 0 || idx >= totalPages) return;
     currentPageIdx = idx;
     const page = PAGES[idx];
@@ -867,13 +866,21 @@ function mostrarPagina(idx) {
     document.getElementById('content-subtitle').textContent = page.subtitulo || '';
     document.getElementById('section-badge').innerHTML = `📖 ${sec.titulo}`;
 
-    // Update content — read from <template> element
+    // Fetch content via API
     const lessonEl = document.getElementById('lesson-content');
-    const htmlContent = page.contentId ? getTemplateContent(page.contentId) : '';
+    lessonEl.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;">⏳ Cargando...</div>';
+    
+    const htmlContent = await fetchContent(page.seccionId, page.pageIdx);
     if (htmlContent) {
-        lessonEl.innerHTML = htmlContent;
-        // Initialize interactive hotspots
-        inicializarHotspots(lessonEl);
+        // Check if it's a full HTML document — render in iframe
+        if (htmlContent.toLowerCase().includes('<!doctype') || htmlContent.trim().toLowerCase().startsWith('<html')) {
+            lessonEl.innerHTML = '<iframe class="lesson-iframe" srcdoc="" style="width:100%;min-height:70vh;border:none;border-radius:8px;background:#fff;"></iframe>';
+            lessonEl.querySelector('.lesson-iframe').srcdoc = htmlContent;
+        } else {
+            lessonEl.innerHTML = htmlContent;
+            // Initialize interactive hotspots
+            inicializarHotspots(lessonEl);
+        }
     } else {
         lessonEl.innerHTML = '<div class="empty-lesson"><div class="icon">📄</div><p>Esta lección no tiene contenido disponible.</p></div>';
     }

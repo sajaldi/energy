@@ -88,6 +88,8 @@ urlpatterns = [
     path('admin/cotizaciones/<int:pk>/ver/', views.ver_cotizacion, name='ver_cotizacion'),
     path('admin/cotizaciones/<int:pk>/pdf/', views.cotizacion_pdf, name='cotizacion_pdf'),
     path('api/items-por-disciplina/<int:disciplina_id>/', views.api_items_por_disciplina, name='api_items_por_disciplina'),
+    path('api/cotizaciones/<int:pk>/datos/', views.api_cotizacion_datos, name='api_cotizacion_datos'),
+    path('api/cotizaciones/<int:pk>/guardar/', views.api_cotizacion_guardar, name='api_cotizacion_guardar'),
 
     # Catálogo de Artículos Predefinidos
     path('admin/catalogo/', views.lista_items_predefinidos, name='lista_items_predefinidos'),

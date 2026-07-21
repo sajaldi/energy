@@ -1395,6 +1395,8 @@ class ItemCotizacion(models.Model):
         verbose_name="Descuento %"
     )
     orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+    aprobado = models.BooleanField(default=False, verbose_name="Aprobado para ejecución")
+    aprobado_en = models.DateTimeField(null=True, blank=True, verbose_name="Aprobado el")
     @property
     def total(self):
         return self.cantidad * self.precio_unitario * (1 - self.descuento_porcentaje / 100)

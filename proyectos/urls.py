@@ -50,4 +50,13 @@ urlpatterns = [
     path('proyecto/<int:pk>/planos/<int:plano_id>/areas/crear/', views.crear_area_plano_api, name='crear_area_plano_api'),
     path('proyecto/<int:pk>/planos/<int:plano_id>/areas/<int:area_id>/editar/', views.editar_area_plano_api, name='editar_area_plano_api'),
     path('proyecto/<int:pk>/planos/<int:plano_id>/areas/<int:area_id>/eliminar/', views.eliminar_area_plano_api, name='eliminar_area_plano_api'),
+
+    # Elementos del Proyecto
+    path('proyecto/<int:pk>/elementos/', views.api_elementos_lista, name='api_elementos_lista'),
+    path('proyecto/<int:pk>/elementos/crear/', views.api_elemento_crear, name='api_elemento_crear'),
+    path('proyecto/<int:pk>/elementos/<int:elemento_id>/actualizar/', views.api_elemento_actualizar, name='api_elemento_actualizar'),
+    path('proyecto/<int:pk>/elementos/<int:elemento_id>/eliminar/', views.api_elemento_eliminar, name='api_elemento_eliminar'),
+    path('proyecto/<int:pk>/elementos/<int:elemento_id>/documentos/', views.api_elemento_documentos, name='api_elemento_documentos'),
+    path('proyecto/<int:pk>/elementos/<int:elemento_id>/documentos/subir/', views.api_elemento_subir_documento, name='api_elemento_subir_documento'),
+    path('proyecto/<int:pk>/elementos/<int:elemento_id>/documentos/<int:doc_id>/eliminar/', views.api_elemento_eliminar_documento, name='api_elemento_eliminar_documento'),
 ]

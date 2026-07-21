@@ -697,9 +697,39 @@
           center();
           overlay.classList.add('hidden');
           setZoomLabel();
+          autoOpenPin();
         });
       });
     });
+  }
+
+  function autoOpenPin() {
+    var params = new URLSearchParams(window.location.search);
+    var pinId = parseInt(params.get('pin_id'), 10);
+    if (!pinId) return;
+    var pinData = null;
+    for (var i = 0; i < PINES_DATA.length; i++) {
+      if (PINES_DATA[i].id === pinId) { pinData = PINES_DATA[i]; break; }
+    }
+    if (!pinData) return;
+    if (curPage !== pinData.pagina) {
+      renderPage(pinData.pagina).then(function() {
+        highlightAndOpenPin(pinData);
+      });
+    } else {
+      highlightAndOpenPin(pinData);
+    }
+  }
+
+  function highlightAndOpenPin(pinData) {
+    openDetailModal(pinData);
+    var markers = pinLayer.querySelectorAll('.pin-marker');
+    markers.forEach(function(m) { m.style.outline = 'none'; });
+    var target = pinLayer.querySelector('[data-pin-id="' + pinData.id + '"]');
+    if (target) {
+      target.style.outline = '3px solid #fff';
+      target.style.outlineOffset = '2px';
+    }
   }
 
   // Pan events

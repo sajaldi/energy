@@ -3195,3 +3195,102 @@ def api_buscar_articulos(request):
         'es_compuesto': i.es_compuesto,
     } for i in items]
     return JsonResponse(data, safe=False)
+
+
+@staff_required
+def api_cotizacion_datos(request, pk):
+    """Devuelve JSON con cabecera + items de una cotización."""
+    cotizacion = get_object_or_404(
+        Cotizacion.objects.select_related('disciplina', 'proyecto', 'creado_por'),
+        pk=pk
+    )
+    items_qs = cotizacion.items.select_related('disciplina').order_by('orden')
+
+    from collections import defaultdict
+    grupos = defaultdict(list)
+    for item in items_qs:
+        key = (item.area or '', item.disciplina_id)
+        grupos[key].append({
+            'id': item.id,
+            'area': item.area or '',
+            'disciplina_id': item.disciplina_id,
+            'disciplina_nombre': item.disciplina.nombre if item.disciplina else 'Sin disciplina',
+            'item_predefinido_id': item.item_predefinido_id,
+            'descripcion': item.descripcion,
+            'unidad_medida': item.unidad_medida,
+            'cantidad': float(item.cantidad),
+            'precio_unitario': float(item.precio_unitario),
+            'descuento_porcentaje': float(item.descuento_porcentaje),
+            'aprobado': item.aprobado,
+        })
+
+    secciones = []
+    for (area, disc_id), items_list in grupos.items():
+        secciones.append({
+            'area': area,
+            'disciplina_id': disc_id,
+            'disciplina_nombre': items_list[0]['disciplina_nombre'],
+            'items': items_list,
+        })
+
+    return JsonResponse({
+        'id': cotizacion.id,
+        'numero': cotizacion.numero,
+        'fecha': cotizacion.fecha.isoformat() if cotizacion.fecha else None,
+        'version': cotizacion.version,
+        'valida_hasta': cotizacion.valida_hasta.isoformat() if cotizacion.valida_hasta else None,
+        'estado': cotizacion.estado,
+        'notas': cotizacion.notas,
+        'proyecto_id': cotizacion.proyecto_id,
+        'creado_por': cotizacion.creado_por.username if cotizacion.creado_por else None,
+        'total': float(cotizacion.total),
+        'secciones': secciones,
+    })
+
+
+@staff_required
+@require_POST
+def api_cotizacion_guardar(request, pk):
+    """Guarda cabecera + items de una cotización desde JSON."""
+    import json
+    cotizacion = get_object_or_404(Cotizacion, pk=pk)
+    data = json.loads(request.body)
+
+    if data.get('fecha'):
+        cotizacion.fecha = data['fecha']
+    if data.get('valida_hasta'):
+        cotizacion.valida_hasta = data['valida_hasta']
+    if data.get('version'):
+        cotizacion.version = int(data['version'])
+    if data.get('notas') is not None:
+        cotizacion.notas = data['notas']
+    if data.get('estado') and data['estado'] in dict(Cotizacion.ESTADOS):
+        cotizacion.estado = data['estado']
+    cotizacion.save()
+
+    items = data.get('items', [])
+    cotizacion.items.all().delete()
+    from django.utils import timezone
+    for idx, item in enumerate(items):
+        aprobado = item.get('aprobado', False)
+        ItemCotizacion.objects.create(
+            cotizacion=cotizacion,
+            item_predefinido_id=item.get('item_predefinido_id') or None,
+            disciplina_id=item.get('disciplina_id') or None,
+            area=item.get('area', '') or '',
+            descripcion=item['descripcion'],
+            unidad_medida=item['unidad_medida'],
+            cantidad=item['cantidad'],
+            precio_unitario=item['precio_unitario'],
+            descuento_porcentaje=item.get('descuento_porcentaje', 0),
+            aprobado=aprobado,
+            aprobado_en=timezone.now() if aprobado else None,
+            orden=idx,
+        )
+
+    return JsonResponse({
+        'ok': True,
+        'numero': cotizacion.numero,
+        'total': float(cotizacion.total),
+        'items_count': cotizacion.items.count(),
+    })

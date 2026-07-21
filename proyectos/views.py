@@ -1,13 +1,14 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, FileResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.urls import reverse
 from django import forms
 from django.db import IntegrityError
-from .models import Actividad, Proyecto, DocumentoProyecto, ObservacionProyecto, PlanoProyecto, PinObservacionProyecto, FotoPinObservacion, AreaPlanoProyecto
+from .models import Actividad, Proyecto, DocumentoProyecto, ObservacionProyecto, PlanoProyecto, PinObservacionProyecto, FotoPinObservacion, AreaPlanoProyecto, ElementoProyecto, ElementoDocumento
 from documentos.models import Carpeta, Documento, Revision, TipoDocumento, Disciplina
 import json
 import os
@@ -356,10 +357,11 @@ def proyecto_detalle_fiori(request, pk):
             'custom_class': f'gantt-item-{act.prioridad.lower()}'
         })
 
-    from .models import ObservacionProyecto
+    from .models import ObservacionProyecto, PinObservacionProyecto
+    from documentos.models import Disciplina
     observaciones = ObservacionProyecto.objects.filter(proyecto=proyecto).select_related(
         'usuario', 'documento_proyecto__documento'
-    ).order_by('-fecha_observacion')
+    ).prefetch_related('pines_plano__plano').order_by('-fecha_observacion')
     estados_obs = ObservacionProyecto.ESTADOS
 
     context = {
@@ -378,6 +380,7 @@ def proyecto_detalle_fiori(request, pk):
         'cotizaciones': proyecto.cotizaciones.select_related(
             'disciplina', 'creado_por'
         ).prefetch_related('items').order_by('-creado_en'),
+        'disciplinas': Disciplina.objects.all().order_by('nombre'),
     }
     return render(request, 'proyectos/proyecto_detalle_fiori.html', context)
 
@@ -1384,3 +1387,137 @@ def eliminar_area_plano_api(request, pk, plano_id, area_id):
     area = get_object_or_404(AreaPlanoProyecto, pk=area_id, plano=plano)
     area.delete()
     return JsonResponse({'status': 'success'})
+
+
+@staff_member_required
+def api_elementos_lista(request, pk):
+    """Lista los elementos del proyecto."""
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    elementos = proyecto.elementos.select_related('item_cotizacion__cotizacion').prefetch_related('documentos').order_by('orden')
+    data = []
+    for e in elementos:
+        docs = [{'id': d.id, 'url': d.archivo.url, 'descripcion': d.descripcion, 'tipo': d.tipo} for d in e.documentos.all()]
+        data.append({
+            'id': e.id,
+            'nombre': e.nombre,
+            'descripcion': e.descripcion,
+            'estado': e.estado,
+            'fecha_inicio': e.fecha_ejecucion_inicio.isoformat() if e.fecha_ejecucion_inicio else None,
+            'fecha_fin': e.fecha_ejecucion_fin.isoformat() if e.fecha_ejecucion_fin else None,
+            'cantidad': float(e.cantidad),
+            'orden': e.orden,
+            'item_cotizacion_id': e.item_cotizacion_id,
+            'item_descripcion': str(e.item_cotizacion) if e.item_cotizacion else None,
+            'cotizacion_numero': e.item_cotizacion.cotizacion.numero if e.item_cotizacion and e.item_cotizacion.cotizacion else None,
+            'documentos': docs,
+        })
+    return JsonResponse(data, safe=False)
+
+
+@staff_member_required
+@require_POST
+def api_elemento_crear(request, pk):
+    """Crea un elemento manualmente o desde item de cotización."""
+    import json
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    data = json.loads(request.body)
+    item_id = data.get('item_cotizacion_id')
+
+    if item_id:
+        from presupuestos.models import ItemCotizacion
+        item = get_object_or_404(ItemCotizacion, pk=item_id)
+        nombre = data.get('nombre') or item.descripcion[:300]
+        elemento = ElementoProyecto.objects.create(
+            proyecto=proyecto,
+            item_cotizacion=item,
+            nombre=nombre,
+            descripcion=data.get('descripcion', ''),
+            cantidad=float(data.get('cantidad', item.cantidad)),
+            estado='PENDIENTE',
+            orden=proyecto.elementos.count() + 1,
+        )
+    else:
+        elemento = ElementoProyecto.objects.create(
+            proyecto=proyecto,
+            nombre=data['nombre'],
+            descripcion=data.get('descripcion', ''),
+            cantidad=float(data.get('cantidad', 1)),
+            fecha_ejecucion_inicio=data.get('fecha_inicio') or None,
+            fecha_ejecucion_fin=data.get('fecha_fin') or None,
+            estado='PENDIENTE',
+            orden=proyecto.elementos.count() + 1,
+        )
+    return JsonResponse({'ok': True, 'id': elemento.id})
+
+
+@staff_member_required
+@require_POST
+def api_elemento_actualizar(request, pk, elemento_id):
+    """Actualiza un elemento del proyecto."""
+    import json
+    elemento = get_object_or_404(ElementoProyecto, pk=elemento_id, proyecto_id=pk)
+    data = json.loads(request.body)
+    if 'nombre' in data:
+        elemento.nombre = data['nombre']
+    if 'descripcion' in data:
+        elemento.descripcion = data['descripcion']
+    if 'estado' in data and data['estado'] in dict(ElementoProyecto.ESTADOS):
+        elemento.estado = data['estado']
+    if 'fecha_inicio' in data:
+        elemento.fecha_ejecucion_inicio = data['fecha_inicio'] or None
+    if 'fecha_fin' in data:
+        elemento.fecha_ejecucion_fin = data['fecha_fin'] or None
+    if 'cantidad' in data:
+        elemento.cantidad = float(data['cantidad'])
+    elemento.save()
+    return JsonResponse({'ok': True})
+
+
+@staff_member_required
+@require_POST
+def api_elemento_eliminar(request, pk, elemento_id):
+    """Elimina un elemento del proyecto."""
+    elemento = get_object_or_404(ElementoProyecto, pk=elemento_id, proyecto_id=pk)
+    elemento.delete()
+    return JsonResponse({'ok': True})
+
+
+@staff_member_required
+def api_elemento_documentos(request, pk, elemento_id):
+    """Lista documentos de un elemento."""
+    elemento = get_object_or_404(ElementoProyecto, pk=elemento_id, proyecto_id=pk)
+    docs = [{
+        'id': d.id,
+        'url': d.archivo.url,
+        'descripcion': d.descripcion,
+        'tipo': d.tipo,
+        'creado_en': d.creado_en.isoformat(),
+    } for d in elemento.documentos.all()]
+    return JsonResponse(docs, safe=False)
+
+
+@staff_member_required
+@require_POST
+def api_elemento_subir_documento(request, pk, elemento_id):
+    """Sube un documento/foto a un elemento."""
+    elemento = get_object_or_404(ElementoProyecto, pk=elemento_id, proyecto_id=pk)
+    archivo = request.FILES.get('archivo') or request.FILES.get('foto')
+    if not archivo:
+        return JsonResponse({'error': 'No se recibió archivo'}, status=400)
+    doc = ElementoDocumento.objects.create(
+        elemento=elemento,
+        archivo=archivo,
+        descripcion=request.POST.get('descripcion', ''),
+        tipo=request.POST.get('tipo', 'FOTO'),
+        subido_por=request.user,
+    )
+    return JsonResponse({'ok': True, 'id': doc.id, 'url': doc.archivo.url})
+
+
+@staff_member_required
+@require_POST
+def api_elemento_eliminar_documento(request, pk, elemento_id, doc_id):
+    """Elimina un documento de un elemento."""
+    doc = get_object_or_404(ElementoDocumento, pk=doc_id, elemento_id=elemento_id, elemento__proyecto_id=pk)
+    doc.delete()
+    return JsonResponse({'ok': True})

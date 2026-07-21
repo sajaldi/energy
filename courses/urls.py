@@ -27,6 +27,9 @@ urlpatterns = [
     path('admin/acordeon/guardar/', views.guardar_acordeones, name='guardar_acordeones'),
     # Carruseles
     path('admin/carrusel/guardar/', views.guardar_carrusel, name='guardar_carrusel'),
+    # API contenido de sección/página (para viewer interactivo)
+    path('<int:pk>/api/contenido/<int:seccion_id>/', views.api_contenido_seccion, name='api_contenido_seccion'),
+    path('<int:pk>/api/contenido/<int:seccion_id>/pagina/<int:pagina_id>/', views.api_contenido_pagina, name='api_contenido_pagina'),
     path('admin/<int:pk>/libro-pdf/', views.libro_pdf, name='libro_pdf'),
     path('<int:pk>/', views.detalle_curso, name='detalle'),
     path('<int:pk>/certificado/', views.certificado_curso, name='certificado'),

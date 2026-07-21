@@ -1587,3 +1587,103 @@ def mis_cursos_realizados(request):
     return render(request, 'courses/cursos_realizados.html', {
         'cursos': cursos,
     })
+
+
+# ══════════════════════════════════════════════════════════════
+# API contenido para viewer interactivo
+# ══════════════════════════════════════════════════════════════
+
+@login_required
+def api_contenido_seccion(request, pk, seccion_id):
+    """Retorna el HTML de una sección (contenido + elementos interactivos)."""
+    curso = get_object_or_404(Curso, pk=pk, activo=True)
+    seccion = get_object_or_404(Seccion, pk=seccion_id, curso=curso)
+    
+    html = seccion.contenido_html or ''
+    
+    # Append interactive images
+    for img in seccion.imagenes_interactivas.prefetch_related('hotspots').all():
+        html += _render_imagen_interactiva(img)
+    
+    # Append accordions
+    acordeones = list(seccion.acordeones.all())
+    if acordeones:
+        html += _render_acordeones(acordeones)
+    
+    # Append carousels
+    for car in seccion.carruseles.prefetch_related('tarjetas').all():
+        html += _render_carrusel(car)
+    
+    return HttpResponse(html, content_type='text/html; charset=utf-8')
+
+
+@login_required
+def api_contenido_pagina(request, pk, seccion_id, pagina_id):
+    """Retorna el HTML de una página (contenido + elementos interactivos)."""
+    curso = get_object_or_404(Curso, pk=pk, activo=True)
+    seccion = get_object_or_404(Seccion, pk=seccion_id, curso=curso)
+    pagina = get_object_or_404(Pagina, pk=pagina_id, seccion=seccion)
+    
+    html = pagina.contenido_html or ''
+    
+    # Append interactive images
+    for img in pagina.imagenes_interactivas.prefetch_related('hotspots').all():
+        html += _render_imagen_interactiva(img)
+    
+    # Append accordions
+    acordeones = list(pagina.acordeones.all())
+    if acordeones:
+        html += _render_acordeones(acordeones)
+    
+    # Append carousels
+    for car in pagina.carruseles.prefetch_related('tarjetas').all():
+        html += _render_carrusel(car)
+    
+    return HttpResponse(html, content_type='text/html; charset=utf-8')
+
+
+def _render_imagen_interactiva(img):
+    hotspots_html = ''
+    for hs in img.hotspots.all():
+        from django.utils.html import escape
+        hotspots_html += (
+            f'<div class="hs-bubble" data-numero="{hs.numero}" data-x="{hs.pos_x}" '
+            f'data-y="{hs.pos_y}" data-titulo="{escape(hs.titulo)}" '
+            f'data-contenido="{escape(hs.contenido_html)}">{hs.numero}</div>'
+        )
+    return (
+        f'<div class="interactive-image-wrap" data-img-id="{img.id}">'
+        f'<img src="{img.imagen.url}" alt="{img.titulo}" class="interactive-base-img">'
+        f'{hotspots_html}</div>'
+    )
+
+
+def _render_acordeones(acordeones):
+    items = ''
+    for ac in acordeones:
+        items += (
+            f'<div class="accordion-item">'
+            f'<div class="accordion-header" onclick="this.parentElement.classList.toggle(\'open\')">'
+            f'<span class="accordion-title">{ac.titulo}</span>'
+            f'<span class="accordion-icon">+</span></div>'
+            f'<div class="accordion-body">{ac.contenido_html}</div></div>'
+        )
+    return f'<div class="accordion-group">{items}</div>'
+
+
+def _render_carrusel(car):
+    cards = ''
+    for t in car.tarjetas.all():
+        img_html = f'<img src="{t.imagen.url}" class="carousel-card-img" alt="{t.titulo}">' if t.imagen else ''
+        cards += (
+            f'<div class="carousel-card">{img_html}<h4>{t.titulo}</h4>'
+            f'<div class="card-content">{t.contenido_html}</div></div>'
+        )
+    title_html = f'<div class="carousel-title">{car.titulo}</div>' if car.titulo else ''
+    return (
+        f'<div class="carousel-wrap">{title_html}<div class="carousel-container">'
+        f'<button class="carousel-nav prev" onclick="this.nextElementSibling.scrollBy({{left:-280,behavior:\'smooth\'}})">‹</button>'
+        f'<div class="carousel-track">{cards}</div>'
+        f'<button class="carousel-nav next" onclick="this.previousElementSibling.scrollBy({{left:280,behavior:\'smooth\'}})">›</button>'
+        f'</div></div>'
+    )

@@ -379,4 +379,72 @@ def eliminar_archivo_plano(sender, instance, **kwargs):
         try:
             instance.archivo.delete(save=False)
         except Exception:
-            pass  # Si falla la eliminación del archivo, no bloquear la operación
+            pass
+
+
+class ElementoProyecto(models.Model):
+    ESTADOS = (
+        ('PENDIENTE', 'Pendiente'),
+        ('EN_PROCESO', 'En Proceso'),
+        ('COMPLETADO', 'Completado'),
+        ('CANCELADO', 'Cancelado'),
+    )
+
+    proyecto = models.ForeignKey(
+        Proyecto, on_delete=models.CASCADE,
+        related_name='elementos', verbose_name="Proyecto"
+    )
+    item_cotizacion = models.ForeignKey(
+        'presupuestos.ItemCotizacion', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='elementos_proyecto',
+        verbose_name="Item de Cotización"
+    )
+    nombre = models.CharField(max_length=300, verbose_name="Nombre del elemento")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='PENDIENTE', verbose_name="Estado")
+    fecha_ejecucion_inicio = models.DateField(null=True, blank=True, verbose_name="Fecha inicio ejecución")
+    fecha_ejecucion_fin = models.DateField(null=True, blank=True, verbose_name="Fecha fin ejecución")
+    cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=1, verbose_name="Cantidad")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Elemento de Proyecto"
+        verbose_name_plural = "Elementos del Proyecto"
+        ordering = ['orden', 'creado_en']
+
+    def __str__(self):
+        return f"{self.proyecto.codigo} - {self.nombre}"
+
+
+class ElementoDocumento(models.Model):
+    elemento = models.ForeignKey(
+        ElementoProyecto, on_delete=models.CASCADE,
+        related_name='documentos', verbose_name="Elemento"
+    )
+    archivo = models.FileField(
+        upload_to='proyectos/elementos/',
+        storage=minio_storage,
+        max_length=500,
+        verbose_name="Archivo / Foto"
+    )
+    descripcion = models.CharField(max_length=300, blank=True, verbose_name="Descripción")
+    tipo = models.CharField(
+        max_length=20, default='FOTO',
+        choices=[('FOTO', 'Foto'), ('DOCUMENTO', 'Documento'), ('OTRO', 'Otro')],
+        verbose_name="Tipo"
+    )
+    subido_por = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name="Subido por"
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Documento de Elemento"
+        verbose_name_plural = "Documentos del Elemento"
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f"{self.elemento.nombre} - {self.descripcion or 'Sin descripción'}"  # Si falla la eliminación del archivo, no bloquear la operación
