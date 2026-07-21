@@ -3271,9 +3271,10 @@ def api_cotizacion_guardar(request, pk):
     items = data.get('items', [])
     cotizacion.items.all().delete()
     from django.utils import timezone
+    nuevos_items = []
     for idx, item in enumerate(items):
         aprobado = item.get('aprobado', False)
-        ItemCotizacion.objects.create(
+        obj = ItemCotizacion.objects.create(
             cotizacion=cotizacion,
             item_predefinido_id=item.get('item_predefinido_id') or None,
             disciplina_id=item.get('disciplina_id') or None,
@@ -3287,10 +3288,37 @@ def api_cotizacion_guardar(request, pk):
             aprobado_en=timezone.now() if aprobado else None,
             orden=idx,
         )
+        nuevos_items.append(obj)
+
+    # Auto-crear elementos en el proyecto para items aprobados
+    elementos_creados = 0
+    if cotizacion.proyecto:
+        from proyectos.models import ElementoProyecto
+        for item_obj in nuevos_items:
+            if not item_obj.aprobado:
+                continue
+            # Check if already exists by matching description + cotizacion
+            ya_existe = ElementoProyecto.objects.filter(
+                proyecto=cotizacion.proyecto,
+                nombre=item_obj.descripcion[:300],
+                item_cotizacion__cotizacion=cotizacion,
+            ).exists()
+            if not ya_existe:
+                ElementoProyecto.objects.create(
+                    proyecto=cotizacion.proyecto,
+                    item_cotizacion=item_obj,
+                    nombre=item_obj.descripcion[:300],
+                    descripcion=f"Área: {item_obj.area}" if item_obj.area else '',
+                    cantidad=item_obj.cantidad,
+                    estado='PENDIENTE',
+                    orden=cotizacion.proyecto.elementos.count() + 1,
+                )
+                elementos_creados += 1
 
     return JsonResponse({
         'ok': True,
         'numero': cotizacion.numero,
         'total': float(cotizacion.total),
         'items_count': cotizacion.items.count(),
+        'elementos_creados': elementos_creados,
     })
