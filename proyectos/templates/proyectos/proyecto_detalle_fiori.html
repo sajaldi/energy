@@ -487,6 +487,10 @@
         .btn-plano-delete:hover {
             background: #990000;
         }
+        /* Gantt: Elementos del proyecto */
+        .gantt-item-elemento .bar { fill: #0e7c86 !important; }
+        .gantt-item-elemento .bar-progress { fill: #14b8a6 !important; }
+        .gantt-item-elemento .bar-label { fill: #fff !important; }
     </style>
 </head>
 <body id="pageBody">
@@ -2150,12 +2154,26 @@
         }
 
         async function saveActivityDates(id, start, end) {
-            // Reutilizamos el endpoint de bulk o el unitario
+            const fechaInicio = start.toISOString().split('T')[0];
+            const fechaFin = end.toISOString().split('T')[0];
+            
+            // Check if it's an elemento (id starts with 'elem-')
+            if (typeof id === 'string' && id.startsWith('elem-')) {
+                const elemId = id.replace('elem-', '');
+                await fetch('/proyectos/proyecto/' + {{ proyecto.pk }} + '/elementos/' + elemId + '/actualizar/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ fecha_inicio: fechaInicio, fecha_fin: fechaFin })
+                });
+                return;
+            }
+            
+            // Regular activity
             const data = {
                 actividades: [{
                     id: id,
-                    fecha_inicio: start.toISOString().split('T')[0],
-                    fecha_fin: end.toISOString().split('T')[0]
+                    fecha_inicio: fechaInicio,
+                    fecha_fin: fechaFin
                 }]
             };
             await fetch('{% url "proyectos:actividades_bulk_update" proyecto.id %}', {

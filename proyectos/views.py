@@ -357,6 +357,23 @@ def proyecto_detalle_fiori(request, pk):
             'custom_class': f'gantt-item-{act.prioridad.lower()}'
         })
 
+    # Agregar elementos del proyecto al Gantt (los que tienen fechas)
+    for elem in proyecto.elementos.select_related('disciplina').filter(
+        fecha_ejecucion_inicio__isnull=False
+    ):
+        progress = 100 if elem.estado == 'COMPLETADO' else (50 if elem.estado == 'EN_PROCESO' else 0)
+        disc_name = elem.disciplina.nombre if elem.disciplina else ''
+        prefix = f"[{disc_name}] " if disc_name else ""
+        tasks.append({
+            'id': f'elem-{elem.id}',
+            'name': f'{prefix}{elem.nombre}',
+            'start': elem.fecha_ejecucion_inicio.isoformat(),
+            'end': (elem.fecha_ejecucion_fin or elem.fecha_ejecucion_inicio).isoformat(),
+            'progress': progress,
+            'dependencies': [],
+            'custom_class': 'gantt-item-elemento'
+        })
+
     from .models import ObservacionProyecto, PinObservacionProyecto
     from documentos.models import Disciplina
     observaciones = ObservacionProyecto.objects.filter(proyecto=proyecto).select_related(
