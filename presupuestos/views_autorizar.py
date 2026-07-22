@@ -30,8 +30,8 @@ def requisicion_autorizar(request, pk):
         for art in requisicion.articulos.all():
             articulos_list.append({
                 "descripcion": art.cr8ca_articulo or "",
-                "cantidad": float(art.cr8ca_cantidad),
-                "costo_unitario": float(art.cr8ca_costoaproximado or 0),
+                "cantidad": int(art.cr8ca_cantidad),
+                "costo_unitario": int(round(float(art.cr8ca_costoaproximado or 0))),
                 "subtotal": float(art.subtotal),
                 "proveedor_sugerido": art.proveedor.nombre if art.proveedor else ""
             })
