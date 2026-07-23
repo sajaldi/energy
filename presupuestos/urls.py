@@ -87,6 +87,7 @@ urlpatterns = [
     path('admin/cotizaciones/<int:pk>/', views.editar_cotizacion, name='editar_cotizacion'),
     path('admin/cotizaciones/<int:pk>/ver/', views.ver_cotizacion, name='ver_cotizacion'),
     path('admin/cotizaciones/<int:pk>/pdf/', views.cotizacion_pdf, name='cotizacion_pdf'),
+    path('admin/cotizaciones/<int:pk>/excel/', views.cotizacion_excel, name='cotizacion_excel'),
     path('api/items-por-disciplina/<int:disciplina_id>/', views.api_items_por_disciplina, name='api_items_por_disciplina'),
     path('api/cotizaciones/<int:pk>/datos/', views.api_cotizacion_datos, name='api_cotizacion_datos'),
     path('api/cotizaciones/<int:pk>/guardar/', views.api_cotizacion_guardar, name='api_cotizacion_guardar'),
@@ -130,4 +131,8 @@ urlpatterns = [
     path('api/paquetes/<int:pk>/importar/', views_import.api_paquete_importar, name='api_paquete_importar'),
     path('api/paquetes/importar/progress/', views_import.api_paquete_importar_progress, name='api_paquete_importar_progress'),
     path('api/paquetes/descargar-template/', views_import.api_paquete_descargar_template, name='api_paquete_descargar_template'),
+
+    # Partida Presupuestaria - Admin Fiori
+    path('partidas/admin/', views.partida_admin_fiori, name='partida_admin_fiori'),
+    path('api/partidas/admin/', views.partida_admin_api, name='partida_admin_api'),
 ]

@@ -2760,6 +2760,143 @@ def cotizacion_pdf(request, pk):
 
 
 @staff_required
+def cotizacion_excel(request, pk):
+    """Exportar cotización a Excel con filas colapsables por Nivel (área) y Disciplina."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from itertools import groupby
+
+    cotizacion = get_object_or_404(Cotizacion.objects.select_related('proyecto'), pk=pk)
+    items = cotizacion.items.select_related('disciplina').order_by('area', 'disciplina__nombre', 'orden')
+    items_list = list(items)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Cotización"
+
+    # Estilos
+    header_font = Font(bold=True, size=11, color="FFFFFF")
+    header_fill = PatternFill(start_color="2E7D32", end_color="2E7D32", fill_type="solid")
+    area_font = Font(bold=True, size=11, color="1B5E20")
+    area_fill = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
+    disc_font = Font(bold=True, size=10, color="0D47A1")
+    disc_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+    money_fmt = '#,##0.00'
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    # Encabezado del documento
+    ws.merge_cells('A1:G1')
+    ws['A1'] = f"Cotización #{cotizacion.id} — {cotizacion.proyecto or 'Sin proyecto'}"
+    ws['A1'].font = Font(bold=True, size=14)
+    ws.merge_cells('A2:G2')
+    ws['A2'] = f"Fecha: {cotizacion.fecha} | Estado: {cotizacion.get_estado_display()} | Total: L. {cotizacion.total:,.2f}"
+    ws['A2'].font = Font(size=10, italic=True)
+
+    # Headers de columnas
+    headers = ['#', 'Descripción', 'Unidad', 'Cantidad', 'Precio Unit.', 'Desc. %', 'Total']
+    row_num = 4
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=row_num, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+
+    # Anchos de columna
+    col_widths = [6, 55, 10, 12, 15, 10, 18]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    row_num += 1
+    area_counter = 0
+
+    for area, area_items_iter in groupby(items_list, key=lambda x: x.area):
+        area_counter += 1
+        area_items_list = list(area_items_iter)
+        area_total = sum(float(item.total) for item in area_items_list)
+
+        # Fila de Área (Nivel 1 - outline level 1)
+        area_name = area or 'Sin área'
+        ws.merge_cells(start_row=row_num, start_column=1, end_row=row_num, end_column=6)
+        cell = ws.cell(row=row_num, column=1, value=f"{area_counter}. {area_name}")
+        cell.font = area_font
+        cell.fill = area_fill
+        for c in range(1, 8):
+            ws.cell(row=row_num, column=c).fill = area_fill
+            ws.cell(row=row_num, column=c).border = thin_border
+        ws.cell(row=row_num, column=7, value=area_total)
+        ws.cell(row=row_num, column=7).font = area_font
+        ws.cell(row=row_num, column=7).number_format = money_fmt
+        ws.cell(row=row_num, column=7).fill = area_fill
+        row_num += 1
+
+        # Agrupar por disciplina dentro del área
+        disc_counter = 0
+        for disc, disc_items_iter in groupby(area_items_list, key=lambda x: x.disciplina):
+            disc_counter += 1
+            disc_items = list(disc_items_iter)
+            disc_total = sum(float(item.total) for item in disc_items)
+            disc_name = disc.nombre if disc else 'Sin disciplina'
+
+            # Fila de Disciplina (Nivel 2 - outline level 1)
+            ws.merge_cells(start_row=row_num, start_column=1, end_row=row_num, end_column=6)
+            cell = ws.cell(row=row_num, column=1, value=f"  {area_counter}.{disc_counter} {disc_name}")
+            cell.font = disc_font
+            cell.fill = disc_fill
+            for c in range(1, 8):
+                ws.cell(row=row_num, column=c).fill = disc_fill
+                ws.cell(row=row_num, column=c).border = thin_border
+            ws.cell(row=row_num, column=7, value=disc_total)
+            ws.cell(row=row_num, column=7).font = disc_font
+            ws.cell(row=row_num, column=7).number_format = money_fmt
+            ws.cell(row=row_num, column=7).fill = disc_fill
+            ws.row_dimensions[row_num].outline_level = 1
+            row_num += 1
+
+            # Items individuales (outline level 2 - colapsables)
+            for i, item in enumerate(disc_items, 1):
+                ws.cell(row=row_num, column=1, value=f"{area_counter}.{disc_counter}.{i}")
+                ws.cell(row=row_num, column=2, value=item.descripcion)
+                ws.cell(row=row_num, column=3, value=item.unidad_medida)
+                ws.cell(row=row_num, column=4, value=float(item.cantidad))
+                ws.cell(row=row_num, column=5, value=float(item.precio_unitario))
+                ws.cell(row=row_num, column=5).number_format = money_fmt
+                ws.cell(row=row_num, column=6, value=float(item.descuento_porcentaje))
+                ws.cell(row=row_num, column=7, value=float(item.total))
+                ws.cell(row=row_num, column=7).number_format = money_fmt
+                for c in range(1, 8):
+                    ws.cell(row=row_num, column=c).border = thin_border
+                ws.row_dimensions[row_num].outline_level = 2
+                row_num += 1
+
+    # Fila de TOTAL GENERAL
+    row_num += 1
+    ws.merge_cells(start_row=row_num, start_column=1, end_row=row_num, end_column=6)
+    ws.cell(row=row_num, column=1, value="TOTAL GENERAL")
+    ws.cell(row=row_num, column=1).font = Font(bold=True, size=12)
+    ws.cell(row=row_num, column=7, value=float(cotizacion.total))
+    ws.cell(row=row_num, column=7).font = Font(bold=True, size=12)
+    ws.cell(row=row_num, column=7).number_format = money_fmt
+    for c in range(1, 8):
+        ws.cell(row=row_num, column=c).border = thin_border
+
+    # Configurar outline para que se muestre colapsado
+    ws.sheet_properties.outlinePr.summaryBelow = False
+
+    # Response
+    from django.http import HttpResponse
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"Cotizacion_{cotizacion.id}_{cotizacion.fecha}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response
+
+
+@staff_required
 def api_items_por_disciplina(request, disciplina_id):
     items = ItemPredefinido.objects.filter(disciplina_id=disciplina_id, activo=True).select_related('moneda')
     data = [{
@@ -3326,3 +3463,175 @@ def api_cotizacion_guardar(request, pk):
         'items_count': cotizacion.items.count(),
         'elementos_creados': elementos_creados,
     })
+
+
+# ──────────────────────────────────────────────
+# Partida Presupuestaria - Admin Fiori
+# ──────────────────────────────────────────────
+
+@login_required
+def partida_admin_fiori(request):
+    """Vista principal: solo carga presupuestos (Nivel 0). Hijos se cargan via AJAX."""
+    from documentos.models import Disciplina
+    from core.models import Departamento
+    from django.db.models import Count, Sum
+
+    presupuestos = PresupuestoAnual.objects.select_related('departamento').annotate(
+        num_partidas=Count('partidas')
+    ).filter(num_partidas__gt=0).order_by('-anio', 'nombre')
+
+    presupuestos_data = []
+    anios_set = set()
+    total_partidas = 0
+
+    for pres in presupuestos:
+        anios_set.add(pres.anio)
+        total_partidas += pres.num_partidas
+        # Aggregate totals at presupuesto level
+        agg = pres.partidas.aggregate(total_original=Sum('monto_proyectado'))
+        presupuestos_data.append({
+            'id': pres.id,
+            'nombre': str(pres),
+            'anio': pres.anio,
+            'departamento': pres.departamento.nombre if pres.departamento else None,
+            'num_partidas': pres.num_partidas,
+            'total_original': float(agg['total_original'] or 0),
+        })
+
+    disciplinas = Disciplina.objects.all().order_by('nombre')
+    departamentos = Departamento.objects.all().order_by('nombre')
+    anios = sorted(anios_set, reverse=True)
+
+    return render(request, 'admin/presupuestos/partida_admin_fiori.html', {
+        'presupuestos_data': presupuestos_data,
+        'disciplinas': disciplinas,
+        'departamentos': departamentos,
+        'anios': anios,
+        'total_partidas': total_partidas,
+        'title': 'Administrar Partidas Presupuestarias',
+    })
+
+
+@login_required
+def partida_admin_api(request):
+    """API CRUD para partidas presupuestarias (Fiori admin) + lazy loading."""
+    import json
+    from documentos.models import Disciplina
+    from core.models import Departamento
+
+    if request.method == 'GET':
+        action = request.GET.get('action')
+
+        if action == 'get':
+            partida_id = request.GET.get('id')
+            partida = get_object_or_404(PartidaPresupuestaria, pk=partida_id)
+            return JsonResponse({
+                'status': 'ok',
+                'partida': {
+                    'id': partida.id,
+                    'presupuesto_id': partida.presupuesto_anual_id,
+                    'disciplina_id': partida.disciplina_id,
+                    'descripcion': partida.descripcion,
+                    'monto_proyectado': float(partida.monto_proyectado),
+                    'departamentos_ids': list(partida.departamentos.values_list('id', flat=True)),
+                }
+            })
+
+        elif action == 'children_presupuesto':
+            # Lazy-load partidas de un presupuesto
+            pres_id = request.GET.get('id')
+            partidas = PartidaPresupuestaria.objects.filter(
+                presupuesto_anual_id=pres_id
+            ).select_related('disciplina').prefetch_related('departamentos')
+
+            data = []
+            for p in partidas:
+                nombre = p.disciplina.nombre if p.disciplina else (p.descripcion or "Partida General")
+                num_items = p.items.count()
+                data.append({
+                    'id': p.id,
+                    'nombre': nombre,
+                    'descripcion': p.descripcion,
+                    'monto_original': float(p.monto_proyectado),
+                    'vigente': float(p.presupuesto_vigente),
+                    'comprometido': float(p.total_comprometido),
+                    'disponible': float(p.pendiente_comprometer),
+                    'departamentos': [d.nombre for d in p.departamentos.all()],
+                    'num_items': num_items,
+                })
+            return JsonResponse({'status': 'ok', 'partidas': data})
+
+        elif action == 'children_partida':
+            # Lazy-load items de una partida
+            partida_id = request.GET.get('id')
+            items = ItemPresupuesto.objects.filter(
+                partida_id=partida_id, parent__isnull=True
+            )
+            data = []
+            for item in items:
+                sub_count = item.subitems.count()
+                data.append({
+                    'id': item.id,
+                    'concepto': item.concepto,
+                    'total_anual': float(item.total_anual),
+                    'es_recurrente': item.es_recurrente,
+                    'frecuencia': item.get_frecuencia_display() if item.es_recurrente else 'Manual',
+                    'num_subitems': sub_count,
+                })
+            return JsonResponse({'status': 'ok', 'items': data})
+
+        elif action == 'children_item':
+            # Lazy-load sub-items de un item
+            item_id = request.GET.get('id')
+            subs = ItemPresupuesto.objects.filter(parent_id=item_id)
+            data = []
+            for s in subs:
+                data.append({
+                    'id': s.id,
+                    'concepto': s.concepto,
+                    'total_anual': float(s.total_anual),
+                    'es_recurrente': s.es_recurrente,
+                    'frecuencia': s.get_frecuencia_display() if s.es_recurrente else 'Manual',
+                })
+            return JsonResponse({'status': 'ok', 'subitems': data})
+
+        return JsonResponse({'status': 'error', 'message': 'Acción no válida'}, status=400)
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            action = data.get('action')
+
+            if action == 'create':
+                partida = PartidaPresupuestaria.objects.create(
+                    presupuesto_anual_id=data['presupuesto_id'],
+                    disciplina_id=data.get('disciplina_id'),
+                    descripcion=data.get('descripcion', ''),
+                    monto_proyectado=data.get('monto_proyectado', 0),
+                )
+                if data.get('departamentos'):
+                    partida.departamentos.set(data['departamentos'])
+                return JsonResponse({'status': 'ok', 'message': 'Partida creada', 'id': partida.id})
+
+            elif action == 'update':
+                partida = get_object_or_404(PartidaPresupuestaria, pk=data['id'])
+                partida.presupuesto_anual_id = data['presupuesto_id']
+                partida.disciplina_id = data.get('disciplina_id')
+                partida.descripcion = data.get('descripcion', '')
+                partida.monto_proyectado = data.get('monto_proyectado', 0)
+                partida.save()
+                if 'departamentos' in data:
+                    partida.departamentos.set(data['departamentos'])
+                return JsonResponse({'status': 'ok', 'message': 'Partida actualizada'})
+
+            elif action == 'delete':
+                partida = get_object_or_404(PartidaPresupuestaria, pk=data['id'])
+                partida.delete()
+                return JsonResponse({'status': 'ok', 'message': 'Partida eliminada'})
+
+            return JsonResponse({'status': 'error', 'message': 'Acción no reconocida'}, status=400)
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
