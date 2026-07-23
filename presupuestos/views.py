@@ -2761,7 +2761,7 @@ def cotizacion_pdf(request, pk):
 
 @staff_required
 def cotizacion_excel(request, pk):
-    """Exportar cotización a Excel con filas colapsables por Nivel (área) y Disciplina."""
+    """Exportar cotización a Excel con fórmulas y filas colapsables por Nivel (área) y Disciplina."""
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
@@ -2775,26 +2775,31 @@ def cotizacion_excel(request, pk):
     ws = wb.active
     ws.title = "Cotización"
 
-    # Estilos
+    # Estilos - Grises y Azules
     header_font = Font(bold=True, size=11, color="FFFFFF")
-    header_fill = PatternFill(start_color="2E7D32", end_color="2E7D32", fill_type="solid")
-    area_font = Font(bold=True, size=11, color="1B5E20")
-    area_fill = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
-    disc_font = Font(bold=True, size=10, color="0D47A1")
-    disc_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+    header_fill = PatternFill(start_color="37474F", end_color="37474F", fill_type="solid")  # Gris oscuro
+    area_font = Font(bold=True, size=11, color="263238")
+    area_fill = PatternFill(start_color="CFD8DC", end_color="CFD8DC", fill_type="solid")  # Gris claro
+    disc_font = Font(bold=True, size=10, color="1565C0")
+    disc_fill = PatternFill(start_color="BBDEFB", end_color="BBDEFB", fill_type="solid")  # Azul claro
+    total_font = Font(bold=True, size=12, color="FFFFFF")
+    total_fill = PatternFill(start_color="1565C0", end_color="1565C0", fill_type="solid")  # Azul fuerte
     money_fmt = '#,##0.00'
+    pct_fmt = '0.00'
     thin_border = Border(
-        left=Side(style='thin'), right=Side(style='thin'),
-        top=Side(style='thin'), bottom=Side(style='thin')
+        left=Side(style='thin', color='90A4AE'),
+        right=Side(style='thin', color='90A4AE'),
+        top=Side(style='thin', color='90A4AE'),
+        bottom=Side(style='thin', color='90A4AE')
     )
 
     # Encabezado del documento
     ws.merge_cells('A1:G1')
     ws['A1'] = f"Cotización #{cotizacion.id} — {cotizacion.proyecto or 'Sin proyecto'}"
-    ws['A1'].font = Font(bold=True, size=14)
+    ws['A1'].font = Font(bold=True, size=14, color="1565C0")
     ws.merge_cells('A2:G2')
-    ws['A2'] = f"Fecha: {cotizacion.fecha} | Estado: {cotizacion.get_estado_display()} | Total: L. {cotizacion.total:,.2f}"
-    ws['A2'].font = Font(size=10, italic=True)
+    ws['A2'] = f"Fecha: {cotizacion.fecha} | Estado: {cotizacion.get_estado_display()}"
+    ws['A2'].font = Font(size=10, italic=True, color="546E7A")
 
     # Headers de columnas
     headers = ['#', 'Descripción', 'Unidad', 'Cantidad', 'Precio Unit.', 'Desc. %', 'Total']
@@ -2803,88 +2808,122 @@ def cotizacion_excel(request, pk):
         cell = ws.cell(row=row_num, column=col, value=h)
         cell.font = header_font
         cell.fill = header_fill
-        cell.alignment = Alignment(horizontal='center')
+        cell.alignment = Alignment(horizontal='center', vertical='center')
         cell.border = thin_border
 
     # Anchos de columna
-    col_widths = [6, 55, 10, 12, 15, 10, 18]
+    col_widths = [8, 55, 10, 12, 15, 10, 18]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
     row_num += 1
     area_counter = 0
+    # Track item rows for SUBTOTAL formulas
+    disc_item_rows = []  # rows of items in current discipline
+    area_disc_rows = []  # rows of discipline subtotals in current area
 
     for area, area_items_iter in groupby(items_list, key=lambda x: x.area):
         area_counter += 1
         area_items_list = list(area_items_iter)
-        area_total = sum(float(item.total) for item in area_items_list)
 
-        # Fila de Área (Nivel 1 - outline level 1)
+        # Fila de Área (placeholder - formula se pone después)
+        area_row = row_num
         area_name = area or 'Sin área'
         ws.merge_cells(start_row=row_num, start_column=1, end_row=row_num, end_column=6)
         cell = ws.cell(row=row_num, column=1, value=f"{area_counter}. {area_name}")
         cell.font = area_font
         cell.fill = area_fill
+        cell.alignment = Alignment(vertical='center')
         for c in range(1, 8):
             ws.cell(row=row_num, column=c).fill = area_fill
             ws.cell(row=row_num, column=c).border = thin_border
-        ws.cell(row=row_num, column=7, value=area_total)
-        ws.cell(row=row_num, column=7).font = area_font
-        ws.cell(row=row_num, column=7).number_format = money_fmt
-        ws.cell(row=row_num, column=7).fill = area_fill
         row_num += 1
+        area_disc_rows = []
 
         # Agrupar por disciplina dentro del área
         disc_counter = 0
         for disc, disc_items_iter in groupby(area_items_list, key=lambda x: x.disciplina):
             disc_counter += 1
             disc_items = list(disc_items_iter)
-            disc_total = sum(float(item.total) for item in disc_items)
             disc_name = disc.nombre if disc else 'Sin disciplina'
 
-            # Fila de Disciplina (Nivel 2 - outline level 1)
+            # Fila de Disciplina (placeholder - formula se pone después)
+            disc_row = row_num
             ws.merge_cells(start_row=row_num, start_column=1, end_row=row_num, end_column=6)
             cell = ws.cell(row=row_num, column=1, value=f"  {area_counter}.{disc_counter} {disc_name}")
             cell.font = disc_font
             cell.fill = disc_fill
+            cell.alignment = Alignment(vertical='center')
             for c in range(1, 8):
                 ws.cell(row=row_num, column=c).fill = disc_fill
                 ws.cell(row=row_num, column=c).border = thin_border
-            ws.cell(row=row_num, column=7, value=disc_total)
-            ws.cell(row=row_num, column=7).font = disc_font
-            ws.cell(row=row_num, column=7).number_format = money_fmt
-            ws.cell(row=row_num, column=7).fill = disc_fill
             ws.row_dimensions[row_num].outline_level = 1
             row_num += 1
+            disc_item_rows = []
 
-            # Items individuales (outline level 2 - colapsables)
+            # Items individuales (outline level 2 - colapsables) con FÓRMULAS
             for i, item in enumerate(disc_items, 1):
                 ws.cell(row=row_num, column=1, value=f"{area_counter}.{disc_counter}.{i}")
+                ws.cell(row=row_num, column=1).alignment = Alignment(horizontal='center')
                 ws.cell(row=row_num, column=2, value=item.descripcion)
                 ws.cell(row=row_num, column=3, value=item.unidad_medida)
+                ws.cell(row=row_num, column=3).alignment = Alignment(horizontal='center')
                 ws.cell(row=row_num, column=4, value=float(item.cantidad))
+                ws.cell(row=row_num, column=4).alignment = Alignment(horizontal='center')
                 ws.cell(row=row_num, column=5, value=float(item.precio_unitario))
                 ws.cell(row=row_num, column=5).number_format = money_fmt
                 ws.cell(row=row_num, column=6, value=float(item.descuento_porcentaje))
-                ws.cell(row=row_num, column=7, value=float(item.total))
+                ws.cell(row=row_num, column=6).number_format = pct_fmt
+                # Fórmula: Total = Cantidad * Precio * (1 - Descuento/100)
+                ws.cell(row=row_num, column=7, value=f"=D{row_num}*E{row_num}*(1-F{row_num}/100)")
                 ws.cell(row=row_num, column=7).number_format = money_fmt
                 for c in range(1, 8):
                     ws.cell(row=row_num, column=c).border = thin_border
                 ws.row_dimensions[row_num].outline_level = 2
+                disc_item_rows.append(row_num)
                 row_num += 1
 
-    # Fila de TOTAL GENERAL
+            # Fórmula SUBTOTAL disciplina: suma de los totales de items
+            if disc_item_rows:
+                formula = f"=SUM(G{disc_item_rows[0]}:G{disc_item_rows[-1]})"
+                ws.cell(row=disc_row, column=7, value=formula)
+                ws.cell(row=disc_row, column=7).font = disc_font
+                ws.cell(row=disc_row, column=7).number_format = money_fmt
+                ws.cell(row=disc_row, column=7).fill = disc_fill
+            area_disc_rows.append(disc_row)
+
+        # Fórmula SUBTOTAL área: suma de los subtotales de disciplinas
+        if area_disc_rows:
+            parts = [f"G{r}" for r in area_disc_rows]
+            formula = f"={'+'.join(parts)}"
+            ws.cell(row=area_row, column=7, value=formula)
+            ws.cell(row=area_row, column=7).font = area_font
+            ws.cell(row=area_row, column=7).number_format = money_fmt
+            ws.cell(row=area_row, column=7).fill = area_fill
+
+    # Fila de TOTAL GENERAL con fórmula
     row_num += 1
     ws.merge_cells(start_row=row_num, start_column=1, end_row=row_num, end_column=6)
     ws.cell(row=row_num, column=1, value="TOTAL GENERAL")
-    ws.cell(row=row_num, column=1).font = Font(bold=True, size=12)
-    ws.cell(row=row_num, column=7, value=float(cotizacion.total))
-    ws.cell(row=row_num, column=7).font = Font(bold=True, size=12)
+    ws.cell(row=row_num, column=1).font = total_font
+    ws.cell(row=row_num, column=1).alignment = Alignment(vertical='center')
+    # Buscar todas las filas de área para sumar
+    area_rows_all = []
+    r = 5
+    for area, _ in groupby(items_list, key=lambda x: x.area):
+        area_rows_all.append(r)
+        # Necesitamos recalcular posiciones... mejor usar referencia directa
+        break
+    # Forma simple: sumar todas las celdas G que son disciplinas (nivel 1)
+    # Usamos SUBTOTAL(109, rango) que suma solo celdas visibles, o simplemente referencia al rango completo
+    ws.cell(row=row_num, column=7, value=f"=SUBTOTAL(109,G5:G{row_num-2})")
+    ws.cell(row=row_num, column=7).font = total_font
     ws.cell(row=row_num, column=7).number_format = money_fmt
     for c in range(1, 8):
+        ws.cell(row=row_num, column=c).fill = total_fill
         ws.cell(row=row_num, column=c).border = thin_border
 
-    # Configurar outline para que se muestre colapsado
+    # Configurar outline para que resumen quede arriba
     ws.sheet_properties.outlinePr.summaryBelow = False
 
     # Response
