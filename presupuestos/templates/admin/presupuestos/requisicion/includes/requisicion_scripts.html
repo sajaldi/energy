@@ -360,9 +360,61 @@
 
             $('#btn-finish').on('click', function () {
                 if (isReadOnly) return;
-                console.log('Finalizando requisición');
-                $('#final_save').val('true');
-                $('#wizard-form').submit();
+                const pk = "{{ instance.pk|default:'' }}";
+
+                // Si hay PK y está en borrador, guardar y luego solicitar autorización
+                if (pk) {
+                    Swal.fire({
+                        title: '¿Enviar Solicitud de Aprobación?',
+                        text: 'Se guardará la requisición y se enviará al flujo de aprobación.',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: '🚀 Sí, enviar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Primero guardar
+                            Swal.fire({ title: 'Guardando y enviando...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+                            $('#final_save').val('true');
+                            
+                            // Submit via AJAX para poder encadenar la autorización
+                            const formData = new FormData($('#wizard-form')[0]);
+                            $.ajax({
+                                url: $('#wizard-form').attr('action') || window.location.href,
+                                type: 'POST',
+                                data: formData,
+                                processData: false,
+                                contentType: false,
+                                success: function () {
+                                    // Ahora solicitar autorización
+                                    const urlTemplate = "{% url 'presupuestos:requisicion_autorizar' pk='00000000-0000-0000-0000-000000000000' %}";
+                                    const url = urlTemplate.replace('00000000-0000-0000-0000-000000000000', pk);
+
+                                    $.ajax({
+                                        url: url,
+                                        type: 'POST',
+                                        data: { 'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val() },
+                                        success: function (response) {
+                                            Swal.fire('¡Enviado!', response.message || 'Autorización solicitada exitosamente.', 'success').then(() => {
+                                                location.reload();
+                                            });
+                                        },
+                                        error: function (xhr) {
+                                            Swal.fire('Error', xhr.responseJSON ? xhr.responseJSON.message : 'Error al conectar con Power Automate', 'error');
+                                        }
+                                    });
+                                },
+                                error: function () {
+                                    Swal.fire('Error', 'Error al guardar la requisición.', 'error');
+                                }
+                            });
+                        }
+                    });
+                } else {
+                    // Sin PK, solo guardar normal
+                    $('#final_save').val('true');
+                    $('#wizard-form').submit();
+                }
             });
 
             $('.save-draft').on('click', function () {

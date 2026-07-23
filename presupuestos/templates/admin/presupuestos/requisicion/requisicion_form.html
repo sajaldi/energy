@@ -167,8 +167,24 @@
                         </div>
 
                         <div class="form-group">
+                            <label class="form-label">Presupuesto Anual</label>
+                            <select id="id_presupuesto_anual" class="form-control" onchange="filterPartidasByPresupuesto(this.value)">
+                                <option value="">— Todos los presupuestos disponibles —</option>
+                                {% for pres in presupuestos_disponibles %}
+                                <option value="{{ pres.id }}" {% if instance.partida and instance.partida.presupuesto_anual_id == pres.id %}selected{% endif %}>{{ pres.nombre }} ({{ pres.anio }})</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-hint">Filtra las partidas por presupuesto anual de tu departamento</small>
+                        </div>
+
+                        <div class="form-group">
                             <label class="form-label">Partida Presupuestaria</label>
-                            {{ form.partida }}
+                            <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+                                <div style="flex: 1;">{{ form.partida }}</div>
+                                <button type="button" onclick="window.open('{% url 'presupuestos:partida_admin_fiori' %}', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes')" class="btn-icon-admin" title="Administrar Partidas Presupuestarias" style="padding: 6px 10px; border: 1px solid #d0d0d0; border-radius: 4px; background: #f8f9fa; cursor: pointer; font-size: 1rem; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; height: 36px;">
+                                    ⚙️ <span style="font-size: 0.75rem; font-weight: 500;">Admin</span>
+                                </button>
+                            </div>
                             <small class="form-hint">Seleccione la línea presupuestaria que afecta esta compra</small>
                         </div>
 
@@ -511,18 +527,6 @@
                 {% endif %}
 
                 {% if instance.pk and instance.estado_requisicion == 'BORRADOR' %}
-                <div
-                    style="margin-bottom: 24px; padding: 15px; background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <strong style="color: #2e7d32; display: block; margin-bottom: 4px;">🚀 Listo para
-                            enviar</strong>
-                        <span style="font-size: 0.9em; color: #555;">La requisición está completa. Solicita la
-                            autorización para procesarla.</span>
-                    </div>
-                    <button type="button" id="btn-authorize" class="btn-custom"
-                        style="background: #2e7d32; color: white; border: none; padding: 10px 20px; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">Solicitar
-                        Autorización</button>
-                </div>
                 {% endif %}
 
                 <h4
@@ -630,8 +634,8 @@
             <div class="card-body"
                 style="border-top: 1px solid var(--border); display: flex; justify-content: space-between;">
                 <button type="button" class="btn-custom btn-outline-custom prev-step" data-prev="3">⬅ Atrás</button>
-                <button type="button" class="btn-custom btn-primary-custom" id="btn-finish">🚀 Finalizar y
-                    Guardar</button>
+                <button type="button" class="btn-custom btn-primary-custom" id="btn-finish"
+                    style="background: #2e7d32; border-color: #2e7d32;">🚀 Enviar Solicitud de Aprobación</button>
             </div>
         </div>
     </form>
@@ -741,6 +745,59 @@
     if (tipoSelect) {
         toggleFPE();
         tipoSelect.addEventListener('change', toggleFPE);
+    }
+
+    // ─── Filtrar Partidas por Presupuesto Anual ─────────────────────────────
+    // Guardar todas las opciones originales del select de partida
+    const partidaSelectEl = document.querySelector('select[name="partida"]');
+    let allPartidaOptions = [];
+    if (partidaSelectEl) {
+        allPartidaOptions = Array.from(partidaSelectEl.options).map(opt => ({
+            value: opt.value,
+            text: opt.textContent,
+            presupuestoId: opt.getAttribute('data-presupuesto-id') || ''
+        }));
+    }
+
+    function filterPartidasByPresupuesto(presupuestoId) {
+        if (!partidaSelectEl) return;
+        const currentValue = partidaSelectEl.value;
+
+        // Limpiar
+        partidaSelectEl.innerHTML = '';
+
+        // Agregar opción vacía
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '---------';
+        partidaSelectEl.appendChild(emptyOpt);
+
+        // Filtrar opciones
+        allPartidaOptions.forEach(opt => {
+            if (!opt.value) return; // skip empty
+            if (!presupuestoId || opt.presupuestoId === presupuestoId) {
+                const newOpt = document.createElement('option');
+                newOpt.value = opt.value;
+                newOpt.textContent = opt.text;
+                newOpt.setAttribute('data-presupuesto-id', opt.presupuestoId);
+                if (opt.value === currentValue) newOpt.selected = true;
+                partidaSelectEl.appendChild(newOpt);
+            }
+        });
+
+        // Trigger select2 refresh if present
+        if (window.$ && $(partidaSelectEl).data('select2')) {
+            $(partidaSelectEl).trigger('change.select2');
+        }
+
+        // Limpiar item_presupuesto si la partida cambió
+        const itemSelect = document.querySelector('select[name="item_presupuesto"]');
+        if (itemSelect) {
+            itemSelect.innerHTML = '<option value="">---------</option>';
+            if (window.$ && $(itemSelect).data('select2')) {
+                $(itemSelect).trigger('change.select2');
+            }
+        }
     }
 </script>
 {% endblock %}
