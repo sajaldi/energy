@@ -262,9 +262,9 @@
                                 {% elif mov.tipo == 'SALIDA' %}
                                     {{ mov.ubicacion_origen.nombre|default:"N/A" }}
                                 {% elif mov.tipo == 'TRASLADO' %}
-                                    {{ mov.ubicacion_origen.nombre }} → {{ mov.ubicacion_destino.nombre }}
+                                    {{ mov.ubicacion_origen.nombre|default:"—" }} → {{ mov.ubicacion_destino.nombre|default:"—" }}
                                 {% else %}
-                                    {{ mov.ubicacion_origen.nombre|default:mov.ubicacion_destino.nombre }}
+                                    {% if mov.ubicacion_origen %}{{ mov.ubicacion_origen.nombre }}{% elif mov.ubicacion_destino %}{{ mov.ubicacion_destino.nombre }}{% else %}—{% endif %}
                                 {% endif %}
                             </span>
                         </div>
