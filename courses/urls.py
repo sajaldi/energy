@@ -17,6 +17,7 @@ urlpatterns = [
     path('admin/<int:pk>/asignar/<int:asignacion_id>/eliminar/', views.desasignar_curso, name='desasignar_curso'),
     path('admin/<int:pk>/estadisticas/', views.estadisticas_curso, name='estadisticas'),
     path('admin/<int:pk>/importar-scorm/', views.importar_scorm, name='importar_scorm'),
+    path('admin/<int:pk>/importar-md/', views.importar_markdown, name='importar_markdown'),
     path('admin/<int:pk>/scorm/<path:subpath>', views.servir_scorm, name='servir_scorm'),
     # Hotspot editor
     path('admin/imagen-interactiva/crear/', views.crear_imagen_interactiva, name='crear_imagen_interactiva'),

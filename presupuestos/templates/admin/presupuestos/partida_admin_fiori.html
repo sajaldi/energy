@@ -1,0 +1,344 @@
+{% load i18n static humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partidas Presupuestarias</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+:root{--shell:#2D2D2D;--brand:#0696D7;--brand-h:#0580B8;--brand-s:#E8F6FC;--pos:#4CAF50;--neg:#D32F2F;--warn:#F57C00;--bg:#F5F5F5;--sf:#FFF;--sf2:#FAFAFA;--bd:#E0E0E0;--bd2:#BDBDBD;--tx:#212121;--tx2:#616161;--tx3:#9E9E9E;--sh:0 1px 3px rgba(0,0,0,.08);--f:'Source Sans 3','Artifakt Element',-apple-system,sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);background:var(--bg);color:var(--tx);min-height:100vh;font-size:13px}
+.shell{background:var(--shell);height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 16px}
+.shell .b{color:#fff;font-size:13px;font-weight:600}.shell .s{color:rgba(255,255,255,.6);font-size:11px;margin-left:12px}.shell .u{color:rgba(255,255,255,.7);font-size:11px}
+.page{padding:14px 18px}
+.hdr{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--bd)}
+.hdr h1{font-size:17px;font-weight:600}.hdr .sub{font-size:11.5px;color:var(--tx2);margin-top:2px}
+.bar{display:flex;gap:20px;padding:7px 12px;background:var(--brand-s);margin-bottom:8px;font-size:12px;border-left:3px solid var(--brand)}
+.bar strong{color:var(--tx)}
+.tb{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tb input{padding:5px 9px 5px 26px;border:1px solid var(--bd);font-size:12px;width:260px;outline:none;font-family:var(--f);background:var(--sf)}
+.tb input:focus{border-color:var(--brand)}
+.tb select{padding:5px 9px;border:1px solid var(--bd);font-size:12px;background:var(--sf);font-family:var(--f);cursor:pointer;outline:none}
+.sw{position:relative}.sw::before{content:"⌕";position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--tx3)}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;font-size:12px;font-weight:600;border:1px solid transparent;cursor:pointer;font-family:var(--f);transition:all .1s}
+.btn-p{background:var(--brand);color:#fff;border-color:var(--brand)}.btn-p:hover{background:var(--brand-h)}
+.btn-g{background:transparent;color:var(--brand);border-color:var(--bd)}.btn-g:hover{background:var(--brand-s);border-color:var(--brand)}
+.btn-d{background:transparent;color:var(--neg);border-color:var(--bd)}.btn-d:hover{background:#FFEBEE;border-color:var(--neg)}
+.btn-s{padding:3px 7px;font-size:11px}
+</style>
+<style>
+.tw{background:var(--sf);box-shadow:var(--sh);overflow-x:auto;border:1px solid var(--bd)}
+.t{width:100%;border-collapse:collapse;font-size:12px}
+.t thead th{background:var(--sf2);padding:7px 10px;text-align:left;font-weight:600;color:var(--tx2);border-bottom:2px solid var(--bd);white-space:nowrap;text-transform:uppercase;font-size:10px;letter-spacing:.04em;position:sticky;top:0;z-index:10}
+.t tbody tr{border-bottom:1px solid var(--bd);transition:background .08s}
+.t tbody tr:hover{background:#F0F9FF}
+.t tbody td{padding:6px 10px;vertical-align:middle}
+.lv0{background:#ECEFF1!important}.lv0 td{font-weight:700;font-size:13px;padding:8px 10px}.lv0:hover{background:#E0E7EC!important}
+.lv1 td:first-child{padding-left:24px}
+.lv2{background:var(--sf2)}.lv2 td:first-child{padding-left:44px}.lv2 td{font-size:11.5px;color:var(--tx2)}
+.lv3 td:first-child{padding-left:64px}.lv3 td{font-size:11px;color:var(--tx3)}
+.tg{cursor:pointer;display:inline-flex;align-items:center;gap:5px;user-select:none}
+.tg .a{display:inline-block;transition:transform .12s;font-size:9px;color:var(--tx2)}
+.tg.c .a{transform:rotate(-90deg)}
+.tag{display:inline-block;padding:2px 6px;font-size:10px;font-weight:600;border:1px solid}
+.tag-b{background:var(--brand-s);color:var(--brand);border-color:#B3E5FC}
+.tag-g{background:#E8F5E9;color:var(--pos);border-color:#C8E6C9}
+.tag-o{background:#FFF3E0;color:var(--warn);border-color:#FFE0B2}
+.tag-r{background:#FFEBEE;color:var(--neg);border-color:#FFCDD2}
+.tag-x{background:#F5F5F5;color:#757575;border-color:#E0E0E0}
+.amt{text-align:right;font-variant-numeric:tabular-nums}.ca{text-align:right;white-space:nowrap}
+.ld{color:var(--tx3);font-style:italic;padding:8px 10px!important}
+/* Modal */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center}.mo.active{display:flex}
+.md{background:var(--sf);box-shadow:0 4px 12px rgba(0,0,0,.12);width:100%;max-width:460px;animation:su .15s ease}
+@keyframes su{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.md-h{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--bd);background:var(--sf2)}
+.md-h h2{font-size:14px;font-weight:600}.md-h .x{background:none;border:none;font-size:18px;cursor:pointer;color:var(--tx2);line-height:1}
+.md-b{padding:14px}.md-f{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--bd);background:var(--sf2)}
+.fg{margin-bottom:12px}.fg label{display:block;font-size:11px;font-weight:600;color:var(--tx2);margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em}
+.fg input,.fg select,.fg textarea{width:100%;padding:6px 9px;border:1px solid var(--bd);font-size:13px;outline:none;font-family:var(--f);background:var(--sf)}
+.fg input:focus,.fg select:focus{border-color:var(--brand);box-shadow:0 0 0 2px rgba(6,150,215,.1)}
+.fg small{font-size:10.5px;color:var(--tx3);margin-top:2px;display:block}
+</style>
+</head>
+<body>
+
+<div class="shell">
+    <div style="display:flex;align-items:center"><span class="b">OPERADORA CC</span><span class="s">Partidas Presupuestarias</span></div>
+    <span class="u">{{ user.get_full_name|default:user.username }}</span>
+</div>
+<div class="page">
+    <div class="hdr">
+        <div><h1>Partidas Presupuestarias</h1><p class="sub">Presupuesto Anual → Partida → Ítems (carga bajo demanda)</p></div>
+        <div style="display:flex;gap:6px">
+            <button class="btn btn-g" onclick="collapseAll()">▸ Colapsar</button>
+            <button class="btn btn-p" onclick="openCreateModal()">+ Nueva Partida</button>
+        </div>
+    </div>
+    <div class="bar">
+        <span>Presupuestos: <strong>{{ presupuestos_data|length }}</strong></span>
+        <span>Partidas: <strong>{{ total_partidas }}</strong></span>
+    </div>
+    <div class="tb">
+        <div class="sw"><input type="text" id="si" placeholder="Buscar..." oninput="filterLv0()"></div>
+        <select id="fy" onchange="filterLv0()">
+            <option value="">Todos los años</option>
+            {% for anio in anios %}<option value="{{ anio }}">{{ anio }}</option>{% endfor %}
+        </select>
+    </div>
+
+    <div class="tw">
+        <table class="t">
+            <thead><tr>
+                <th style="min-width:240px">Nombre / Concepto</th>
+                <th>Tipo</th>
+                <th class="amt">Original</th>
+                <th class="amt">Vigente</th>
+                <th class="amt">Comprometido</th>
+                <th class="amt">Disponible</th>
+                <th>Depto</th>
+                <th class="ca">Acciones</th>
+            </tr></thead>
+            <tbody id="tb">
+                {% for p in presupuestos_data %}
+                <tr class="lv0" data-id="{{ p.id }}" data-anio="{{ p.anio }}" data-nombre="{{ p.nombre|lower }}" data-loaded="0">
+                    <td colspan="2">
+                        <span class="tg c" onclick="expandPres(this, {{ p.id }})">
+                            <span class="a">▼</span>
+                            {{ p.nombre }}
+                        </span>
+                    </td>
+                    <td class="amt">${{ p.total_original|floatformat:2|intcomma }}</td>
+                    <td class="amt">—</td><td class="amt">—</td><td class="amt">—</td>
+                    <td>{% if p.departamento %}<span class="tag tag-b">{{ p.departamento }}</span>{% else %}<span class="tag tag-o">Global</span>{% endif %}</td>
+                    <td class="ca"><span class="tag tag-x">{{ p.num_partidas }} partidas</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: Crear/Editar -->
+<div class="mo" id="mp">
+    <div class="md">
+        <div class="md-h"><h2 id="mt">Nueva Partida</h2><button class="x" onclick="closeModal()">&times;</button></div>
+        <div class="md-b">
+            <input type="hidden" id="fp-id" value="">
+            <div class="fg"><label>Presupuesto Anual *</label>
+                <select id="fp-pres" required><option value="">Seleccione...</option>
+                {% for p in presupuestos_data %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="fg"><label>Disciplina</label>
+                <select id="fp-disc"><option value="">— Sin disciplina —</option>
+                {% for d in disciplinas %}<option value="{{ d.id }}">{{ d.nombre }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="fg"><label>Descripción</label><input type="text" id="fp-desc" placeholder="Ej: Mantenimiento General"></div>
+            <div class="fg"><label>Monto Original *</label><input type="number" id="fp-monto" step="0.01" min="0" placeholder="0.00"></div>
+            <div class="fg"><label>Departamentos</label>
+                <select id="fp-dept" multiple style="height:80px">
+                {% for d in departamentos %}<option value="{{ d.id }}">{{ d.nombre }}</option>{% endfor %}
+                </select>
+                <small>Vacío = Global</small>
+            </div>
+        </div>
+        <div class="md-f"><button class="btn btn-g" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="savePartida()">Guardar</button></div>
+    </div>
+</div>
+<!-- Modal: Eliminar -->
+<div class="mo" id="mdel">
+    <div class="md" style="max-width:360px">
+        <div class="md-h"><h2>Eliminar</h2><button class="x" onclick="closeDel()">&times;</button></div>
+        <div class="md-b" style="text-align:center;padding:20px 14px">
+            <p>¿Eliminar <strong id="dn"></strong>?</p>
+            <p style="font-size:11px;color:var(--tx3);margin-top:5px">Se eliminarán ítems asociados.</p>
+            <input type="hidden" id="di">
+        </div>
+        <div class="md-f"><button class="btn btn-g" onclick="closeDel()">Cancelar</button><button class="btn btn-d" onclick="execDel()">Eliminar</button></div>
+    </div>
+</div>
+
+<script>
+const API = "{% url 'presupuestos:partida_admin_api' %}";
+function ck(n){let v=null;if(document.cookie)document.cookie.split(';').forEach(c=>{c=c.trim();if(c.startsWith(n+'='))v=decodeURIComponent(c.substring(n.length+1));});return v;}
+function fmt(n){return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+function filterLv0(){
+    const s=document.getElementById('si').value.toLowerCase();
+    const y=document.getElementById('fy').value;
+    document.querySelectorAll('#tb .lv0').forEach(r=>{
+        const n=r.dataset.nombre||'';const a=r.dataset.anio||'';
+        r.style.display=(!s||n.includes(s))&&(!y||a===y)?'':'none';
+    });
+}
+
+function collapseAll(){
+    document.querySelectorAll('#tb tr:not(.lv0)').forEach(r=>r.remove());
+    document.querySelectorAll('.lv0').forEach(r=>{r.dataset.loaded='0';const tg=r.querySelector('.tg');if(tg)tg.classList.add('c');});
+}
+
+// --- Lazy Load: Presupuesto -> Partidas ---
+function expandPres(toggle, presId){
+    const row = toggle.closest('tr');
+    if(!toggle.classList.contains('c')){
+        // Collapse: remove children
+        let next = row.nextElementSibling;
+        while(next && !next.classList.contains('lv0')){const rm=next;next=next.nextElementSibling;rm.remove();}
+        toggle.classList.add('c');
+        return;
+    }
+    // Expand
+    toggle.classList.remove('c');
+    if(row.dataset.loaded==='1'){
+        // Already fetched, just show
+        let next=row.nextElementSibling;
+        while(next&&!next.classList.contains('lv0')){next.style.display='';next=next.nextElementSibling;}
+        return;
+    }
+    // Loading indicator
+    const ldRow=document.createElement('tr');ldRow.innerHTML='<td colspan="8" class="ld">Cargando partidas...</td>';
+    row.after(ldRow);
+
+    fetch(`${API}?action=children_presupuesto&id=${presId}`)
+    .then(r=>r.json()).then(data=>{
+        ldRow.remove();
+        if(data.status!=='ok')return;
+        row.dataset.loaded='1';
+        let insertAfter=row;
+        data.partidas.forEach(p=>{
+            const tr=document.createElement('tr');tr.className='lv1';tr.dataset.group='partida-'+p.id;tr.dataset.nombre=p.nombre.toLowerCase();
+            tr.innerHTML=`
+                <td><span class="tg c" onclick="expandPartida(this,${p.id})"><span class="a">▼</span> <strong>${p.nombre}</strong></span>${p.descripcion?'<br><small style="color:var(--tx3);padding-left:18px">'+p.descripcion+'</small>':''}</td>
+                <td><span class="tag tag-b">Partida</span></td>
+                <td class="amt">$${fmt(p.monto_original)}</td>
+                <td class="amt"><strong>$${fmt(p.vigente)}</strong></td>
+                <td class="amt">$${fmt(p.comprometido)}</td>
+                <td class="amt"><span style="color:${p.disponible>=0?'var(--pos)':'var(--neg)'}">$${fmt(p.disponible)}</span></td>
+                <td>${p.departamentos.length?p.departamentos.map(d=>'<span class="tag tag-g">'+d+'</span>').join(' '):'<span class="tag tag-o">Global</span>'}</td>
+                <td class="ca"><button class="btn btn-g btn-s" onclick="openEditModal(${p.id})">✎</button> <button class="btn btn-d btn-s" onclick="confirmDel(${p.id},'${p.nombre.replace(/'/g,"\\'")}')">✕</button></td>`;
+            insertAfter.after(tr);insertAfter=tr;
+        });
+    });
+}
+</script>
+
+<script>
+// --- Lazy Load: Partida -> Items ---
+function expandPartida(toggle, partidaId){
+    const row=toggle.closest('tr');
+    if(!toggle.classList.contains('c')){
+        let next=row.nextElementSibling;
+        while(next&&!next.classList.contains('lv1')&&!next.classList.contains('lv0')){const rm=next;next=next.nextElementSibling;rm.remove();}
+        toggle.classList.add('c');return;
+    }
+    toggle.classList.remove('c');
+    const ldRow=document.createElement('tr');ldRow.className='lv2';ldRow.innerHTML='<td colspan="8" class="ld">Cargando ítems...</td>';
+    row.after(ldRow);
+
+    fetch(`${API}?action=children_partida&id=${partidaId}`)
+    .then(r=>r.json()).then(data=>{
+        ldRow.remove();if(data.status!=='ok')return;
+        let insertAfter=row;
+        data.items.forEach(item=>{
+            const tr=document.createElement('tr');tr.className='lv2';tr.dataset.nombre=item.concepto.toLowerCase();
+            const hasKids=item.num_subitems>0;
+            tr.innerHTML=`
+                <td>${hasKids?'<span class="tg c" onclick="expandItem(this,'+item.id+')"><span class="a">▼</span> '+item.concepto+'</span>':item.concepto}</td>
+                <td><span class="tag tag-g">Ítem</span></td>
+                <td class="amt">$${fmt(item.total_anual)}</td>
+                <td class="amt">—</td><td class="amt">—</td><td class="amt">—</td>
+                <td><span class="tag tag-${item.es_recurrente?'b':'x'}">${item.frecuencia}</span></td>
+                <td class="ca">—</td>`;
+            insertAfter.after(tr);insertAfter=tr;
+        });
+    });
+}
+
+// --- Lazy Load: Item -> Sub-Items ---
+function expandItem(toggle, itemId){
+    const row=toggle.closest('tr');
+    if(!toggle.classList.contains('c')){
+        let next=row.nextElementSibling;
+        while(next&&next.classList.contains('lv3')){const rm=next;next=next.nextElementSibling;rm.remove();}
+        toggle.classList.add('c');return;
+    }
+    toggle.classList.remove('c');
+    const ldRow=document.createElement('tr');ldRow.className='lv3';ldRow.innerHTML='<td colspan="8" class="ld">Cargando sub-ítems...</td>';
+    row.after(ldRow);
+
+    fetch(`${API}?action=children_item&id=${itemId}`)
+    .then(r=>r.json()).then(data=>{
+        ldRow.remove();if(data.status!=='ok')return;
+        let insertAfter=row;
+        data.subitems.forEach(s=>{
+            const tr=document.createElement('tr');tr.className='lv3';
+            tr.innerHTML=`
+                <td>↳ ${s.concepto}</td>
+                <td><span class="tag tag-x">Sub</span></td>
+                <td class="amt">$${fmt(s.total_anual)}</td>
+                <td class="amt">—</td><td class="amt">—</td><td class="amt">—</td>
+                <td>${s.es_recurrente?'<span class="tag tag-b">'+s.frecuencia+'</span>':''}</td>
+                <td class="ca">—</td>`;
+            insertAfter.after(tr);insertAfter=tr;
+        });
+    });
+}
+</script>
+
+<script>
+// --- CRUD ---
+function openCreateModal(){
+    document.getElementById('mt').textContent='Nueva Partida';
+    document.getElementById('fp-id').value='';
+    document.getElementById('fp-pres').value='';
+    document.getElementById('fp-disc').value='';
+    document.getElementById('fp-desc').value='';
+    document.getElementById('fp-monto').value='';
+    const ds=document.getElementById('fp-dept');for(let o of ds.options)o.selected=false;
+    document.getElementById('mp').classList.add('active');
+}
+function openEditModal(id){
+    fetch(`${API}?action=get&id=${id}`).then(r=>r.json()).then(data=>{
+        if(data.status==='ok'){
+            const p=data.partida;
+            document.getElementById('mt').textContent='Editar Partida';
+            document.getElementById('fp-id').value=p.id;
+            document.getElementById('fp-pres').value=p.presupuesto_id;
+            document.getElementById('fp-disc').value=p.disciplina_id||'';
+            document.getElementById('fp-desc').value=p.descripcion||'';
+            document.getElementById('fp-monto').value=p.monto_proyectado;
+            const ds=document.getElementById('fp-dept');
+            for(let o of ds.options)o.selected=p.departamentos_ids.includes(parseInt(o.value));
+            document.getElementById('mp').classList.add('active');
+        }
+    });
+}
+function closeModal(){document.getElementById('mp').classList.remove('active');}
+function savePartida(){
+    const id=document.getElementById('fp-id').value;
+    const pres=document.getElementById('fp-pres').value;
+    const disc=document.getElementById('fp-disc').value;
+    const desc=document.getElementById('fp-desc').value;
+    const monto=document.getElementById('fp-monto').value;
+    const ds=document.getElementById('fp-dept');
+    const depts=Array.from(ds.selectedOptions).map(o=>parseInt(o.value));
+    if(!pres||!monto){alert('Presupuesto y Monto obligatorios.');return;}
+    fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':ck('csrftoken')},
+        body:JSON.stringify({action:id?'update':'create',id:id||null,presupuesto_id:parseInt(pres),disciplina_id:disc?parseInt(disc):null,descripcion:desc,monto_proyectado:parseFloat(monto),departamentos:depts})
+    }).then(r=>r.json()).then(d=>{if(d.status==='ok'){closeModal();location.reload();}else alert('Error: '+d.message);}).catch(e=>alert('Error: '+e));
+}
+function confirmDel(id,nombre){document.getElementById('di').value=id;document.getElementById('dn').textContent=nombre;document.getElementById('mdel').classList.add('active');}
+function closeDel(){document.getElementById('mdel').classList.remove('active');}
+function execDel(){
+    const id=document.getElementById('di').value;
+    fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':ck('csrftoken')},
+        body:JSON.stringify({action:'delete',id:parseInt(id)})
+    }).then(r=>r.json()).then(d=>{if(d.status==='ok'){closeDel();location.reload();}else alert('Error: '+d.message);}).catch(e=>alert('Error: '+e));
+}
+</script>
+</body>
+</html>

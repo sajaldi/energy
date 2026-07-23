@@ -717,6 +717,137 @@ def estadisticas_curso(request, pk):
 
 @staff_member_required
 @require_POST
+def importar_markdown(request, pk):
+    """
+    Importa un archivo Markdown (.md) y crea secciones a partir de los encabezados.
+    - Encabezados ## (H2) se convierten en Secciones
+    - Si no hay H2, se crea una sección única con todo el contenido
+    - El contenido entre encabezados se convierte a HTML
+    """
+    import markdown as md_lib
+
+    curso = get_object_or_404(Curso, pk=pk)
+    archivo = request.FILES.get('file')
+
+    if not archivo:
+        return JsonResponse({'error': 'No se recibió archivo'}, status=400)
+
+    if not archivo.name.lower().endswith('.md'):
+        return JsonResponse({'error': 'El archivo debe ser un .md (Markdown)'}, status=400)
+
+    try:
+        contenido_bytes = archivo.read()
+        # Intentar decodificar con diferentes encodings
+        contenido = None
+        for encoding in ['utf-8-sig', 'utf-8', 'windows-1252', 'iso-8859-1']:
+            try:
+                contenido = contenido_bytes.decode(encoding)
+                break
+            except (UnicodeDecodeError, LookupError):
+                continue
+        if contenido is None:
+            contenido = contenido_bytes.decode('utf-8', errors='replace')
+    except Exception as e:
+        return JsonResponse({'error': f'Error al leer el archivo: {str(e)}'}, status=400)
+
+    # Configurar el parser de Markdown con extensiones útiles
+    md_extensions = ['tables', 'fenced_code', 'codehilite', 'toc', 'nl2br']
+    md_parser = md_lib.Markdown(extensions=md_extensions)
+
+    # Dividir por encabezados H2 (##) para crear secciones
+    lines = contenido.split('\n')
+    secciones_raw = []
+    current_title = None
+    current_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        # Detectar encabezados ## (H2)
+        if stripped.startswith('## ') and not stripped.startswith('### '):
+            # Guardar sección anterior si existe
+            if current_title is not None or current_lines:
+                secciones_raw.append({
+                    'titulo': current_title or 'Introducción',
+                    'contenido': '\n'.join(current_lines)
+                })
+            current_title = stripped.lstrip('#').strip()
+            current_lines = []
+        else:
+            current_lines.append(line)
+
+    # Guardar la última sección
+    if current_title is not None or current_lines:
+        secciones_raw.append({
+            'titulo': current_title or (curso.titulo if not secciones_raw else 'Contenido'),
+            'contenido': '\n'.join(current_lines)
+        })
+
+    if not secciones_raw:
+        return JsonResponse({'error': 'El archivo está vacío o no tiene contenido válido'}, status=400)
+
+    # Si solo hay una sección sin título H2 (archivo sin encabezados H2),
+    # intentar dividir por H1 (#) como alternativa
+    if len(secciones_raw) == 1 and secciones_raw[0]['titulo'] in ('Introducción', curso.titulo, 'Contenido'):
+        # Intentar con H1
+        secciones_h1 = []
+        current_title = None
+        current_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith('# ') and not stripped.startswith('## '):
+                if current_title is not None or current_lines:
+                    secciones_h1.append({
+                        'titulo': current_title or 'Introducción',
+                        'contenido': '\n'.join(current_lines)
+                    })
+                current_title = stripped.lstrip('#').strip()
+                current_lines = []
+            else:
+                current_lines.append(line)
+        if current_title is not None or current_lines:
+            secciones_h1.append({
+                'titulo': current_title or 'Contenido',
+                'contenido': '\n'.join(current_lines)
+            })
+        if len(secciones_h1) > 1:
+            secciones_raw = secciones_h1
+
+    # Obtener el orden máximo actual de las secciones del curso
+    max_orden = curso.secciones.aggregate(max_orden=models.Max('orden'))['max_orden'] or 0
+
+    secciones_creadas = 0
+    for i, sec_data in enumerate(secciones_raw):
+        contenido_md = sec_data['contenido'].strip()
+        if not contenido_md and not sec_data['titulo']:
+            continue
+
+        # Convertir Markdown a HTML
+        md_parser.reset()
+        contenido_html = md_parser.convert(contenido_md) if contenido_md else ''
+
+        # Crear la sección
+        Seccion.objects.create(
+            curso=curso,
+            titulo=sec_data['titulo'],
+            orden=max_orden + i + 1,
+            contenido_html=contenido_html,
+            duracion_minutos=max(1, len(contenido_md.split()) // 200),  # ~200 palabras/minuto
+            obligatorio=True,
+        )
+        secciones_creadas += 1
+
+    if secciones_creadas == 0:
+        return JsonResponse({'error': 'No se encontró contenido para importar'}, status=400)
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Se importaron {secciones_creadas} sección(es) desde el archivo Markdown.',
+        'secciones_creadas': secciones_creadas,
+    })
+
+
+@staff_member_required
+@require_POST
 def importar_scorm(request, pk):
     curso = get_object_or_404(Curso, pk=pk)
     archivo = request.FILES.get('file')

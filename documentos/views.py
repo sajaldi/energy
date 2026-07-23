@@ -2192,3 +2192,130 @@ def api_documento_rag_chat(request):
         import logging
         logging.getLogger(__name__).error(f"Error en api_documento_rag_chat: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
+
+
+# =====================================================
+# API: Compartición de Documentos (Record-Level Security)
+# =====================================================
+
+@login_required
+def api_documento_shares_list(request, doc_id):
+    """Lista los shares de un documento + usuarios y grupos disponibles."""
+    from django.contrib.auth.models import User, Group
+    from .models import DocumentoShare
+    
+    documento = get_object_or_404(Documento, id=doc_id)
+    
+    # Shares actuales
+    shares = documento.shares.select_related('compartido_a_usuario', 'compartido_a_grupo', 'compartido_por').all()
+    shares_data = []
+    for s in shares:
+        destino = ""
+        if s.tipo == 'usuario' and s.compartido_a_usuario:
+            destino = s.compartido_a_usuario.get_full_name() or s.compartido_a_usuario.username
+        elif s.tipo == 'grupo' and s.compartido_a_grupo:
+            destino = s.compartido_a_grupo.name
+        else:
+            destino = "Público (Todos)"
+        
+        shares_data.append({
+            'id': s.id,
+            'tipo': s.tipo,
+            'destino': destino,
+            'puede_ver': s.puede_ver,
+            'puede_editar': s.puede_editar,
+            'puede_eliminar': s.puede_eliminar,
+            'puede_compartir': s.puede_compartir,
+            'vigente': s.esta_vigente(),
+            'expira_en': s.expira_en.isoformat() if s.expira_en else None,
+            'nota': s.nota,
+            'compartido_por': s.compartido_por.get_full_name() or s.compartido_por.username,
+            'creado_en': s.creado_en.strftime('%d/%m/%Y %H:%M'),
+        })
+    
+    # Usuarios disponibles (activos)
+    usuarios = list(
+        User.objects.filter(is_active=True)
+        .exclude(id=request.user.id)
+        .values('id', 'username', 'first_name', 'last_name')
+        .order_by('first_name', 'username')[:200]
+    )
+    for u in usuarios:
+        u['display'] = f"{u['first_name']} {u['last_name']}".strip() or u['username']
+    
+    # Grupos disponibles
+    grupos = list(Group.objects.values('id', 'name').order_by('name'))
+    
+    return JsonResponse({
+        'shares': shares_data,
+        'usuarios': usuarios,
+        'grupos': grupos,
+    })
+
+
+@login_required
+@require_POST
+def api_documento_share_create(request, doc_id):
+    """Crea un nuevo share para un documento."""
+    import json
+    from django.contrib.auth.models import User, Group
+    from .models import DocumentoShare
+    
+    documento = get_object_or_404(Documento, id=doc_id)
+    
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+    
+    tipo = data.get('tipo')
+    if tipo not in ('usuario', 'grupo', 'publico'):
+        return JsonResponse({'error': 'Tipo inválido'}, status=400)
+    
+    share = DocumentoShare(
+        documento=documento,
+        compartido_por=request.user,
+        tipo=tipo,
+        puede_ver=data.get('puede_ver', True),
+        puede_editar=data.get('puede_editar', False),
+        puede_eliminar=data.get('puede_eliminar', False),
+        puede_compartir=data.get('puede_compartir', False),
+        nota=data.get('nota', ''),
+    )
+    
+    # Expiración
+    expira_en = data.get('expira_en')
+    if expira_en:
+        from django.utils.dateparse import parse_datetime
+        share.expira_en = parse_datetime(expira_en)
+    
+    if tipo == 'usuario':
+        user_id = data.get('usuario_id')
+        if not user_id:
+            return JsonResponse({'error': 'Debe seleccionar un usuario'}, status=400)
+        share.compartido_a_usuario = get_object_or_404(User, id=user_id)
+    elif tipo == 'grupo':
+        grupo_id = data.get('grupo_id')
+        if not grupo_id:
+            return JsonResponse({'error': 'Debe seleccionar un grupo'}, status=400)
+        share.compartido_a_grupo = get_object_or_404(Group, id=grupo_id)
+    
+    share.save()
+    
+    return JsonResponse({'status': 'ok', 'id': share.id, 'message': 'Compartición creada exitosamente.'})
+
+
+@login_required
+@require_POST
+def api_documento_share_delete(request, share_id):
+    """Elimina un share."""
+    from .models import DocumentoShare
+    
+    share = get_object_or_404(DocumentoShare, id=share_id)
+    
+    # Solo el que compartió o superusuario puede eliminar
+    if share.compartido_por != request.user and not request.user.is_superuser:
+        return JsonResponse({'error': 'No tienes permiso para eliminar esta compartición.'}, status=403)
+    
+    share.delete()
+    return JsonResponse({'status': 'ok', 'message': 'Compartición eliminada.'})

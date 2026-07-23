@@ -1089,6 +1089,53 @@ def visor_plano_proyecto(request, pk, plano_id):
     })
 
 
+@staff_member_required
+def visor_plano_proyecto_mobile(request, pk, plano_id):
+    """Visor de plano PDF optimizado para móvil con pines interactivos."""
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    plano = get_object_or_404(PlanoProyecto, pk=plano_id, proyecto_id=proyecto.id)
+
+    archivo_disponible = True
+    pdf_url = ''
+    try:
+        if plano.archivo and plano.archivo.storage.exists(plano.archivo.name):
+            pdf_url = plano.archivo.url
+        else:
+            archivo_disponible = False
+    except Exception:
+        archivo_disponible = False
+
+    pines = PinObservacionProyecto.objects.filter(plano=plano).select_related(
+        'observacion', 'observacion__usuario'
+    ).prefetch_related('fotos')
+
+    pines_data = []
+    for pin in pines:
+        obs = pin.observacion
+        pines_data.append({
+            'id': pin.id,
+            'x': pin.coordenada_x,
+            'y': pin.coordenada_y,
+            'pagina': pin.pagina,
+            'color': pin.color,
+            'nota': pin.nota,
+            'observacion_id': obs.id,
+            'observacion_texto': obs.observacion,
+            'observacion_estado': obs.estado,
+            'observacion_usuario': obs.usuario.get_full_name() or obs.usuario.username,
+            'observacion_fecha': obs.fecha_observacion.isoformat() if obs.fecha_observacion else '',
+            'fotos': [{'id': f.id, 'url': f.imagen.url} for f in pin.fotos.all()],
+        })
+
+    return render(request, 'proyectos/visor_plano_mobile.html', {
+        'plano': plano,
+        'proyecto': proyecto,
+        'pdf_url': pdf_url,
+        'archivo_disponible': archivo_disponible,
+        'pines_json': json.dumps(pines_data, ensure_ascii=False),
+    })
+
+
 @csrf_exempt
 @staff_member_required
 def listar_pines_plano_api(request, pk, plano_id):

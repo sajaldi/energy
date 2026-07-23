@@ -58,4 +58,8 @@ urlpatterns = [
     path('api/webhook/vector-update/', views.api_webhook_vector_update, name='api_webhook_vector_update'),
     # RAG Chat con Groq
     path('api/rag-chat/', views.api_documento_rag_chat, name='api_documento_rag_chat'),
+    # Compartición de documentos (Record-Level Security)
+    path('api/shares/<int:doc_id>/', views.api_documento_shares_list, name='api_documento_shares_list'),
+    path('api/shares/create/<int:doc_id>/', views.api_documento_share_create, name='api_documento_share_create'),
+    path('api/shares/delete/<int:share_id>/', views.api_documento_share_delete, name='api_documento_share_delete'),
 ]

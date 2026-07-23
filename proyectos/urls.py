@@ -35,6 +35,7 @@ urlpatterns = [
     path('proyecto/<int:pk>/planos/<int:plano_id>/delete/', views.delete_plano_api, name='delete_plano_api'),
     path('proyecto/<int:pk>/planos/<int:plano_id>/download/', views.download_plano, name='download_plano'),
     path('proyecto/<int:pk>/planos/<int:plano_id>/visor/', views.visor_plano_proyecto, name='visor_plano_proyecto'),
+    path('proyecto/<int:pk>/planos/<int:plano_id>/visor-mobile/', views.visor_plano_proyecto_mobile, name='visor_plano_proyecto_mobile'),
 
     # Pines de observación en planos
     path('proyecto/<int:pk>/planos/<int:plano_id>/pines/', views.listar_pines_plano_api, name='listar_pines_plano_api'),

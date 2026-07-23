@@ -404,30 +404,38 @@
 
     <!-- SAP FIORI TAB BAR -->
     <div class="tab-bar">
+        {% if 'tareas_hoy' in secciones %}
         <div class="tab-item active" data-tab="mantenimiento">
             <ion-icon name="construct-outline"></ion-icon>
             <span>Mant.</span>
         </div>
-        <div class="tab-item" data-tab="catalogo">
+        {% endif %}
+        <div class="tab-item{% if 'tareas_hoy' not in secciones %} active{% endif %}" data-tab="catalogo">
             <ion-icon name="library-outline"></ion-icon>
             <span>Catálogo</span>
         </div>
+        {% if 'mi_planta' in secciones %}
         <div class="tab-item" data-tab="activos">
             <ion-icon name="layers-outline"></ion-icon>
             <span>Activos</span>
         </div>
+        {% endif %}
+        {% if 'logistica' in secciones or 'gestion_almacen' in secciones %}
         <div class="tab-item" data-tab="inventario">
             <ion-icon name="cube-outline"></ion-icon>
             <span>Inv.</span>
         </div>
+        {% endif %}
         <div class="tab-item" data-tab="seguridad">
             <ion-icon name="shield-checkmark-outline"></ion-icon>
             <span>Seg.</span>
         </div>
+        {% if 'finanzas' in secciones %}
         <div class="tab-item" data-tab="finanzas">
             <ion-icon name="wallet-outline"></ion-icon>
             <span>Fin.</span>
         </div>
+        {% endif %}
     </div>
 
     <!-- GLOBAL SEARCH BAR -->
@@ -441,6 +449,7 @@
     </div>
 
     <!-- FIORI ACTION TOOLBAR -->
+    {% if 'tareas_hoy' in secciones %}
     <div class="action-toolbar tab-content" id="tab-mantenimiento">
         <a href="{% url 'mantenimiento:mobile_crear_aviso' %}" class="fiori-action-btn">
             <ion-icon name="alert-circle-outline"></ion-icon>
@@ -459,6 +468,7 @@
             <span>Acuerdos</span>
         </a>
     </div>
+    {% endif %}
     
     <div class="action-toolbar tab-content" id="tab-catalogo" style="display: none;">
         <div style="flex: 1; padding: 4px 0;">
@@ -467,6 +477,7 @@
         </div>
     </div>
 
+    {% if 'mi_planta' in secciones %}
     <div class="action-toolbar tab-content" id="tab-activos" style="display: none;">
         <a href="{% url 'activos:mobile_ubicaciones' %}" class="fiori-action-btn">
             <ion-icon name="map-outline"></ion-icon>
@@ -477,7 +488,9 @@
             <span>Escanear</span>
         </a>
     </div>
+    {% endif %}
 
+    {% if 'logistica' in secciones or 'gestion_almacen' in secciones %}
     <div class="action-toolbar tab-content" id="tab-inventario" style="display: none;">
         <a href="{% url 'inventarios:mobile_dashboard' %}" class="fiori-action-btn">
             <ion-icon name="cube-outline"></ion-icon>
@@ -488,6 +501,7 @@
             <span>Movimientos</span>
         </a>
     </div>
+    {% endif %}
 
     <div class="viewport">
         <!-- KPI SECTION -->
@@ -509,12 +523,15 @@
         <!-- MANTENIMIENTO FEED -->
         <div id="feed-mantenimiento" class="tab-feed fiori-animate" style="animation-delay: 0.1s;">
             <!-- SCANNER BANNER -->
+            {% if 'scanner' in secciones %}
             <a href="{% url 'core:mobile_scanner' %}" class="fiori-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; background: var(--sap-information-bg); border: 1px solid var(--sap-information); margin-bottom: 16px; text-decoration: none; border-left-width: 1px !important;">
                 <ion-icon name="scan-outline" style="font-size: 42px; color: var(--sap-information); margin-bottom: 12px;"></ion-icon>
                 <div style="font-weight: 800; color: var(--sap-information); text-transform: uppercase; font-size: 15px; letter-spacing: 0.5px;">Escanear Equipo</div>
             </a>
+            {% endif %}
 
             <!-- TASK LIST -->
+            {% if 'tareas_hoy' in secciones %}
             <div class="fiori-card">
                 <div style="padding: 12px 16px; border-bottom: 1px solid var(--sap-border-color); display: flex; justify-content: space-between; align-items: center;">
                     <h3 style="margin:0; font-size: 14px; font-weight: 700;">Tareas de Hoy</h3>
@@ -550,6 +567,7 @@
                     {% endfor %}
                 </div>
             </div>
+            {% endif %}
         </div>
 
         <!-- CATALOG FEED -->
@@ -593,6 +611,7 @@
             </div>
         </div>
 
+        {% if 'mi_planta' in secciones %}
         <div id="feed-activos" class="tab-feed fiori-animate" style="display: none;">
             <div class="catalog-grid">
                 {% for cat in categorias_activos %}
@@ -616,6 +635,7 @@
                 {% endfor %}
             </div>
         </div>
+        {% endif %}
 
         <div id="feed-inventario" class="tab-feed fiori-animate" style="display: none;"></div>
         <div id="feed-seguridad" class="tab-feed fiori-animate" style="display: none;"></div>
@@ -630,17 +650,23 @@
             <ion-icon name="home-outline"></ion-icon>
             <span>Inicio</span>
         </a>
+        {% if 'mi_planta' in secciones %}
         <a href="{% url 'activos:mobile_ubicaciones' %}" class="nav-item">
             <ion-icon name="map-outline"></ion-icon>
             <span>Planta</span>
         </a>
+        {% endif %}
+        {% if 'scanner' in secciones %}
         <a href="{% url 'core:mobile_scanner' %}" class="scan-btn-fab">
             <ion-icon name="qr-code-outline"></ion-icon>
         </a>
+        {% endif %}
+        {% if 'tareas_hoy' in secciones %}
         <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" class="nav-item">
             <ion-icon name="construct-outline"></ion-icon>
             <span>Tareas</span>
         </a>
+        {% endif %}
         <a href="{% url 'seguridad:mobile_perfil' %}" class="nav-item">
             <ion-icon name="person-outline"></ion-icon>
             <span>Perfil</span>

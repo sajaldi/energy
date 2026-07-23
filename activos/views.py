@@ -1442,6 +1442,7 @@ def visor_pdf_plano(request, plano_id):
 
 
 @staff_member_required
+@mobile_permission_required('mi_planta')
 def activo_fiori_view(request, pk):
     """Vista de detalle de activo estilo SAP Fiori con gráficas y rutinas"""
     from mantenimiento.models import OrdenTrabajo, Aviso, Rutina, Programacion, Tipo
@@ -1583,7 +1584,114 @@ def activo_fiori_view(request, pk):
     return render(request, 'activos/activo_fiori.html', context)
 
 
+@csrf_exempt
 @staff_member_required
+@mobile_permission_required('mi_planta')
+def api_activo_fiori_save(request, pk):
+    """API para guardar ediciones inline del activo desde la vista Fiori."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    if not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'Sin permisos'}, status=403)
+    
+    import json
+    from .models.activo import Activo
+    from .models.ubicacion import Ubicacion
+    from django.contrib.auth.models import User
+    
+    activo = get_object_or_404(Activo, pk=pk)
+    
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
+    
+    update_fields = []
+    
+    if 'nombre' in data:
+        activo.nombre = data['nombre']
+        update_fields.append('nombre')
+    if 'serie' in data:
+        activo.serie = data['serie'] or None
+        update_fields.append('serie')
+    if 'estado' in data:
+        activo.estado = data['estado']
+        update_fields.append('estado')
+    if 'descripcion' in data:
+        activo.descripcion = data['descripcion'] or None
+        update_fields.append('descripcion')
+    if 'costo' in data:
+        try:
+            activo.costo = float(data['costo']) if data['costo'] else None
+        except (ValueError, TypeError):
+            pass
+        update_fields.append('costo')
+    if 'responsable_id' in data:
+        activo.responsable_id = data['responsable_id'] or None
+        update_fields.append('responsable')
+    if 'ubicacion_id' in data:
+        activo.ubicacion_id = data['ubicacion_id'] or None
+        update_fields.append('ubicacion')
+    
+    if update_fields:
+        activo.save(update_fields=update_fields)
+    
+    return JsonResponse({'status': 'success', 'message': 'Activo actualizado correctamente.'})
+
+
+@csrf_exempt
+@staff_member_required
+@mobile_permission_required('mi_planta')
+def api_activo_fiori_crear_ot(request, pk):
+    """API para crear una nueva OT vinculada al activo desde la vista Fiori."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    if not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'Sin permisos'}, status=403)
+    
+    import json
+    from django.utils import timezone
+    from mantenimiento.models import OrdenTrabajo
+    from .models.activo import Activo
+    
+    activo = get_object_or_404(Activo, pk=pk)
+    
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
+    
+    tipo = data.get('tipo', 'CORRECTIVA')
+    prioridad = data.get('prioridad', 'MEDIA')
+    descripcion_corta = data.get('descripcion_corta', '')
+    descripcion_detallada = data.get('descripcion_detallada', '')
+    
+    if not descripcion_corta:
+        return JsonResponse({'status': 'error', 'message': 'La descripción corta es requerida.'}, status=400)
+    
+    now = timezone.now()
+    ot = OrdenTrabajo(
+        tipo=tipo,
+        prioridad=prioridad,
+        descripcion_corta=descripcion_corta,
+        descripcion_detallada=descripcion_detallada,
+        ubicacion=activo.ubicacion,
+        inicio_programado=now,
+        fin_programado=now + timezone.timedelta(days=1),
+        estado='ESPERA',
+    )
+    ot.save()
+    ot.activos.add(activo)
+    
+    return JsonResponse({
+        'status': 'success',
+        'message': f'OT #{ot.id} creada exitosamente.',
+        'ot_id': ot.id
+    })
+
+
+@staff_member_required
+@mobile_permission_required('mi_planta')
 def fiori_explorer_view(request, ubicacion_id=None):
     """
     Nuevo explorador de activos con estética SAP Fiori.

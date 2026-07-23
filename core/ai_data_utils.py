@@ -103,6 +103,49 @@ def get_comunicaciones_summary():
         return summary
     except: return "Comunicaciones: Error al obtener\n"
 
+def get_kpis_summary():
+    """Retorna resumen de KPIs de Servicios."""
+    try:
+        from servicios.models import KPI, Servicio
+        from django.db.models import Count
+        
+        total_kpis = KPI.objects.count()
+        total_servicios = Servicio.objects.filter(activo=True).count()
+        
+        summary = f"KPIs DE SERVICIOS (Total KPIs: {total_kpis}, Servicios activos: {total_servicios}):\n"
+        
+        # KPIs por estado
+        kpis_por_estado = KPI.objects.values('estado').annotate(total=Count('id'))
+        summary += "Por estado:\n"
+        for item in kpis_por_estado:
+            summary += f"  - {item['estado']}: {item['total']}\n"
+        
+        # KPIs por categoría
+        kpis_por_cat = KPI.objects.values('categoria').annotate(total=Count('id'))
+        summary += "Por categoría:\n"
+        for item in kpis_por_cat:
+            summary += f"  - {item['categoria']}: {item['total']}\n"
+        
+        # KPIs por servicio
+        servicios_con_kpis = Servicio.objects.filter(activo=True).annotate(
+            num_kpis=Count('kpis')
+        ).filter(num_kpis__gt=0).order_by('-num_kpis')[:10]
+        
+        summary += "Por servicio:\n"
+        for svc in servicios_con_kpis:
+            summary += f"  - {svc.nombre}: {svc.num_kpis} KPIs\n"
+        
+        # Últimos KPIs
+        recent_kpis = KPI.objects.select_related('servicio').order_by('-fecha_actualizacion')[:10]
+        summary += "\nÚLTIMOS 10 KPIs:\n"
+        for kpi in recent_kpis:
+            nombre_display = kpi.nombre[:40] if kpi.nombre else kpi.descripcion[:40]
+            summary += f"  [KPI-{kpi.id}] {kpi.servicio.nombre} | {kpi.categoria} | {kpi.estado} | {nombre_display}\n"
+        
+        return summary
+    except Exception as e:
+        return f"KPIs: Error al obtener ({e})\n"
+
 def get_dynamic_context():
     try:
         context = "ESTADO ACTUAL DEL SISTEMA (DATO EN VIVO DE LA BD):\n\n"
@@ -111,6 +154,7 @@ def get_dynamic_context():
         context += get_mantenimiento_summary() + "\n"
         context += get_inventarios_summary() + "\n"
         context += get_documents_summary() + "\n"
+        context += get_kpis_summary() + "\n"
         context += get_comunicaciones_summary() + "\n"
         return context
     except Exception as e:

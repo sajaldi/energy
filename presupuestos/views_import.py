@@ -348,6 +348,24 @@ def requisicion_upsert(request, pk=None):
         articulo_formset = ArticuloFormSet(instance=instance, prefix='articulos')
         documento_formset = DocumentoFormSet(instance=instance, prefix='documentos')
 
+    # Obtener presupuestos disponibles para el filtro de la UI
+    from .models import PresupuestoAnual
+    from django.db.models import Q as _Q
+    depto_id_ctx = None
+    if instance and getattr(instance, 'usuario_solicitante_id', None):
+        sol = instance.usuario_solicitante
+        if hasattr(sol, 'perfil') and sol.perfil.departamento_id:
+            depto_id_ctx = sol.perfil.departamento_id
+    if not depto_id_ctx and request.user and hasattr(request.user, 'perfil') and request.user.perfil.departamento_id:
+        depto_id_ctx = request.user.perfil.departamento_id
+
+    if depto_id_ctx:
+        presupuestos_disponibles = PresupuestoAnual.objects.filter(
+            _Q(departamento_id=depto_id_ctx) | _Q(departamento__isnull=True)
+        ).order_by('-anio', 'nombre')
+    else:
+        presupuestos_disponibles = PresupuestoAnual.objects.all().order_by('-anio', 'nombre')
+
     context = {
         'form': form,
         'articulo_formset': articulo_formset,
@@ -359,6 +377,7 @@ def requisicion_upsert(request, pk=None):
         'can_unlock': can_unlock,
         'historial': instance.historial.all() if instance else [],
         'notas': instance.notas.all()[:10] if instance else [],
+        'presupuestos_disponibles': presupuestos_disponibles,
     }
     return render(request, 'admin/presupuestos/requisicion/requisicion_form.html', context)
 

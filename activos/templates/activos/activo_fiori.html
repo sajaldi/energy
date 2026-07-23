@@ -64,6 +64,39 @@
         }
         .back-btn:hover { background: rgba(255,255,255,0.1); }
 
+        .edit-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: var(--sap-accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .edit-btn:hover { background: #0058c4; }
+        .edit-btn ion-icon { font-size: 1rem; }
+
+        .fiori-edit-field {
+            padding: 6px 10px;
+            border: 1px solid var(--sap-accent);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            background: #f8fbff;
+            width: 100%;
+            max-width: 300px;
+        }
+        .fiori-edit-field:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 112, 242, 0.2);
+        }
+
         /* OBJECT HEADER */
         .object-header {
             background: #ffffff;
@@ -345,7 +378,21 @@
                     {% endif %}
                 </div>
             </div>
-            <div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                {% if request.user.is_superuser %}
+                <button onclick="toggleFioriEdit()" class="edit-btn" id="fioriEditBtn" title="Editar activo">
+                    <ion-icon name="create-outline"></ion-icon>
+                    Editar
+                </button>
+                <button onclick="saveFioriEdit()" class="edit-btn" id="fioriSaveBtn" style="display:none; background: var(--sap-positive);" title="Guardar cambios">
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                    Guardar
+                </button>
+                <button onclick="cancelFioriEdit()" class="edit-btn" id="fioriCancelBtn" style="display:none; background: var(--sap-neutral);" title="Cancelar edición">
+                    <ion-icon name="close-outline"></ion-icon>
+                    Cancelar
+                </button>
+                {% endif %}
                 <span class="status-badge" style="background: 
                     {% if activo.estado == 'OPERATIVO' %}#e7f4e9; color: #107e3e; border: 1px solid #107e3e;
                     {% elif activo.estado == 'MANTENIMIENTO' %}#fff8e6; color: #e9730c; border: 1px solid #e9730c;
@@ -407,6 +454,32 @@
                     <div class="section-card">
                         <div class="card-header"><ion-icon name="information-circle-outline"></ion-icon> Información Técnica</div>
                         <div class="card-body">
+                            <div class="data-row">
+                                <span class="data-label">Nombre</span>
+                                <span class="data-val fiori-view-field" data-field="nombre">{{ activo.nombre }}</span>
+                                <input type="text" class="fiori-edit-field" data-field="nombre" value="{{ activo.nombre }}" style="display:none;">
+                            </div>
+                            <div class="data-row">
+                                <span class="data-label">Serie</span>
+                                <span class="data-val fiori-view-field" data-field="serie">{{ activo.serie|default:"---" }}</span>
+                                <input type="text" class="fiori-edit-field" data-field="serie" value="{{ activo.serie|default_if_none:'' }}" style="display:none;">
+                            </div>
+                            <div class="data-row">
+                                <span class="data-label">Estado</span>
+                                <span class="data-val fiori-view-field" data-field="estado">{{ activo.get_estado_display }}</span>
+                                <select class="fiori-edit-field" data-field="estado" style="display:none;">
+                                    <option value="OPERATIVO" {% if activo.estado == 'OPERATIVO' %}selected{% endif %}>Operativo</option>
+                                    <option value="MANTENIMIENTO" {% if activo.estado == 'MANTENIMIENTO' %}selected{% endif %}>En Mantenimiento</option>
+                                    <option value="REPARACION" {% if activo.estado == 'REPARACION' %}selected{% endif %}>En Reparación</option>
+                                    <option value="FUERA_SERVICIO" {% if activo.estado == 'FUERA_SERVICIO' %}selected{% endif %}>Fuera de Servicio</option>
+                                    <option value="OBSOLETO" {% if activo.estado == 'OBSOLETO' %}selected{% endif %}>Obsoleto/De Baja</option>
+                                </select>
+                            </div>
+                            <div class="data-row">
+                                <span class="data-label">Costo</span>
+                                <span class="data-val fiori-view-field" data-field="costo">${{ activo.costo|default:"0.00" }}</span>
+                                <input type="number" step="0.01" class="fiori-edit-field" data-field="costo" value="{{ activo.costo|default_if_none:'0' }}" style="display:none;">
+                            </div>
                             <div class="data-row"><span class="data-label">Marca</span><span class="data-val">{{ activo.modelo.marca.nombre|default:activo.marca_legacy|default:"---" }}</span></div>
                             <div class="data-row"><span class="data-label">Modelo</span><span class="data-val">{% if activo.modelo %}<a href="#" onclick="openModeloModal({{ activo.modelo.id }}); return false;" style="color: var(--sap-accent); text-decoration: none; border-bottom: 1px dashed var(--sap-accent);">{{ activo.modelo.nombre }}</a>{% else %}{{ activo.modelo_legacy|default:"---" }}{% endif %}</span></div>
                             <div class="data-row"><span class="data-label">Categoría</span><span class="data-val">{{ activo.modelo.categoria.nombre|default:"---" }}</span></div>
@@ -474,11 +547,14 @@
                             {% endif %}
                         </div>
                     </div>
-                    {% if activo.descripcion %}
+                    {% if activo.descripcion or True %}
                     <div class="section-card" style="grid-column: 1 / -1;">
                         <div class="card-header"><ion-icon name="document-text-outline"></ion-icon> Descripción</div>
-                        <div class="card-body" style="color: var(--sap-text-sub); font-size: 0.9rem;">
-                            {{ activo.descripcion|linebreaks }}
+                        <div class="card-body">
+                            <div class="fiori-view-field" data-field="descripcion" style="color: var(--sap-text-sub); font-size: 0.9rem;">
+                                {{ activo.descripcion|linebreaks|default:"Sin descripción." }}
+                            </div>
+                            <textarea class="fiori-edit-field" data-field="descripcion" rows="4" style="display:none; width:100%;">{{ activo.descripcion|default_if_none:'' }}</textarea>
                         </div>
                     </div>
                     {% endif %}
@@ -529,13 +605,20 @@
             </div>
             <!-- HISTORIAL OT -->
             <div class="section-card">
-                <div class="card-header">Historial OT</div>
+                <div class="card-header" style="justify-content: space-between;">
+                    <span style="display:flex;align-items:center;gap:10px;"><ion-icon name="construct-outline"></ion-icon> Historial OT</span>
+                    {% if request.user.is_superuser %}
+                    <button onclick="openNuevaOtModal()" class="edit-btn" style="padding: 6px 12px; font-size: 0.8rem;">
+                        <ion-icon name="add-outline"></ion-icon> Nueva OT
+                    </button>
+                    {% endif %}
+                </div>
                 <div class="card-body" style="padding:0;">
                     <table class="fiori-table">
                         <thead>
                             <tr><th>N° OT</th><th>Tipo</th><th>Fecha</th><th>Técnico</th><th>Estado</th></tr>
                         </thead>
-                        <tbody>
+                        <tbody id="otTableBody">
                             {% for ot in ots %}
                             <tr>
                                 <td>#{{ ot.id }}</td>
@@ -677,6 +760,98 @@
             </div>
         </div>
     </div>
+
+    {% load l10n %}
+    <script>
+        /* ===== INLINE EDIT DEL ACTIVO (independent block) ===== */
+        var ACTIVO_ID = {{ activo.pk|unlocalize }};
+        function getCsrfToken() {
+            var el = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (el) return el.value;
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var c = cookies[i].trim();
+                if (c.indexOf('csrftoken=') === 0) return c.substring(10);
+            }
+            return '';
+        }
+
+        function toggleFioriEdit() {
+            document.getElementById('fioriEditBtn').style.display = 'none';
+            document.getElementById('fioriSaveBtn').style.display = 'inline-flex';
+            document.getElementById('fioriCancelBtn').style.display = 'inline-flex';
+            document.querySelectorAll('.fiori-view-field').forEach(function(el) { el.style.display = 'none'; });
+            document.querySelectorAll('.fiori-edit-field').forEach(function(el) { el.style.display = 'block'; });
+        }
+
+        function cancelFioriEdit() {
+            document.getElementById('fioriEditBtn').style.display = 'inline-flex';
+            document.getElementById('fioriSaveBtn').style.display = 'none';
+            document.getElementById('fioriCancelBtn').style.display = 'none';
+            document.querySelectorAll('.fiori-view-field').forEach(function(el) { el.style.display = ''; });
+            document.querySelectorAll('.fiori-edit-field').forEach(function(el) { el.style.display = 'none'; });
+        }
+
+        function saveFioriEdit() {
+            var payload = {};
+            document.querySelectorAll('.fiori-edit-field').forEach(function(el) {
+                payload[el.dataset.field] = el.value;
+            });
+            fetch('/activos/activo/' + ACTIVO_ID + '/fiori/save/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify(payload)
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.status === 'success') { window.location.reload(); }
+                else { alert('Error: ' + (data.message || 'No se pudo guardar')); }
+            })
+            .catch(function(err) { alert('Error de red: ' + err); });
+        }
+
+        function openNuevaOtModal() {
+            document.getElementById('nuevaOtModal').style.display = 'flex';
+            document.getElementById('ot-desc-corta').value = '';
+            document.getElementById('ot-desc-detallada').value = '';
+        }
+
+        function closeNuevaOtModal() {
+            document.getElementById('nuevaOtModal').style.display = 'none';
+        }
+
+        function submitNuevaOt() {
+            var tipo = document.getElementById('ot-tipo').value;
+            var prioridad = document.getElementById('ot-prioridad').value;
+            var descCorta = document.getElementById('ot-desc-corta').value.trim();
+            var descDetallada = document.getElementById('ot-desc-detallada').value.trim();
+            if (!descCorta) { alert('La descripción corta es requerida.'); return; }
+            fetch('/activos/activo/' + ACTIVO_ID + '/fiori/crear-ot/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify({ tipo: tipo, prioridad: prioridad, descripcion_corta: descCorta, descripcion_detallada: descDetallada })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.status === 'success') {
+                    closeNuevaOtModal();
+                    var tbody = document.getElementById('otTableBody');
+                    var today = new Date();
+                    var dateStr = today.toLocaleDateString('es', {day:'2-digit', month:'2-digit', year:'2-digit'});
+                    var tr = document.createElement('tr');
+                    tr.style.background = '#f0f7ff';
+                    tr.innerHTML = '<td><strong>#' + data.ot_id + '</strong></td>' +
+                        '<td>' + (tipo === 'CORRECTIVA' ? 'Correctiva' : tipo === 'PREVENTIVA' ? 'Preventiva' : 'No Programada') + '</td>' +
+                        '<td>' + dateStr + '</td><td>---</td><td>En Espera</td>';
+                    tbody.insertBefore(tr, tbody.firstChild);
+                    setTimeout(function() { tr.style.background = ''; tr.style.transition = 'background 1s'; }, 2000);
+                } else {
+                    alert('Error: ' + (data.message || 'No se pudo crear la OT'));
+                }
+            })
+            .catch(function(err) { alert('Error de red: ' + err); });
+        }
+    </script>
 
     <script>
         // Data Registry
@@ -1312,6 +1487,53 @@
             <div id="modelo-footer-edit" style="display:none;padding:1rem 1.5rem;border-top:1px solid #d9d9d9;justify-content:flex-end;gap:8px;">
                 <button class="btn btn-secondary" onclick="exitModeloEditMode()" style="padding:8px 20px;">Cancelar</button>
                 <button class="btn btn-success" onclick="saveModelo()" style="padding:8px 20px;">Guardar</button>
+            </div>
+        </div>
+    </div>
+    <!-- NUEVA OT MODAL -->
+    <div id="nuevaOtModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:200000;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+        <div style="background:#fff;border-radius:0.35rem;width:90%;max-width:550px;box-shadow:0 1rem 3rem rgba(0,0,0,0.15);display:flex;flex-direction:column;">
+            <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #d9d9d9;display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;font-size:1.1rem;font-weight:600;color:#32363a;">
+                    <ion-icon name="add-circle-outline" style="vertical-align:middle;margin-right:6px;color:var(--sap-accent);"></ion-icon>
+                    Nueva Orden de Trabajo
+                </h3>
+                <button onclick="closeNuevaOtModal()" style="background:none;border:none;font-size:1.5rem;color:#6a6d70;cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#6a6d70;display:block;margin-bottom:4px;">Tipo de OT *</label>
+                    <select id="ot-tipo" style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:0.9rem;">
+                        <option value="CORRECTIVA">Correctiva</option>
+                        <option value="PREVENTIVA">Preventiva</option>
+                        <option value="NO_PROGRAMADA">No Programada</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#6a6d70;display:block;margin-bottom:4px;">Prioridad</label>
+                    <select id="ot-prioridad" style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:0.9rem;">
+                        <option value="BAJA">Baja</option>
+                        <option value="MEDIA" selected>Media</option>
+                        <option value="ALTA">Alta</option>
+                        <option value="CRITICA">Crítica</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#6a6d70;display:block;margin-bottom:4px;">Descripción Corta *</label>
+                    <input type="text" id="ot-desc-corta" placeholder="Ej: Cambio de filtro..." style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:0.9rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem;font-weight:600;color:#6a6d70;display:block;margin-bottom:4px;">Descripción Detallada</label>
+                    <textarea id="ot-desc-detallada" rows="3" placeholder="Detalles adicionales..." style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:0.9rem;resize:vertical;"></textarea>
+                </div>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:10px 14px;font-size:0.8rem;color:#64748b;">
+                    <ion-icon name="information-circle-outline" style="vertical-align:middle;margin-right:4px;"></ion-icon>
+                    La OT se vinculará automáticamente al activo <strong>{{ activo.nombre }}</strong> y su ubicación.
+                </div>
+            </div>
+            <div style="padding:1rem 1.5rem;border-top:1px solid #d9d9d9;display:flex;justify-content:flex-end;gap:8px;">
+                <button onclick="closeNuevaOtModal()" style="padding:8px 20px;border:1px solid #d9d9d9;background:#fff;border-radius:4px;cursor:pointer;font-size:0.85rem;">Cancelar</button>
+                <button onclick="submitNuevaOt()" style="padding:8px 20px;border:none;background:var(--sap-accent);color:#fff;border-radius:4px;cursor:pointer;font-weight:600;font-size:0.85rem;">Crear OT</button>
             </div>
         </div>
     </div>

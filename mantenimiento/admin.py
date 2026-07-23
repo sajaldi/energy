@@ -480,17 +480,17 @@ class TecnicoPuestoAdmin(ImportExportModelAdmin):
     resource_class = TecnicoPuestoResource
     change_list_template = 'admin/mantenimiento/tecnicopuesto/change_list.html' # Template custom con botón
 
-    list_display = ('get_thumbnail', 'get_nombre_completo', 'puesto', 'empresa', 'dni', 'codigo_asistencia', 'get_carga_semanal', 'disponible', 'esta_vigente')
-    list_filter = ('esta_vigente', 'empresa', 'puesto', 'disponible', 'tipo_sangre')
-    search_fields = ('nombre', 'apellido', 'user__username', 'user__first_name', 'user__last_name', 'puesto__nombre', 'dni', 'empresa__nombre')
-    autocomplete_fields = ('user', 'puesto', 'empresa')
+    list_display = ('get_thumbnail', 'get_nombre_completo', 'puesto', 'departamento', 'jefe_inmediato', 'empresa', 'dni', 'codigo_asistencia', 'get_carga_semanal', 'disponible', 'esta_vigente')
+    list_filter = ('esta_vigente', 'empresa', 'puesto', 'departamento', 'disponible', 'tipo_sangre')
+    search_fields = ('nombre', 'apellido', 'user__username', 'user__first_name', 'user__last_name', 'puesto__nombre', 'dni', 'empresa__nombre', 'departamento__nombre', 'jefe_inmediato__nombre', 'jefe_inmediato__apellido')
+    autocomplete_fields = ('user', 'puesto', 'empresa', 'departamento', 'jefe_inmediato')
     
     fieldsets = (
         ('Información de Identidad', {
             'fields': ('foto', 'user', 'nombre', 'apellido', 'dni')
         }),
         ('Información Profesional', {
-            'fields': ('puesto', 'empresa', 'disponible', 'esta_vigente', 'codigo_asistencia')
+            'fields': ('puesto', 'departamento', 'jefe_inmediato', 'empresa', 'disponible', 'esta_vigente', 'codigo_asistencia')
         }),
         ('Información Personal', {
             'fields': ('fecha_nacimiento', 'tipo_sangre', 'fecha_alta')

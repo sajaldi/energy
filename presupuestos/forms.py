@@ -2,6 +2,35 @@ from django import forms
 from .models import Requisicion, ArticuloRequisicion, DocumentoRequisicion
 from inventarios.models import Material
 
+
+class PartidaSelectWidget(forms.Select):
+    """Select widget that adds data-presupuesto-id attribute to each option."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._partida_presupuesto_map = None
+
+    def _get_presupuesto_map(self):
+        if self._partida_presupuesto_map is None:
+            from .models import PartidaPresupuestaria
+            self._partida_presupuesto_map = dict(
+                PartidaPresupuestaria.objects.values_list('id', 'presupuesto_anual_id')
+            )
+        return self._partida_presupuesto_map
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        if value:
+            pmap = self._get_presupuesto_map()
+            try:
+                val_int = int(str(value))
+                pres_id = pmap.get(val_int)
+                if pres_id:
+                    option['attrs']['data-presupuesto-id'] = str(pres_id)
+            except (ValueError, TypeError):
+                pass
+        return option
+
 class RequisicionForm(forms.ModelForm):
     class Meta:
         model = Requisicion
@@ -94,12 +123,24 @@ class RequisicionForm(forms.ModelForm):
 
                 self.fields['partida'].queryset = partidas_permitidas
 
+                # Usar widget personalizado para incluir data-presupuesto-id en cada opción
+                self.fields['partida'].widget = PartidaSelectWidget(
+                    attrs={'class': 'form-control select2-material'}
+                )
+                self.fields['partida'].widget.choices = self.fields['partida'].choices
+
                 # Filtrar también los ítems de presupuesto a solo los de partidas permitidas
                 if 'item_presupuesto' in self.fields:
                     self.fields['item_presupuesto'].queryset = ItemPresupuesto.objects.filter(
                         partida__in=partidas_permitidas
                     )
             # Si no hay departamento asociado, ve todas (comportamiento por defecto)
+            else:
+                # Sin filtro por departamento, igual poner widget con data attributes
+                self.fields['partida'].widget = PartidaSelectWidget(
+                    attrs={'class': 'form-control select2-material'}
+                )
+                self.fields['partida'].widget.choices = self.fields['partida'].choices
 
 
 class MaterialConSkuField(forms.ModelChoiceField):

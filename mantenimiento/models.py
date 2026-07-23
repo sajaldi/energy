@@ -268,6 +268,8 @@ class TecnicoPuesto(models.Model):
     apellido = models.CharField(max_length=150, blank=True, null=True, verbose_name="Apellido(s)")
     puesto = models.ForeignKey(PuestoTrabajo, on_delete=models.SET_NULL, null=True, blank=True, related_name='tecnicos')
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados')
+    departamento = models.ForeignKey('core.Departamento', on_delete=models.SET_NULL, null=True, blank=True, related_name='personal_tecnico', verbose_name="Departamento")
+    jefe_inmediato = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='subordinados', verbose_name="Jefe Inmediato")
     
     dni = models.CharField(max_length=20, unique=True, null=True, blank=True, help_text="Ej: 0501-1986-06985")
     fecha_nacimiento = models.DateField(null=True, blank=True)

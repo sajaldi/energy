@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>{{ plano.titulo }}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#1a1a1a;color:#fff;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;touch-action:none}
+
+/* Header */
+.header{background:#2c2c2c;padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #3a3a3a;flex-shrink:0;z-index:100}
+.header .back{color:#0696d7;font-size:20px;text-decoration:none;padding:4px}
+.header .title{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.header .page-info{font-size:11px;color:#888;white-space:nowrap}
+.header .btn-pins{background:#0696d7;border:none;color:#fff;padding:5px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer}
+
+/* Viewer */
+.viewer{flex:1;overflow:hidden;position:relative;background:#333;touch-action:none}
+.stage{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+canvas{display:block;box-shadow:0 2px 16px rgba(0,0,0,.5)}
+
+/* Pin markers */
+.pin-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+.pin-marker{pointer-events:auto;position:absolute;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;transform:translate(-12px,-12px);filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));cursor:pointer;transition:transform .15s}
+.pin-marker:active{transform:translate(-12px,-12px) scale(1.3)}
+.pin-marker.highlight{animation:pin-bounce .5s ease}
+@keyframes pin-bounce{0%,100%{transform:translate(-12px,-12px)}50%{transform:translate(-12px,-18px) scale(1.3)}}
+
+/* Bottom bar */
+.bottom-bar{background:#2c2c2c;padding:8px 14px;display:flex;align-items:center;gap:8px;border-top:1px solid #3a3a3a;flex-shrink:0;z-index:100}
+.bottom-bar button{background:#3a3a3a;border:1px solid #4a4a4a;color:#ccc;border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer;flex:1;font-family:inherit}
+.bottom-bar button:active{background:#4a4a4a}
+.bottom-bar .zoom-label{font-size:11px;color:#888;text-align:center;min-width:40px}
+
+/* Pin detail sheet (bottom sheet) */
+.pin-sheet{position:fixed;bottom:0;left:0;right:0;background:#2c2c2c;border-radius:16px 16px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.5);transform:translateY(100%);transition:transform .3s ease;z-index:200;max-height:60vh;display:flex;flex-direction:column}
+.pin-sheet.open{transform:translateY(0)}
+.pin-sheet .handle{width:36px;height:4px;background:#555;border-radius:2px;margin:10px auto}
+.pin-sheet .sheet-header{padding:0 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #3a3a3a}
+.pin-sheet .sheet-header .dot{width:14px;height:14px;border-radius:50%;flex-shrink:0}
+.pin-sheet .sheet-header h3{font-size:14px;font-weight:600;flex:1}
+.pin-sheet .sheet-header .estado{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase}
+.pin-sheet .sheet-body{padding:16px;overflow-y:auto;flex:1}
+.pin-sheet .field{margin-bottom:12px}
+.pin-sheet .field-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px}
+.pin-sheet .field-value{font-size:13px;color:#ddd;line-height:1.5}
+.pin-sheet .fotos{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.pin-sheet .fotos img{width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #444}
+.pin-sheet .close-btn{position:absolute;top:12px;right:16px;background:none;border:none;color:#888;font-size:20px;cursor:pointer}
+
+/* Pins list overlay */
+.pins-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:none;flex-direction:column}
+.pins-overlay.open{display:flex}
+.pins-overlay .po-header{padding:14px 16px;background:#2c2c2c;display:flex;align-items:center;gap:10px;border-bottom:1px solid #3a3a3a}
+.pins-overlay .po-header h3{flex:1;font-size:14px;font-weight:600}
+.pins-overlay .po-header button{background:none;border:none;color:#888;font-size:22px;cursor:pointer}
+.pins-overlay .po-list{flex:1;overflow-y:auto;padding:8px}
+.pins-overlay .po-item{padding:12px;background:#2c2c2c;border:1px solid #3a3a3a;border-radius:8px;margin-bottom:8px;cursor:pointer}
+.pins-overlay .po-item:active{background:#3a3a3a}
+.pins-overlay .po-item .poi-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.pins-overlay .po-item .poi-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.pins-overlay .po-item .poi-estado{font-size:9px;font-weight:700;padding:1px 6px;border-radius:6px;text-transform:uppercase;margin-left:auto}
+.pins-overlay .po-item .poi-text{font-size:12px;color:#ccc;line-height:1.4}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <a href="javascript:history.back()" class="back">←</a>
+  <span class="title">{{ plano.titulo }}</span>
+  <span class="page-info" id="page-info">1/1</span>
+  <button class="btn-pins" onclick="togglePinsList()">📌 <span id="pin-count">0</span></button>
+</div>
+
+<!-- Viewer -->
+<div class="viewer" id="viewer">
+  <div class="stage" id="stage">
+    <canvas id="pdf-canvas"></canvas>
+    <div class="pin-layer" id="pin-layer"></div>
+  </div>
+</div>
+
+<!-- Bottom Bar -->
+<div class="bottom-bar">
+  <button onclick="prevPage()">◀ Anterior</button>
+  <span class="zoom-label" id="zoom-label">100%</span>
+  <button onclick="nextPage()">Siguiente ▶</button>
+</div>
+
+<!-- Pin Detail Sheet -->
+<div class="pin-sheet" id="pin-sheet">
+  <div class="handle"></div>
+  <button class="close-btn" onclick="closeSheet()">✕</button>
+  <div class="sheet-header">
+    <div class="dot" id="sheet-dot"></div>
+    <h3 id="sheet-title">Observación</h3>
+    <span class="estado" id="sheet-estado"></span>
+  </div>
+  <div class="sheet-body">
+    <div class="field"><div class="field-label">Observación</div><div class="field-value" id="sheet-obs"></div></div>
+    <div class="field"><div class="field-label">Nota del pin</div><div class="field-value" id="sheet-nota"></div></div>
+    <div class="field"><div class="field-label">Usuario</div><div class="field-value" id="sheet-user"></div></div>
+    <div class="field"><div class="field-label">Fecha</div><div class="field-value" id="sheet-fecha"></div></div>
+    <div class="fotos" id="sheet-fotos"></div>
+  </div>
+</div>
+
+<!-- Pins List Overlay -->
+<div class="pins-overlay" id="pins-overlay">
+  <div class="po-header">
+    <h3>📌 Observaciones</h3>
+    <button onclick="togglePinsList()">✕</button>
+  </div>
+  <div class="po-list" id="pins-list"></div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const PDF_URL = '{{ pdf_url }}';
+const PINES = JSON.parse('{{ pines_json|escapejs }}');
+const PIN_ID_PARAM = new URLSearchParams(location.search).get('pin_id');
+
+var pdfDoc = null, curPage = 1, totPages = 1;
+var scale = 1, base = 1, cssW = 0, cssH = 0;
+var tx = 0, ty = 0;
+var pdfPageWidth = 0, pdfPageHeight = 0;
+
+const viewer = document.getElementById('viewer');
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('pdf-canvas');
+const ctx = canvas.getContext('2d');
+
+function xform() { stage.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; }
+
+function center() {
+  tx = (viewer.clientWidth - cssW * scale) / 2;
+  ty = (viewer.clientHeight - cssH * scale) / 2;
+  xform();
+}
+
+function renderPage(n) {
+  if (!pdfDoc) return;
+  pdfDoc.getPage(n).then(function(page) {
+    var dpr = window.devicePixelRatio || 1;
+    var FACTOR = Math.max(3, dpr * 2);
+    var vpI = page.getViewport({scale:1});
+    pdfPageWidth = vpI.width; pdfPageHeight = vpI.height;
+    var vp = page.getViewport({scale: base * FACTOR});
+    canvas.width = vp.width; canvas.height = vp.height;
+    cssW = vp.width / FACTOR; cssH = vp.height / FACTOR;
+    canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    page.render({canvasContext:ctx, viewport:vp, intent:'print'}).promise.then(function() {
+      curPage = n;
+      document.getElementById('page-info').textContent = n + '/' + totPages;
+      renderPines();
+    });
+  });
+}
+
+function fitToWindow() {
+  if (!pdfDoc) return;
+  pdfDoc.getPage(curPage).then(function(page) {
+    var vp = page.getViewport({scale:1});
+    var sw = (viewer.clientWidth - 20) / vp.width;
+    var sh = (viewer.clientHeight - 20) / vp.height;
+    base = Math.min(sw, sh);
+    scale = base;
+    renderPage(curPage);
+    setTimeout(center, 50);
+  });
+}
+
+function prevPage() { if (curPage > 1) { renderPage(curPage - 1); center(); } }
+function nextPage() { if (curPage < totPages) { renderPage(curPage + 1); center(); } }
+
+// ── Pines ──
+function renderPines() {
+  var layer = document.getElementById('pin-layer');
+  layer.innerHTML = '';
+  var pagePins = PINES.filter(p => p.pagina === curPage);
+  pagePins.forEach(function(pin) {
+    var el = document.createElement('div');
+    el.className = 'pin-marker';
+    el.style.background = pin.color || '#EF4444';
+    el.style.left = (pin.x * base) + 'px';
+    el.style.top = (pin.y * base) + 'px';
+    el.textContent = pagePins.indexOf(pin) + 1;
+    el.addEventListener('click', function(e) { e.stopPropagation(); openPinDetail(pin); });
+    layer.appendChild(el);
+  });
+  document.getElementById('pin-count').textContent = PINES.length;
+}
+
+function openPinDetail(pin) {
+  var sheet = document.getElementById('pin-sheet');
+  document.getElementById('sheet-dot').style.background = pin.color || '#EF4444';
+  document.getElementById('sheet-title').textContent = 'Observación #' + pin.observacion_id;
+  document.getElementById('sheet-obs').textContent = pin.observacion_texto || '—';
+  document.getElementById('sheet-nota').textContent = pin.nota || '—';
+  document.getElementById('sheet-user').textContent = pin.observacion_usuario || '—';
+  document.getElementById('sheet-fecha').textContent = pin.observacion_fecha ? new Date(pin.observacion_fecha).toLocaleDateString('es-HN') : '—';
+  var estadoEl = document.getElementById('sheet-estado');
+  estadoEl.textContent = pin.observacion_estado;
+  var colors = {'ABIERTA':'#fbbf24;color:#000','EN_PROCESO':'#60a5fa;color:#fff','CERRADA':'#4ade80;color:#000','CANCELADA':'#f87171;color:#fff'};
+  estadoEl.style.cssText = 'background:' + (colors[pin.observacion_estado] || '#888;color:#fff');
+  // Fotos
+  var fotosEl = document.getElementById('sheet-fotos');
+  fotosEl.innerHTML = (pin.fotos || []).map(f => '<img src="' + f.url + '" onclick="window.open(this.src)">').join('');
+  sheet.classList.add('open');
+}
+
+function closeSheet() { document.getElementById('pin-sheet').classList.remove('open'); }
+
+function togglePinsList() {
+  var overlay = document.getElementById('pins-overlay');
+  overlay.classList.toggle('open');
+  if (overlay.classList.contains('open')) renderPinsList();
+}
+
+function renderPinsList() {
+  var list = document.getElementById('pins-list');
+  list.innerHTML = PINES.map(function(pin) {
+    var colors = {'ABIERTA':'background:#fbbf24;color:#000','EN_PROCESO':'background:#60a5fa;color:#fff','CERRADA':'background:#4ade80;color:#000','CANCELADA':'background:#f87171;color:#fff'};
+    return '<div class="po-item" onclick="goToPin(' + pin.id + ')">' +
+      '<div class="poi-top"><div class="poi-dot" style="background:' + (pin.color||'#EF4444') + '"></div>' +
+      '<span class="poi-estado" style="' + (colors[pin.observacion_estado]||'background:#888;color:#fff') + '">' + pin.observacion_estado + '</span></div>' +
+      '<div class="poi-text">' + (pin.observacion_texto||'Sin observación').substring(0,80) + '</div></div>';
+  }).join('');
+}
+
+function goToPin(pinId) {
+  var pin = PINES.find(p => p.id === pinId);
+  if (!pin) return;
+  togglePinsList();
+  if (curPage !== pin.pagina) { renderPage(pin.pagina); setTimeout(function(){ center(); highlightPin(pin); }, 300); }
+  else { highlightPin(pin); }
+}
+
+function highlightPin(pin) {
+  openPinDetail(pin);
+  // Scroll to pin position
+  var px = pin.x * base * scale;
+  var py = pin.y * base * scale;
+  tx = viewer.clientWidth/2 - px;
+  ty = viewer.clientHeight/2 - py;
+  xform();
+  // Flash the marker
+  var markers = document.querySelectorAll('.pin-marker');
+  var idx = PINES.filter(p=>p.pagina===curPage).findIndex(p=>p.id===pin.id);
+  if (markers[idx]) markers[idx].classList.add('highlight');
+}
+
+// ── Touch gestures (pinch zoom + pan) ──
+var touches0 = null, t0dist = 0, t0scale = 1, t0tx = 0, t0ty = 0;
+
+viewer.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 2) {
+    t0dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    t0scale = scale; t0tx = tx; t0ty = ty;
+  } else if (e.touches.length === 1) {
+    touches0 = { x: e.touches[0].clientX, y: e.touches[0].clientY, tx: tx, ty: ty };
+  }
+}, {passive:true});
+
+viewer.addEventListener('touchmove', function(e) {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    var d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    var ns = t0scale * (d / t0dist);
+    ns = Math.max(base * 0.5, Math.min(base * 10, ns));
+    scale = ns;
+    tx = t0tx; ty = t0ty;
+    xform();
+    document.getElementById('zoom-label').textContent = Math.round(scale/base*100) + '%';
+  } else if (e.touches.length === 1 && touches0) {
+    e.preventDefault();
+    tx = touches0.tx + (e.touches[0].clientX - touches0.x);
+    ty = touches0.ty + (e.touches[0].clientY - touches0.y);
+    xform();
+  }
+}, {passive:false});
+
+viewer.addEventListener('touchend', function() { touches0 = null; });
+
+// Double tap to zoom
+var lastTap = 0;
+viewer.addEventListener('touchend', function(e) {
+  if (e.touches.length > 0) return;
+  var now = Date.now();
+  if (now - lastTap < 300) {
+    // Toggle between fit and 2x zoom
+    if (scale > base * 1.5) { scale = base; center(); }
+    else { scale = base * 2.5; var r = e.changedTouches[0]; tx = viewer.clientWidth/2 - (r.clientX - viewer.getBoundingClientRect().left) * 2.5/scale * scale; ty = viewer.clientHeight/2 - (r.clientY - viewer.getBoundingClientRect().top) * 2.5/scale * scale; xform(); }
+    document.getElementById('zoom-label').textContent = Math.round(scale/base*100) + '%';
+  }
+  lastTap = now;
+});
+
+// ── Init ──
+pdfjsLib.getDocument(PDF_URL).promise.then(function(pdf) {
+  pdfDoc = pdf;
+  totPages = pdf.numPages;
+  fitToWindow();
+  // Handle pin_id parameter
+  if (PIN_ID_PARAM) {
+    var pin = PINES.find(p => p.id === parseInt(PIN_ID_PARAM));
+    if (pin) {
+      setTimeout(function() {
+        if (pin.pagina !== curPage) renderPage(pin.pagina);
+        setTimeout(function() { highlightPin(pin); }, 500);
+      }, 600);
+    }
+  }
+});
+</script>
+</body>
+</html>

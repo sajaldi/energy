@@ -289,19 +289,78 @@ class Documento(models.Model):
     def __str__(self):
         return f"{self.codigo} - {self.titulo}"
 
-    def user_has_access(self, user):
+    def user_has_access(self, user, permission='ver'):
         """
-        Determina si un usuario puede ver este documento.
+        Determina si un usuario puede acceder a este documento.
+        Modelo de seguridad a nivel de registro (tipo Dynamics 365):
+        
+        1. Superusuarios: acceso total.
+        2. Responsable/Propietario: acceso total.
+        3. Share público: si existe un share con tipo='publico' vigente.
+        4. Share por usuario: share directo al usuario.
+        5. Share por grupo: share a un grupo al que pertenece el usuario.
+        6. Departamentos asignados: si el usuario pertenece a un departamento asignado.
+        7. Sin restricciones explícitas: solo visible para el departamento del responsable.
         """
         if user.is_superuser:
             return True
-        # Si el documento no tiene departamentos asignados, es público
-        if not self.departamentos.exists():
+        
+        # El responsable del documento siempre tiene acceso total
+        if self.responsable and self.responsable == user:
             return True
-        # Si tiene departamentos, el usuario debe pertenecer a al menos uno
-        user_dept = getattr(user.perfil, 'departamento', None)
-        if user_dept and self.departamentos.filter(id=user_dept.id).exists():
+        
+        from django.utils import timezone
+        from django.db.models import Q
+        
+        # Verificar shares vigentes
+        shares_qs = self.shares.filter(
+            Q(expira_en__isnull=True) | Q(expira_en__gt=timezone.now())
+        )
+        
+        has_any_share = shares_qs.exists()
+        has_departamentos = self.departamentos.exists()
+        
+        # Mapeo de permiso solicitado al campo del modelo
+        perm_field = {
+            'ver': 'puede_ver',
+            'editar': 'puede_editar',
+            'eliminar': 'puede_eliminar',
+            'compartir': 'puede_compartir',
+        }.get(permission, 'puede_ver')
+        
+        # Si no hay shares ni departamentos asignados:
+        # Solo visible para usuarios del mismo departamento que el responsable
+        if not has_any_share and not has_departamentos:
+            user_dept = getattr(user.perfil, 'departamento', None) if hasattr(user, 'perfil') else None
+            if not user_dept:
+                return False
+            # Comparar con el departamento del responsable del documento
+            if self.responsable and hasattr(self.responsable, 'perfil'):
+                responsable_dept = getattr(self.responsable.perfil, 'departamento', None)
+                return user_dept == responsable_dept
+            return False
+        
+        # 1. ¿Hay un share público?
+        if has_any_share and shares_qs.filter(tipo='publico', **{perm_field: True}).exists():
             return True
+        
+        # 2. ¿Share directo al usuario?
+        if has_any_share and shares_qs.filter(tipo='usuario', compartido_a_usuario=user, **{perm_field: True}).exists():
+            return True
+        
+        # 3. ¿Share por grupo?
+        if has_any_share:
+            user_groups = user.groups.all()
+            if user_groups.exists():
+                if shares_qs.filter(tipo='grupo', compartido_a_grupo__in=user_groups, **{perm_field: True}).exists():
+                    return True
+        
+        # 4. Departamentos asignados explícitamente
+        if has_departamentos:
+            user_dept = getattr(user.perfil, 'departamento', None) if hasattr(user, 'perfil') else None
+            if user_dept and self.departamentos.filter(id=user_dept.id).exists():
+                return True
+        
         return False
 
     class Meta:
@@ -601,6 +660,104 @@ class GroqApiKey(models.Model):
 
     def __str__(self):
         return f"{self.alias} ({self.get_proveedor_display()} - {self.modelo})"
+
+
+class DocumentoShare(models.Model):
+    """
+    Seguridad a nivel de registro: permite compartir un documento con
+    usuarios específicos, grupos de Django, o hacerlo público.
+    Similar al modelo de Sharing de Dynamics 365.
+    """
+    VISIBILIDAD_CHOICES = (
+        ('usuario', 'Usuario Específico'),
+        ('grupo', 'Grupo'),
+        ('publico', 'Público (Todos)'),
+    )
+    
+    documento = models.ForeignKey(
+        Documento, 
+        on_delete=models.CASCADE, 
+        related_name='shares',
+        verbose_name=_("Documento")
+    )
+    
+    # Quién compartió
+    compartido_por = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='documentos_compartidos_por',
+        verbose_name=_("Compartido por")
+    )
+    
+    # Tipo de compartición
+    tipo = models.CharField(
+        max_length=10, 
+        choices=VISIBILIDAD_CHOICES,
+        verbose_name=_("Tipo")
+    )
+    
+    # A quién se comparte (según el tipo)
+    compartido_a_usuario = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        null=True, blank=True, 
+        related_name='documentos_compartidos_conmigo',
+        verbose_name=_("Usuario")
+    )
+    compartido_a_grupo = models.ForeignKey(
+        'auth.Group', 
+        on_delete=models.CASCADE, 
+        null=True, blank=True, 
+        related_name='documentos_compartidos_grupo',
+        verbose_name=_("Grupo")
+    )
+    
+    # Permisos granulares
+    puede_ver = models.BooleanField(default=True, verbose_name=_("Puede Ver"))
+    puede_editar = models.BooleanField(default=False, verbose_name=_("Puede Editar"))
+    puede_eliminar = models.BooleanField(default=False, verbose_name=_("Puede Eliminar"))
+    puede_compartir = models.BooleanField(default=False, verbose_name=_("Puede Re-compartir"))
+    
+    # Metadata
+    creado_en = models.DateTimeField(auto_now_add=True)
+    expira_en = models.DateTimeField(
+        null=True, blank=True, 
+        verbose_name=_("Expira en"),
+        help_text="Dejar vacío para acceso permanente."
+    )
+    nota = models.CharField(
+        max_length=255, blank=True, default='',
+        verbose_name=_("Nota"),
+        help_text="Motivo o comentario sobre por qué se compartió."
+    )
+    
+    class Meta:
+        verbose_name = "Compartición de Documento"
+        verbose_name_plural = "Comparticiones de Documentos"
+        ordering = ['-creado_en']
+        indexes = [
+            models.Index(fields=['documento', 'tipo']),
+            models.Index(fields=['compartido_a_usuario']),
+            models.Index(fields=['compartido_a_grupo']),
+        ]
+    
+    def __str__(self):
+        if self.tipo == 'usuario' and self.compartido_a_usuario:
+            destino = self.compartido_a_usuario.get_full_name() or self.compartido_a_usuario.username
+        elif self.tipo == 'grupo' and self.compartido_a_grupo:
+            destino = self.compartido_a_grupo.name
+        else:
+            destino = "Todos"
+        return f"{self.documento.codigo} → {destino}"
+    
+    def esta_vigente(self):
+        """Verifica si el share no ha expirado."""
+        if not self.expira_en:
+            return True
+        from django.utils import timezone
+        return timezone.now() < self.expira_en
+    esta_vigente.boolean = True
+    esta_vigente.short_description = "Vigente"
 
 
 # Importar modelos del sistema de firmas electrónicas

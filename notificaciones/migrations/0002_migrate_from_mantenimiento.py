@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('notificaciones', '0001_initial'),
-        ('mantenimiento', '__latest__'),
+        ('mantenimiento', '0086_tecnicopuesto_telefono_and_more'),
     ]
 
     operations = [

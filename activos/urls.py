@@ -112,6 +112,8 @@ urlpatterns = [
 
     # Fiori Dashboard y Explorador
     path('activo/<int:pk>/fiori/', views.activo_fiori_view, name='activo_fiori'),
+    path('activo/<int:pk>/fiori/save/', views.api_activo_fiori_save, name='api_activo_fiori_save'),
+    path('activo/<int:pk>/fiori/crear-ot/', views.api_activo_fiori_crear_ot, name='api_activo_fiori_crear_ot'),
     path('fiori-explorer/', views.fiori_explorer_view, name='fiori_explorer'),
     path('fiori-explorer/<int:ubicacion_id>/', views.fiori_explorer_view, name='fiori_explorer_at'),
     

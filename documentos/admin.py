@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html, mark_safe
 from django.urls import reverse
-from .models import Documento, Carpeta, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory, Biblioteca, ComentarioBiblioteca, GroqApiKey
+from .models import Documento, Carpeta, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory, Biblioteca, ComentarioBiblioteca, GroqApiKey, DocumentoShare
 import json
 
 from django.forms import TextInput, Textarea
@@ -112,6 +112,46 @@ class MetadatoValorInline(admin.TabularInline):
     def has_add_permission(self, request, obj=None):
         return False # Se crean dinámicamente
 
+class DocumentoShareInlineForm(forms.ModelForm):
+    class Meta:
+        model = DocumentoShare
+        fields = ('tipo', 'compartido_a_usuario', 'compartido_a_grupo', 'puede_ver', 'puede_editar', 'puede_eliminar', 'puede_compartir', 'expira_en', 'nota')
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['compartido_a_usuario'].required = False
+        self.fields['compartido_a_grupo'].required = False
+        self.fields['expira_en'].widget = forms.DateTimeInput(attrs={'type': 'datetime-local'})
+
+class DocumentoShareInline(admin.TabularInline):
+    model = DocumentoShare
+    form = DocumentoShareInlineForm
+    extra = 0
+    fields = ('tipo', 'compartido_a_usuario', 'compartido_a_grupo', 'puede_ver', 'puede_editar', 'puede_eliminar', 'puede_compartir', 'expira_en', 'nota', 'esta_vigente')
+    readonly_fields = ('esta_vigente',)
+    
+    def esta_vigente(self, obj):
+        if not obj.pk:
+            return "-"
+        vigente = obj.esta_vigente()
+        if vigente:
+            return format_html('<span style="color: #10b981; font-weight: bold;">✓ Vigente</span>')
+        return format_html('<span style="color: #ef4444; font-weight: bold;">✗ Expirado</span>')
+    esta_vigente.short_description = "Estado"
+    
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:
+            obj.compartido_por = request.user
+        super().save_model(request, obj, form, change)
+    
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if not instance.pk:
+                instance.compartido_por = request.user
+            instance.save()
+        formset.save_m2m()
+
 @admin.register(Documento)
 class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
     list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'get_vectorizado_status', 'ver_en_mapa_button', 'fecha_inicio', 'vista_rapida_button', 'trazabilidad_link')
@@ -130,6 +170,134 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
     def add_view(self, request, form_url='', extra_context=None):
         from django.shortcuts import redirect
         return redirect('documentos:documento_wizard')
+
+    def get_queryset(self, request):
+        """
+        Filtrar documentos en el listado según seguridad a nivel de registro.
+        
+        - Superusuarios: ven todo.
+        - Usuarios CON permiso Django (view_documento): ven documentos de su departamento,
+          donde son responsable, o que tienen shares/departamentos que les apliquen.
+        - Usuarios SIN permiso Django (acceden solo por shares): ven ÚNICAMENTE
+          los documentos compartidos explícitamente con ellos.
+        """
+        qs = super().get_queryset(request)
+        
+        if request.user.is_superuser:
+            return qs
+        
+        from django.db.models import Q, Exists, OuterRef
+        from django.utils import timezone
+        from core.models import PerfilUsuario
+        
+        now = timezone.now()
+        user = request.user
+        user_groups = user.groups.all()
+        user_dept = getattr(user.perfil, 'departamento', None) if hasattr(user, 'perfil') else None
+        
+        # Shares vigentes base (no expirados)
+        shares_vigentes = DocumentoShare.objects.filter(
+            documento_id=OuterRef('pk'),
+            puede_ver=True
+        ).filter(
+            Q(expira_en__isnull=True) | Q(expira_en__gt=now)
+        )
+        
+        # Usuario SIN permiso Django al modelo: solo ve lo que le compartieron
+        has_django_perm = user.has_perm('documentos.view_documento')
+        
+        if not has_django_perm:
+            # Solo shares directos: público, usuario, o grupo
+            tiene_share_publico = Exists(shares_vigentes.filter(tipo='publico'))
+            tiene_share_usuario = Exists(shares_vigentes.filter(tipo='usuario', compartido_a_usuario=user))
+            
+            acceso_q = Q(responsable=user) | tiene_share_publico | tiene_share_usuario
+            
+            if user_groups.exists():
+                tiene_share_grupo = Exists(
+                    shares_vigentes.filter(tipo='grupo', compartido_a_grupo__in=user_groups)
+                )
+                acceso_q |= tiene_share_grupo
+            
+            return qs.filter(acceso_q).distinct()
+        
+        # Usuario CON permiso Django: lógica completa
+        has_shares = Exists(
+            DocumentoShare.objects.filter(documento_id=OuterRef('pk'))
+        )
+        has_departamentos = Exists(
+            Documento.departamentos.through.objects.filter(documento_id=OuterRef('pk'))
+        )
+        
+        # 1. Es responsable del documento
+        es_responsable = Q(responsable=user)
+        
+        # 2. Sin restricciones (ni shares ni departamentos):
+        #    Solo visible para usuarios del mismo departamento que el responsable
+        if user_dept:
+            mismos_dept_users = PerfilUsuario.objects.filter(
+                departamento=user_dept
+            ).values_list('usuario_id', flat=True)
+            sin_restriccion_mismo_dept = (
+                ~has_shares & ~has_departamentos & Q(responsable_id__in=mismos_dept_users)
+            )
+        else:
+            sin_restriccion_mismo_dept = Q(pk__in=[])
+        
+        # 3. Shares vigentes
+        tiene_share_publico = Exists(shares_vigentes.filter(tipo='publico'))
+        tiene_share_usuario = Exists(shares_vigentes.filter(tipo='usuario', compartido_a_usuario=user))
+        
+        acceso_q = es_responsable | sin_restriccion_mismo_dept | tiene_share_publico | tiene_share_usuario
+        
+        # 4. Share por grupo
+        if user_groups.exists():
+            tiene_share_grupo = Exists(
+                shares_vigentes.filter(tipo='grupo', compartido_a_grupo__in=user_groups)
+            )
+            acceso_q |= tiene_share_grupo
+        
+        # 5. Departamentos asignados explícitamente
+        if user_dept:
+            acceso_q |= Q(departamentos=user_dept)
+        
+        return qs.filter(acceso_q).distinct()
+
+    def has_view_permission(self, request, obj=None):
+        """
+        Permite ver el módulo de documentos si el usuario tiene acceso
+        a al menos un documento (via shares, departamento, o responsable).
+        Django Admin requiere este permiso para mostrar el modelo en el sidebar.
+        """
+        # Si tiene el permiso estándar de Django, OK
+        if super().has_view_permission(request, obj):
+            return True
+        # Si es un objeto específico, verificar acceso por share
+        if obj is not None:
+            return obj.user_has_access(request.user, permission='ver')
+        # Para el listado: permitir si el usuario está autenticado (el queryset filtra)
+        return request.user.is_authenticated
+
+    def has_change_permission(self, request, obj=None):
+        """
+        Permite editar un documento si tiene share con puede_editar=True
+        o el permiso estándar de Django.
+        """
+        if super().has_change_permission(request, obj):
+            return True
+        if obj is not None:
+            return obj.user_has_access(request.user, permission='editar')
+        # Para el listado general, permitir acceso (get_queryset filtra)
+        return request.user.is_authenticated
+
+    def has_module_permission(self, request):
+        """
+        Permite que el módulo 'Documentos' aparezca en el sidebar del admin
+        para cualquier usuario autenticado. El filtrado real ocurre en get_queryset.
+        """
+        if super().has_module_permission(request):
+            return True
+        return request.user.is_authenticated
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'respuesta_a':
@@ -151,8 +319,8 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
             'description': 'Vectorización, visualización 3D y gestión de bibliotecas del documento.'
         }),
         ('Seguridad y Acceso', {
-            'fields': ('departamentos',),
-            'description': 'Si se seleccionan departamentos, solo los usuarios de dichos departamentos podrán ver este documento.'
+            'fields': ('responsable', 'compartir_button', 'departamentos'),
+            'description': 'El responsable siempre tiene acceso total. Si no hay comparticiones ni departamentos, solo el departamento del responsable puede ver el documento.'
         }),
         ('Relaciones', {
             'fields': ('activos', 'ubicaciones')
@@ -163,7 +331,7 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         }),
     )
     
-    readonly_fields = ('ultima_revision', 'gestionar_bibliotecas_button', 'vista_rapida_button', 'trazabilidad_link', 'ver_en_mapa_button', 'contenido_texto_display', 'get_word_templates_buttons', 'sync_metadatos_button', 'get_vectorizado_status') 
+    readonly_fields = ('ultima_revision', 'gestionar_bibliotecas_button', 'vista_rapida_button', 'trazabilidad_link', 'ver_en_mapa_button', 'contenido_texto_display', 'get_word_templates_buttons', 'sync_metadatos_button', 'get_vectorizado_status', 'compartir_button') 
 
     def ver_en_mapa_button(self, obj):
         if not obj.pk:
@@ -323,6 +491,301 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         )
     gestionar_bibliotecas_button.short_description = "Bibliotecas"
 
+    def compartir_button(self, obj):
+        if not obj.pk:
+            return "-"
+        return format_html(
+            '''
+            <button type="button" onclick="openShareModal({})" class="button"
+                    style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; font-size: 0.9rem; box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.3);">
+                🔗 Compartir Documento
+            </button>
+            <div id="share-modal-root"></div>
+
+            <style>
+                #share-overlay {{
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(8px);
+                    display: flex; align-items: center; justify-content: center;
+                    z-index: 99999; opacity: 0; transition: opacity 0.3s ease;
+                }}
+                .share-modal {{
+                    background: #fff; width: 95%; max-width: 700px; border-radius: 16px;
+                    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden;
+                    transform: translateY(30px) scale(0.98); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                    display: flex; flex-direction: column; max-height: 85vh;
+                }}
+                .share-header {{
+                    padding: 20px 24px; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+                    border-bottom: 1px solid #fde68a; display: flex; justify-content: space-between; align-items: center;
+                }}
+                .share-header h3 {{ margin: 0; font-size: 1.2rem; color: #92400e; }}
+                .share-body {{ padding: 20px 24px; overflow-y: auto; flex-grow: 1; }}
+                
+                .share-form {{ background: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 20px; border: 1px solid #e2e8f0; }}
+                .share-form label {{ display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.85rem; color: #475569; }}
+                .share-form select, .share-form input {{
+                    width: 100%; padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 8px;
+                    font-size: 0.9rem; margin-bottom: 12px; outline: none; transition: border-color 0.2s;
+                }}
+                .share-form select:focus, .share-form input:focus {{ border-color: #f59e0b; }}
+                .share-form .row {{ display: flex; gap: 12px; }}
+                .share-form .row > div {{ flex: 1; }}
+                
+                .share-permisos {{ display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }}
+                .share-permisos label {{
+                    display: flex; align-items: center; gap: 6px; font-weight: 500;
+                    cursor: pointer; font-size: 0.85rem; color: #334155;
+                }}
+                .share-permisos input[type="checkbox"] {{ width: auto; margin: 0; }}
+                
+                .share-btn-add {{
+                    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;
+                    padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;
+                    font-weight: 700; font-size: 0.9rem; transition: transform 0.2s;
+                }}
+                .share-btn-add:hover {{ transform: translateY(-1px); }}
+                .share-btn-add:disabled {{ opacity: 0.5; cursor: not-allowed; transform: none; }}
+                
+                .share-list-title {{ font-weight: 700; color: #1e293b; margin-bottom: 12px; font-size: 1rem; }}
+                
+                .share-item {{
+                    display: flex; align-items: center; justify-content: space-between;
+                    padding: 12px 16px; margin-bottom: 8px; border-radius: 10px;
+                    border: 1px solid #e2e8f0; background: #fff; transition: all 0.2s;
+                }}
+                .share-item:hover {{ border-color: #fbbf24; background: #fffbeb; }}
+                .share-item-info {{ flex-grow: 1; }}
+                .share-item-info b {{ display: block; color: #1e293b; font-size: 0.95rem; }}
+                .share-item-info span {{ font-size: 0.75rem; color: #64748b; }}
+                .share-item-perms {{ display: flex; gap: 6px; margin-right: 12px; }}
+                .share-perm-badge {{
+                    font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 600;
+                }}
+                .share-perm-badge.active {{ background: #dcfce7; color: #166534; }}
+                .share-perm-badge.inactive {{ background: #f1f5f9; color: #94a3b8; }}
+                .share-btn-del {{
+                    background: none; border: none; cursor: pointer; font-size: 1.2rem;
+                    color: #94a3b8; transition: color 0.2s; padding: 4px 8px; border-radius: 6px;
+                }}
+                .share-btn-del:hover {{ color: #ef4444; background: #fef2f2; }}
+                
+                .share-empty {{ text-align: center; padding: 30px; color: #94a3b8; font-size: 0.9rem; }}
+                .share-vigente {{ color: #10b981; font-weight: 700; }}
+                .share-expirado {{ color: #ef4444; font-weight: 700; }}
+            </style>
+
+            <script>
+            function openShareModal(docId) {{
+                const root = document.getElementById('share-modal-root');
+                root.innerHTML = `
+                    <div id="share-overlay">
+                        <div class="share-modal">
+                            <div class="share-header">
+                                <h3>🔗 Compartir Documento</h3>
+                                <button type="button" onclick="closeShareModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#92400e;">&times;</button>
+                            </div>
+                            <div class="share-body">
+                                <div class="share-form">
+                                    <div class="row">
+                                        <div>
+                                            <label>Compartir con</label>
+                                            <select id="share-tipo" onchange="shareTypeChanged()">
+                                                <option value="usuario">Usuario Específico</option>
+                                                <option value="grupo">Grupo</option>
+                                                <option value="publico">Público (Todos)</option>
+                                            </select>
+                                        </div>
+                                        <div id="share-target-container">
+                                            <label id="share-target-label">Usuario</label>
+                                            <select id="share-target"><option value="">Cargando...</option></select>
+                                        </div>
+                                    </div>
+                                    <label>Permisos</label>
+                                    <div class="share-permisos">
+                                        <label><input type="checkbox" id="share-perm-ver" checked disabled> Ver</label>
+                                        <label><input type="checkbox" id="share-perm-editar"> Editar</label>
+                                        <label><input type="checkbox" id="share-perm-eliminar"> Eliminar</label>
+                                        <label><input type="checkbox" id="share-perm-compartir"> Re-compartir</label>
+                                    </div>
+                                    <div class="row">
+                                        <div>
+                                            <label>Nota (opcional)</label>
+                                            <input type="text" id="share-nota" placeholder="Motivo...">
+                                        </div>
+                                        <div>
+                                            <label>Expira en (opcional)</label>
+                                            <input type="datetime-local" id="share-expira">
+                                        </div>
+                                    </div>
+                                    <button type="button" class="share-btn-add" id="share-btn-submit" onclick="submitShare(${{docId}})">
+                                        + Compartir
+                                    </button>
+                                </div>
+                                
+                                <div class="share-list-title">Comparticiones Activas</div>
+                                <div id="share-list">
+                                    <div class="share-empty">Cargando...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                setTimeout(() => {{
+                    document.getElementById('share-overlay').style.opacity = '1';
+                    document.querySelector('.share-modal').style.transform = 'translateY(0) scale(1)';
+                }}, 10);
+                
+                fetchShareData(docId);
+            }}
+            
+            function closeShareModal() {{
+                const overlay = document.getElementById('share-overlay');
+                if (!overlay) return;
+                overlay.style.opacity = '0';
+                document.querySelector('.share-modal').style.transform = 'translateY(30px) scale(0.95)';
+                setTimeout(() => overlay.remove(), 300);
+            }}
+            
+            let _shareData = {{}};
+            
+            async function fetchShareData(docId) {{
+                try {{
+                    const res = await fetch('/documentos/api/shares/' + docId + '/');
+                    _shareData = await res.json();
+                    populateTargetSelect();
+                    renderShareList(docId);
+                }} catch(e) {{
+                    document.getElementById('share-list').innerHTML = '<div class="share-empty" style="color:#ef4444;">Error al cargar datos.</div>';
+                }}
+            }}
+            
+            function shareTypeChanged() {{
+                populateTargetSelect();
+            }}
+            
+            function populateTargetSelect() {{
+                const tipo = document.getElementById('share-tipo').value;
+                const container = document.getElementById('share-target-container');
+                const label = document.getElementById('share-target-label');
+                const select = document.getElementById('share-target');
+                
+                if (tipo === 'publico') {{
+                    container.style.display = 'none';
+                    return;
+                }}
+                container.style.display = 'block';
+                
+                if (tipo === 'usuario') {{
+                    label.textContent = 'Usuario';
+                    select.innerHTML = '<option value="">-- Seleccionar --</option>' +
+                        (_shareData.usuarios || []).map(u => `<option value="${{u.id}}">${{u.display}} (${{u.username}})</option>`).join('');
+                }} else {{
+                    label.textContent = 'Grupo';
+                    select.innerHTML = '<option value="">-- Seleccionar --</option>' +
+                        (_shareData.grupos || []).map(g => `<option value="${{g.id}}">${{g.name}}</option>`).join('');
+                }}
+            }}
+            
+            async function submitShare(docId) {{
+                const btn = document.getElementById('share-btn-submit');
+                btn.disabled = true;
+                btn.textContent = 'Guardando...';
+                
+                const tipo = document.getElementById('share-tipo').value;
+                const target = document.getElementById('share-target')?.value;
+                
+                const body = {{
+                    tipo: tipo,
+                    puede_ver: true,
+                    puede_editar: document.getElementById('share-perm-editar').checked,
+                    puede_eliminar: document.getElementById('share-perm-eliminar').checked,
+                    puede_compartir: document.getElementById('share-perm-compartir').checked,
+                    nota: document.getElementById('share-nota').value,
+                    expira_en: document.getElementById('share-expira').value || null,
+                }};
+                
+                if (tipo === 'usuario') body.usuario_id = target;
+                if (tipo === 'grupo') body.grupo_id = target;
+                
+                try {{
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+                    const res = await fetch('/documentos/api/shares/create/' + docId + '/', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }},
+                        body: JSON.stringify(body)
+                    }});
+                    const data = await res.json();
+                    
+                    if (data.error) {{
+                        alert(data.error);
+                    }} else {{
+                        // Recargar lista
+                        await fetchShareData(docId);
+                        // Limpiar form
+                        document.getElementById('share-nota').value = '';
+                        document.getElementById('share-expira').value = '';
+                        document.getElementById('share-perm-editar').checked = false;
+                        document.getElementById('share-perm-eliminar').checked = false;
+                        document.getElementById('share-perm-compartir').checked = false;
+                    }}
+                }} catch(e) {{
+                    alert('Error de red al compartir.');
+                }} finally {{
+                    btn.disabled = false;
+                    btn.textContent = '+ Compartir';
+                }}
+            }}
+            
+            function renderShareList(docId) {{
+                const list = document.getElementById('share-list');
+                const shares = _shareData.shares || [];
+                
+                if (shares.length === 0) {{
+                    list.innerHTML = '<div class="share-empty">🔒 Sin comparticiones. Solo el responsable y su departamento pueden ver este documento.</div>';
+                    return;
+                }}
+                
+                list.innerHTML = shares.map(s => `
+                    <div class="share-item">
+                        <div class="share-item-info">
+                            <b>${{s.tipo === 'publico' ? '🌐' : s.tipo === 'grupo' ? '👥' : '👤'}} ${{s.destino}}</b>
+                            <span>
+                                Por ${{s.compartido_por}} · ${{s.creado_en}}
+                                ${{s.nota ? ' · ' + s.nota : ''}}
+                                ${{s.expira_en ? ' · <span class="' + (s.vigente ? 'share-vigente' : 'share-expirado') + '">' + (s.vigente ? '✓ Vigente' : '✗ Expirado') + '</span>' : ''}}
+                            </span>
+                        </div>
+                        <div class="share-item-perms">
+                            <span class="share-perm-badge ${{s.puede_ver ? 'active' : 'inactive'}}">Ver</span>
+                            <span class="share-perm-badge ${{s.puede_editar ? 'active' : 'inactive'}}">Editar</span>
+                            <span class="share-perm-badge ${{s.puede_compartir ? 'active' : 'inactive'}}">Compartir</span>
+                        </div>
+                        <button type="button" class="share-btn-del" onclick="deleteShare(${{s.id}}, ${{docId}})" title="Eliminar">🗑️</button>
+                    </div>
+                `).join('');
+            }}
+            
+            async function deleteShare(shareId, docId) {{
+                if (!confirm('¿Eliminar esta compartición?')) return;
+                try {{
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+                    await fetch('/documentos/api/shares/delete/' + shareId + '/', {{
+                        method: 'POST',
+                        headers: {{ 'X-CSRFToken': csrfToken }}
+                    }});
+                    await fetchShareData(docId);
+                }} catch(e) {{
+                    alert('Error al eliminar.');
+                }}
+            }}
+            </script>
+            ''',
+            obj.pk
+        )
+    compartir_button.short_description = "Compartir"
+
     def trazabilidad_link(self, obj):
         if not obj.pk: return "-"
         url = reverse('documentos:documento_trazabilidad', args=[obj.pk])
@@ -417,11 +880,13 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
     contenido_texto_display.short_description = "Contenido Texto"
     
     def save_formset(self, request, form, formset, change):
-        # Asignar usuario automáticamente a las revisiones nuevas
+        # Asignar usuario automáticamente a las revisiones nuevas y shares
         instances = formset.save(commit=False)
         for instance in instances:
             if isinstance(instance, Revision) and not instance.pk:
                 instance.creado_por = request.user
+            elif isinstance(instance, DocumentoShare) and not instance.pk:
+                instance.compartido_por = request.user
             instance.save()
         formset.save_m2m()
 
@@ -1025,4 +1490,46 @@ class GroqApiKeyAdmin(admin.ModelAdmin):
 
 # Importar y registrar admins del sistema de firmas
 from . import admin_firmas
+
+
+@admin.register(DocumentoShare)
+class DocumentoShareAdmin(admin.ModelAdmin):
+    list_display = ('documento', 'tipo', 'get_destino', 'puede_ver', 'puede_editar', 'puede_compartir', 'esta_vigente', 'compartido_por', 'creado_en')
+    list_filter = ('tipo', 'puede_ver', 'puede_editar', 'creado_en')
+    search_fields = ('documento__codigo', 'documento__titulo', 'compartido_a_usuario__username', 'compartido_a_grupo__name', 'nota')
+    autocomplete_fields = ('documento', 'compartido_a_usuario')
+    readonly_fields = ('creado_en', 'compartido_por')
+    
+    fieldsets = (
+        ('Documento', {
+            'fields': ('documento',)
+        }),
+        ('Compartir con', {
+            'fields': ('tipo', 'compartido_a_usuario', 'compartido_a_grupo')
+        }),
+        ('Permisos', {
+            'fields': (('puede_ver', 'puede_editar', 'puede_eliminar', 'puede_compartir'),)
+        }),
+        ('Configuración', {
+            'fields': ('expira_en', 'nota', 'compartido_por', 'creado_en')
+        }),
+    )
+    
+    def get_destino(self, obj):
+        if obj.tipo == 'usuario' and obj.compartido_a_usuario:
+            return obj.compartido_a_usuario.get_full_name() or obj.compartido_a_usuario.username
+        elif obj.tipo == 'grupo' and obj.compartido_a_grupo:
+            return obj.compartido_a_grupo.name
+        return "Público (Todos)"
+    get_destino.short_description = "Compartido con"
+    
+    def esta_vigente(self, obj):
+        return obj.esta_vigente()
+    esta_vigente.boolean = True
+    esta_vigente.short_description = "Vigente"
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.compartido_por = request.user
+        super().save_model(request, obj, form, change)
 

@@ -507,6 +507,8 @@
             {% if not es_nuevo %}
             <button type="button" class="btn btn-secondary" onclick="document.getElementById('scorm-input').click()">📦 Importar SCORM</button>
             <input type="file" id="scorm-input" accept=".zip" style="display:none" onchange="importarScorm(this)">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('md-input').click()">📝 Importar MD</button>
+            <input type="file" id="md-input" accept=".md" style="display:none" onchange="importarMarkdown(this)">
             {% endif %}
             <a href="{% url 'courses:lista_admin' %}" class="btn btn-secondary">Cancelar</a>
             <button type="submit" class="btn btn-success">Guardar Curso</button>
@@ -1470,6 +1472,42 @@
 
             {% if curso %}
             fetch('{% url "courses:importar_scorm" curso.id %}', {
+                method: 'POST',
+                body: fd,
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    location.reload();
+                } else {
+                    alert('❌ ' + (data.error || data.message || 'Error desconocido'));
+                }
+            })
+            .catch(e => alert('❌ Error de red: ' + e.message))
+            .finally(() => {
+                btn.textContent = origText;
+                btn.disabled = false;
+                input.value = '';
+            });
+            {% endif %}
+        }
+
+        // ── Markdown Import ──
+        function importarMarkdown(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const btn = input.previousElementSibling;
+            const origText = btn.textContent;
+            btn.textContent = '⏳ Importando...';
+            btn.disabled = true;
+
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+            {% if curso %}
+            fetch('{% url "courses:importar_markdown" curso.id %}', {
                 method: 'POST',
                 body: fd,
             })
