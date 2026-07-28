@@ -62,6 +62,11 @@
 
 {% block object-tools-items %}
 <li>
+    <a href="#" id="vectorize-local-btn" class="btn-ai-analysis" style="background-color: #7c3aed !important;">
+        <i class="fas fa-brain"></i> {% trans "Vectorizar Local (Ollama)" %}
+    </a>
+</li>
+<li>
     <a href="#" id="ai-analysis-btn" class="btn-ai-analysis">
         <i class="fas fa-robot"></i> {% trans "Análisis IA (n8n)" %}
     </a>
@@ -287,6 +292,61 @@
                         setTimeout(() => {
                             window.location.href = `bulk-analysis-n8n/`;
                         }, 1000);
+                    }
+                });
+            });
+        }
+
+        // Botón Vectorizar Local (Ollama)
+        const vecBtn = document.getElementById('vectorize-local-btn');
+        if (vecBtn) {
+            vecBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                
+                Swal.fire({
+                    title: 'Vectorizar Local (Ollama)',
+                    html: `<p>Genera embeddings locales con <strong>nomic-embed-text</strong> para búsqueda semántica cruzada con consultas WhatsApp.</p>
+                           <p style="font-size:13px; color:#666;">Requiere Ollama corriendo en localhost:11434</p>`,
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonColor: '#7c3aed',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="fas fa-brain"></i> Iniciar Vectorización',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Mostrar progreso
+                        Swal.fire({
+                            title: 'Vectorizando tickets...',
+                            html: '<div id="vec-progress" style="text-align:left;"><p>Conectando con Ollama...</p><div style="background:#eee;height:10px;"><div id="vec-bar" style="background:#7c3aed;height:100%;width:0%;transition:width 0.5s;"></div></div><p id="vec-status" style="font-size:13px;color:#666;margin-top:8px;">Iniciando...</p></div>',
+                            showConfirmButton: false,
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                // SSE connection
+                                const evtSource = new EventSource('vectorize-local/');
+                                evtSource.onmessage = function(event) {
+                                    const data = JSON.parse(event.data);
+                                    document.getElementById('vec-bar').style.width = data.percent + '%';
+                                    document.getElementById('vec-status').textContent = data.status;
+                                    
+                                    if (data.state === 'SUCCESS' || data.state === 'FAILURE') {
+                                        evtSource.close();
+                                        setTimeout(() => {
+                                            Swal.fire({
+                                                title: data.state === 'SUCCESS' ? '¡Completado!' : 'Error',
+                                                text: data.status,
+                                                icon: data.state === 'SUCCESS' ? 'success' : 'error',
+                                                confirmButtonColor: '#7c3aed'
+                                            }).then(() => location.reload());
+                                        }, 500);
+                                    }
+                                };
+                                evtSource.onerror = function() {
+                                    evtSource.close();
+                                    Swal.fire('Error', 'Se perdió la conexión con el servidor.', 'error');
+                                };
+                            }
+                        });
                     }
                 });
             });

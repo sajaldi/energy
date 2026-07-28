@@ -126,6 +126,7 @@ urlpatterns = [
     path('iot/', include('iot.urls', namespace='iot')),
     path('costos/', include('costos.urls', namespace='costos')),
     path('courses/', include('courses.urls', namespace='courses')),
+    path('consultas/', include('consultas.urls', namespace='consultas')),
     path('invitaciones/', include('invitaciones.urls', namespace='invitaciones')),
     path('notificaciones/', include('notificaciones.urls', namespace='notificaciones')),
     # complete-registration en la raíz (el link del correo apunta a esta URL)

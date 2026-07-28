@@ -71,6 +71,8 @@ class SolicitudTicket(models.Model):
     
     # Búsqueda Vectorial Semántica
     embedding = VectorField(dimensions=1024, null=True, blank=True)
+    # Embedding local (nomic-embed-text 768d) para cruce con consultas WhatsApp
+    embedding_local = VectorField(dimensions=768, null=True, blank=True)
 
     # Catálogo de Falla (NUEVO)
     falla_reportada = models.ForeignKey(
@@ -209,6 +211,21 @@ class SolicitudTicket(models.Model):
             
         return qs.annotate(
             distancia=CosineDistance('embedding', query_embedding)
+        ).order_by('distancia')[:limit]
+
+    @classmethod
+    def buscar_vectorial_local(cls, query_embedding, limit=10, filters=None):
+        """
+        Búsqueda semántica usando embedding_local (768d, nomic-embed-text).
+        Para cruce con consultas WhatsApp.
+        """
+        qs = cls.objects.exclude(embedding_local__isnull=True)
+        
+        if filters:
+            qs = qs.filter(**filters)
+            
+        return qs.annotate(
+            distancia=CosineDistance('embedding_local', query_embedding)
         ).order_by('distancia')[:limit]
 
     def _resolve_enlace(self):

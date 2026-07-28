@@ -282,6 +282,98 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     inlines = [HistorialTicketInline]
     actions = ['analizar_con_ia', 'exportar_a_excel']
 
+    def get_urls(self):
+        from django.urls import path
+        custom_urls = [
+            path('vectorize-local/', self.admin_site.admin_view(self.vectorize_local_view), name='callcenter_ticket_vectorize_local'),
+        ]
+        return custom_urls + super().get_urls()
+
+    def vectorize_local_view(self, request):
+        """SSE endpoint para vectorizar tickets con Ollama local."""
+        import json
+        import requests as http_requests
+        from django.http import StreamingHttpResponse
+        from .models import SolicitudTicket
+
+        OLLAMA_URL = "http://localhost:11434"
+        OLLAMA_MODEL = "nomic-embed-text"
+
+        def event_stream():
+            # Verificar Ollama
+            try:
+                r = http_requests.get(f"{OLLAMA_URL}/api/tags", timeout=2)
+                if r.status_code != 200:
+                    yield f"data: {json.dumps({'state': 'FAILURE', 'percent': 0, 'status': 'Ollama no disponible.'})}\n\n"
+                    return
+            except Exception:
+                yield f"data: {json.dumps({'state': 'FAILURE', 'percent': 0, 'status': 'No se puede conectar a Ollama (localhost:11434).'})}\n\n"
+                return
+
+            tickets = list(
+                SolicitudTicket.objects.filter(embedding_local__isnull=True)
+                .exclude(solicitud_descripcion__isnull=True)
+                .exclude(solicitud_descripcion='')[:5000]
+            )
+            total = len(tickets)
+
+            if total == 0:
+                yield f"data: {json.dumps({'state': 'SUCCESS', 'percent': 100, 'current': 0, 'total': 0, 'status': '✅ Todos los tickets ya tienen embedding local.'})}\n\n"
+                return
+
+            yield f"data: {json.dumps({'state': 'PROGRESS', 'percent': 0, 'current': 0, 'total': total, 'status': f'Iniciando... {total} tickets pendientes'})}\n\n"
+
+            batch_size = 100
+            procesados = 0
+
+            for i in range(0, total, batch_size):
+                batch = tickets[i:i + batch_size]
+                textos = []
+                for t in batch:
+                    partes = []
+                    if t.folio:
+                        partes.append(f"Folio: {t.folio}")
+                    if t.solicitud_descripcion:
+                        partes.append(t.solicitud_descripcion[:500])
+                    if t.diagnostico:
+                        partes.append(f"Diagnóstico: {t.diagnostico[:300]}")
+                    if t.actividades:
+                        partes.append(f"Actividades: {t.actividades[:200]}")
+                    if t.servicio:
+                        partes.append(f"Servicio: {t.servicio}")
+                    if t.area:
+                        partes.append(f"Área: {t.area}")
+                    if t.solicitante:
+                        partes.append(f"Solicitante: {t.solicitante}")
+                    textos.append(" | ".join(partes))
+
+                try:
+                    response = http_requests.post(
+                        f"{OLLAMA_URL}/api/embed",
+                        json={"model": OLLAMA_MODEL, "input": textos},
+                        timeout=120
+                    )
+                    if response.status_code == 200:
+                        embeddings = response.json()['embeddings']
+                        for ticket, emb in zip(batch, embeddings):
+                            ticket.embedding_local = emb
+                        SolicitudTicket.objects.bulk_update(batch, ['embedding_local'], batch_size=100)
+                        procesados += len(batch)
+                    else:
+                        procesados += len(batch)
+                except Exception:
+                    procesados += len(batch)
+
+                percent = int((procesados / total) * 100)
+                yield f"data: {json.dumps({'state': 'PROGRESS', 'percent': percent, 'current': procesados, 'total': total, 'status': f'Procesados {procesados}/{total} tickets ({percent}%)'})}\n\n"
+
+            yield f"data: {json.dumps({'state': 'SUCCESS', 'percent': 100, 'current': procesados, 'total': total, 'status': f'✅ {procesados}/{total} tickets vectorizados.'})}\n\n"
+
+        response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'
+        return response
+
     @admin.display(description='Falla del Catálogo', ordering='falla_reportada')
     def falla_catalogo(self, obj):
         return obj.falla_reportada.nombre if obj.falla_reportada else "-"

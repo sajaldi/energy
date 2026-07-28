@@ -732,3 +732,95 @@ def sync_tickets_automatico_task():
     except Exception as e:
         logger.error(f"Error en sync_tickets_automatico_task: {e}")
         return {"status": "error", "message": str(e)}
+
+
+@shared_task(bind=True, name='callcenter.tasks.generar_embeddings_tickets')
+def generar_embeddings_tickets(self, batch_size=100, limit=5000):
+    """
+    Genera embeddings locales (nomic-embed-text 768d) para SolicitudTicket.
+    Usa Ollama local. Sin rate limits.
+    Almacena en el campo embedding_local para cruce con consultas WhatsApp.
+    """
+    import requests as http_requests
+    from .models import SolicitudTicket
+
+    OLLAMA_URL = "http://localhost:11434"
+    OLLAMA_MODEL = "nomic-embed-text"
+
+    # Verificar Ollama
+    try:
+        r = http_requests.get(f"{OLLAMA_URL}/api/tags", timeout=2)
+        if r.status_code != 200:
+            return {'status': 'error', 'message': 'Ollama no disponible'}
+    except Exception:
+        return {'status': 'error', 'message': 'Ollama no disponible'}
+
+    tickets = list(
+        SolicitudTicket.objects.filter(embedding_local__isnull=True)
+        .exclude(solicitud_descripcion__isnull=True)
+        .exclude(solicitud_descripcion='')[:limit]
+    )
+
+    total = len(tickets)
+    if total == 0:
+        return {'current': 0, 'total': 0, 'percent': 100, 'status': 'Todos los tickets ya tienen embedding.'}
+
+    self.update_state(state='PROGRESS', meta={
+        'current': 0, 'total': total, 'percent': 0,
+        'status': f'Iniciando... {total} tickets pendientes'
+    })
+
+    procesados = 0
+
+    for i in range(0, total, batch_size):
+        batch = tickets[i:i + batch_size]
+        textos = []
+        for t in batch:
+            # Construir texto representativo del ticket
+            partes = []
+            if t.folio:
+                partes.append(f"Folio: {t.folio}")
+            if t.solicitud_descripcion:
+                partes.append(t.solicitud_descripcion[:500])
+            if t.diagnostico:
+                partes.append(f"Diagnóstico: {t.diagnostico[:300]}")
+            if t.actividades:
+                partes.append(f"Actividades: {t.actividades[:200]}")
+            if t.servicio:
+                partes.append(f"Servicio: {t.servicio}")
+            if t.ubicacion_jerarquica:
+                partes.append(f"Ubicación: {t.ubicacion_jerarquica}")
+            elif t.area:
+                partes.append(f"Área: {t.area}")
+            if t.solicitante:
+                partes.append(f"Solicitante: {t.solicitante}")
+            textos.append(" | ".join(partes))
+
+        try:
+            response = http_requests.post(
+                f"{OLLAMA_URL}/api/embed",
+                json={"model": OLLAMA_MODEL, "input": textos},
+                timeout=120
+            )
+
+            if response.status_code == 200:
+                embeddings = response.json()['embeddings']
+                for ticket, emb in zip(batch, embeddings):
+                    ticket.embedding_local = emb
+                SolicitudTicket.objects.bulk_update(batch, ['embedding_local'], batch_size=100)
+                procesados += len(batch)
+            else:
+                logger.error(f"Error Ollama tickets ({response.status_code})")
+                procesados += len(batch)
+        except Exception as e:
+            logger.error(f"Error embeddings tickets: {e}")
+            procesados += len(batch)
+
+        percent = int((procesados / total) * 100)
+        self.update_state(state='PROGRESS', meta={
+            'current': procesados, 'total': total, 'percent': percent,
+            'status': f'Procesados {procesados}/{total} tickets ({percent}%)'
+        })
+
+    return {'current': procesados, 'total': total, 'percent': 100,
+            'status': f'✅ {procesados}/{total} tickets vectorizados.'}

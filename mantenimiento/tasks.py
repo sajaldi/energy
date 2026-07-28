@@ -1461,3 +1461,74 @@ def notify_responsible_n8n(aviso_id):
             
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@shared_task(bind=True, name='mantenimiento.tasks.generar_embeddings_ordenes')
+def generar_embeddings_ordenes(self, batch_size=100):
+    """
+    Genera embeddings para todas las OrdenTrabajo que no tengan embedding.
+    Usa Ollama local (nomic-embed-text) para velocidad sin rate limits.
+    """
+    import requests as http_requests
+    from .models import OrdenTrabajo
+
+    OLLAMA_URL = "http://localhost:11434"
+    OLLAMA_MODEL = "nomic-embed-text"
+
+    # Verificar Ollama
+    try:
+        r = http_requests.get(f"{OLLAMA_URL}/api/tags", timeout=2)
+        if r.status_code != 200:
+            logger.error("Ollama no disponible.")
+            return {'status': 'error', 'message': 'Ollama no disponible'}
+    except Exception:
+        logger.error("Ollama no disponible.")
+        return {'status': 'error', 'message': 'Ollama no disponible'}
+
+    ordenes = list(OrdenTrabajo.objects.filter(embedding__isnull=True).select_related(
+        'rutina', 'ubicacion', 'falla', 'aviso'
+    ).prefetch_related('activos')[:5000])
+
+    total = len(ordenes)
+    if total == 0:
+        return {'current': 0, 'total': 0, 'percent': 100, 'status': 'Todas las OTs ya tienen embedding.'}
+
+    self.update_state(state='PROGRESS', meta={
+        'current': 0, 'total': total, 'percent': 0,
+        'status': f'Iniciando... {total} OTs pendientes'
+    })
+
+    procesados = 0
+
+    for i in range(0, total, batch_size):
+        batch = ordenes[i:i + batch_size]
+        textos = [ot.texto_para_embedding() for ot in batch]
+
+        try:
+            response = http_requests.post(
+                f"{OLLAMA_URL}/api/embed",
+                json={"model": OLLAMA_MODEL, "input": textos},
+                timeout=120
+            )
+
+            if response.status_code == 200:
+                embeddings = response.json()['embeddings']
+                for ot, emb in zip(batch, embeddings):
+                    ot.embedding = emb
+                OrdenTrabajo.objects.bulk_update(batch, ['embedding'], batch_size=100)
+                procesados += len(batch)
+            else:
+                logger.error(f"Error Ollama ({response.status_code}): {response.text[:200]}")
+                procesados += len(batch)
+        except Exception as e:
+            logger.error(f"Error generando embeddings OTs: {e}")
+            procesados += len(batch)
+
+        percent = int((procesados / total) * 100)
+        self.update_state(state='PROGRESS', meta={
+            'current': procesados, 'total': total, 'percent': percent,
+            'status': f'Procesados {procesados}/{total} OTs ({percent}%)'
+        })
+
+    return {'current': procesados, 'total': total, 'percent': 100,
+            'status': f'✅ {procesados}/{total} OTs vectorizadas.'}

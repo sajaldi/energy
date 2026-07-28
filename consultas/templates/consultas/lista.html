@@ -1,0 +1,168 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+
+{% block title %}💬 Consultas WhatsApp{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --consulta-primary: #25d366;
+        --consulta-dark: #128c7e;
+        --consulta-card: #ffffff;
+        --consulta-border: #e0e0e0;
+        --consulta-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+
+    .consultas-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px 16px;
+    }
+
+    .consultas-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 28px;
+    }
+
+    .consultas-header h1 {
+        font-size: 26px;
+        font-weight: 700;
+        color: #202124;
+        margin: 0;
+    }
+
+    .btn-new {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: var(--consulta-primary);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+
+    .btn-new:hover {
+        background: var(--consulta-dark);
+        color: white;
+        text-decoration: none;
+    }
+
+    .consulta-card {
+        background: var(--consulta-card);
+        border: 1px solid var(--consulta-border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 12px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .consulta-card:hover {
+        box-shadow: var(--consulta-shadow);
+        border-color: var(--consulta-primary);
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .consulta-info {
+        flex: 1;
+    }
+
+    .consulta-info h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #202124;
+        margin: 0 0 6px 0;
+    }
+
+    .consulta-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 13px;
+        color: #5f6368;
+    }
+
+    .consulta-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .consulta-badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .badge-ok { background: #e6f4ea; color: #137333; }
+    .badge-pending { background: #fff3e0; color: #e65100; }
+
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: #5f6368;
+    }
+
+    .empty-state i {
+        font-size: 64px;
+        color: #dadce0;
+        margin-bottom: 16px;
+    }
+
+    .empty-state h3 {
+        font-size: 20px;
+        color: #3c4043;
+        margin-bottom: 8px;
+    }
+</style>
+
+<div class="consultas-container">
+    <div class="consultas-header">
+        <h1>💬 Consultas WhatsApp</h1>
+        <a href="{% url 'consultas:subir' %}" class="btn-new">
+            <i class="fas fa-plus"></i> Nueva Consulta
+        </a>
+    </div>
+
+    {% if consultas %}
+        {% for c in consultas %}
+        <a href="{% url 'consultas:detalle' c.id %}" class="consulta-card">
+            <div class="consulta-info">
+                <h3>{{ c.nombre }}</h3>
+                <div class="consulta-meta">
+                    <span><i class="fas fa-comments"></i> {{ c.total_mensajes }} mensajes</span>
+                    <span><i class="fas fa-user"></i> {{ c.subido_por.get_full_name|default:c.subido_por.username }}</span>
+                    <span><i class="fas fa-calendar"></i> {{ c.creado_en|date:"d/M/Y H:i" }}</span>
+                </div>
+            </div>
+            {% if c.procesado %}
+            <span class="consulta-badge badge-ok">✅ Procesado</span>
+            {% else %}
+            <span class="consulta-badge badge-pending">⏳ Pendiente</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-comment-dots"></i>
+            <h3>No hay consultas todavía</h3>
+            <p>Sube tu primer archivo de chat de WhatsApp para comenzar el análisis.</p>
+            <a href="{% url 'consultas:subir' %}" class="btn-new" style="margin-top: 16px;">
+                <i class="fas fa-upload"></i> Subir Archivo
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

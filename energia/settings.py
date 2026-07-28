@@ -201,6 +201,7 @@ INSTALLED_APPS = [
     'plantillas', # Sistema de plantillas Word
     'comunicaciones', # Nuevo sistema de mail/transmittals
     'proyectos', # Gestión de proyectos y actividades
+    'consultas', # Chat WhatsApp + búsqueda vectorial
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

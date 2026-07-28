@@ -1,0 +1,436 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+
+{% block title %}Búsqueda IA - {{ consulta.nombre }}{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+    /* SAP Fiori Design Language — sharp corners, clean lines, semantic colors */
+    :root {
+        --fiori-shell: #354a5f;
+        --fiori-brand: #0a6ed1;
+        --fiori-brand-hover: #0854a0;
+        --fiori-positive: #107e3e;
+        --fiori-critical: #e9730c;
+        --fiori-negative: #bb0000;
+        --fiori-informative: #0a6ed1;
+        --fiori-bg: #f7f7f7;
+        --fiori-card: #ffffff;
+        --fiori-border: #d9d9d9;
+        --fiori-text: #32363a;
+        --fiori-text-secondary: #6a6d70;
+        --fiori-shadow: 0 0 0 1px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .search-container {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    /* Page Header */
+    .page-header {
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--fiori-border);
+        padding-bottom: 1rem;
+    }
+    .page-header h1 {
+        font-size: 1.5rem;
+        font-weight: 400;
+        color: var(--fiori-text);
+        margin: 0 0 .25rem 0;
+    }
+    .page-header p {
+        font-size: .8125rem;
+        color: var(--fiori-text-secondary);
+        margin: 0;
+    }
+    .page-header a { color: var(--fiori-brand); text-decoration: none; }
+    .page-header a:hover { text-decoration: underline; }
+
+    /* Search Bar */
+    .search-bar {
+        display: flex;
+        align-items: center;
+        background: var(--fiori-card);
+        border: 1px solid var(--fiori-border);
+        border-radius: 0;
+        padding: .25rem .25rem .25rem .75rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--fiori-shadow);
+    }
+    .search-bar:focus-within { border-color: var(--fiori-brand); }
+    .search-bar input[type="text"] {
+        flex: 1; border: none; outline: none;
+        font-size: .875rem; padding: .5rem 0;
+        background: transparent; color: var(--fiori-text);
+        font-family: '72', 'Segoe UI', Arial, sans-serif;
+    }
+    .search-bar input::placeholder { color: #a8a8a8; }
+    .search-bar button {
+        background: var(--fiori-brand); color: white;
+        border: none; border-radius: 0;
+        padding: .5rem 1rem; font-size: .8125rem; font-weight: 600;
+        cursor: pointer; font-family: '72', 'Segoe UI', Arial, sans-serif;
+    }
+    .search-bar button:hover { background: var(--fiori-brand-hover); }
+
+    /* AI Response Panel */
+    .ai-panel {
+        background: var(--fiori-card);
+        border: 1px solid var(--fiori-border);
+        border-left: 4px solid var(--fiori-brand);
+        border-radius: 0;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--fiori-shadow);
+    }
+    .ai-panel-header {
+        display: flex; align-items: center; gap: .5rem;
+        margin-bottom: .75rem;
+        padding-bottom: .75rem;
+        border-bottom: 1px solid #ededed;
+    }
+    .ai-icon {
+        width: 28px; height: 28px;
+        background: var(--fiori-brand); border-radius: 0;
+        display: flex; align-items: center; justify-content: center;
+        color: white; font-size: 12px;
+    }
+    .ai-panel-header h3 { font-size: .875rem; font-weight: 600; color: var(--fiori-text); margin: 0; }
+    .ai-badge {
+        background: var(--fiori-shell); color: white;
+        padding: .125rem .5rem; border-radius: 0;
+        font-size: .625rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .5px;
+    }
+
+    .ai-content { font-size: .8125rem; color: var(--fiori-text); line-height: 1.7; }
+    .ai-content h1,.ai-content h2,.ai-content h3 { color: var(--fiori-shell); margin-top: 1rem; font-weight: 600; }
+    .ai-content h3 { font-size: .875rem; }
+    .ai-content strong { color: var(--fiori-shell); }
+    .ai-content ul,.ai-content ol { padding-left: 1.25rem; }
+    .ai-content li { margin-bottom: .375rem; }
+    .ai-content p { margin: 0 0 .625rem 0; }
+    .ai-content code { background: #edf2f7; padding: .125rem .375rem; font-size: .75rem; }
+
+    /* Message Citation Pills */
+    .msg-cite {
+        display: inline-flex; align-items: center; gap: .25rem;
+        background: #e2ecf7; color: var(--fiori-brand);
+        padding: .125rem .5rem; border-radius: 0;
+        font-size: .6875rem; font-weight: 600;
+        cursor: pointer; text-decoration: none;
+        border: 1px solid #b8d4ea; transition: background .15s;
+    }
+    .msg-cite:hover { background: #cce0f5; color: var(--fiori-brand-hover); }
+    .msg-cite i { font-size: .5625rem; }
+
+    /* Section Divider */
+    .section-divider {
+        display: flex; align-items: center; gap: .75rem;
+        margin: 1.5rem 0 1rem; color: var(--fiori-text-secondary);
+        font-size: .75rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: .5px;
+    }
+    .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--fiori-border); }
+
+    /* Result Cards */
+    .result-card {
+        background: var(--fiori-card);
+        border: 1px solid var(--fiori-border);
+        border-radius: 0;
+        padding: 1rem;
+        margin-bottom: .5rem;
+        box-shadow: var(--fiori-shadow);
+        transition: border-color .15s;
+    }
+    .result-card:hover { border-color: var(--fiori-brand); }
+    .result-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .5rem; }
+    .result-sender { font-size: .8125rem; font-weight: 600; color: var(--fiori-text); }
+    .result-time { font-size: .6875rem; color: var(--fiori-text-secondary); margin-top: .125rem; }
+
+    .status-badge {
+        display: inline-block; padding: .125rem .5rem;
+        font-size: .6875rem; font-weight: 600; border-radius: 0;
+    }
+    .status-positive { background: #f1f8f1; color: var(--fiori-positive); border: 1px solid #c5e1c5; }
+    .status-critical { background: #fef3e8; color: var(--fiori-critical); border: 1px solid #f8d8b0; }
+    .status-negative { background: #fef0f0; color: var(--fiori-negative); border: 1px solid #f5c6c6; }
+
+    .result-text {
+        font-size: .8125rem; color: var(--fiori-text); line-height: 1.5;
+        white-space: pre-wrap; word-wrap: break-word;
+        background: #fafafa; padding: .75rem; border-radius: 0;
+        border-left: 3px solid var(--fiori-border);
+        max-height: 100px; overflow-y: auto;
+    }
+
+    .error-alert {
+        background: #fef0f0; border: 1px solid #f5c6c6; border-left: 4px solid var(--fiori-negative);
+        border-radius: 0; padding: 1rem; color: var(--fiori-negative); margin-bottom: 1.5rem;
+        font-size: .8125rem;
+    }
+
+    .empty-state { text-align: center; padding: 4rem 1rem; color: var(--fiori-text-secondary); }
+    .empty-state i { font-size: 2.5rem; color: #d9d9d9; margin-bottom: 1rem; display: block; }
+    .empty-state h3 { font-size: 1rem; color: var(--fiori-text); margin-bottom: .5rem; font-weight: 400; }
+    .empty-state p { font-size: .8125rem; }
+
+    .btn-back {
+        display: inline-flex; align-items: center; gap: .375rem;
+        padding: .375rem .75rem; background: transparent; color: var(--fiori-brand);
+        text-decoration: none; border: 1px solid var(--fiori-brand);
+        border-radius: 0; font-size: .75rem; font-weight: 600;
+        margin-bottom: 1rem; transition: all .15s;
+    }
+    .btn-back:hover { background: var(--fiori-brand); color: white; text-decoration: none; }
+
+    /* Modal */
+    .msg-modal-overlay {
+        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        justify-content: center; align-items: center;
+    }
+    .msg-modal-overlay.active { display: flex; }
+    .msg-modal {
+        background: white; border-radius: 0; padding: 1.5rem;
+        max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.25); position: relative;
+        border-top: 4px solid var(--fiori-brand);
+        animation: modalIn 0.15s ease;
+    }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    .msg-modal-close {
+        position: absolute; top: .75rem; right: 1rem;
+        background: none; border: none; font-size: 1.25rem;
+        cursor: pointer; color: var(--fiori-text-secondary);
+    }
+    .msg-modal-close:hover { color: var(--fiori-negative); }
+</style>
+
+<div class="search-container">
+    <a href="{% url 'consultas:detalle' consulta.id %}" class="btn-back">
+        <i class="fas fa-arrow-left"></i> Volver
+    </a>
+
+    <div class="page-header">
+        <h1>Búsqueda Inteligente</h1>
+        <p>Consulta: <a href="{% url 'consultas:detalle' consulta.id %}">{{ consulta.nombre }}</a> · {{ consulta.total_mensajes }} mensajes</p>
+    </div>
+
+    <form method="get" action="">
+        <div class="search-bar">
+            <input type="text" name="q" value="{{ query }}"
+                   placeholder="Escribe tu pregunta sobre los mensajes del chat..."
+                   autofocus autocomplete="off">
+            <button type="submit"><i class="fas fa-search"></i> Buscar</button>
+        </div>
+    </form>
+
+    {% if error %}
+    <div class="error-alert"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>
+    {% endif %}
+
+    {% if respuesta_ia %}
+    <div class="ai-panel">
+        <div class="ai-panel-header">
+            <div class="ai-icon"><i class="fas fa-robot"></i></div>
+            <h3>Respuesta de IA</h3>
+            <span class="ai-badge">RAG</span>
+        </div>
+        <div class="ai-content" id="aiContent">{{ respuesta_ia }}</div>
+    </div>
+    {% endif %}
+
+    {% if resultados %}
+    <div class="section-divider">
+        <span>{{ resultados|length }} fragmentos relevantes</span>
+    </div>
+
+    {% for r in resultados %}
+    <div class="result-card" id="msg-card-{{ r.mensaje.id }}">
+        <div class="result-header">
+            <div>
+                <div class="result-sender">{{ r.mensaje.remitente }}</div>
+                <div class="result-time">{{ r.mensaje.fecha_str }} · {{ r.mensaje.hora_str }}</div>
+            </div>
+            {% if r.similitud >= 75 %}
+            <span class="status-badge status-positive">{{ r.similitud }}%</span>
+            {% elif r.similitud >= 50 %}
+            <span class="status-badge status-critical">{{ r.similitud }}%</span>
+            {% else %}
+            <span class="status-badge status-negative">{{ r.similitud }}%</span>
+            {% endif %}
+        </div>
+        <div class="result-text">{{ r.mensaje.texto }}</div>
+    </div>
+    {% endfor %}
+
+    {% elif query and not error %}
+    <div class="empty-state">
+        <i class="fas fa-search"></i>
+        <h3>Sin resultados</h3>
+        <p>No se encontraron mensajes relevantes. Verifica que los embeddings estén generados.</p>
+    </div>
+    {% elif not query %}
+    <div class="empty-state">
+        <i class="fas fa-comments"></i>
+        <h3>Búsqueda Inteligente</h3>
+        <p>Formula una pregunta y la IA analizará los mensajes del chat para darte una respuesta contextualizada.</p>
+    </div>
+    {% endif %}
+
+    {% if respuesta_ia %}
+    <!-- Chat de Seguimiento (fijo abajo) -->
+    <div style="margin-top:2rem; border-top:1px solid var(--fiori-border); padding-top:1rem; position:sticky; bottom:0; background:var(--fiori-bg); z-index:10; padding-bottom:.5rem;">
+        <div id="chatHistory" style="max-height:300px; overflow-y:auto; margin-bottom:.75rem;"></div>
+        <div style="display:flex; gap:.5rem;">
+            <input type="text" id="chatInput"
+                   placeholder="Pregunta de seguimiento o dime algo para recordar (ej: 'Juan es el técnico de plomería')..."
+                   style="flex:1; padding:.5rem .75rem; border:1px solid var(--fiori-border); font-size:.8125rem; font-family:'72','Segoe UI',Arial,sans-serif;"
+                   onkeydown="if(event.key==='Enter')enviarChat()">
+            <button onclick="enviarChat()" id="btnChat"
+                    style="padding:.5rem 1rem; background:var(--fiori-brand); color:white; border:none; font-size:.8125rem; font-weight:600; cursor:pointer;">
+                <i class="fas fa-paper-plane"></i> Enviar
+            </button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal -->
+<div class="msg-modal-overlay" id="msgModal" onclick="cerrarModal(event)">
+    <div class="msg-modal">
+        <button class="msg-modal-close" onclick="cerrarModal()">&times;</button>
+        <div id="modalContent"></div>
+    </div>
+</div>
+
+<script>
+let MENSAJES = {{ mensajes_json|safe }};
+let sessionId = '';
+const CHAT_URL = '{% url "consultas:chat_ia" consulta.id %}';
+const CSRF = '{{ csrf_token }}';
+
+document.addEventListener('DOMContentLoaded', function() {
+    const aiContent = document.getElementById('aiContent');
+    if (aiContent && typeof marked !== 'undefined') {
+        renderMarkdownWithCites(aiContent);
+    }
+});
+
+function renderMarkdownWithCites(el) {
+    let raw = el.textContent || el.innerText;
+    raw = raw.replace(/\[\[MSG_ID:(\d+)\|([^\]]+)\]\]/g, function(m, id, label) {
+        return `<a class="msg-cite" onclick="abrirModal('${id}')" title="Ver mensaje"><i class="fas fa-comment-dots"></i> ${label}</a>`;
+    });
+    el.innerHTML = marked.parse(raw);
+}
+
+function abrirModal(msgId) {
+    const msg = MENSAJES[msgId];
+    if (!msg) { alert('Mensaje no disponible.'); return; }
+    
+    const container = document.getElementById('modalContent');
+    let html = '';
+    
+    if (msg.contexto && msg.contexto.length > 0) {
+        msg.contexto.forEach(function(m) {
+            const isPrincipal = m.tipo === 'principal';
+            const bgColor = isPrincipal ? '#e8f4fd' : '#fafafa';
+            const borderColor = isPrincipal ? 'var(--fiori-brand)' : '#ededed';
+            const borderWidth = isPrincipal ? '4px' : '2px';
+            const opacity = isPrincipal ? '1' : '0.8';
+            
+            html += `<div style="padding:.75rem; margin-bottom:.5rem; border-left:${borderWidth} solid ${borderColor}; background:${bgColor}; opacity:${opacity};">`;
+            html += `<div style="font-size:.75rem; font-weight:600; color:${isPrincipal ? 'var(--fiori-brand)' : 'var(--fiori-text)'};">${m.remitente}</div>`;
+            html += `<div style="font-size:.6875rem; color:var(--fiori-text-secondary); margin-bottom:.375rem;">${m.fecha} · ${m.hora}</div>`;
+            html += `<div style="font-size:.8125rem; color:var(--fiori-text); line-height:1.5; white-space:pre-wrap;">${escapeHtml(m.texto)}</div>`;
+            html += `</div>`;
+        });
+    } else {
+        html += `<div style="font-size:.875rem; font-weight:600; color:var(--fiori-text);">${msg.remitente}</div>`;
+        html += `<div style="font-size:.75rem; color:var(--fiori-text-secondary); margin-bottom:.75rem;">${msg.fecha} · ${msg.hora}</div>`;
+        html += `<div style="font-size:.8125rem; color:var(--fiori-text); line-height:1.6; white-space:pre-wrap; background:#fafafa; padding:1rem; border-left:4px solid var(--fiori-brand);">${escapeHtml(msg.texto)}</div>`;
+    }
+    
+    container.innerHTML = html;
+    document.getElementById('msgModal').classList.add('active');
+}
+
+function cerrarModal(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('msgModal').classList.remove('active');
+}
+
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cerrarModal(); });
+
+function enviarChat() {
+    const input = document.getElementById('chatInput');
+    if (!input) return;
+    const pregunta = input.value.trim();
+    if (!pregunta) return;
+
+    const btn = document.getElementById('btnChat');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    input.disabled = true;
+
+    agregarBurbuja('user', pregunta);
+    input.value = '';
+
+    fetch(CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ pregunta: pregunta, session_id: sessionId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            agregarBurbuja('error', data.error);
+        } else {
+            sessionId = data.session_id;
+            agregarBurbuja('assistant', data.respuesta);
+            if (data.mensajes) Object.assign(MENSAJES, data.mensajes);
+        }
+    })
+    .catch(err => { agregarBurbuja('error', 'Error de conexión: ' + err.message); })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar';
+        input.disabled = false;
+        input.focus();
+    });
+}
+
+function agregarBurbuja(tipo, contenido) {
+    const history = document.getElementById('chatHistory');
+    if (!history) return;
+    const div = document.createElement('div');
+
+    if (tipo === 'user') {
+        div.style.cssText = 'background:#edf2f7; padding:.75rem 1rem; margin-bottom:.5rem; border-left:3px solid var(--fiori-shell); font-size:.8125rem;';
+        div.innerHTML = '<strong style="color:var(--fiori-shell);">Tú:</strong> ' + escapeHtml(contenido);
+    } else if (tipo === 'assistant') {
+        div.style.cssText = 'background:white; border:1px solid var(--fiori-border); border-left:4px solid var(--fiori-brand); padding:1rem; margin-bottom:.75rem; font-size:.8125rem; line-height:1.7;';
+        div.className = 'ai-content';
+        div.textContent = contenido;
+        setTimeout(() => renderMarkdownWithCites(div), 10);
+    } else {
+        div.style.cssText = 'background:#fef0f0; border-left:3px solid var(--fiori-negative); padding:.5rem .75rem; margin-bottom:.5rem; font-size:.8125rem; color:var(--fiori-negative);';
+        div.textContent = contenido;
+    }
+
+    history.appendChild(div);
+    history.scrollTop = history.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+</script>
+{% endblock %}

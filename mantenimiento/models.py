@@ -1,6 +1,7 @@
 from django.db import models
 from datetime import datetime, date, timedelta
 from colorfield.fields import ColorField
+from pgvector.django import VectorField, CosineDistance
 
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
@@ -267,6 +268,7 @@ class TecnicoPuesto(models.Model):
     nombre = models.CharField(max_length=150, blank=True, null=True, verbose_name="Nombre(s)")
     apellido = models.CharField(max_length=150, blank=True, null=True, verbose_name="Apellido(s)")
     puesto = models.ForeignKey(PuestoTrabajo, on_delete=models.SET_NULL, null=True, blank=True, related_name='tecnicos')
+    puesto_en_empresa = models.CharField(max_length=200, blank=True, null=True, verbose_name="Puesto en la empresa")
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados')
     departamento = models.ForeignKey('core.Departamento', on_delete=models.SET_NULL, null=True, blank=True, related_name='personal_tecnico', verbose_name="Departamento")
     jefe_inmediato = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='subordinados', verbose_name="Jefe Inmediato")
@@ -283,6 +285,7 @@ class TecnicoPuesto(models.Model):
     telefono = models.CharField(max_length=50, blank=True, null=True, verbose_name='Teléfono')
     telefono_emergencia = models.CharField(max_length=50, blank=True, null=True, verbose_name='Teléfono de emergencia')
     
+    ultima_verificacion = models.DateTimeField(null=True, blank=True, verbose_name="Última verificación")
     horas_semanales_max = models.DecimalField(max_length=5, max_digits=5, decimal_places=2, default=40.00, help_text="Capacidad máxima de horas por semana")
 
     def __str__(self):
@@ -1139,6 +1142,9 @@ class OrdenTrabajo(models.Model):
     requiere_permiso = models.BooleanField(default=False, verbose_name="¿Requiere Permiso?", help_text="Si se marca, se exigirá un permiso de trabajo vinculado")
     tipo_permiso = models.ForeignKey('seguridad.TipoPermiso', on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_asociadas', verbose_name="Tipo de Permiso Sugerido")
 
+    # Búsqueda vectorial semántica
+    embedding = VectorField(dimensions=768, null=True, blank=True)
+
 
     def save(self, *args, **kwargs):
         """Garantiza que la orden tenga un código único si no existe."""
@@ -1181,6 +1187,45 @@ class OrdenTrabajo(models.Model):
         nombre = self.rutina.nombre if self.rutina else (self.aviso.descripcion[:30] if self.aviso else "OT Correctiva")
         lugar = self.ubicacion.nombre if self.ubicacion else "S/U"
         return f"{self.tipo[:3]} {self.codigo_de_orden or 'OT-TEMP'}: {nombre} - {lugar} ({self.inicio_programado.date()})"
+
+    def texto_para_embedding(self):
+        """Genera el texto representativo de la OT para vectorización."""
+        partes = []
+        partes.append(f"Código: {self.codigo_de_orden or 'N/A'}")
+        partes.append(f"Tipo: {self.get_tipo_display()}")
+        partes.append(f"Prioridad: {self.get_prioridad_display()}")
+        partes.append(f"Estado: {self.get_estado_display()}")
+
+        if self.rutina:
+            partes.append(f"Rutina: {self.rutina.nombre}")
+        if self.descripcion_corta:
+            partes.append(f"Descripción: {self.descripcion_corta}")
+        if self.descripcion_detallada:
+            partes.append(f"Detalle: {self.descripcion_detallada[:500]}")
+        if self.ubicacion:
+            partes.append(f"Ubicación: {self.ubicacion.nombre}")
+        if self.activos.exists():
+            activos_str = ", ".join([a.nombre for a in self.activos.all()[:5]])
+            partes.append(f"Activos: {activos_str}")
+        if self.falla:
+            partes.append(f"Falla: {self.falla.nombre}")
+        if self.notas:
+            partes.append(f"Notas: {self.notas[:300]}")
+        if hasattr(self, 'cierre') and self.cierre:
+            if self.cierre.comentarios:
+                partes.append(f"Cierre: {self.cierre.comentarios[:300]}")
+
+        return " | ".join(partes)
+
+    @classmethod
+    def buscar_vectorial(cls, query_embedding, limit=10, **filters):
+        """Búsqueda semántica de órdenes de trabajo."""
+        qs = cls.objects.exclude(embedding__isnull=True)
+        if filters:
+            qs = qs.filter(**filters)
+        return qs.annotate(
+            distancia=CosineDistance('embedding', query_embedding)
+        ).order_by('distancia')[:limit]
 
 class CierreOrdenTrabajo(models.Model):
     orden_trabajo = models.OneToOneField(OrdenTrabajo, on_delete=models.CASCADE, related_name='cierre', verbose_name="Orden de Trabajo")

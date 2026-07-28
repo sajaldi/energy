@@ -1,0 +1,271 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}📤 Subir Consulta WhatsApp{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --consulta-primary: #25d366;
+        --consulta-dark: #128c7e;
+        --consulta-light: #dcf8c6;
+        --consulta-bg: #ece5dd;
+        --consulta-card: #ffffff;
+        --consulta-border: #e0e0e0;
+        --consulta-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+
+    .upload-container {
+        max-width: 700px;
+        margin: 0 auto;
+        padding: 32px 16px;
+    }
+
+    .upload-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .upload-header h1 {
+        font-size: 28px;
+        font-weight: 700;
+        color: #202124;
+        margin-bottom: 8px;
+    }
+
+    .upload-header p {
+        color: #5f6368;
+        font-size: 15px;
+        margin: 0;
+    }
+
+    .upload-card {
+        background: var(--consulta-card);
+        border: 1px solid var(--consulta-border);
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: var(--consulta-shadow);
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #3c4043;
+        margin-bottom: 8px;
+    }
+
+    .form-group input[type="text"] {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid var(--consulta-border);
+        border-radius: 10px;
+        font-size: 15px;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+    }
+
+    .form-group input[type="text"]:focus {
+        outline: none;
+        border-color: var(--consulta-primary);
+    }
+
+    .dropzone {
+        border: 2px dashed var(--consulta-border);
+        border-radius: 12px;
+        padding: 48px 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+        border-color: var(--consulta-primary);
+        background: #f0fdf4;
+    }
+
+    .dropzone i {
+        font-size: 48px;
+        color: var(--consulta-primary);
+        margin-bottom: 12px;
+    }
+
+    .dropzone h3 {
+        font-size: 16px;
+        color: #3c4043;
+        margin: 0 0 8px 0;
+    }
+
+    .dropzone p {
+        font-size: 13px;
+        color: #9aa0a6;
+        margin: 0;
+    }
+
+    .dropzone .file-name {
+        display: none;
+        margin-top: 12px;
+        padding: 8px 16px;
+        background: var(--consulta-light);
+        border-radius: 8px;
+        font-size: 14px;
+        color: var(--consulta-dark);
+        font-weight: 600;
+    }
+
+    .dropzone.has-file .file-name {
+        display: inline-block;
+    }
+
+    .dropzone.has-file i {
+        color: var(--consulta-dark);
+    }
+
+    .btn-submit {
+        display: block;
+        width: 100%;
+        padding: 14px;
+        background: var(--consulta-primary);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-top: 8px;
+    }
+
+    .btn-submit:hover {
+        background: var(--consulta-dark);
+    }
+
+    .btn-submit:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .format-info {
+        margin-top: 24px;
+        padding: 16px;
+        background: #fff8e1;
+        border: 1px solid #ffecb3;
+        border-radius: 10px;
+    }
+
+    .format-info h4 {
+        font-size: 14px;
+        color: #f57f17;
+        margin: 0 0 8px 0;
+    }
+
+    .format-info code {
+        display: block;
+        background: #f5f5f5;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #333;
+        margin-top: 8px;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .messages-alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 14px;
+    }
+    .messages-alert.error { background: #fce8e6; color: #c5221f; border: 1px solid #fad2cf; }
+    .messages-alert.success { background: #e6f4ea; color: #137333; border: 1px solid #ceead6; }
+</style>
+
+<div class="upload-container">
+    <div class="upload-header">
+        <h1>📤 Subir Chat de WhatsApp</h1>
+        <p>Sube un archivo .txt exportado de WhatsApp para analizar los mensajes con búsqueda vectorial</p>
+    </div>
+
+    {% for message in messages %}
+    <div class="messages-alert {{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+
+    <div class="upload-card">
+        <form method="post" enctype="multipart/form-data" id="uploadForm">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="nombre">📝 Nombre de la consulta</label>
+                <input type="text" id="nombre" name="nombre" 
+                       placeholder="Ej: Chat Mantenimiento Torre 1 - Feb 2022"
+                       required>
+            </div>
+
+            <div class="form-group">
+                <label>📎 Archivo de chat (.txt)</label>
+                <div class="dropzone" id="dropzone" onclick="document.getElementById('archivo').click()">
+                    <i class="fas fa-file-alt"></i>
+                    <h3>Arrastra tu archivo aquí o haz clic para seleccionar</h3>
+                    <p>Solo archivos .txt exportados de WhatsApp</p>
+                    <span class="file-name" id="fileName"></span>
+                </div>
+                <input type="file" id="archivo" name="archivo" accept=".txt" 
+                       style="display: none" required>
+            </div>
+
+            <button type="submit" class="btn-submit" id="btnSubmit" disabled>
+                <i class="fas fa-upload"></i> Subir y Procesar
+            </button>
+        </form>
+
+        <div class="format-info">
+            <h4>💡 Formato esperado</h4>
+            <p style="font-size: 13px; color: #5f6368; margin: 0;">El archivo debe ser un export de WhatsApp. Cada mensaje inicia con fecha y hora:</p>
+            <code>22/2/22 10:15 a. m. - Lesman OCC: Torre 1 Nivel 11
+22/2/22 10:17 a. m. - +504 9337-6086: Ahora se revisa</code>
+        </div>
+    </div>
+</div>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('archivo');
+const fileName = document.getElementById('fileName');
+const btnSubmit = document.getElementById('btnSubmit');
+
+fileInput.addEventListener('change', function() {
+    if (this.files.length > 0) {
+        fileName.textContent = '📄 ' + this.files[0].name;
+        dropzone.classList.add('has-file');
+        btnSubmit.disabled = false;
+    }
+});
+
+dropzone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.classList.add('dragover');
+});
+
+dropzone.addEventListener('dragleave', function() {
+    this.classList.remove('dragover');
+});
+
+dropzone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        fileName.textContent = '📄 ' + e.dataTransfer.files[0].name;
+        dropzone.classList.add('has-file');
+        btnSubmit.disabled = false;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,472 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+
+{% block title %}💬 {{ consulta.nombre }}{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --wa-green: #25d366;
+        --wa-dark: #128c7e;
+        --wa-teal: #075e54;
+        --wa-light: #dcf8c6;
+        --wa-bg: #ece5dd;
+        --wa-card: #ffffff;
+        --wa-border: #e0e0e0;
+    }
+
+    .detalle-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 24px 16px;
+    }
+
+    .detalle-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .detalle-header h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: #202124;
+        margin: 0 0 4px 0;
+    }
+
+    .detalle-header .meta {
+        font-size: 13px;
+        color: #5f6368;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-search { background: #1a73e8; color: white; }
+    .btn-search:hover { background: #1557b0; color: white; text-decoration: none; }
+
+    .btn-embed { background: #7c3aed; color: white; }
+    .btn-embed:hover { background: #6d28d9; color: white; text-decoration: none; }
+    .btn-embed:disabled { background: #ccc; cursor: not-allowed; }
+
+    .btn-back { background: #f1f3f4; color: #3c4043; }
+    .btn-back:hover { background: #e0e0e0; color: #3c4043; text-decoration: none; }
+
+    .stats-row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .stat-card {
+        background: var(--wa-card);
+        border: 1px solid var(--wa-border);
+        border-radius: 10px;
+        padding: 14px 20px;
+        flex: 1;
+        min-width: 150px;
+    }
+
+    .stat-card .stat-value {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--wa-teal);
+    }
+
+    .stat-card .stat-label {
+        font-size: 12px;
+        color: #5f6368;
+        margin-top: 2px;
+    }
+
+    /* Progress Bar */
+    .progress-container {
+        display: none;
+        background: var(--wa-card);
+        border: 1px solid var(--wa-border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .progress-container.active {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .progress-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #202124;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .progress-percent {
+        font-size: 20px;
+        font-weight: 700;
+        color: #7c3aed;
+    }
+
+    .progress-bar-bg {
+        width: 100%;
+        height: 12px;
+        background: #f1f3f4;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 10px;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #7c3aed, #a78bfa);
+        border-radius: 6px;
+        transition: width 0.5s ease;
+        position: relative;
+    }
+
+    .progress-bar-fill.complete {
+        background: linear-gradient(90deg, #25d366, #34d399);
+    }
+
+    .progress-bar-fill.error {
+        background: linear-gradient(90deg, #ef4444, #f87171);
+    }
+
+    .progress-bar-fill::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        animation: shimmer 1.5s infinite;
+    }
+
+    .progress-bar-fill.complete::after,
+    .progress-bar-fill.error::after {
+        animation: none;
+    }
+
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .progress-status {
+        font-size: 13px;
+        color: #5f6368;
+    }
+
+    .progress-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .progress-counter {
+        font-size: 12px;
+        color: #9aa0a6;
+    }
+
+    .filters-bar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filters-bar select,
+    .filters-bar input[type="text"] {
+        padding: 8px 14px;
+        border: 1px solid var(--wa-border);
+        border-radius: 8px;
+        font-size: 14px;
+        background: white;
+    }
+
+    .filters-bar select:focus,
+    .filters-bar input[type="text"]:focus {
+        outline: none;
+        border-color: var(--wa-green);
+    }
+
+    .filters-bar button {
+        padding: 8px 16px;
+        background: var(--wa-dark);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+    .chat-area {
+        background: var(--wa-bg);
+        border-radius: 12px;
+        padding: 20px;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .msg-bubble {
+        max-width: 75%;
+        padding: 10px 14px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+        position: relative;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+
+    .msg-sent {
+        background: var(--wa-light);
+        margin-left: auto;
+        border-bottom-right-radius: 2px;
+    }
+
+    .msg-received {
+        background: var(--wa-card);
+        margin-right: auto;
+        border-bottom-left-radius: 2px;
+    }
+
+    .msg-sender {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--wa-teal);
+        margin-bottom: 3px;
+    }
+
+    .msg-text {
+        font-size: 14px;
+        color: #111;
+        line-height: 1.4;
+    }
+
+    .msg-time {
+        font-size: 11px;
+        color: #667781;
+        text-align: right;
+        margin-top: 4px;
+    }
+
+    .msg-media {
+        color: #999;
+        font-style: italic;
+        font-size: 13px;
+    }
+
+    .messages-alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 14px;
+    }
+    .messages-alert.success { background: #e6f4ea; color: #137333; border: 1px solid #ceead6; }
+    .messages-alert.error { background: #fce8e6; color: #c5221f; border: 1px solid #fad2cf; }
+    .messages-alert.info { background: #e8f0fe; color: #1967d2; border: 1px solid #d2e3fc; }
+</style>
+
+<div class="detalle-container">
+    {% for message in messages %}
+    <div class="messages-alert {{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+
+    <div class="detalle-header">
+        <div>
+            <h1>💬 {{ consulta.nombre }}</h1>
+            <div class="meta">
+                Subido por {{ consulta.subido_por.get_full_name|default:consulta.subido_por.username }} 
+                el {{ consulta.creado_en|date:"d/M/Y H:i" }}
+            </div>
+        </div>
+        <div class="header-actions">
+            <a href="{% url 'consultas:buscar' consulta.id %}" class="btn-action btn-search">
+                <i class="fas fa-brain"></i> Búsqueda IA
+            </a>
+            <button type="button" class="btn-action btn-embed" id="btnEmbed" onclick="iniciarEmbeddings()">
+                <i class="fas fa-bolt"></i> Generar Embeddings
+            </button>
+            <a href="{% url 'consultas:lista' %}" class="btn-action btn-back">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Barra de Progreso -->
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-header">
+            <div class="progress-title">
+                <i class="fas fa-cog fa-spin" id="progressIcon"></i>
+                <span id="progressTitle">Generando embeddings...</span>
+            </div>
+            <div class="progress-percent" id="progressPercent">0%</div>
+        </div>
+        <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressBar" style="width: 0%"></div>
+        </div>
+        <div class="progress-details">
+            <div class="progress-status" id="progressStatus">Iniciando...</div>
+            <div class="progress-counter" id="progressCounter">0 / 0</div>
+        </div>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-value">{{ total_mensajes }}</div>
+            <div class="stat-label">Total Mensajes</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ remitentes|length }}</div>
+            <div class="stat-label">Participantes</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statEmbeddings">{{ total_con_embedding }}</div>
+            <div class="stat-label">Con Embedding</div>
+        </div>
+    </div>
+
+    <form method="get" class="filters-bar">
+        <select name="remitente" onchange="this.form.submit()">
+            <option value="">Todos los remitentes</option>
+            {% for r in remitentes %}
+            <option value="{{ r }}" {% if r == remitente_actual %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="q" value="{{ texto_buscar }}" placeholder="Buscar texto...">
+        <button type="submit"><i class="fas fa-filter"></i> Filtrar</button>
+    </form>
+
+    <div class="chat-area" id="chatArea">
+        {% for msg in mensajes %}
+        <div class="msg-bubble {% if forloop.counter|divisibleby:2 %}msg-sent{% else %}msg-received{% endif %}">
+            <div class="msg-sender">{{ msg.remitente }}</div>
+            {% if msg.texto == '<Multimedia omitido>' %}
+            <div class="msg-text msg-media">📷 Multimedia omitido</div>
+            {% else %}
+            <div class="msg-text">{{ msg.texto }}</div>
+            {% endif %}
+            <div class="msg-time">{{ msg.fecha_str }} {{ msg.hora_str }}</div>
+        </div>
+        {% empty %}
+        <div style="text-align: center; padding: 40px; color: #667781;">
+            <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px;"></i>
+            <p>No hay mensajes que coincidan con los filtros.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+const URL_STREAM = '{% url "consultas:generar_embeddings" consulta.id %}';
+
+function iniciarEmbeddings() {
+    const btn = document.getElementById('btnEmbed');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+    // Mostrar barra de progreso
+    document.getElementById('progressContainer').classList.add('active');
+    actualizarUI({current: 0, total: 0, percent: 2, status: 'Conectando...'});
+
+    // Conectar via Server-Sent Events (SSE)
+    const evtSource = new EventSource(URL_STREAM);
+
+    evtSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        actualizarUI(data);
+
+        if (data.state === 'SUCCESS' || data.state === 'FAILURE') {
+            evtSource.close();
+            finalizarProgreso(data);
+        }
+    };
+
+    evtSource.onerror = function(err) {
+        console.error('SSE error:', err);
+        evtSource.close();
+        finalizarProgreso({state: 'FAILURE', status: '❌ Error de conexión con el servidor'});
+    };
+}
+
+function actualizarUI(data) {
+    const bar = document.getElementById('progressBar');
+    const percent = document.getElementById('progressPercent');
+    const status = document.getElementById('progressStatus');
+    const counter = document.getElementById('progressCounter');
+
+    const pct = data.percent || 0;
+    bar.style.width = pct + '%';
+    percent.textContent = pct + '%';
+    status.textContent = data.status || 'Procesando...';
+    counter.textContent = (data.current || 0) + ' / ' + (data.total || 0);
+}
+
+function finalizarProgreso(data) {
+    const bar = document.getElementById('progressBar');
+    const icon = document.getElementById('progressIcon');
+    const title = document.getElementById('progressTitle');
+    const btn = document.getElementById('btnEmbed');
+    const percentEl = document.getElementById('progressPercent');
+
+    if (data.state === 'SUCCESS') {
+        bar.style.width = '100%';
+        bar.classList.add('complete');
+        icon.className = 'fas fa-check-circle';
+        icon.style.color = '#25d366';
+        title.textContent = '¡Embeddings generados!';
+        percentEl.textContent = '100%';
+        percentEl.style.color = '#25d366';
+        // Actualizar stat
+        if (data.current) {
+            const statEl = document.getElementById('statEmbeddings');
+            statEl.textContent = parseInt(statEl.textContent) + data.current;
+        }
+    } else {
+        bar.classList.add('error');
+        icon.className = 'fas fa-exclamation-circle';
+        icon.style.color = '#ef4444';
+        title.textContent = 'Error en la generación';
+        percentEl.style.color = '#ef4444';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-bolt"></i> Generar Embeddings';
+}
+</script>
+{% endblock %}
