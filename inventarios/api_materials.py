@@ -2,7 +2,6 @@ from decimal import Decimal
 from collections import defaultdict
 from django.http import JsonResponse
 from django.db.models import Q
-from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -19,41 +18,56 @@ def api_list_materials(request):
     ubicacion_id = request.GET.get('ubicacion')
     page_number = request.GET.get('page', 1)
     
-    from django.db.models import Sum, OuterRef, Subquery, DecimalField
-    from django.db.models.functions import Coalesce
+    from django.db.models import Sum
 
-    stock_subquery = StockRecord.objects.filter(material=OuterRef('pk'))
-    if ubicacion_id:
-        stock_subquery = stock_subquery.filter(ubicacion_id=ubicacion_id)
-    
-    stock_total_expr = Subquery(
-        stock_subquery.values('material').annotate(total=Sum('cantidad')).values('total'),
-        output_field=DecimalField()
-    )
-
-    materials = Material.objects.select_related('categoria', 'unidad_medida').only(
+    materials = Material.objects.only(
         'id', 'nombre', 'sku', 'descripcion', 'unidad_medida', 'precio_estimado',
         'categoria', 'tipo_material', 'imagen', 'ancho', 'alto', 'peso', 'profundidad'
-    ).annotate(
-        stock_total=Coalesce(stock_total_expr, Decimal('0.00'))
-    ).order_by('nombre')
+    )
 
     if query:
+        # Priorizar búsqueda por SKU exacto (usa índice), luego nombre
         materials = materials.filter(
-            Q(nombre__icontains=query) | 
             Q(sku__icontains=query) |
-            Q(descripcion__icontains=query)
+            Q(nombre__icontains=query)
         )
         
     if category_id:
         materials = materials.filter(categoria_id=category_id)
-        
-    paginator = Paginator(materials, 30)
-    page_obj = paginator.get_page(page_number)
-    
-    # Evaluar la página y obtener IDs para consultas por lotes
-    materials_list = list(page_obj)
+
+    materials = materials.order_by('nombre')
+
+    # Paginación eficiente: solo contamos IDs (sin joins ni anotaciones)
+    page_size = 30
+    try:
+        page_num = int(page_number)
+    except (TypeError, ValueError):
+        page_num = 1
+
+    # Obtener un item más para saber si hay siguiente página
+    offset = (page_num - 1) * page_size
+    page_ids = list(materials.values_list('id', flat=True)[offset:offset + page_size + 1])
+    has_next = len(page_ids) > page_size
+    page_ids = page_ids[:page_size]
+
+    # Ahora traemos los materiales completos solo para los IDs de la página
+    materials_list = list(
+        Material.objects.filter(id__in=page_ids)
+        .select_related('categoria', 'unidad_medida')
+        .only('id', 'nombre', 'sku', 'descripcion', 'unidad_medida', 'precio_estimado',
+              'categoria', 'tipo_material', 'imagen', 'ancho', 'alto', 'peso', 'profundidad')
+        .order_by('nombre')
+    )
     material_ids = [m.id for m in materials_list]
+
+    # Stock por lote (solo para los materiales de esta página)
+    from django.db.models import Sum as DSum
+    stock_map = {}
+    stock_qs = StockRecord.objects.filter(material_id__in=material_ids)
+    if ubicacion_id:
+        stock_qs = stock_qs.filter(ubicacion_id=ubicacion_id)
+    for row in stock_qs.values('material_id').annotate(total=DSum('cantidad')):
+        stock_map[row['material_id']] = float(row['total'] or 0)
     
     # Batch: departamentos
     dept_map = defaultdict(set)
@@ -96,7 +110,7 @@ def api_list_materials(request):
             'descripcion': m.descripcion or '',
             'unidad': m.unidad_medida.nombre if m.unidad_medida else 'Unidad',
             'precio_estimado': float(m.precio_estimado),
-            'stock': float(m.stock_total or 0),
+            'stock': stock_map.get(m.id, 0),
             'ancho': float(m.ancho) if m.ancho else None,
             'alto': float(m.alto) if m.alto else None,
             'peso': float(m.peso) if m.peso else None,
@@ -110,9 +124,10 @@ def api_list_materials(request):
         
     return JsonResponse({
         'results': data,
-        'has_next': page_obj.has_next(),
-        'num_pages': paginator.num_pages,
-        'current_page': page_obj.number
+        'has_next': has_next,
+        'num_pages': 0,
+        'current_page': page_num,
+        'total': len(data)
     })
 
 @login_required

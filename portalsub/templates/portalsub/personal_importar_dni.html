@@ -1,0 +1,194 @@
+{% extends 'portalsub/base.html' %}
+{% load static %}
+{% block title %}Importar Personal por DNI{% endblock %}
+{% block header_title %}Importar DNI{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'portalsub:personal_list' %}" class="back-btn">
+    <ion-icon name="arrow-back-outline"></ion-icon>
+</a>
+{% endblock %}
+
+{% block content %}
+{% if not resultado %}
+<div class="card">
+    <div class="card-title">
+        <ion-icon name="cloud-upload-outline"></ion-icon>
+        Subir archivo Excel
+    </div>
+    <p style="font-size:13px;color:#666;margin:0 0 12px;">
+        Sube un archivo .xlsx con los números de identidad (DNI) en la primera columna.
+        El sistema revisará cuáles ya están registrados y cuáles son nuevos.
+        <a href="{% url 'portalsub:personal_plantilla_dni' %}" style="display:inline-flex;align-items:center;gap:4px;color:var(--sap-primary);font-weight:600;margin-top:4px;">
+            <ion-icon name="download-outline"></ion-icon> Descargar plantilla
+        </a>
+    </p>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+            <div class="file-upload-zone" id="upload-zone" style="cursor:pointer;">
+                <ion-icon name="document-text-outline"></ion-icon>
+                <p id="upload-text">Haz clic para seleccionar archivo .xlsx</p>
+            </div>
+            <input type="file" name="archivo" id="file-input" accept=".xlsx" style="display:none;" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">
+            <ion-icon name="search-outline"></ion-icon> Revisar diferencias
+        </button>
+    </form>
+</div>
+{% endif %}
+
+{% if resultado %}
+<div class="stat-grid" style="margin-bottom:4px;">
+    <div class="stat-card">
+        <div class="stat-value" style="color:#256f3a;">{{ resultado.coinciden }}</div>
+        <div class="stat-label">Coinciden</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:#bb2d3b;">{{ resultado.no_encontrados|length }}</div>
+        <div class="stat-label">No encontrados</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:#e67e22;">{{ resultado.total_faltantes }}</div>
+        <div class="stat-label">Faltan en archivo</div>
+    </div>
+</div>
+
+{% if resultado.coinciden > 0 %}
+<div class="card">
+    <div class="card-title" style="color:#256f3a;">
+        <ion-icon name="checkmark-circle-outline"></ion-icon>
+        Coincidencias ({{ resultado.coinciden }})
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>DNI</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in resultado.coinciden_lista %}
+            <tr>
+                <td>{{ p.nombre }} {{ p.apellido }}</td>
+                <td style="font-size:12px;color:#666;">{{ p.dni }}</td>
+                <td>
+                    {% if p.esta_vigente %}
+                    <span class="badge badge-success">Vigente</span>
+                    {% else %}
+                    <span class="badge badge-danger">No Vigente</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if resultado.no_encontrados %}
+<div class="card">
+    <div class="card-title" style="color:#bb2d3b;">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+        No encontrados en BD ({{ resultado.no_encontrados|length }})
+    </div>
+    <p style="font-size:12px;color:#666;margin:0 0 8px;">Estos DNI del archivo no están registrados en tu personal. Haz clic en uno para registrarlo.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        {% for dni in resultado.no_encontrados %}
+        <a href="{% url 'portalsub:personal_crear' %}?dni={{ dni|urlencode }}" class="badge badge-danger" style="text-decoration:none;cursor:pointer;">{{ dni }}</a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if resultado.faltantes_en_archivo %}
+<div class="card">
+    <div class="card-title" style="color:#e67e22;">
+        <ion-icon name="warning-outline"></ion-icon>
+        En BD pero no en el archivo ({{ resultado.total_faltantes }})
+    </div>
+    <p style="font-size:12px;color:#666;margin:0 0 8px;">Estos empleados están en tu base de datos pero no aparecen en el archivo subido.</p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>DNI</th>
+                <th>Vigente</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in resultado.faltantes_en_archivo %}
+            <tr>
+                <td>{{ p.nombre }} {{ p.apellido }}</td>
+                <td style="font-size:12px;color:#666;">{{ p.dni }}</td>
+                <td>
+                    <label class="switch" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+                        <input type="checkbox" class="vigente-check" data-pk="{{ p.id }}" {% if p.esta_vigente %}checked{% endif %} style="width:18px;height:18px;cursor:pointer;">
+                        <span class="vigente-label" style="font-size:12px;{% if p.esta_vigente %}color:#256f3a;font-weight:600{% else %}color:#999{% endif %}">
+                            {% if p.esta_vigente %}Sí{% else %}No{% endif %}
+                        </span>
+                    </label>
+                </td>
+                <td>
+                    <a href="{% url 'portalsub:personal_editar' p.id %}" class="btn btn-sm btn-secondary">
+                        <ion-icon name="create-outline"></ion-icon>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div style="display:flex;gap:8px;">
+    <a href="{% url 'portalsub:personal_importar_dni' %}" class="btn btn-primary" style="flex:1;">
+        <ion-icon name="refresh-outline"></ion-icon> Subir otro archivo
+    </a>
+    <a href="{% url 'portalsub:personal_list' %}" class="btn btn-secondary" style="flex:1;">
+        <ion-icon name="people-outline"></ion-icon> Volver a Personal
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('upload-zone').addEventListener('click', function() {
+    document.getElementById('file-input').click();
+});
+document.getElementById('file-input').addEventListener('change', function(e) {
+    var text = document.getElementById('upload-text');
+    if (this.files && this.files.length > 0) {
+        text.textContent = this.files[0].name;
+    } else {
+        text.textContent = 'Haz clic para seleccionar archivo .xlsx';
+    }
+});
+
+document.querySelectorAll('.vigente-check').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        var pk = this.dataset.pk;
+        var label = this.parentElement.querySelector('.vigente-label');
+        var csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/portalsub/personal/' + pk + '/toggle-vigente/', true);
+        xhr.setRequestHeader('X-CSRFToken', csrf);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                location.reload();
+            } else {
+                cb.checked = !cb.checked;
+            }
+        };
+        xhr.onerror = function() { cb.checked = !cb.checked; };
+        xhr.send('pk=' + pk);
+    });
+});
+</script>
+{% endblock %}

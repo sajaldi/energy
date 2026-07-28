@@ -204,11 +204,16 @@ def api_get_material_stock(request, material_id):
     pendientes = [m for m in movimientos if m.estado == 'PENDIENTE']
     mov_pendientes = [
         {
+            'id': p.id,
             'fecha': p.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
             'tipo': p.get_tipo_display(),
+            'tipo_raw': p.tipo,
             'cantidad': float(p.cantidad),
-            'usuario': p.usuario.get_full_name() or p.usuario.username,
-            'ubicacion': (p.ubicacion_destino.nombre if p.ubicacion_destino else "N/A") if p.tipo == 'ENTRADA' else (p.ubicacion_origen.nombre if p.ubicacion_origen else "N/A")
+            'usuario': p.usuario.get_full_name() or p.usuario.username if p.usuario else 'Sistema',
+            'ubicacion': (p.ubicacion_destino.nombre if p.ubicacion_destino else "N/A") if p.tipo == 'ENTRADA' else (p.ubicacion_origen.nombre if p.ubicacion_origen else "N/A"),
+            'comentarios': p.comentarios or '',
+            'solicitud_id': p.solicitud_id,
+            'orden_trabajo_info': f"OT {p.orden_trabajo.codigo_de_orden}" if p.orden_trabajo else None,
         } for p in pendientes
     ]
     
@@ -287,6 +292,22 @@ def api_get_material_stock(request, material_id):
                 'requisicion__usuario_solicitante',
                 'proveedor'
             ).order_by('-requisicion__fecha')
+        ],
+        'activos_utilizados': [
+            {
+                'activo_id': uso.activo_id,
+                'activo_nombre': uso.activo.nombre if uso.activo else 'Sin asignar',
+                'activo_codigo': uso.activo.codigo_interno if uso.activo else '',
+                'cantidad': float(uso.cantidad),
+                'ot_id': uso.orden_trabajo_id,
+                'ot_codigo': uso.orden_trabajo.codigo_de_orden or f'OT-{uso.orden_trabajo_id}',
+                'ot_tipo': uso.orden_trabajo.get_tipo_display(),
+                'comentario': uso.comentario,
+                'fecha': uso.fecha_registro.strftime('%d/%m/%Y %H:%M'),
+                'registrado_por': uso.registrado_por.get_full_name() if uso.registrado_por else '',
+            } for uso in material.usos_en_ot.select_related(
+                'activo', 'orden_trabajo', 'registrado_por'
+            ).order_by('-fecha_registro')[:30]
         ],
     })
 
@@ -1481,6 +1502,7 @@ def master_catalog(request):
     context = {
         'categorias': categorias,
         'ubicaciones': ubicaciones,
+        'active_tab': 'catalogo',
         'title': 'Catálogo Maestro'
     }
     return render(request, 'inventarios/master_catalog.html', context)
@@ -2174,6 +2196,157 @@ def api_resolver_discrepancia(request):
         'message': f'Ajuste de {diferencia} aplicado correctamente.',
         'nuevo_stock': float(conteo_real)
     })
+
+
+@login_required
+def api_liquidar_movimiento(request, mov_id):
+    """
+    Aprueba (liquida) o rechaza un movimiento pendiente individual.
+    POST body: { "accion": "aprobar" | "rechazar", "comentario": "..." }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    # Solo usuarios del grupo Almacenes o superusuarios
+    es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+    if not es_almacen:
+        return JsonResponse({'status': 'error', 'message': 'No tienes permiso para aprobar movimientos.'}, status=403)
+
+    mov = get_object_or_404(MovimientoInventario, pk=mov_id)
+
+    if mov.estado != 'PENDIENTE':
+        return JsonResponse({'status': 'error', 'message': f'El movimiento ya fue procesado ({mov.get_estado_display()}).'}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        data = {}
+
+    accion = data.get('accion', 'aprobar')
+    comentario = data.get('comentario', '')
+
+    if accion == 'rechazar':
+        mov.estado = 'RECHAZADO'
+        if comentario:
+            mov.comentarios = (mov.comentarios or '') + f' | Rechazado: {comentario}'
+        mov.save()
+        return JsonResponse({'status': 'success', 'message': 'Movimiento rechazado.'})
+
+    # Aprobar / Liquidar
+    try:
+        if comentario:
+            mov.comentarios = (mov.comentarios or '') + f' | {comentario}'
+            mov.save()
+        mov.liquidar(request.user)
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Movimiento #{mov.id} aprobado. Stock actualizado.',
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@login_required
+def api_detalle_movimiento(request, mov_id):
+    """
+    Retorna todos los detalles de un movimiento de inventario para mostrar en modal.
+    """
+    mov = get_object_or_404(
+        MovimientoInventario.objects.select_related(
+            'material', 'material__categoria', 'material__unidad_medida',
+            'lote', 'solicitud', 'solicitud__usuario', 'solicitud__orden_trabajo',
+            'ingreso', 'devolucion', 'orden_trabajo',
+            'ubicacion_origen', 'ubicacion_destino',
+            'usuario', 'aprobado_por'
+        ),
+        pk=mov_id
+    )
+
+    data = {
+        'id': mov.id,
+        'material': {
+            'id': mov.material.id,
+            'nombre': mov.material.nombre,
+            'sku': mov.material.sku,
+            'categoria': mov.material.categoria.nombre if mov.material.categoria else 'General',
+            'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else 'Unidad',
+            'imagen': mov.material.imagen.url if mov.material.imagen else None,
+        },
+        'tipo': mov.get_tipo_display(),
+        'tipo_raw': mov.tipo,
+        'cantidad': float(mov.cantidad),
+        'cantidad_solicitada': float(mov.cantidad_solicitada) if mov.cantidad_solicitada else None,
+        'estado': mov.get_estado_display(),
+        'estado_raw': mov.estado,
+        'fecha': mov.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
+        'ubicacion_origen': mov.ubicacion_origen.nombre if mov.ubicacion_origen else None,
+        'ubicacion_destino': mov.ubicacion_destino.nombre if mov.ubicacion_destino else None,
+        'ubicacion_especifica': mov.ubicacion_especifica or None,
+        'lote': str(mov.lote) if mov.lote else None,
+        'comentarios': mov.comentarios or '',
+        'es_inconsistente': mov.es_inconsistente,
+        'usuario': mov.usuario.get_full_name() or mov.usuario.username if mov.usuario else 'Sistema',
+        'aprobado_por': mov.aprobado_por.get_full_name() if mov.aprobado_por else None,
+        'fecha_aprobacion': mov.fecha_aprobacion.strftime('%d/%m/%Y %H:%M') if mov.fecha_aprobacion else None,
+        'solicitud': {
+            'id': mov.solicitud.id,
+            'usuario': mov.solicitud.usuario.get_full_name() or mov.solicitud.usuario.username,
+            'estado': mov.solicitud.get_estado_display(),
+            'fecha': mov.solicitud.fecha_solicitud.strftime('%d/%m/%Y %H:%M'),
+        } if mov.solicitud else None,
+        'orden_trabajo': {
+            'id': mov.orden_trabajo.id,
+            'codigo': mov.orden_trabajo.codigo_de_orden,
+            'tipo': mov.orden_trabajo.get_tipo_display(),
+            'descripcion': mov.orden_trabajo.descripcion_corta or '',
+        } if mov.orden_trabajo else None,
+        'ingreso': {
+            'id': mov.ingreso.id,
+            'fecha': mov.ingreso.fecha_ingreso.strftime('%d/%m/%Y %H:%M'),
+            'usuario': mov.ingreso.usuario.get_full_name() if mov.ingreso.usuario else '',
+        } if mov.ingreso else None,
+    }
+
+    return JsonResponse({'status': 'success', 'movimiento': data})
+
+
+@login_required
+def api_vincular_ot_movimiento(request, mov_id):
+    """
+    POST: Vincula o desvincula una OT de un movimiento.
+    Body: { "orden_trabajo_id": <int|null> }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    mov = get_object_or_404(MovimientoInventario, pk=mov_id)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
+
+    ot_id = data.get('orden_trabajo_id')
+
+    if ot_id:
+        ot = get_object_or_404(OrdenTrabajo, pk=ot_id)
+        mov.orden_trabajo = ot
+        mov.save(update_fields=['orden_trabajo'])
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Movimiento vinculado a {ot.codigo_de_orden}',
+            'orden_trabajo': {
+                'id': ot.id,
+                'codigo': ot.codigo_de_orden,
+                'tipo': ot.get_tipo_display(),
+                'descripcion': ot.descripcion_corta or '',
+            }
+        })
+    else:
+        mov.orden_trabajo = None
+        mov.save(update_fields=['orden_trabajo'])
+        return JsonResponse({'status': 'success', 'message': 'OT desvinculada del movimiento.'})
+
 
 @csrf_exempt
 def api_autorizar_solicitud(request, pk):
@@ -3290,3 +3463,227 @@ def api_calendario_requisicion_items(request, pk):
         import traceback
         print(traceback.format_exc())
         return JsonResponse({'error': str(e)}, status=500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# API: Materiales Utilizados por OT (vinculación OT ↔ Activo ↔ Material)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@login_required
+def api_materiales_utilizados_ot(request, ot_id):
+    """
+    GET: Lista materiales utilizados en una OT, agrupados por activo.
+    POST: Registra un nuevo material utilizado en la OT.
+    """
+    from .models import MaterialUtilizadoOT
+    ot = get_object_or_404(OrdenTrabajo, pk=ot_id)
+
+    if request.method == 'GET':
+        registros = MaterialUtilizadoOT.objects.filter(
+            orden_trabajo=ot
+        ).select_related('material', 'activo', 'registrado_por').order_by('activo__nombre', '-fecha_registro')
+
+        data = []
+        for r in registros:
+            data.append({
+                'id': r.id,
+                'material_id': r.material_id,
+                'material_nombre': r.material.nombre,
+                'material_sku': r.material.sku,
+                'activo_id': r.activo_id,
+                'activo_nombre': r.activo.nombre if r.activo else None,
+                'activo_codigo': r.activo.codigo_interno if r.activo else None,
+                'cantidad': float(r.cantidad),
+                'comentario': r.comentario,
+                'registrado_por': r.registrado_por.get_full_name() if r.registrado_por else None,
+                'fecha': r.fecha_registro.strftime('%d/%m/%Y %H:%M'),
+            })
+
+        # También incluir activos de la OT para el selector
+        activos_ot = [
+            {'id': a.id, 'nombre': a.nombre, 'codigo': a.codigo_interno}
+            for a in ot.activos.all()
+        ]
+
+        return JsonResponse({
+            'status': 'success',
+            'materiales': data,
+            'activos_ot': activos_ot,
+            'ot_codigo': ot.codigo_de_orden,
+        })
+
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
+
+        material_id = data.get('material_id')
+        activo_id = data.get('activo_id')  # Opcional
+        cantidad = data.get('cantidad')
+        comentario = data.get('comentario', '')
+
+        if not material_id or not cantidad:
+            return JsonResponse({'status': 'error', 'message': 'material_id y cantidad son requeridos'}, status=400)
+
+        try:
+            material = Material.objects.get(pk=material_id)
+        except Material.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Material no encontrado'}, status=404)
+
+        activo = None
+        if activo_id:
+            from activos.models import Activo
+            try:
+                activo = Activo.objects.get(pk=activo_id)
+            except Activo.DoesNotExist:
+                return JsonResponse({'status': 'error', 'message': 'Activo no encontrado'}, status=404)
+
+        registro = MaterialUtilizadoOT.objects.create(
+            orden_trabajo=ot,
+            material=material,
+            activo=activo,
+            cantidad=Decimal(str(cantidad)),
+            comentario=comentario,
+            registrado_por=request.user,
+        )
+
+        return JsonResponse({
+            'status': 'success',
+            'message': f'{material.nombre} x{cantidad} vinculado a OT {ot.codigo_de_orden}',
+            'id': registro.id,
+        })
+
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
+@login_required
+@csrf_exempt
+def api_materiales_utilizados_ot_delete(request, registro_id):
+    """Elimina un registro de material utilizado en OT."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    from .models import MaterialUtilizadoOT
+    registro = get_object_or_404(MaterialUtilizadoOT, pk=registro_id)
+    registro.delete()
+    return JsonResponse({'status': 'success', 'message': 'Registro eliminado'})
+
+
+@login_required
+def api_historial_materiales_activo(request, activo_id):
+    """
+    Retorna el historial de todos los materiales que se han utilizado
+    en un activo específico a lo largo de todas las OTs.
+    """
+    from .models import MaterialUtilizadoOT
+    from activos.models import Activo
+
+    activo = get_object_or_404(Activo, pk=activo_id)
+    registros = MaterialUtilizadoOT.objects.filter(
+        activo=activo
+    ).select_related(
+        'material', 'orden_trabajo', 'registrado_por'
+    ).order_by('-fecha_registro')
+
+    data = []
+    for r in registros:
+        data.append({
+            'id': r.id,
+            'material_nombre': r.material.nombre,
+            'material_sku': r.material.sku,
+            'cantidad': float(r.cantidad),
+            'ot_codigo': r.orden_trabajo.codigo_de_orden,
+            'ot_id': r.orden_trabajo.id,
+            'ot_tipo': r.orden_trabajo.get_tipo_display(),
+            'comentario': r.comentario,
+            'registrado_por': r.registrado_por.get_full_name() if r.registrado_por else None,
+            'fecha': r.fecha_registro.strftime('%d/%m/%Y %H:%M'),
+        })
+
+    return JsonResponse({
+        'status': 'success',
+        'activo': {'id': activo.id, 'nombre': activo.nombre, 'codigo': activo.codigo_interno},
+        'historial': data,
+        'total_registros': len(data),
+    })
+
+
+@login_required
+def api_vincular_material_activo(request, material_id):
+    """
+    POST: Registra que un material fue utilizado en un activo a través de una OT.
+    Body: { "activo_id": <int>, "orden_trabajo_id": <int>, "cantidad": <float>, "comentario": "" }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    material = get_object_or_404(Material, pk=material_id)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
+
+    activo_id = data.get('activo_id')
+    ot_id = data.get('orden_trabajo_id')
+    cantidad = data.get('cantidad')
+    comentario = data.get('comentario', '')
+
+    if not ot_id or not cantidad:
+        return JsonResponse({'status': 'error', 'message': 'orden_trabajo_id y cantidad son requeridos'}, status=400)
+
+    ot = get_object_or_404(OrdenTrabajo, pk=ot_id)
+
+    activo = None
+    if activo_id:
+        from activos.models import Activo
+        activo = get_object_or_404(Activo, pk=activo_id)
+
+    from .models import MaterialUtilizadoOT
+    registro = MaterialUtilizadoOT.objects.create(
+        orden_trabajo=ot,
+        material=material,
+        activo=activo,
+        cantidad=Decimal(str(cantidad)),
+        comentario=comentario,
+        registrado_por=request.user,
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'{material.nombre} vinculado a {activo.nombre if activo else "OT"} ({ot.codigo_de_orden})',
+        'id': registro.id,
+    })
+
+
+@login_required
+def api_search_activos(request):
+    """
+    GET: Busca activos por nombre, código o serie. Retorna JSON.
+    """
+    from activos.models import Activo
+    from django.db.models import Q
+
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+
+    activos = Activo.objects.filter(
+        Q(nombre__icontains=q) |
+        Q(codigo_interno__icontains=q) |
+        Q(serie__icontains=q)
+    ).select_related('ubicacion').only(
+        'id', 'nombre', 'codigo_interno', 'serie', 'ubicacion'
+    ).order_by('nombre')[:15]
+
+    results = [{
+        'id': a.id,
+        'nombre': a.nombre,
+        'codigo': a.codigo_interno,
+        'serie': a.serie or '',
+        'ubicacion': a.ubicacion.nombre if a.ubicacion else '',
+        'text': f"{a.nombre} ({a.codigo_interno})",
+    } for a in activos]
+
+    return JsonResponse({'results': results})

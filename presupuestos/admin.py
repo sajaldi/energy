@@ -10,8 +10,9 @@ from .models import (
     REPEX, REPEXItem, Moneda,
     OrdenCompra, OrdenCompraArticulo, CentroCosto,
     Cotizacion, ItemCotizacion, ItemPredefinido,
+    CodigoExoneracion,
 )
-from .resources import RequisicionResource
+from .resources import RequisicionResource, CodigoExoneracionResource
 
 class GastoEjecutadoInline(admin.TabularInline):
     model = GastoEjecutado
@@ -716,3 +717,14 @@ class ItemPredefinidoAdmin(admin.ModelAdmin):
     list_filter = ('disciplina', 'moneda', 'activo')
     search_fields = ('codigo', 'descripcion')
     autocomplete_fields = ('disciplina', 'moneda')
+
+
+@admin.register(CodigoExoneracion)
+class CodigoExoneracionAdmin(ImportExportModelAdmin):
+    resource_class = CodigoExoneracionResource
+    list_display = ('codigo', 'descripcion', 'nivel', 'dai', 'isc', 'ipc', 'isv', 'activo')
+    list_filter = ('activo',)
+    search_fields = ('codigo', 'descripcion')
+    list_editable = ('dai', 'isc', 'ipc', 'isv', 'activo')
+    export_formats = [XLSX, CSV]
+    # change_list_template = 'admin/presupuestos/codigoexoneracion/change_list.html'

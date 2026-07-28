@@ -1,49 +1,224 @@
-{% extends "admin/base_site.html" %}
 {% load i18n static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Inventarios{% endblock %} | Energía</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-{% block extrahead %}{{ block.super }}
-<style>
-.inventarios-tabs {
-  display: flex; gap: 0; margin: 0px 0 30px; padding: 0;
-  background: #fff; border-bottom: 2px solid #e2e8f0;
-  border-radius: 4px 4px 0 0;
-}
-.inventarios-tabs a {
-  display: flex; align-items: center; gap: 8px;
-  padding: 16px 32px; font-size: 0.9rem; font-weight: 600;
-  color: #64748b; text-decoration: none;
-  border-bottom: 2px solid transparent; margin-bottom: -2px;
-  transition: all 0.2s;
-}
-.inventarios-tabs a:hover { color: #0a6ed1; background: #f8fafc; }
-.inventarios-tabs a.active {
-  color: #0a6ed1; border-bottom-color: #0a6ed1;
-  background: #f0f7ff;
-}
-.inventarios-tabs a ion-icon { font-size: 1.3rem; }
-.inventarios-tab-content { padding: 0; }
-</style>
-{% endblock %}
+        :root {
+            --primary: #0a6ed1;
+            --primary-hover: #0958a8;
+            --primary-light: #eff6ff;
+            --accent: #6366f1;
+            --bg: #f7f8fa;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --radius: 8px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.08);
+        }
 
-{% block content %}
-<div class="inventarios-tabs">
-  <a href="{% url 'inventarios:dashboard' %}" class="{% if active_tab == 'dashboard' %}active{% endif %}">
-    <ion-icon name="grid-outline"></ion-icon> Dashboard
-  </a>
-  <a href="{% url 'inventarios:calendario' %}" class="{% if active_tab == 'calendario' %}active{% endif %}">
-    <ion-icon name="calendar-outline"></ion-icon> Calendario
-  </a>
-  <a href="{% url 'inventarios:racks_list' %}" class="{% if active_tab == 'racks' %}active{% endif %}">
-    <ion-icon name="layers-outline"></ion-icon> Racks / Estanterías
-  </a>
-  <a href="{% url 'inventarios:solicitud_nuevos_materiales' %}" class="{% if active_tab == 'nuevos_materiales' %}active{% endif %}">
-    <ion-icon name="add-circle-outline"></ion-icon> Nuevos Materiales
-  </a>
-  <a href="{% url 'inventarios:admin_catalogos' %}" class="{% if active_tab == 'admin_catalogos' %}active{% endif %}">
-    <ion-icon name="settings-outline"></ion-icon> Admin Catálogos
-  </a>
-</div>
-<div class="inventarios-tab-content">
-{% block inventarios_content %}{% endblock %}
-</div>
-{% endblock %}
+        html, body { height: 100%; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Top Bar */
+        .topbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .topbar-brand-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.1rem;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .topbar-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+
+        .topbar-link:hover {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .topbar-user {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text);
+            background: var(--bg);
+        }
+
+        .topbar-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        /* Tabs */
+        .nav-tabs {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            display: flex;
+            gap: 0;
+            overflow-x: auto;
+        }
+
+        .nav-tabs a {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 20px;
+            font-size: 0.83rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            white-space: nowrap;
+            transition: all 0.15s;
+        }
+
+        .nav-tabs a:hover {
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .nav-tabs a.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .nav-tabs a ion-icon { font-size: 1rem; }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 0;
+        }
+
+        /* Utility */
+        .swal2-container { z-index: 20000 !important; }
+    </style>
+    {% block extrahead %}{% endblock %}
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="topbar">
+        <a href="{% url 'inventarios:dashboard' %}" class="topbar-brand">
+            <div class="topbar-brand-icon">
+                <ion-icon name="cube-outline"></ion-icon>
+            </div>
+            Inventarios
+        </a>
+        <div class="topbar-actions">
+            <a href="/admin/" class="topbar-link">
+                <ion-icon name="arrow-back-outline"></ion-icon> Panel Admin
+            </a>
+            <div class="topbar-user">
+                <div class="topbar-avatar">{{ request.user.first_name|make_list|first|default:"U" }}</div>
+                {{ request.user.get_short_name|default:request.user.username }}
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+        <a href="{% url 'inventarios:dashboard' %}" class="{% if active_tab == 'dashboard' %}active{% endif %}">
+            <ion-icon name="grid-outline"></ion-icon> Dashboard
+        </a>
+        <a href="{% url 'inventarios:master_catalog' %}" class="{% if active_tab == 'catalogo' %}active{% endif %}">
+            <ion-icon name="cube-outline"></ion-icon> Catálogo
+        </a>
+        <a href="{% url 'inventarios:calendario' %}" class="{% if active_tab == 'calendario' %}active{% endif %}">
+            <ion-icon name="calendar-outline"></ion-icon> Calendario
+        </a>
+        <a href="{% url 'inventarios:racks_list' %}" class="{% if active_tab == 'racks' %}active{% endif %}">
+            <ion-icon name="layers-outline"></ion-icon> Racks
+        </a>
+        <a href="{% url 'inventarios:solicitud_nuevos_materiales' %}" class="{% if active_tab == 'nuevos_materiales' %}active{% endif %}">
+            <ion-icon name="add-circle-outline"></ion-icon> Nuevos Materiales
+        </a>
+        <a href="{% url 'inventarios:admin_catalogos' %}" class="{% if active_tab == 'admin_catalogos' %}active{% endif %}">
+            <ion-icon name="settings-outline"></ion-icon> Admin Catálogos
+        </a>
+    </nav>
+
+    <!-- Page Content -->
+    <main class="main-content">
+        {% block inventarios_content %}{% endblock %}
+    </main>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

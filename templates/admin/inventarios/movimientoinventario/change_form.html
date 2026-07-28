@@ -1,0 +1,558 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static admin_urls %}
+
+{% block extrahead %}{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<style>
+    :root {
+        --fiori-shell: #354a5f;
+        --fiori-blue: #0a6ed1;
+        --fiori-bg: #f7f8fa;
+        --fiori-card: #ffffff;
+        --fiori-border: #e2e8f0;
+        --fiori-success: #107e3e;
+        --fiori-warning: #e9730c;
+        --fiori-error: #bb0000;
+        --fiori-text: #1e293b;
+        --fiori-muted: #64748b;
+        --fiori-radius: 8px;
+    }
+
+    #content-main { display: none !important; }
+
+    .fiori-page {
+        font-family: 'Inter', -apple-system, sans-serif;
+        background: var(--fiori-bg);
+        min-height: calc(100vh - 100px);
+        padding: 24px;
+    }
+
+    .fiori-header {
+        background: var(--fiori-shell);
+        border-radius: var(--fiori-radius);
+        padding: 20px 28px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .fiori-header-left { display: flex; align-items: center; gap: 16px; }
+    .fiori-header-icon {
+        width: 44px; height: 44px; border-radius: 8px;
+        background: rgba(255,255,255,0.12);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem;
+    }
+    .fiori-header h1 { margin: 0; font-size: 1.1rem; font-weight: 700; }
+    .fiori-header .subtitle { font-size: 0.78rem; opacity: 0.7; margin-top: 2px; }
+
+    .fiori-badge {
+        padding: 6px 14px; border-radius: 20px;
+        font-size: 0.75rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .badge-pendiente { background: #fef3c7; color: #92400e; }
+    .badge-aprobado { background: #d1fae5; color: #065f46; }
+    .badge-rechazado { background: #fee2e2; color: #991b1b; }
+
+    .fiori-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+    }
+
+    .fiori-card {
+        background: var(--fiori-card);
+        border: 1px solid var(--fiori-border);
+        border-radius: var(--fiori-radius);
+        overflow: hidden;
+    }
+
+    .fiori-card-header {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--fiori-border);
+        font-weight: 700;
+        font-size: 0.82rem;
+        color: var(--fiori-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .fiori-card-body { padding: 20px; }
+
+    .fiori-field {
+        margin-bottom: 16px;
+    }
+    .fiori-field:last-child { margin-bottom: 0; }
+    .fiori-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--fiori-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 4px;
+    }
+    .fiori-value {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--fiori-text);
+    }
+    .fiori-value-lg {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--fiori-text);
+    }
+
+    .fiori-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .fiori-divider {
+        border: none;
+        border-top: 1px solid var(--fiori-border);
+        margin: 16px 0;
+    }
+
+    .fiori-timeline-item {
+        display: flex;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .fiori-timeline-item:last-child { border-bottom: none; }
+    .fiori-timeline-dot {
+        width: 32px; height: 32px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.9rem; flex-shrink: 0;
+    }
+
+    .fiori-alert {
+        display: flex; align-items: center; gap: 12px;
+        padding: 14px 18px; border-radius: var(--fiori-radius);
+        margin-bottom: 20px;
+    }
+    .fiori-alert-warn { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; }
+    .fiori-alert-error { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
+
+    .fiori-actions {
+        display: flex; gap: 10px; margin-top: 20px;
+    }
+    .fiori-btn {
+        padding: 10px 20px; border-radius: 6px;
+        font-weight: 600; font-size: 0.85rem;
+        border: none; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 6px;
+        transition: all 0.15s;
+    }
+    .fiori-btn-primary { background: var(--fiori-blue); color: white; }
+    .fiori-btn-primary:hover { background: #0854a0; }
+    .fiori-btn-success { background: var(--fiori-success); color: white; }
+    .fiori-btn-success:hover { background: #0a5c2f; }
+    .fiori-btn-danger { background: var(--fiori-error); color: white; }
+    .fiori-btn-danger:hover { background: #8b0000; }
+    .fiori-btn-ghost { background: transparent; color: var(--fiori-muted); border: 1px solid var(--fiori-border); }
+    .fiori-btn-ghost:hover { background: #f1f5f9; color: var(--fiori-text); }
+
+    .material-chip {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: #f1f5f9; border-radius: 6px; padding: 8px 12px;
+    }
+    .material-chip img { width: 32px; height: 32px; border-radius: 4px; object-fit: contain; background: white; }
+
+    @media (max-width: 900px) {
+        .fiori-grid { grid-template-columns: 1fr; }
+        .fiori-row { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fiori-page" id="fiori-mov-page">
+    <!-- Cargando mientras se obtienen los datos -->
+    <div id="fiori-loading" style="text-align:center; padding:80px; color:var(--fiori-muted);">
+        <ion-icon name="sync-outline" style="font-size:3rem; animation: spin 1s linear infinite;"></ion-icon>
+        <div style="margin-top:12px; font-weight:600;">Cargando movimiento...</div>
+    </div>
+    <div id="fiori-content" style="display:none;"></div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+(function() {
+    const movId = {{ original.pk }};
+    const csrfToken = '{{ csrf_token }}';
+    const isAlmacen = {{ es_almacen|yesno:"true,false" }};
+
+    async function loadMovimiento() {
+        try {
+            const res = await fetch(`/inventarios/api/movimiento/${movId}/detalle/`);
+            const json = await res.json();
+            if (json.status !== 'success') throw new Error(json.message);
+            renderFiori(json.movimiento);
+        } catch(e) {
+            document.getElementById('fiori-loading').innerHTML = `
+                <ion-icon name="alert-circle-outline" style="font-size:3rem; color:var(--fiori-error);"></ion-icon>
+                <div style="margin-top:12px; font-weight:600; color:var(--fiori-error);">Error al cargar: ${e.message}</div>
+            `;
+        }
+    }
+
+    function renderFiori(m) {
+        document.getElementById('fiori-loading').style.display = 'none';
+        const content = document.getElementById('fiori-content');
+        content.style.display = 'block';
+
+        const badgeClass = m.estado_raw === 'APROBADO' ? 'badge-aprobado' : m.estado_raw === 'RECHAZADO' ? 'badge-rechazado' : 'badge-pendiente';
+        const tipoIcon = m.tipo_raw === 'ENTRADA' ? 'arrow-down-circle' : m.tipo_raw === 'SALIDA' ? 'arrow-up-circle' : m.tipo_raw === 'TRASLADO' ? 'swap-horizontal' : 'sync-circle';
+        const tipoColor = m.tipo_raw === 'ENTRADA' ? 'var(--fiori-success)' : m.tipo_raw === 'SALIDA' ? 'var(--fiori-error)' : 'var(--fiori-blue)';
+
+        content.innerHTML = `
+            <!-- Header -->
+            <div class="fiori-header">
+                <div class="fiori-header-left">
+                    <div class="fiori-header-icon"><ion-icon name="${tipoIcon}"></ion-icon></div>
+                    <div>
+                        <h1>Movimiento #${m.id}</h1>
+                        <div class="subtitle">${m.tipo} · ${m.fecha}</div>
+                    </div>
+                </div>
+                <span class="fiori-badge ${badgeClass}">${m.estado}</span>
+            </div>
+
+            ${m.es_inconsistente ? `
+            <div class="fiori-alert fiori-alert-error">
+                <ion-icon name="warning" style="font-size:1.5rem;"></ion-icon>
+                <div>
+                    <div style="font-weight:700; font-size:0.85rem;">Movimiento Inconsistente</div>
+                    <div style="font-size:0.8rem;">El stock teórico era insuficiente al procesar. Requiere revisión.</div>
+                </div>
+            </div>` : ''}
+
+            ${m.estado_raw === 'PENDIENTE' ? `
+            <div class="fiori-alert fiori-alert-warn">
+                <ion-icon name="time" style="font-size:1.5rem;"></ion-icon>
+                <div>
+                    <div style="font-weight:700; font-size:0.85rem;">Pendiente de Aprobación</div>
+                    <div style="font-size:0.8rem;">Este movimiento necesita ser aprobado por almacén para afectar el stock.</div>
+                </div>
+            </div>` : ''}
+
+            <div class="fiori-grid">
+                <!-- Columna Principal -->
+                <div>
+                    <!-- Material -->
+                    <div class="fiori-card" style="margin-bottom:20px;">
+                        <div class="fiori-card-header"><ion-icon name="cube-outline"></ion-icon> Material</div>
+                        <div class="fiori-card-body">
+                            <div style="display:flex; gap:16px; align-items:center;">
+                                <div style="width:64px; height:64px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                                    ${m.material.imagen ? `<img src="${m.material.imagen}" style="max-width:100%; max-height:100%; object-fit:contain;">` : `<ion-icon name="cube" style="font-size:2rem; color:#94a3b8;"></ion-icon>`}
+                                </div>
+                                <div>
+                                    <div style="font-weight:700; font-size:1.05rem; color:var(--fiori-text);">${m.material.nombre}</div>
+                                    <div style="font-family:monospace; font-size:0.82rem; color:var(--fiori-blue); margin-top:2px;">${m.material.sku}</div>
+                                    <div style="font-size:0.78rem; color:var(--fiori-muted); margin-top:4px;">${m.material.categoria} · ${m.material.unidad}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cantidades y Ubicaciones -->
+                    <div class="fiori-card" style="margin-bottom:20px;">
+                        <div class="fiori-card-header"><ion-icon name="analytics-outline"></ion-icon> Detalles del Movimiento</div>
+                        <div class="fiori-card-body">
+                            <div class="fiori-row">
+                                <div class="fiori-field">
+                                    <div class="fiori-label">Tipo</div>
+                                    <div class="fiori-value" style="color:${tipoColor};">${m.tipo}</div>
+                                </div>
+                                <div class="fiori-field">
+                                    <div class="fiori-label">Cantidad</div>
+                                    <div class="fiori-value-lg">${m.cantidad} <span style="font-size:0.8rem; font-weight:500; color:var(--fiori-muted);">${m.material.unidad}</span></div>
+                                    ${m.cantidad_solicitada && m.cantidad_solicitada !== m.cantidad ? `<div style="font-size:0.75rem; color:var(--fiori-muted);">Solicitada: ${m.cantidad_solicitada}</div>` : ''}
+                                </div>
+                            </div>
+                            <hr class="fiori-divider">
+                            <div class="fiori-row">
+                                <div class="fiori-field">
+                                    <div class="fiori-label">Ubicación Origen</div>
+                                    <div class="fiori-value">${m.ubicacion_origen || '—'}</div>
+                                </div>
+                                <div class="fiori-field">
+                                    <div class="fiori-label">Ubicación Destino</div>
+                                    <div class="fiori-value">${m.ubicacion_destino || '—'}</div>
+                                    ${m.ubicacion_especifica ? `<div style="font-size:0.75rem; color:var(--fiori-muted);">${m.ubicacion_especifica}</div>` : ''}
+                                </div>
+                            </div>
+                            ${m.lote ? `<hr class="fiori-divider"><div class="fiori-field"><div class="fiori-label">Lote</div><div class="fiori-value">${m.lote}</div></div>` : ''}
+                            ${m.comentarios ? `<hr class="fiori-divider"><div class="fiori-field"><div class="fiori-label">Comentarios</div><div style="font-size:0.9rem; color:#475569; line-height:1.6;">${m.comentarios}</div></div>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Contexto -->
+                    ${m.orden_trabajo || m.solicitud || m.ingreso ? `
+                    <div class="fiori-card" style="margin-bottom:20px;">
+                        <div class="fiori-card-header"><ion-icon name="link-outline"></ion-icon> Vínculos</div>
+                        <div class="fiori-card-body">
+                            ${m.orden_trabajo ? `
+                            <div class="fiori-timeline-item">
+                                <div class="fiori-timeline-dot" style="background:#eff6ff; color:var(--fiori-blue);"><ion-icon name="construct"></ion-icon></div>
+                                <div>
+                                    <div style="font-weight:700; font-size:0.85rem;">${m.orden_trabajo.codigo}</div>
+                                    <div style="font-size:0.8rem; color:var(--fiori-muted);">${m.orden_trabajo.tipo}${m.orden_trabajo.descripcion ? ' — ' + m.orden_trabajo.descripcion : ''}</div>
+                                </div>
+                            </div>` : ''}
+                            ${m.solicitud ? `
+                            <div class="fiori-timeline-item">
+                                <div class="fiori-timeline-dot" style="background:#f5f3ff; color:#7c3aed;"><ion-icon name="cart"></ion-icon></div>
+                                <div>
+                                    <div style="font-weight:700; font-size:0.85rem;">Solicitud #${m.solicitud.id}</div>
+                                    <div style="font-size:0.8rem; color:var(--fiori-muted);">Por ${m.solicitud.usuario} · ${m.solicitud.estado} · ${m.solicitud.fecha}</div>
+                                </div>
+                            </div>` : ''}
+                            ${m.ingreso ? `
+                            <div class="fiori-timeline-item">
+                                <div class="fiori-timeline-dot" style="background:#ecfdf5; color:var(--fiori-success);"><ion-icon name="arrow-down-circle"></ion-icon></div>
+                                <div>
+                                    <div style="font-weight:700; font-size:0.85rem;">Ingreso #${m.ingreso.id}</div>
+                                    <div style="font-size:0.8rem; color:var(--fiori-muted);">${m.ingreso.fecha} · ${m.ingreso.usuario}</div>
+                                </div>
+                            </div>` : ''}
+                        </div>
+                    </div>` : ''}
+                </div>
+
+                <!-- Sidebar -->
+                <div>
+                    <!-- Info rápida -->
+                    <div class="fiori-card" style="margin-bottom:20px;">
+                        <div class="fiori-card-header"><ion-icon name="information-circle-outline"></ion-icon> Registro</div>
+                        <div class="fiori-card-body">
+                            <div class="fiori-field">
+                                <div class="fiori-label">Registrado por</div>
+                                <div class="fiori-value">${m.usuario}</div>
+                            </div>
+                            <div class="fiori-field">
+                                <div class="fiori-label">Fecha</div>
+                                <div class="fiori-value">${m.fecha}</div>
+                            </div>
+                            ${m.aprobado_por ? `
+                            <hr class="fiori-divider">
+                            <div class="fiori-field">
+                                <div class="fiori-label">Aprobado por</div>
+                                <div class="fiori-value">${m.aprobado_por}</div>
+                            </div>
+                            <div class="fiori-field">
+                                <div class="fiori-label">Fecha aprobación</div>
+                                <div class="fiori-value">${m.fecha_aprobacion}</div>
+                            </div>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Vincular OT -->
+                    <div class="fiori-card" style="margin-bottom:20px;">
+                        <div class="fiori-card-header"><ion-icon name="construct-outline"></ion-icon> Orden de Trabajo</div>
+                        <div class="fiori-card-body">
+                            <div id="ot-vinculada">
+                                ${m.orden_trabajo ? `
+                                <div style="display:flex; align-items:center; gap:10px; justify-content:space-between;">
+                                    <div>
+                                        <div style="font-weight:700; font-size:0.9rem; color:var(--fiori-blue);">${m.orden_trabajo.codigo}</div>
+                                        <div style="font-size:0.78rem; color:var(--fiori-muted);">${m.orden_trabajo.tipo}${m.orden_trabajo.descripcion ? ' — ' + m.orden_trabajo.descripcion : ''}</div>
+                                    </div>
+                                    <button onclick="desvincularOT()" class="fiori-btn fiori-btn-ghost" style="padding:6px 10px; font-size:0.75rem;" title="Desvincular OT">
+                                        <ion-icon name="close-outline"></ion-icon>
+                                    </button>
+                                </div>
+                                ` : `
+                                <div style="margin-bottom:10px; font-size:0.82rem; color:var(--fiori-muted);">Sin OT vinculada</div>
+                                `}
+                            </div>
+                            <div style="margin-top:10px; position:relative;">
+                                <input type="text" id="ot-search-input" placeholder="Buscar OT por código o descripción..." 
+                                    style="width:100%; padding:8px 12px; border:1px solid var(--fiori-border); border-radius:6px; font-size:0.85rem; font-family:inherit;"
+                                    autocomplete="off">
+                                <div id="ot-search-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid var(--fiori-border); border-radius:0 0 6px 6px; max-height:200px; overflow-y:auto; z-index:100; box-shadow:0 8px 20px rgba(0,0,0,0.12);"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Acciones -->
+                    ${isAlmacen && m.estado_raw === 'PENDIENTE' ? `
+                    <div class="fiori-card">
+                        <div class="fiori-card-header"><ion-icon name="checkmark-done-outline"></ion-icon> Acciones</div>
+                        <div class="fiori-card-body">
+                            <div class="fiori-actions" style="flex-direction:column;">
+                                <button class="fiori-btn fiori-btn-success" onclick="liquidarMov('aprobar')" style="width:100%; justify-content:center;">
+                                    <ion-icon name="checkmark-circle"></ion-icon> Aprobar Movimiento
+                                </button>
+                                <button class="fiori-btn fiori-btn-danger" onclick="liquidarMov('rechazar')" style="width:100%; justify-content:center;">
+                                    <ion-icon name="close-circle"></ion-icon> Rechazar
+                                </button>
+                            </div>
+                        </div>
+                    </div>` : ''}
+
+                    <div style="margin-top:16px; text-align:center;">
+                        <a href="/admin/inventarios/movimientoinventario/" class="fiori-btn fiori-btn-ghost" style="text-decoration:none; width:100%; justify-content:center;">
+                            <ion-icon name="arrow-back"></ion-icon> Volver a la lista
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    window.liquidarMov = async (accion) => {
+        let comentario = '';
+        if (accion === 'rechazar') {
+            const { value } = await Swal.fire({
+                title: 'Razón del rechazo',
+                input: 'textarea',
+                inputPlaceholder: 'Escribe la razón...',
+                showCancelButton: true,
+                confirmButtonText: 'Rechazar',
+                confirmButtonColor: '#bb0000',
+                inputValidator: (val) => !val && 'Debes indicar una razón'
+            });
+            if (!value) return;
+            comentario = value;
+        } else {
+            const { isConfirmed } = await Swal.fire({
+                title: '¿Aprobar este movimiento?',
+                text: 'El stock se actualizará inmediatamente.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, aprobar',
+                confirmButtonColor: '#107e3e'
+            });
+            if (!isConfirmed) return;
+        }
+
+        Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        try {
+            const res = await fetch(`/inventarios/api/movimiento/${movId}/liquidar/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ accion, comentario })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                await Swal.fire({ icon: 'success', title: data.message, timer: 2000, showConfirmButton: false });
+                loadMovimiento(); // Recargar
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        } catch(e) {
+            Swal.fire('Error', 'No se pudo procesar.', 'error');
+        }
+    };
+
+    // Spinner animation
+    const style = document.createElement('style');
+    style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+
+    // === OT Search & Link ===
+    let otSearchTimeout;
+    document.addEventListener('input', function(e) {
+        if (e.target.id !== 'ot-search-input') return;
+        clearTimeout(otSearchTimeout);
+        const q = e.target.value.trim();
+        const results = document.getElementById('ot-search-results');
+        if (q.length < 2) { results.style.display = 'none'; return; }
+
+        otSearchTimeout = setTimeout(async () => {
+            try {
+                const res = await fetch(`/mantenimiento/api/search-ordenes/?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                if (!data.results || data.results.length === 0) {
+                    results.innerHTML = '<div style="padding:12px; color:var(--fiori-muted); font-size:0.85rem;">Sin resultados</div>';
+                } else {
+                    results.innerHTML = data.results.map(ot => `
+                        <div onclick="vincularOT(${ot.id}, this.querySelector('.ot-label').textContent)" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.1s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                            <div class="ot-label" style="font-weight:600; font-size:0.85rem; color:var(--fiori-text);">${ot.text}</div>
+                        </div>
+                    `).join('');
+                }
+                results.style.display = 'block';
+            } catch(err) {
+                results.innerHTML = '<div style="padding:12px; color:var(--fiori-error); font-size:0.85rem;">Error de búsqueda</div>';
+                results.style.display = 'block';
+            }
+        }, 350);
+    });
+
+    // Cerrar dropdown al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        const results = document.getElementById('ot-search-results');
+        if (results && !e.target.closest('#ot-search-input') && !e.target.closest('#ot-search-results')) {
+            results.style.display = 'none';
+        }
+    });
+
+    window.vincularOT = async (otId, label) => {
+        document.getElementById('ot-search-results').style.display = 'none';
+        document.getElementById('ot-search-input').value = '';
+
+        try {
+            const res = await fetch(`/inventarios/api/movimiento/${movId}/vincular-ot/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ orden_trabajo_id: otId })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                Swal.fire({ icon: 'success', title: data.message, timer: 1500, showConfirmButton: false });
+                loadMovimiento();
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        } catch(e) {
+            Swal.fire('Error', 'No se pudo vincular.', 'error');
+        }
+    };
+
+    window.desvincularOT = async () => {
+        const { isConfirmed } = await Swal.fire({
+            title: '¿Desvincular OT?',
+            text: 'Se eliminará la relación entre este movimiento y la orden de trabajo.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, desvincular',
+            confirmButtonColor: '#bb0000'
+        });
+        if (!isConfirmed) return;
+
+        try {
+            const res = await fetch(`/inventarios/api/movimiento/${movId}/vincular-ot/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ orden_trabajo_id: null })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                Swal.fire({ icon: 'success', title: data.message, timer: 1500, showConfirmButton: false });
+                loadMovimiento();
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        } catch(e) {
+            Swal.fire('Error', 'No se pudo desvincular.', 'error');
+        }
+    };
+
+    loadMovimiento();
+})();
+</script>
+{% endblock %}

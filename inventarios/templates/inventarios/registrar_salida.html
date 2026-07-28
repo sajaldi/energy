@@ -1,9 +1,10 @@
-{% extends "admin/base_site.html" %}
+{% extends "inventarios/base_inventarios.html" %}
 {% load i18n static %}
 
-{% block extrastyle %}
+{% block title %}Registrar Salida{% endblock %}
+
+{% block extrahead %}
 {{ block.super }}
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
         --primary: #3b82f6;
@@ -17,27 +18,25 @@
         --negative: #ef4444;
     }
 
-    #content {
-        padding: 20px !important;
-        background-color: var(--bg);
-    }
+    body { background: var(--bg); }
 
-    .custom-inventory-container {
+    .registrar-container {
         font-family: 'Outfit', sans-serif;
         color: var(--text);
         max-width: 1200px;
         margin: 0 auto;
+        padding: 24px;
     }
 
     .header {
-        margin-bottom: 32px;
+        margin-bottom: 24px;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
 
     .header h1 {
-        font-size: 1.8rem;
+        font-size: 1.5rem;
         margin: 0;
         color: var(--text);
         font-weight: 700;
@@ -46,52 +45,56 @@
     .grid {
         display: grid;
         grid-template-columns: 1fr 350px;
-        gap: 24px;
+        gap: 20px;
     }
 
     .card {
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 20px;
-        padding: 24px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
     .search-box {
         position: relative;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
 
     .search-box input {
         width: 100%;
-        padding: 12px 16px 12px 48px;
-        border-radius: 12px;
+        padding: 10px 14px 10px 40px;
+        border-radius: 10px;
         border: 1px solid var(--border);
         font-family: inherit;
-        font-size: 1rem;
+        font-size: 0.9rem;
         outline: none;
-        transition: all 0.2s;
         box-sizing: border-box;
+    }
+
+    .search-box input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
     }
 
     .materials-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 16px;
-        height: 500px;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 12px;
+        max-height: 500px;
         overflow-y: auto;
-        padding-right: 8px;
+        padding-right: 6px;
     }
 
     .material-item {
         border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 16px;
+        border-radius: 12px;
+        padding: 14px;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.15s;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px;
     }
 
     .material-item:hover {
@@ -105,51 +108,41 @@
         box-shadow: 0 0 0 2px var(--primary);
     }
 
-    .material-name {
-        font-weight: 600;
-        font-size: 0.95rem;
-    }
+    .material-name { font-weight: 600; font-size: 0.85rem; }
+    .material-sku { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
+    .material-stock { font-size: 0.75rem; font-weight: 700; margin-top: auto; color: var(--primary); }
 
-    .material-sku {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-    }
-
-    .material-stock {
-        font-size: 0.8rem;
-        font-weight: 700;
-        margin-top: auto;
-        color: var(--primary);
-    }
-
-    .form-group {
-        margin-bottom: 20px;
-    }
-
+    .form-group { margin-bottom: 16px; }
     .form-group label {
         display: block;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         font-weight: 600;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         color: var(--text-muted);
     }
 
     .form-group input,
     .form-group select {
         width: 100%;
-        padding: 12px;
-        border-radius: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
         border: 1px solid var(--border);
         font-family: inherit;
+        font-size: 0.9rem;
         outline: none;
         box-sizing: border-box;
     }
 
+    .form-group input:focus,
+    .form-group select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+
     .btn {
         width: 100%;
-        padding: 14px;
-        border-radius: 12px;
+        padding: 12px;
+        border-radius: 10px;
         border: none;
         background: var(--primary);
         color: white;
@@ -159,62 +152,84 @@
         align-items: center;
         justify-content: center;
         gap: 8px;
+        font-size: 0.9rem;
+        font-family: inherit;
     }
+
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .alert {
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 24px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin-bottom: 20px;
         font-weight: 500;
+        font-size: 0.85rem;
     }
 
-    .alert-success {
-        background: #dcfce7;
-        color: #166534;
-        border: 1px solid #bbf7d0;
+    .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .header-btn {
+        text-decoration: none;
+        color: var(--text);
+        background: white;
+        padding: 8px 16px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: all 0.15s;
+    }
+
+    .header-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+    .cart-badge {
+        background: var(--primary);
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        border: 2px solid white;
     }
 
     @media (max-width: 768px) {
-        .grid {
-            grid-template-columns: 1fr;
-        }
+        .grid { grid-template-columns: 1fr; }
+        .header { flex-direction: column; align-items: flex-start; gap: 12px; }
     }
 </style>
 {% endblock %}
 
-{% block extrahead %}
-<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-{% endblock %}
-
-{% block breadcrumbs %}
-<div class="breadcrumbs">
-    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
-    &rsaquo; <a href="/admin/inventarios/">Inventarios</a>
-    &rsaquo; Registrar Salida
-</div>
-{% endblock %}
-
-{% block content %}
-<div class="custom-inventory-container">
+{% block inventarios_content %}
+<div class="registrar-container">
     <div class="header">
-        <div>
-            <h1>Registrar Salida de Material</h1>
-        </div>
-        <div style="display: flex; align-items: center; gap: 20px;">
-            <a href="{% url 'inventarios:scanner' %}"
-                style="text-decoration: none; color: var(--text); background: white; padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-                <ion-icon name="scan-outline" style="font-size: 1.5rem; color: var(--secondary)"></ion-icon>
-                <span style="font-weight: 600;">Surtido por Escáner</span>
+        <h1>Registrar Salida de Material</h1>
+        <div class="header-actions">
+            <a href="{% url 'inventarios:scanner' %}" class="header-btn">
+                <ion-icon name="scan-outline" style="font-size:1.2rem;color:var(--secondary)"></ion-icon>
+                Surtido por Escáner
             </a>
-            <a href="{% url 'inventarios:cart_detail' %}"
-                style="position: relative; text-decoration: none; color: var(--text); background: white; padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-                <ion-icon name="cart-outline" style="font-size: 1.5rem; color: var(--primary)"></ion-icon>
-                <span style="font-weight: 600;">Ver Carrito</span>
-                <span id="cartCountBadge"
-                    style="background: var(--primary); color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; position: absolute; top: -8px; right: -8px; border: 2px solid white;">0</span>
+            <a href="{% url 'inventarios:cart_detail' %}" style="position:relative;text-decoration:none;" class="header-btn">
+                <ion-icon name="cart-outline" style="font-size:1.2rem;color:var(--primary)"></ion-icon>
+                Ver Carrito
+                <span id="cartCountBadge" class="cart-badge">0</span>
             </a>
-            <ion-icon name="cube-outline" style="font-size: 2.5rem; color: var(--primary)"></ion-icon>
         </div>
     </div>
 
@@ -227,15 +242,12 @@
     <div class="grid">
         <div class="card">
             <div class="search-box">
-                <ion-icon name="search-outline"
-                    style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></ion-icon>
+                <ion-icon name="search-outline" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:1rem;"></ion-icon>
                 <input type="text" id="materialSearch" placeholder="Buscar material por nombre o SKU...">
             </div>
-
             <div class="materials-grid" id="materialsGrid">
                 {% for m in materiales %}
-                <div class="material-item" data-id="{{ m.id }}" data-name="{{ m.nombre }}" data-sku="{{ m.sku }}"
-                    data-unit="{{ m.unidad_medida }}">
+                <div class="material-item" data-id="{{ m.id }}" data-name="{{ m.nombre }}" data-sku="{{ m.sku }}" data-unit="{{ m.unidad_medida }}">
                     <div class="material-sku">{{ m.sku }}</div>
                     <div class="material-name">{{ m.nombre }}</div>
                     <div class="material-stock">Total: {{ m.get_stock_total }} {{ m.unidad_medida }}</div>
@@ -246,38 +258,27 @@
 
         <div class="card">
             <div id="cartForm">
-                <input type="hidden" name="material" id="selectedMaterialId" required>
+                <input type="hidden" name="material" id="selectedMaterialId">
                 <div class="form-group">
                     <label>Material Seleccionado</label>
-                    <div id="selectionLabel" style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">Ninguno
-                        seleccionado</div>
-                    <div id="stockInfo"
-                        style="margin-top: 10px; font-size: 0.85rem; padding: 10px; background: #f8fafc; border-radius: 12px; border: 1px solid var(--border); display: none;">
-                        <label
-                            style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-bottom: 5px;">DISPONIBILIDAD
-                            POR ALMACÉN:</label>
-                        <div id="stockBreakdown" style="display: flex; flex-direction: column; gap: 4px;"></div>
+                    <div id="selectionLabel" style="font-weight:700;color:var(--primary);font-size:1rem;">Ninguno seleccionado</div>
+                    <div id="stockInfo" style="margin-top:8px;font-size:0.8rem;padding:10px;background:#f8fafc;border-radius:10px;border:1px solid var(--border);display:none;">
+                        <label style="font-size:0.65rem;color:var(--text-muted);display:block;margin-bottom:4px;">DISPONIBILIDAD POR ALMACÉN:</label>
+                        <div id="stockBreakdown" style="display:flex;flex-direction:column;gap:4px;"></div>
                     </div>
                 </div>
                 <div class="form-group">
                     <label>Cantidad a Retirar</label>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="number" name="cantidad" id="cantidadInput" step="0.01" min="0.01" required
-                            placeholder="0.00" disabled>
-                        <span id="unitLabel"
-                            style="font-size: 0.8rem; color: var(--text-muted); min-width: 50px;">---</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="number" name="cantidad" id="cantidadInput" step="0.01" min="0.01" placeholder="0.00" disabled>
+                        <span id="unitLabel" style="font-size:0.8rem;color:var(--text-muted);min-width:50px;">---</span>
                     </div>
                 </div>
                 <button type="button" class="btn" id="addToCartBtn" disabled>
                     <ion-icon name="add-circle-outline"></ion-icon> Agregar al Carrito
                 </button>
-                <div id="statusMessage"
-                    style="margin-top: 15px; font-size: 0.85rem; display: none; text-align: center; color: var(--positive);">
-                    ¡Agregado con éxito!</div>
+                <div id="statusMessage" style="margin-top:12px;font-size:0.8rem;display:none;text-align:center;color:var(--positive);">¡Agregado con éxito!</div>
             </div>
-            <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
-            <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">Selecciona varios materiales y
-                agrégalos al carrito para procesar una sola orden.</p>
         </div>
     </div>
 </div>
@@ -312,11 +313,10 @@
             cantidadInput.value = 1;
             addToCartBtn.disabled = false;
 
-            // Fetch and show stock breakdown
             const stockInfo = document.getElementById('stockInfo');
             const stockBreakdown = document.getElementById('stockBreakdown');
             stockInfo.style.display = 'block';
-            stockBreakdown.innerHTML = '<span style="color: var(--text-muted)">Cargando disponibilidad...</span>';
+            stockBreakdown.innerHTML = '<span style="color:var(--text-muted)">Cargando disponibilidad...</span>';
 
             try {
                 const response = await fetch(`/inventarios/api/material/${item.dataset.id}/stock/`);
@@ -324,17 +324,17 @@
                 if (data.existencias && data.existencias.length > 0) {
                     let html = '';
                     data.existencias.forEach(ex => {
-                        html += `<div style="display: flex; justify-content: space-between; font-weight: 500;">
+                        html += `<div style="display:flex;justify-content:space-between;font-weight:500;">
                                     <span>${ex.ubicacion__nombre}</span>
-                                    <span style="color: var(--primary)">${ex.cantidad} ${data.unidad.slice(0, 3).toUpperCase()}</span>
+                                    <span style="color:var(--primary)">${ex.cantidad} ${data.unidad.slice(0,3).toUpperCase()}</span>
                                  </div>`;
                     });
                     stockBreakdown.innerHTML = html;
                 } else {
-                    stockBreakdown.innerHTML = '<span style="color: var(--negative)">Sin stock disponible</span>';
+                    stockBreakdown.innerHTML = '<span style="color:var(--negative)">Sin stock disponible</span>';
                 }
             } catch (e) {
-                stockBreakdown.innerHTML = '<span style="color: var(--negative)">Error al cargar stock</span>';
+                stockBreakdown.innerHTML = '<span style="color:var(--negative)">Error al cargar stock</span>';
             }
         });
     });

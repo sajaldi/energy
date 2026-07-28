@@ -52,12 +52,25 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="form-group">
+                <label>Puesto en la empresa</label>
+                <input type="text" name="puesto_en_empresa" class="form-control" value="{{ empleado.puesto_en_empresa|default:'' }}" placeholder="Ej: Supervisor de turno">
+            </div>
         </div>
 
         <div class="form-group">
             <label>DNI</label>
-            <input type="text" name="dni" class="form-control" value="{{ empleado.dni|default:'' }}" placeholder="Ej: 0501-1986-06985">
+            <input type="text" name="dni" class="form-control" value="{{ empleado.dni|default:dni_inicial }}" placeholder="Ej: 0501-1986-06985">
         </div>
+
+        {% if empleado %}
+        <div class="form-group">
+            <label>Empresa</label>
+            <input type="text" name="empresa_nombre" class="form-control" id="empresa-input" placeholder="Escribe para buscar empresa..." value="{{ empleado.empresa.nombre }}" autocomplete="off" required>
+            <input type="hidden" name="empresa_id" id="empresa-id" value="{{ empleado.empresa_id }}">
+            <div id="empresa-sugerencias" style="display:none;border:1px solid #ddd;border-radius:4px;max-height:160px;overflow-y:auto;background:white;"></div>
+        </div>
+        {% endif %}
 
         <div class="form-row">
             <div class="form-group">
@@ -113,4 +126,62 @@
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+var input = document.getElementById('empresa-input');
+var hidden = document.getElementById('empresa-id');
+var sugerencias = document.getElementById('empresa-sugerencias');
+var empresas = [
+    {% for e in empresas %}{id: {{ e.id }}, nombre: '{{ e.nombre|escapejs }}'}{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+if (input && hidden && sugerencias) {
+    var valorInicial = input.value;
+    input.addEventListener('input', function() {
+        var q = this.value.toLowerCase().trim();
+        if (!q) {
+            sugerencias.style.display = 'none';
+            hidden.value = '';
+            return;
+        }
+        var filtradas = empresas.filter(function(e) { return e.nombre.toLowerCase().includes(q); });
+        if (filtradas.length === 0) {
+            sugerencias.style.display = 'none';
+            hidden.value = '';
+            return;
+        }
+        sugerencias.innerHTML = '';
+        filtradas.forEach(function(e) {
+            var div = document.createElement('div');
+            div.textContent = e.nombre;
+            div.style.padding = '8px 10px';
+            div.style.cursor = 'pointer';
+            div.style.fontSize = '14px';
+            div.style.borderBottom = '1px solid #f0f0f0';
+            div.addEventListener('mouseenter', function() { this.style.background = '#f0f7ff'; });
+            div.addEventListener('mouseleave', function() { this.style.background = ''; });
+            div.addEventListener('click', function() {
+                input.value = e.nombre;
+                hidden.value = e.id;
+                sugerencias.style.display = 'none';
+            });
+            sugerencias.appendChild(div);
+        });
+        sugerencias.style.display = '';
+    });
+
+    input.addEventListener('blur', function() {
+        setTimeout(function() { sugerencias.style.display = 'none'; }, 200);
+    });
+
+    input.addEventListener('focus', function() {
+        if (this.value.trim()) {
+            this.dispatchEvent(new Event('input'));
+        }
+    });
+}
+</script>
 {% endblock %}

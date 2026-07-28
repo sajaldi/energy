@@ -1787,6 +1787,17 @@ class MovimientoInventarioInline(admin.TabularInline):
     def get_queryset(self, request):
         return super().get_queryset(request).filter(tipo='SALIDA')
 
+
+class MaterialUtilizadoOTInline(admin.TabularInline):
+    from inventarios.models import MaterialUtilizadoOT
+    model = MaterialUtilizadoOT
+    extra = 0
+    fields = ('material', 'activo', 'cantidad', 'comentario', 'registrado_por', 'fecha_registro')
+    readonly_fields = ('registrado_por', 'fecha_registro')
+    autocomplete_fields = ['material', 'activo']
+    verbose_name = "Material Utilizado"
+    verbose_name_plural = "Materiales Utilizados (Vinculación OT ↔ Activo ↔ Material)"
+
 class PermisosTrabajoInline(admin.TabularInline):
     from seguridad.models import PermisoTrabajo
     model = PermisoTrabajo
@@ -1834,7 +1845,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
     ordering = ('-creado_en',)
     date_hierarchy = 'creado_en'
     actions = ['generar_permiso_action', 'exportar_seleccionadas_action', 'generar_pdf_masivo_action', 'generar_checklist_action']
-    inlines = [CierreOrdenTrabajoInline, ValorPasoOrdenInline, MovimientoInventarioInline, PermisosTrabajoInline]
+    inlines = [CierreOrdenTrabajoInline, ValorPasoOrdenInline, MaterialUtilizadoOTInline, MovimientoInventarioInline, PermisosTrabajoInline]
 
     @admin.action(description="📥 Exportar seleccionadas (Formato Importación)")
     def exportar_seleccionadas_action(self, request, queryset):
@@ -1883,7 +1894,8 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
     get_descripcion.short_description = 'Descripción/Rutina'
 
     def visualizar_fiori_link(self, obj):
-        return mark_safe(f'<a href="javascript:void(0)" onclick="openFioriModal({obj.id})" style="color: #3b82f6; font-size: 1.1em;" title="Visualización Rápida (Fiori)"><i class="fas fa-eye"></i></a>')
+        url = reverse('admin:mantenimiento_ordentrabajo_fiori_completa_page', args=[obj.id])
+        return mark_safe(f'<a href="{url}" style="color: #3b82f6; font-size: 1.1em;" title="Vista Completa Fiori" target="_blank"><i class="fas fa-eye"></i></a>')
     visualizar_fiori_link.short_description = "Det."
 
     def registrar_salida_link(self, obj):
@@ -1965,13 +1977,128 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         else:
             self.message_user(request, "No se generaron pasos nuevos (ya existían o las órdenes no tienen rutina).", messages.WARNING)
 
+    def visualizar_ot_fiori_completa_view(self, request, pk):
+        """Vista completa con TODOS los campos de la OT en estilo SAP Fiori"""
+        ot = get_object_or_404(OrdenTrabajo, pk=pk)
+        from .models import TecnicoPuesto, Empresa, Rutina, Falla, Programacion, PlanificacionMensual
+        from activos.models import Ubicacion
+        from seguridad.models import TipoPermiso
+        from django.contrib.auth.models import User, Group
+        from proyectos.models import Proyecto
+
+        # Obtener datos relacionados
+        tecnicos = User.objects.filter(is_staff=True).order_by('first_name')
+        supervisores = User.objects.filter(is_staff=True).order_by('first_name')
+        equipos = Group.objects.all().order_by('name')
+        personales = TecnicoPuesto.objects.select_related('empresa').filter(esta_vigente=True).order_by('nombre')
+        rutinas = Rutina.objects.all().order_by('nombre')
+        fallas = Falla.objects.all().order_by('nombre')
+        programaciones = Programacion.objects.all().order_by('-creado_en')[:100]
+        planes = PlanificacionMensual.objects.all().order_by('-anio', '-mes')[:100]
+
+        materiales_usados = ot.materiales_utilizados_detalle.select_related('material', 'activo').all()
+        solicitudes = ot.solicitudes_material.all().order_by('-fecha_solicitud')
+
+        context = {
+            'ot': ot,
+            'solicitudes': solicitudes,
+            'empresas': Empresa.objects.all(),
+            'personales': personales,
+            'tipos_permiso': TipoPermiso.objects.all(),
+            'tecnicos': tecnicos,
+            'supervisores': supervisores,
+            'equipos': equipos,
+            'rutinas': rutinas,
+            'fallas': fallas,
+            'programaciones': programaciones,
+            'planes': planes,
+            'proyectos': Proyecto.objects.all(),
+            'prioridades': OrdenTrabajo.PRIORIDAD_CHOICES,
+            'tipos': OrdenTrabajo.TIPO_CHOICES,
+            'estados': OrdenTrabajo.ESTADO_CHOICES,
+            'cierre': getattr(ot, 'cierre', None),
+            'archivos': ot.archivos.all().order_by('-creado_en'),
+            'materiales_usados': materiales_usados,
+            'solicitudes': solicitudes,
+        }
+        return render(request, 'admin/mantenimiento/ordentrabajo/fiori_completa_partial.html', context)
+
+    def visualizar_ot_fiori_completa_page_view(self, request, pk):
+        """Vista página completa (standalone) para la OT en estilo SAP Fiori"""
+        ot = get_object_or_404(OrdenTrabajo, pk=pk)
+        from .models import TecnicoPuesto, Empresa, Rutina, Falla, Programacion, PlanificacionMensual
+        from activos.models import Ubicacion
+        from seguridad.models import TipoPermiso
+        from django.contrib.auth.models import User, Group
+        from proyectos.models import Proyecto
+
+        tecnicos = User.objects.filter(is_staff=True).order_by('first_name')
+        supervisores = User.objects.filter(is_staff=True).order_by('first_name')
+        equipos = Group.objects.all().order_by('name')
+        personales = TecnicoPuesto.objects.select_related('empresa').filter(esta_vigente=True).order_by('nombre')
+        rutinas = Rutina.objects.all().order_by('nombre')
+        fallas = Falla.objects.all().order_by('nombre')
+        programaciones = Programacion.objects.all().order_by('-creado_en')[:100]
+        planes = PlanificacionMensual.objects.all().order_by('-anio', '-mes')[:100]
+
+        materiales_usados = ot.materiales_utilizados_detalle.select_related('material', 'activo').all()
+        solicitudes = ot.solicitudes_material.all().order_by('-fecha_solicitud')
+
+        context = {
+            'ot': ot,
+            'solicitudes': solicitudes,
+            'empresas': Empresa.objects.all(),
+            'personales': personales,
+            'tipos_permiso': TipoPermiso.objects.all(),
+            'tecnicos': tecnicos,
+            'supervisores': supervisores,
+            'equipos': equipos,
+            'rutinas': rutinas,
+            'fallas': fallas,
+            'programaciones': programaciones,
+            'planes': planes,
+            'proyectos': Proyecto.objects.all(),
+            'prioridades': OrdenTrabajo.PRIORIDAD_CHOICES,
+            'tipos': OrdenTrabajo.TIPO_CHOICES,
+            'estados': OrdenTrabajo.ESTADO_CHOICES,
+            'cierre': getattr(ot, 'cierre', None),
+            'archivos': ot.archivos.all().order_by('-creado_en'),
+            'materiales_usados': materiales_usados,
+            'solicitudes': solicitudes,
+        }
+        return render(request, 'admin/mantenimiento/ordentrabajo/fiori_completa_page.html', context)
+
+    def fiori_solicitar_materiales_partial_view(self, request, pk):
+        """Partial para solicitar materiales desde el modal Fiori de OT"""
+        ot = get_object_or_404(OrdenTrabajo, pk=pk)
+        from activos.models import Ubicacion
+        from inventarios.models import SolicitudMaterial
+        from django.db.models import Q
+
+        solicitudes = ot.solicitudes_material.all().order_by('-fecha_solicitud')
+        ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
+        jefe = getattr(request.user, 'perfil', None) and getattr(request.user.perfil, 'responsable', None)
+        requiere_autorizacion = bool(jefe)
+
+        context = {
+            'ot': ot,
+            'solicitudes': solicitudes,
+            'ubicaciones': ubicaciones,
+            'requiere_autorizacion': requiere_autorizacion,
+            'jefe_nombre': jefe.get_full_name() or str(jefe) if jefe else None,
+        }
+        return render(request, 'admin/mantenimiento/ordentrabajo/fiori_solicitar_materiales_partial.html', context)
+
     def get_urls(self):
         urls = super().get_urls()
         from .views import import_ordenes
         custom_urls = [
             path('fiori-detail/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_view), name='mantenimiento_ordentrabajo_fiori_detail'),
             path('fiori-edit/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_edit_view), name='mantenimiento_ordentrabajo_fiori_edit'),
+            path('fiori-completa/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_completa_view), name='mantenimiento_ordentrabajo_fiori_completa'),
+            path('fiori-completa-page/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_completa_page_view), name='mantenimiento_ordentrabajo_fiori_completa_page'),
             path('fiori-save/<int:pk>/', csrf_exempt(self.admin_site.admin_view(self.guardar_ot_fiori_view)), name='mantenimiento_ordentrabajo_fiori_save'),
+            path('fiori-solicitar-materiales/<int:pk>/', self.admin_site.admin_view(self.fiori_solicitar_materiales_partial_view), name='mantenimiento_ordentrabajo_fiori_solicitar_materiales'),
             path('fiori-cierre/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_cierre_view), name='mantenimiento_ordentrabajo_fiori_cierre'),
             path('import-background/', self.admin_site.admin_view(import_ordenes.import_ordenes_background), name='mantenimiento_ordentrabajo_import_background'),
             path('import-background/process/', csrf_exempt(self.admin_site.admin_view(import_ordenes.import_ordenes_process)), name='mantenimiento_ordentrabajo_import_process'),
@@ -2057,66 +2184,161 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         return render(request, 'admin/mantenimiento/ordentrabajo/fiori_cierre_partial.html', context)
 
     def guardar_ot_fiori_view(self, request, pk):
-        """Maneja el guardado AJAX de la edición Fiori"""
+        """Maneja el guardado AJAX de la edición Fiori (completa + parcial)"""
         if request.method != 'POST':
             return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
             
         ot = get_object_or_404(OrdenTrabajo, pk=pk)
         try:
-            # Extraer campos del POST (basado en el form otnp)
-            ot.descripcion_detallada = request.POST.get('descripcion', ot.descripcion_detallada)
-            ot.inicio_programado = request.POST.get('inicio_programado', ot.inicio_programado)
-            ot.fin_programado = request.POST.get('fin_programado', ot.fin_programado)
-            ot.prioridad = request.POST.get('prioridad', ot.prioridad)
-            
-            # Ubicación y Técnico (pueden venir IDs)
+            from django.utils.dateparse import parse_datetime
+            from django.contrib.auth.models import User, Group
+            from .models import TecnicoPuesto, Empresa, Rutina, Falla, Programacion, PlanificacionMensual
+            from activos.models import Ubicacion, Activo
+            from seguridad.models import TipoPermiso
+            from proyectos.models import Proyecto
+
+            # ── Campos simples ──
+            raw_tipo = request.POST.get('tipo')
+            if raw_tipo:
+                ot.tipo = raw_tipo
+
+            raw_prioridad = request.POST.get('prioridad')
+            if raw_prioridad:
+                ot.prioridad = raw_prioridad
+
+            raw_estado = request.POST.get('estado')
+            if raw_estado:
+                ot.estado = raw_estado
+
+            desc_corta = request.POST.get('descripcion_corta')
+            if desc_corta is not None:
+                ot.descripcion_corta = desc_corta or None
+
+            raw_fecha_ejecucion = request.POST.get('fecha_ejecucion')
+            if raw_fecha_ejecucion:
+                ot.fecha_ejecucion = parse_datetime(raw_fecha_ejecucion)
+            elif 'fecha_ejecucion' in request.POST:
+                ot.fecha_ejecucion = None
+
+            # Descripción (compatible con form antiguo y nuevo)
+            desc = request.POST.get('descripcion_detallada') or request.POST.get('descripcion')
+            if desc is not None:
+                ot.descripcion_detallada = desc or None
+
+            notas = request.POST.get('notas')
+            if notas is not None:
+                ot.notas = notas or None
+
+            # ── Fechas programadas ──
+            raw_inicio = request.POST.get('inicio_programado')
+            if raw_inicio:
+                ot.inicio_programado = parse_datetime(raw_inicio)
+
+            raw_fin = request.POST.get('fin_programado')
+            if raw_fin:
+                ot.fin_programado = parse_datetime(raw_fin)
+
+            # ── FK: Ubicación ──
             ubi_id = request.POST.get('ubicacion')
-            if ubi_id and ubi_id != 'none':
-                from activos.models import Ubicacion
+            if ubi_id and ubi_id != 'none' and ubi_id != '':
                 ot.ubicacion = Ubicacion.objects.get(id=ubi_id)
-                
-            tec_id = request.POST.get('tecnico')
-            if tec_id and tec_id != 'none':
-                from .models import TecnicoPuesto
-                tp = TecnicoPuesto.objects.get(id=tec_id)
-                ot.tecnico_puesto = tp
-                ot.tecnico = tp.user
-            elif tec_id == 'none':
-                ot.tecnico_puesto = None
+            elif ubi_id in ('none', ''):
+                ot.ubicacion = None
+
+            # ── FK: Técnico Líder (User) ──
+            tec_uid = request.POST.get('tecnico')
+            if tec_uid and tec_uid != '':
+                ot.tecnico = User.objects.get(id=tec_uid)
+            elif tec_uid == '':
                 ot.tecnico = None
-                
-            # Empresa
+
+            # ── FK: Personal Responsable (TecnicoPuesto) ──
+            tp_id = request.POST.get('tecnico_puesto')
+            if tp_id and tp_id != '':
+                ot.tecnico_puesto = TecnicoPuesto.objects.get(id=tp_id)
+            elif tp_id == '':
+                ot.tecnico_puesto = None
+
+            # ── FK: Supervisor (User) ──
+            sup_id = request.POST.get('supervisor')
+            if sup_id and sup_id != '':
+                ot.supervisor = User.objects.get(id=sup_id)
+            elif sup_id == '':
+                ot.supervisor = None
+
+            # ── FK: Empresa ──
             emp_id = request.POST.get('empresa_responsable')
-            if emp_id and emp_id != 'none':
-                from .models import Empresa
+            if emp_id and emp_id != 'none' and emp_id != '':
                 ot.empresa_responsable = Empresa.objects.get(id=emp_id)
-            
-            # Seguridad
+            elif emp_id in ('none', ''):
+                ot.empresa_responsable = None
+
+            # ── FK: Equipo/Grupo ──
+            eq_id = request.POST.get('equipo')
+            if eq_id and eq_id != '':
+                ot.equipo = Group.objects.get(id=eq_id)
+            elif eq_id == '':
+                ot.equipo = None
+
+            # ── FK: Rutina ──
+            rut_id = request.POST.get('rutina')
+            if rut_id and rut_id != '':
+                ot.rutina = Rutina.objects.get(id=rut_id)
+            elif rut_id == '':
+                ot.rutina = None
+
+            # ── FK: Falla ──
+            falla_id = request.POST.get('falla')
+            if falla_id and falla_id != '':
+                ot.falla = Falla.objects.get(id=falla_id)
+            elif falla_id == '':
+                ot.falla = None
+
+            # ── FK: Programación ──
+            prog_id = request.POST.get('programacion')
+            if prog_id and prog_id != '':
+                ot.programacion = Programacion.objects.get(id=prog_id)
+            elif prog_id == '':
+                ot.programacion = None
+
+            # ── FK: Planificación Mensual ──
+            plan_id = request.POST.get('planificacion')
+            if plan_id and plan_id != '':
+                ot.planificacion = PlanificacionMensual.objects.get(id=plan_id)
+            elif plan_id == '':
+                ot.planificacion = None
+
+            # ── FK: Proyecto ──
+            proy_id = request.POST.get('proyecto')
+            if proy_id and proy_id != '':
+                ot.proyecto = Proyecto.objects.get(id=proy_id)
+            elif proy_id == '':
+                ot.proyecto = None
+
+            # ── Boolean: equipo_parado ──
+            ot.equipo_parado = request.POST.get('equipo_parado') == 'on'
+
+            # ── Seguridad ──
             ot.requiere_permiso = request.POST.get('requiere_permiso') == 'on'
             tipo_perm_id = request.POST.get('tipo_permiso')
-            if tipo_perm_id:
-                from seguridad.models import TipoPermiso
+            if tipo_perm_id and tipo_perm_id != '':
                 ot.tipo_permiso = TipoPermiso.objects.get(id=tipo_perm_id)
             else:
                 ot.tipo_permiso = None
-                
-            # Activos (muchos a muchos)
-            activos_ids = request.POST.getlist('activos') # Si se implementa multi-activo
+
+            # ── M2M: Activos ──
+            activos_ids = request.POST.getlist('activos')
             if not activos_ids:
-                # Fallback al campo "activo" individual si el form otnp solo envía uno
                 solo_activo_id = request.POST.get('activo')
                 if solo_activo_id:
                     activos_ids = [solo_activo_id]
-            
             if activos_ids:
-                from activos.models import Activo
                 ot.activos.set(Activo.objects.filter(id__in=activos_ids))
 
-            # Técnicos involucrados
-            tecs_inv_ids = request.POST.getlist('tecnicos')
-            if tecs_inv_ids:
-                from .models import TecnicoPuesto
-                ot.colaboradores_puesto.set(TecnicoPuesto.objects.filter(id__in=tecs_inv_ids))
+            # ── M2M: Colaboradores (Puesto) ──
+            colab_ids = request.POST.getlist('colaboradores_puesto') or request.POST.getlist('tecnicos')
+            if colab_ids:
+                ot.colaboradores_puesto.set(TecnicoPuesto.objects.filter(id__in=colab_ids))
 
             ot.save()
             return JsonResponse({'status': 'success', 'message': 'Orden actualizada correctamente'})

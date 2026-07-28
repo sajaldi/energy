@@ -2,12 +2,10 @@
 {% load i18n static %}
 
 {% block extrahead %}
-{{ block.super }}
 <link rel="manifest" href="/inventarios/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#1e293b">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#0a6ed1">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
     if ('serviceWorker' in navigator) {
@@ -23,248 +21,213 @@
     }
 </script>
 <style>
-    @keyframes pulse {
-        0% {
-            transform: scale(1);
-        }
-
-        50% {
-            transform: scale(1.2);
-        }
-
-        100% {
-            transform: scale(1);
-        }
-    }
-
     :root {
         --sap-blue: #0a6ed1;
         --sap-shell: #354a5f;
-        --sap-bg: #f2f2f2;
+        --sap-bg: #f7f8fa;
         --sap-field-bg: #ffffff;
-        --sap-border: #d9d9d9;
+        --sap-border: #e2e8f0;
         --sap-success: #107e3e;
         --sap-warning: #e9730c;
         --sap-error: #bb0000;
-        --primary: var(--sap-blue);
+        --primary: #0a6ed1;
+        --primary-light: #eff6ff;
+        --accent: #6366f1;
         --bg-body: var(--sap-bg);
-        --text-main: #32363a;
-        --text-muted: #6a6d70;
-        --radius-md: 4px;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --radius-sm: 6px;
+        --radius-md: 10px;
+        --radius-lg: 14px;
+        --card-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+        --card-shadow-hover: 0 8px 30px rgba(0,0,0,0.08);
     }
 
     body {
-        font-family: 'Inter', '72', '72Full', Arial, Helvetica, sans-serif !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
         background-color: var(--sap-bg) !important;
         color: var(--text-main);
     }
 
-    /* Forzar ancho total absoluto eliminando restricciones de contenedores padre */
-    html,
-    body,
-    .wrapper,
-    .content-wrapper,
-    .content,
-    .container-fluid,
-    .row,
-    .col-12,
-    #content,
-    #content-main,
-    .main-content {
+    #content, #content-main {
         max-width: none !important;
-        width: 100% !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
+        padding: 0 !important;
     }
 
     .inventory-dashboard {
-        max-width: 100% !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 40px !important;
-        /* Espacio interno para que no pegue a los bordes */
-        box-sizing: border-box !important;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 32px 40px;
+        box-sizing: border-box;
     }
 
+    /* Hero Section */
     .hero-section {
-        margin-bottom: 60px;
+        margin-bottom: 32px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 20px;
     }
 
     .hero-title h1 {
-        border: 2px solid red !important;
-        /* TEST MARKER */
-        font-size: 3.2rem !important;
-        font-weight: 800 !important;
-        color: var(--sap-blue) !important;
-        margin: 0 !important;
-        letter-spacing: -2px !important;
-        background: none !important;
-        -webkit-text-fill-color: var(--sap-blue) !important;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin: 0;
+        letter-spacing: -0.5px;
     }
 
     .hero-title p {
         color: var(--text-muted);
-        font-size: 1.2rem;
-        margin-top: 5px;
+        font-size: 0.95rem;
+        margin-top: 4px;
     }
 
     /* Stats Row */
     .stats-row {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 30px;
-        margin-bottom: 50px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
     }
 
     .stat-card {
         background: white;
-        padding: 30px;
-        border-radius: var(--radius-lg);
+        padding: 20px 24px;
+        border-radius: var(--radius-md);
         box-shadow: var(--card-shadow);
-        border: 1px solid rgba(255, 255, 255, 1);
+        border: 1px solid var(--sap-border);
         display: flex;
         align-items: center;
-        gap: 25px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
+        gap: 16px;
+        transition: all 0.2s ease;
     }
 
     .stat-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 30px 40px -10px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+        box-shadow: var(--card-shadow-hover);
     }
 
     .stat-icon {
-        width: 70px;
-        height: 70px;
-        border-radius: 4px;
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-sm);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.2rem;
+        font-size: 1.5rem;
+        flex-shrink: 0;
     }
 
-    .stat-blue {
-        background: #eff6ff;
-        color: #3b82f6;
-        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
-    }
-
-    .stat-indigo {
-        background: #f5f3ff;
-        color: #8b5cf6;
-        box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.2);
-    }
-
-    .stat-emerald {
-        background: #ecfdf5;
-        color: #10b981;
-        box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);
-    }
+    .stat-blue { background: #eff6ff; color: #2563eb; }
+    .stat-indigo { background: #f5f3ff; color: #7c3aed; }
+    .stat-emerald { background: #ecfdf5; color: #059669; }
 
     .stat-info h3 {
         margin: 0;
-        font-size: 2.2rem;
-        font-weight: 800;
+        font-size: 1.6rem;
+        font-weight: 700;
         color: var(--text-main);
         line-height: 1;
     }
 
     .stat-info p {
-        margin: 4px 0 0 0;
+        margin: 2px 0 0 0;
         color: var(--text-muted);
-        font-size: 0.85rem;
+        font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
-        font-weight: 700;
+        letter-spacing: 0.5px;
+        font-weight: 600;
     }
 
     /* Menu Grid */
     .menu-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 30px;
-        width: 100% !important;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
     }
 
     .menu-card {
         background: white;
         border-radius: var(--radius-md);
-        padding: 50px 40px;
-        text-align: center;
-        border: 1px solid rgba(255, 255, 255, 1);
+        padding: 28px 24px;
+        text-align: left;
+        border: 1px solid var(--sap-border);
         box-shadow: var(--card-shadow);
         cursor: pointer;
-        transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        transition: all 0.2s ease;
         position: relative;
         overflow: hidden;
         text-decoration: none !important;
         display: flex;
-        flex-direction: column;
-        align-items: center;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 16px;
     }
 
-    .menu-card::after {
+    .menu-card::before {
         content: '';
         position: absolute;
-        bottom: 0;
+        top: 0;
         left: 0;
-        width: 100%;
-        height: 6px;
-        background: linear-gradient(90deg, var(--primary), var(--accent));
+        width: 3px;
+        height: 100%;
+        background: var(--primary);
         opacity: 0;
-        transition: opacity 0.3s;
+        transition: opacity 0.2s;
     }
 
     .menu-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 40px 70px -15px rgba(59, 130, 246, 0.15);
+        transform: translateY(-2px);
+        box-shadow: var(--card-shadow-hover);
+        border-color: #cbd5e1;
     }
 
-    .menu-card:hover::after {
+    .menu-card:hover::before {
         opacity: 1;
     }
 
     .menu-card ion-icon {
-        font-size: 4.5rem;
-        margin-bottom: 30px;
+        font-size: 2rem;
         color: var(--primary);
-        filter: drop-shadow(0 10px 10px rgba(59, 130, 246, 0.2));
-        transition: all 0.5s ease;
+        flex-shrink: 0;
+        margin-top: 2px;
+        transition: color 0.2s;
     }
 
     .menu-card:hover ion-icon {
-        transform: scale(1.1) rotate(5deg);
         color: var(--accent);
     }
 
+    .menu-card .card-content {
+        flex: 1;
+        min-width: 0;
+    }
+
     .menu-card h2 {
-        font-size: 1.7rem;
-        font-weight: 800;
+        font-size: 0.95rem;
+        font-weight: 650;
         color: var(--text-main);
-        margin-bottom: 15px;
+        margin: 0 0 4px 0;
+        line-height: 1.3;
     }
 
     .menu-card p {
         color: var(--text-muted);
-        font-size: 1rem;
-        line-height: 1.6;
+        font-size: 0.82rem;
+        line-height: 1.5;
+        margin: 0;
     }
 
     #photos-preview-grid img {
         width: 100% !important;
         height: 100% !important;
         object-fit: cover !important;
-        border-radius: 4px !important;
+        border-radius: var(--radius-sm) !important;
     }
 
-    /* Modal Styling - Ultimate Glassmorphism */
+    /* Modal Styling */
     .modal-overlay {
         display: none !important;
         position: fixed !important;
@@ -272,19 +235,16 @@
         left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        background: rgba(15, 23, 42, 0.4) !important;
+        background: rgba(15, 23, 42, 0.5) !important;
         z-index: 10000 !important;
-        backdrop-filter: blur(12px) saturate(180%) !important;
-        -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
         opacity: 0 !important;
-        transition: opacity 0.4s ease !important;
+        transition: opacity 0.3s ease !important;
         visibility: hidden !important;
     }
 
-    /* Fix SweetAlert z-index on top of modal */
-    .swal2-container {
-        z-index: 20000 !important;
-    }
+    .swal2-container { z-index: 20000 !important; }
 
     .modal-overlay.active {
         display: flex !important;
@@ -295,7 +255,7 @@
     }
 
     .modal-window {
-        background: rgba(255, 255, 255, 0.95);
+        background: #fff;
         width: 100%;
         max-width: 100%;
         height: 100vh;
@@ -303,20 +263,22 @@
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        transform: translateY(100%);
-        transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        transform: translateY(30px);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         border: none;
-        box-shadow: none;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
     }
 
     .modal-overlay.active .modal-window {
         transform: translateY(0);
+        opacity: 1;
     }
 
     .modal-header {
-        padding: 40px 60px;
+        padding: 20px 32px;
         background: white;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--sap-border);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -325,78 +287,70 @@
     .modal-body {
         flex: 1 !important;
         overflow-y: auto !important;
-        padding: 50px 60px !important;
-        background: #fff !important;
+        padding: 32px !important;
+        background: var(--sap-bg) !important;
     }
 
     .close-btn {
-        background: #1e293b;
+        background: #f1f5f9;
         border: none;
-        color: white !important;
-        width: 54px;
-        height: 54px;
-        border-radius: 4px;
+        color: #475569 !important;
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-sm);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        font-size: 1.5rem;
+        font-size: 1.2rem;
         transition: all 0.2s;
-        color: white;
     }
 
     .close-btn:hover {
-        background: #ef4444;
-        color: white;
-        transform: rotate(180deg);
+        background: #fee2e2;
+        color: #dc2626 !important;
     }
 
-    /* Form UI Enhancements */
+    /* Form UI */
     .form-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-        gap: 40px;
-        margin-bottom: 50px;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+        margin-bottom: 28px;
     }
 
     .form-label {
-        font-weight: 800;
+        font-weight: 600;
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 15px;
-        color: #0f172a;
-        /* Color más oscuro para etiquetas */
-        font-size: 0.85rem;
+        gap: 6px;
+        margin-bottom: 8px;
+        color: var(--text-main);
+        font-size: 0.82rem;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
+        letter-spacing: 0.3px;
     }
 
     .form-control {
         width: 100%;
-        padding: 18px 24px;
-        border: 2px solid #e2e8f0;
-        border-radius: 4px;
-        font-size: 1.1rem;
+        padding: 10px 14px;
+        border: 1px solid var(--sap-border);
+        border-radius: var(--radius-sm);
+        font-size: 0.95rem;
         background: #ffffff;
-        transition: all 0.3s;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-        color: #0f172a !important;
-        /* Forzar color oscuro */
+        transition: all 0.2s;
+        color: var(--text-main);
         font-family: inherit;
     }
 
     .form-control::placeholder {
         color: #94a3b8;
-        opacity: 1;
     }
 
     .form-control:focus {
         border-color: var(--primary);
-        box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.15);
+        box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.1);
         outline: none;
-        background: #fdfdfd;
-        color: #000000 !important;
     }
 
     .warehouse-select-container {
@@ -405,135 +359,123 @@
 
     .warehouse-select-container ion-icon {
         position: absolute;
-        right: 20px;
+        right: 14px;
         top: 50%;
         transform: translateY(-50%);
         pointer-events: none;
         color: var(--primary);
-        font-size: 1.5rem;
+        font-size: 1.2rem;
     }
 
     select.form-control {
         appearance: none;
         -webkit-appearance: none;
-        padding-right: 50px;
+        padding-right: 40px;
     }
 
     /* Items Visualization */
     .items-container {
         background: white;
-        border-radius: 4px;
-        padding: 40px;
-        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04);
-        border: 1px solid #f1f5f9;
-        margin-bottom: 40px;
+        border-radius: var(--radius-md);
+        padding: 24px;
+        box-shadow: var(--card-shadow);
+        border: 1px solid var(--sap-border);
+        margin-bottom: 24px;
     }
 
     .items-table {
         width: 100%;
-        border-collapse: separate;
-        border-spacing: 0 15px;
+        border-collapse: collapse;
     }
 
     .items-table th {
         text-align: left;
-        padding: 0 20px 10px;
-        color: #94a3b8;
-        font-weight: 800;
+        padding: 10px 16px;
+        color: var(--text-muted);
+        font-weight: 600;
         text-transform: uppercase;
-        font-size: 0.75rem;
-        letter-spacing: 1px;
+        font-size: 0.72rem;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--sap-border);
     }
 
     .items-table td {
-        background: #fff !important;
-        padding: 20px !important;
-        border-bottom: 1px solid var(--sap-border) !important;
-    }
-
-    .items-table tr {
-        transition: transform 0.2s;
+        padding: 14px 16px;
+        border-bottom: 1px solid #f1f5f9;
     }
 
     .items-table tr:hover td {
-        background: #f1f5f9;
-    }
-
-    .items-table td:first-child {
-        border-radius: 2px 0 0 2px;
-        border-left: 2px solid transparent;
-    }
-
-    .items-table td:last-child {
-        border-radius: 0 2px 2px 0;
-    }
-
-    .items-table tr.has-item td:first-child {
-        border-left-color: var(--primary);
+        background: #f8fafc;
     }
 
     .qty-input {
-        width: 100px;
-        padding: 12px;
-        border-radius: 2px;
-        border: 2px solid #e2e8f0;
+        width: 80px;
+        padding: 8px 12px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--sap-border);
         text-align: center;
-        font-weight: 800;
-        font-size: 1.1rem;
+        font-weight: 600;
+        font-size: 0.95rem;
         background: white;
-        color: #0f172a;
-        /* Color oscuro para cantidad */
+        color: var(--text-main);
+    }
+
+    .qty-input:focus {
+        border-color: var(--primary);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.1);
     }
 
     .btn-submit {
-        background: var(--sap-blue) !important;
+        background: var(--primary) !important;
         color: white !important;
-        padding: 16px 40px !important;
-        border-radius: 4px !important;
-        font-weight: 700 !important;
-        border: 1px solid #005691 !important;
+        padding: 10px 24px !important;
+        border-radius: var(--radius-sm) !important;
+        font-weight: 600 !important;
+        border: none !important;
         cursor: pointer !important;
-        font-size: 1.1rem !important;
+        font-size: 0.9rem !important;
         box-shadow: none !important;
         display: inline-flex !important;
         align-items: center !important;
-        gap: 15px !important;
+        gap: 8px !important;
         transition: all 0.2s !important;
     }
 
     .btn-submit:hover {
-        transform: translateY(-5px) scale(1.02);
-        box-shadow: 0 25px 40px -10px rgba(59, 130, 246, 0.6);
+        background: #0958a8 !important;
+        box-shadow: 0 4px 12px rgba(10, 110, 209, 0.3) !important;
     }
 
     .btn-outline-custom {
         background: white;
-        border: 2px solid #e2e8f0;
+        border: 1px solid var(--sap-border);
         color: #475569;
-        padding: 12px 24px;
-        border-radius: 4px;
-        font-weight: 700;
+        padding: 10px 18px;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
-        gap: 10px;
-        transition: all 0.3s;
+        gap: 8px;
+        font-size: 0.85rem;
+        transition: all 0.2s;
     }
 
     .btn-outline-custom:hover {
         border-color: var(--primary);
         color: var(--primary);
-        background: #f0f7ff;
+        background: var(--primary-light);
     }
 
     /* Catalog Cards */
     .catalog-card {
         background: white;
-        border: 2px solid #f1f5f9;
-        border-radius: 4px;
-        padding: 20px;
+        border: 1px solid var(--sap-border);
+        border-radius: var(--radius-sm);
+        padding: 16px;
         text-align: center;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.2s ease;
         position: relative;
         display: flex;
         flex-direction: column;
@@ -541,104 +483,49 @@
 
     .catalog-card:hover {
         border-color: var(--primary);
-        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Responsividad */
-    @media (max-width: 1024px) {
-        .inventory-dashboard {
-            padding: 30px !important;
-        }
-
-        .hero-title h1 {
-            font-size: 2.5rem;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .inventory-dashboard {
-            padding: 20px !important;
-        }
-
-        .hero-section {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-
-        .hero-title h1 {
-            font-size: 2rem;
-            letter-spacing: -1px;
-        }
-
-        .stats-row {
-            grid-template-columns: 1fr;
-            /* Una columna en móvil */
-            gap: 15px;
-        }
-
-        .stat-card {
-            padding: 20px;
-        }
-
-        .menu-grid {
-            grid-template-columns: 1fr;
-            /* Una columna para que las tarjetas sean legibles */
-        }
-
-        .modal-header,
-        .modal-body {
-            padding: 20px;
-        }
-
-        .form-grid {
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
-
-        .modal-header h2 {
-            font-size: 1.3rem;
-        }
-
-        .close-btn {
-            width: 44px;
-            height: 44px;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .hero-title h1 {
-            font-size: 1.7rem;
-        }
-
-        .btn-submit {
-            width: 100%;
-            justify-content: center;
-            padding: 15px;
-        }
+        box-shadow: var(--card-shadow-hover);
     }
 
     .catalog-card.selected {
         border-color: var(--primary);
-        background: #eff6ff;
+        background: var(--primary-light);
     }
 
     .catalog-card.selected::before {
         content: '✓';
         position: absolute;
-        top: 15px;
-        right: 15px;
+        top: 10px;
+        right: 10px;
         background: var(--primary);
         color: white;
-        width: 24px;
-        height: 24px;
-        border-radius: 2px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 800;
-        font-size: 0.8rem;
+        font-weight: 700;
+        font-size: 0.7rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+        .inventory-dashboard { padding: 24px; }
+    }
+
+    @media (max-width: 768px) {
+        .inventory-dashboard { padding: 16px; }
+        .hero-section { flex-direction: column; align-items: flex-start; gap: 16px; }
+        .hero-title h1 { font-size: 1.4rem; }
+        .stats-row { grid-template-columns: 1fr; gap: 12px; }
+        .menu-grid { grid-template-columns: 1fr; }
+        .modal-header, .modal-body { padding: 16px !important; }
+        .form-grid { grid-template-columns: 1fr; gap: 16px; }
+    }
+
+    @media (max-width: 480px) {
+        .hero-title h1 { font-size: 1.25rem; }
+        .btn-submit { width: 100%; justify-content: center; }
     }
 </style>
 <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
@@ -648,12 +535,12 @@
 <div class="inventory-dashboard">
     <div class="hero-section">
         <div class="hero-title">
-            <h1>📦 Centro de Inventarios</h1>
+            <h1>Centro de Inventarios</h1>
             <p>Gestiona materiales, repuestos y suministros operativos.</p>
         </div>
         <div>
             <button id="btn-nuevo-material-modal" class="btn-submit"
-                style="margin-top:0; padding:12px 24px; font-size: 0.9rem; background: #1e293b; box-shadow:none; border:none; cursor:pointer;">
+                style="margin-top:0; background: #1e293b !important;">
                 <ion-icon name="add-outline"></ion-icon> Nuevo Material Rápido
             </button>
         </div>
@@ -688,70 +575,91 @@
     <div class="menu-grid">
         <div class="menu-card" id="btn-nueva-solicitud">
             <ion-icon name="cart-outline"></ion-icon>
-            <h2>Solicitud de Materiales</h2>
-            <p>Crea un nuevo pedido de materiales para tus tareas diarias o mantenimientos.</p>
+            <div class="card-content">
+                <h2>Solicitud de Materiales</h2>
+                <p>Crea un nuevo pedido de materiales para tus tareas diarias o mantenimientos.</p>
+            </div>
         </div>
 
-        <div class="menu-card" id="btn-ingreso-inventario" style="border-color: #10b981; cursor: pointer;">
-            <ion-icon name="add-circle-outline" style="color: #10b981;"></ion-icon>
-            <h2>Ingreso de Inventario</h2>
-            <p>Registra la entrada de nuevos materiales, compras o devoluciones al almacén.</p>
+        <div class="menu-card" id="btn-ingreso-inventario" style="cursor: pointer;">
+            <ion-icon name="add-circle-outline" style="color: #059669;"></ion-icon>
+            <div class="card-content">
+                <h2>Ingreso de Inventario</h2>
+                <p>Registra la entrada de nuevos materiales, compras o devoluciones al almacén.</p>
+            </div>
         </div>
 
         <a href="{% url 'inventarios:scanner' %}" class="menu-card">
             <ion-icon name="barcode-outline"></ion-icon>
-            <h2>Escáner de Almacén</h2>
-            <p>Registra entradas y salidas rápidamente escaneando códigos QR o de barras.</p>
+            <div class="card-content">
+                <h2>Escáner de Almacén</h2>
+                <p>Registra entradas y salidas rápidamente escaneando códigos QR o de barras.</p>
+            </div>
         </a>
 
         <a href="{% url 'inventarios:mobile_lista_pedidos' %}" class="menu-card">
             <ion-icon name="list-outline"></ion-icon>
-            <h2>Mis Solicitudes</h2>
-            <p>Consulta el historial y seguimiento de los materiales que has solicitado.</p>
+            <div class="card-content">
+                <h2>Mis Solicitudes</h2>
+                <p>Consulta el historial y seguimiento de los materiales que has solicitado.</p>
+            </div>
         </a>
 
         <a href="{% url 'inventarios:imprimir_etiquetas' %}" class="menu-card">
             <ion-icon name="pricetags-outline"></ion-icon>
-            <h2>Etiquetado</h2>
-            <p>Genera e imprime etiquetas QR para identificar materiales en los estantes.</p>
+            <div class="card-content">
+                <h2>Etiquetado</h2>
+                <p>Genera e imprime etiquetas QR para identificar materiales en los estantes.</p>
+            </div>
         </a>
 
         <a href="{% url 'inventarios:master_catalog' %}" class="menu-card">
             <ion-icon name="search-outline"></ion-icon>
-            <h2>Catálogo Maestro</h2>
-            <p>Explora la lista completa de artículos, existencias y costos unitarios en cuadrícula visual.</p>
+            <div class="card-content">
+                <h2>Catálogo Maestro</h2>
+                <p>Explora la lista completa de artículos, existencias y costos unitarios.</p>
+            </div>
         </a>
 
-        <a href="/admin/inventarios/ingresoinventario/" class="menu-card" style="border-color: #8b5cf6;">
-            <ion-icon name="analytics-outline" style="color: #8b5cf6;"></ion-icon>
-            <h2>Ingresos de Materiales (Trazabilidad)</h2>
-            <p>Consulta el historial detallado de todas las recepciones realizadas, lotes y folios vinculados.</p>
+        <a href="/admin/inventarios/ingresoinventario/" class="menu-card">
+            <ion-icon name="analytics-outline" style="color: #7c3aed;"></ion-icon>
+            <div class="card-content">
+                <h2>Ingresos (Trazabilidad)</h2>
+                <p>Historial de recepciones, lotes y folios vinculados.</p>
+            </div>
         </a>
 
         {% if es_almacen %}
-        <a href="{% url 'inventarios:mobile_gestion_salidas' %}" class="menu-card" id="btn-gestion-salidas" style="border-color: #f59e0b; cursor:pointer;">
-            <ion-icon name="exit-outline" style="color: #f59e0b;"></ion-icon>
-            <h2>Gestión de Salidas (Solicitudes)</h2>
-            <p>Aprueba y despacha las solicitudes de materiales enviadas por todos los usuarios para tareas y
-                mantenimientos.</p>
+        <a href="{% url 'inventarios:mobile_gestion_salidas' %}" class="menu-card" id="btn-gestion-salidas" style="cursor:pointer;">
+            <ion-icon name="exit-outline" style="color: #d97706;"></ion-icon>
+            <div class="card-content">
+                <h2>Gestión de Salidas</h2>
+                <p>Aprueba y despacha las solicitudes de materiales enviadas por los usuarios.</p>
+            </div>
         </a>
-        <a href="{% url 'inventarios:calendario' %}" class="menu-card" style="border-color: #0a6ed1; cursor:pointer;">
-            <ion-icon name="calendar-outline" style="color: #0a6ed1;"></ion-icon>
-            <h2>Calendario de Recepciones</h2>
-            <p>Visualiza fechas de entrega notificadas, agenda slots y configura tus horarios de atención.</p>
+        <a href="{% url 'inventarios:calendario' %}" class="menu-card" style="cursor:pointer;">
+            <ion-icon name="calendar-outline"></ion-icon>
+            <div class="card-content">
+                <h2>Calendario de Recepciones</h2>
+                <p>Fechas de entrega, slots y horarios de atención.</p>
+            </div>
         </a>
         {% endif %}
 
         <a href="/admin/inventarios/" class="menu-card">
             <ion-icon name="settings-outline"></ion-icon>
-            <h2>Administración</h2>
-            <p>Gestiona categorías, ubicaciones físicas y parámetros del sistema.</p>
+            <div class="card-content">
+                <h2>Administración</h2>
+                <p>Gestiona categorías, ubicaciones físicas y parámetros del sistema.</p>
+            </div>
         </a>
 
-        <div class="menu-card" id="btn-racks" style="border-color: #8b5cf6; cursor: pointer;">
-            <ion-icon name="layers-outline" style="color: #8b5cf6;"></ion-icon>
-            <h2>Racks / Estanterías</h2>
-            <p>Visualiza en 3D la distribución de racks, niveles y secciones por bodega.</p>
+        <div class="menu-card" id="btn-racks" style="cursor: pointer;">
+            <ion-icon name="layers-outline" style="color: #7c3aed;"></ion-icon>
+            <div class="card-content">
+                <h2>Racks / Estanterías</h2>
+                <p>Visualiza en 3D la distribución de racks, niveles y secciones por bodega.</p>
+            </div>
         </div>
     </div>
 </div>

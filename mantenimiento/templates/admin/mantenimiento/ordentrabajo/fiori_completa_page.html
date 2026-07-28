@@ -1,0 +1,39 @@
+{% load i18n static l10n %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OT {{ ot.codigo_de_orden|default:ot.id }} | Fiori</title>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+html, body { margin: 0; padding: 0; overflow-y: auto; }
+#fiori-completa { min-height: 100vh; }
+</style>
+</head>
+<body style="margin:0;padding:0;background:var(--sap-bg-color,#f5f6f7);overflow:hidden;font-family:'72',sans-serif;">
+{% include "admin/mantenimiento/ordentrabajo/fiori_completa_partial.html" %}
+<script>
+window.closeFioriCompleteModal = function(){ window.history.back(); };
+window.closeFioriCierreModal = function(){ window.history.back(); };
+window.closeFioriModal = function(){ window.history.back(); };
+window.openFioriCierreModal = function(otId) {
+    var wrapper = document.getElementById('fiori-completa');
+    if (!wrapper) return;
+    wrapper.innerHTML = '<div class="fiori-loader-container" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;"><div class="fiori-spinner" style="width:50px;height:50px;border:4px solid #f3f3f3;border-top:4px solid #3b82f6;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px;"></div><p style="color:#64748b;font-weight:600;">Cargando cierre de orden...</p></div>';
+    fetch('fiori-cierre/' + otId + '/')
+        .then(function(r){ return r.text(); })
+        .then(function(html){ wrapper.innerHTML = html; });
+};
+(function(){
+    var closeBtns = document.querySelectorAll('.fc-shell-close, .fc-btn-ghost');
+    closeBtns.forEach(function(btn){
+        btn.onclick = function(){ window.history.back(); };
+    });
+})();
+</script>
+</body>
+</html>

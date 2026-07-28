@@ -23,11 +23,34 @@
         <div class="stat-value">{{ total }}</div>
         <div class="stat-label">Total</div>
     </div>
+    <a href="{% url 'portalsub:personal_verificar_pdf' %}" class="stat-card" style="text-decoration:none;cursor:pointer;background:#eaf4ff;border-color:var(--sap-brand-color);display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <ion-icon name="document-text-outline" style="font-size:24px;color:var(--sap-brand-color);margin-bottom:4px;"></ion-icon>
+        <div class="stat-label" style="font-weight:600;color:var(--sap-brand-color);">Verificar IHSS</div>
+    </a>
 </div>
 
-<a href="{% url 'portalsub:personal_crear' %}" class="btn btn-primary btn-block" style="margin-bottom: 4px;">
-    <ion-icon name="person-add-outline"></ion-icon> Agregar Personal
-</a>
+<div style="display:flex;gap:4px;margin-bottom:4px;">
+    <a href="{% url 'portalsub:personal_crear' %}" class="btn btn-primary btn-block" style="flex:1;">
+        <ion-icon name="person-add-outline"></ion-icon> Agregar Personal
+    </a>
+    <a href="{% url 'portalsub:personal_importar_dni' %}" class="btn btn-secondary" style="flex-shrink:0;padding:10px 14px;" title="Importar DNI desde Excel">
+        <ion-icon name="cloud-upload-outline"></ion-icon>
+    </a>
+</div>
+
+<form method="get" style="margin-bottom: 4px;">
+    <div style="display: flex; gap: 4px;">
+        <input type="text" name="q" class="form-control" placeholder="Buscar por nombre o identidad..." value="{{ request.GET.q }}">
+        <button type="submit" class="btn btn-outline-secondary" style="flex-shrink: 0;">
+            <ion-icon name="search-outline"></ion-icon>
+        </button>
+        {% if request.GET.q %}
+        <a href="{% url 'portalsub:personal_list' %}" class="btn btn-outline-danger" style="flex-shrink: 0;">
+            <ion-icon name="close-outline"></ion-icon>
+        </a>
+        {% endif %}
+    </div>
+</form>
 
 <div class="card" style="padding: 0;">
     {% if personal %}
@@ -37,6 +60,7 @@
                 <th>Nombre</th>
                 <th>Puesto</th>
                 <th>Estado</th>
+                <th>Últ. Verif</th>
                 <th>Docs</th>
                 <th></th>
             </tr>
@@ -55,16 +79,23 @@
                         {% endif %}
                         <div>
                             <div style="font-weight: 500;">{{ p.nombre }} {{ p.apellido }}</div>
-                            <div style="font-size: 11px; color: #999;">{{ p.dni|default:"—" }}</div>
+                            <div style="font-size: 11px; color: #999;">{{ p.dni|default:"—" }}{% if p.ultima_verificacion %} · <span style="color:#256f3a;">Verif. {{ p.ultima_verificacion|date:"d/m/Y" }}</span>{% endif %}</div>
                         </div>
                     </div>
                 </td>
-                <td style="font-size: 12px;">{{ p.puesto|default:"—" }}</td>
+                <td style="font-size: 12px;">{{ p.puesto|default:"—" }}{% if p.puesto_en_empresa %}<br><span style="color:#888;">{{ p.puesto_en_empresa }}</span>{% endif %}</td>
                 <td>
                     {% if p.esta_vigente %}
                     <span class="badge badge-success">Vigente</span>
                     {% else %}
                     <span class="badge badge-danger">No Vigente</span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 11px; color: #666;">
+                    {% if p.ultima_verificacion %}
+                    <span style="color:#256f3a;">{{ p.ultima_verificacion|date:"d/m/Y" }}</span>
+                    {% else %}
+                    —
                     {% endif %}
                 </td>
                 <td style="font-size: 11px;">

@@ -561,3 +561,64 @@ class DisponibilidadDiaria(models.Model):
 
     def __str__(self):
         return f"{self.usuario.get_full_name()} - {self.fecha} {self.hora_inicio}-{self.hora_fin}"
+
+
+class MaterialUtilizadoOT(models.Model):
+    """
+    Registra qué materiales se utilizaron en una Orden de Trabajo,
+    vinculando opcionalmente con el activo específico al que se aplicó.
+    Esto permite trazabilidad: OT → Activo → Materiales consumidos.
+    """
+    orden_trabajo = models.ForeignKey(
+        'mantenimiento.OrdenTrabajo',
+        on_delete=models.CASCADE,
+        related_name='materiales_utilizados_detalle',
+        verbose_name="Orden de Trabajo"
+    )
+    material = models.ForeignKey(
+        Material,
+        on_delete=models.CASCADE,
+        related_name='usos_en_ot',
+        verbose_name="Material"
+    )
+    activo = models.ForeignKey(
+        'activos.Activo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='materiales_aplicados',
+        verbose_name="Activo",
+        help_text="Activo al cual se le aplicó/instaló este material (opcional)"
+    )
+    cantidad = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name="Cantidad Utilizada"
+    )
+    movimiento = models.ForeignKey(
+        MovimientoInventario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='usos_detallados',
+        verbose_name="Movimiento de Inventario",
+        help_text="Movimiento de salida que respalda este consumo"
+    )
+    comentario = models.CharField(max_length=255, blank=True, verbose_name="Comentario")
+    registrado_por = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='materiales_ot_registrados'
+    )
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Material Utilizado en OT"
+        verbose_name_plural = "Materiales Utilizados en OT"
+        ordering = ['-fecha_registro']
+
+    def __str__(self):
+        activo_str = f" → {self.activo.nombre}" if self.activo else ""
+        return f"{self.material.nombre} x{self.cantidad}{activo_str} (OT: {self.orden_trabajo.codigo_de_orden})"

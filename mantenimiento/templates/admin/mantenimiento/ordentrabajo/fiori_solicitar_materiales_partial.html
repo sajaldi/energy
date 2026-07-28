@@ -1,0 +1,393 @@
+{% load l10n i18n %}
+<style>
+#fc-sol-modal {
+    font-family: var(--sap-font-family, '72', sans-serif);
+    color: var(--sap-text-color, #32363a);
+    font-size: 13px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.fc-sol-hdr {
+    display:flex;align-items:center;gap:10px;
+    padding:12px 16px;border-bottom:1px solid var(--sap-border-color,#d9d9d9);
+    background:var(--sap-shell-bg,#354a5f);color:#fff;flex-shrink:0;
+}
+.fc-sol-hdr h3 { margin:0;font-size:12px;font-weight:700;text-transform:uppercase;flex:1;letter-spacing:0.3px; }
+.fc-sol-close {
+    width:28px;height:28px;border:1px solid rgba(255,255,255,0.2);
+    background:rgba(255,255,255,0.08);color:#fff;border-radius:var(--sap-border-radius,2px);
+    cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;
+}
+.fc-sol-close:hover { background:rgba(239,68,68,0.25);color:#fca5a5; }
+.fc-sol-body { flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px; }
+.fc-sol-card {
+    background:var(--sap-card-bg,#fff);
+    border:1px solid var(--sap-border-color,#d9d9d9);
+    border-radius:var(--sap-border-radius,2px);
+    overflow:hidden;
+}
+.fc-sol-card-hdr {
+    padding:8px 12px;border-bottom:1px solid var(--sap-border-color,#d9d9d9);
+    display:flex;align-items:center;gap:6px;background:#fafafa;
+}
+.fc-sol-card-hdr h4 { margin:0;font-size:9px;font-weight:800;color:var(--sap-text-muted,#6a6d70);text-transform:uppercase;letter-spacing:0.5px;flex:1; }
+.fc-sol-row { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+.fc-sol-field { display:flex;flex-direction:column;gap:2px; }
+.fc-sol-label { font-size:9px;font-weight:700;color:var(--sap-text-muted,#6a6d70);text-transform:uppercase;letter-spacing:0.3px; }
+.fc-sol-input, .fc-sol-select {
+    padding:6px 8px;border:1px solid var(--sap-border-color,#d9d9d9);
+    border-radius:var(--sap-border-radius,2px);font-size:12px;font-family:inherit;
+    background:#fafafa;outline:none;box-sizing:border-box;
+}
+.fc-sol-input:focus, .fc-sol-select:focus { border-color:var(--sap-brand-color,#0070f2);background:#fff; }
+.fc-sol-search-wrap {
+    display:flex;align-items:center;gap:6px;
+    border:1px solid var(--sap-border-color,#d9d9d9);border-radius:var(--sap-border-radius,2px);
+    padding:0 8px;background:#fafafa;
+}
+.fc-sol-search-wrap:focus-within { border-color:var(--sap-brand-color,#0070f2);background:#fff; }
+.fc-sol-search-wrap input {
+    border:none;outline:none;background:transparent;
+    font:inherit;padding:6px 0;width:100%;font-size:12px;
+}
+.fc-sol-add-btn {
+    padding:6px 14px;font-size:10px;font-weight:700;text-transform:uppercase;
+    border-radius:var(--sap-border-radius,2px);background:var(--sap-brand-color,#0070f2);
+    color:#fff;border:none;cursor:pointer;white-space:nowrap;
+}
+.fc-sol-add-btn:hover { opacity:0.85; }
+.fc-sol-add-btn:disabled { opacity:0.4;cursor:not-allowed; }
+.fc-sol-items { width:100%;border-collapse:collapse;font-size:11px; }
+.fc-sol-items th { padding:6px 8px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;color:var(--sap-text-muted,#6a6d70);background:#f8fafc;border-bottom:1px solid var(--sap-border-color,#d9d9d9); }
+.fc-sol-items td { padding:6px 8px;border-bottom:1px solid var(--sap-border-color,#d9d9d9);color:var(--sap-text-color,#32363a); }
+.fc-sol-rm-btn { width:24px;height:24px;border:none;background:transparent;color:var(--sap-error,#bb0000);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center; }
+.fc-sol-rm-btn:hover { background:var(--sap-error-bg,#ffebeb); }
+.fc-sol-empty { text-align:center;padding:24px 16px;color:var(--sap-text-muted,#6a6d70);font-size:11px; }
+.fc-sol-submit {
+    width:100%;height:38px;font-size:11px;font-weight:800;text-transform:uppercase;
+    border-radius:var(--sap-border-radius,2px);border:none;cursor:pointer;
+    background:var(--sap-brand-color,#0070f2);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.fc-sol-submit:hover { opacity:0.9; }
+.fc-sol-submit:disabled { opacity:0.4;cursor:not-allowed; }
+.fc-sol-badge {
+    display:inline-flex;align-items:center;gap:4px;
+    padding:2px 7px;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:0.3px;
+    border-radius:var(--sap-border-radius,2px);
+}
+.fc-sol-aut {
+    padding:8px 10px;font-size:10px;font-weight:600;
+    border-radius:var(--sap-border-radius,2px);
+}
+.fc-sol-aut-warn { background:var(--sap-warning-bg,#fff4e6);color:#92400e;border:1px solid #fde68a; }
+.fc-sol-aut-ok { background:var(--sap-success-bg,#e5f5ea);color:#166534;border:1px solid #bbf7d0; }
+</style>
+
+<div id="fc-sol-modal">
+    <div class="fc-sol-hdr">
+        <ion-icon name="cube-outline"></ion-icon>
+        <h3>Solicitar Materiales</h3>
+        <button type="button" class="fc-sol-close" onclick="closeFcSolModal()">&times;</button>
+    </div>
+
+    <div class="fc-sol-body">
+        {% if solicitudes %}
+        <div class="fc-sol-card">
+            <div class="fc-sol-card-hdr">
+                <ion-icon name="document-text-outline" style="font-size:12px;"></ion-icon>
+                <h4>Solicitudes Existentes</h4>
+            </div>
+            <div style="padding:0;">
+                <table class="fc-sol-items">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Estado</th>
+                            <th>Items</th>
+                            <th>Fecha</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in solicitudes %}
+                        <tr>
+                            <td style="font-weight:700;">#{{ s.id }}</td>
+                            <td><span class="fc-sol-badge fc-sol-badge-{{ s.estado|lower }}">{{ s.get_estado_display }}</span></td>
+                            <td>{{ s.items_count }}</td>
+                            <td style="font-size:10px;color:var(--sap-text-muted);">{{ s.fecha_solicitud|date:"d/m/Y" }}</td>
+                            <td><a href="{% url 'admin:inventarios_solicitudmaterial_change' s.id %}" target="_blank" style="color:var(--sap-brand-color);font-size:10px;">Abrir</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="fc-sol-card">
+            <div class="fc-sol-card-hdr">
+                <ion-icon name="add-circle-outline" style="font-size:12px;color:var(--sap-brand-color);"></ion-icon>
+                <h4>Nueva Solicitud</h4>
+            </div>
+            <div class="fc-sol-body" style="padding:12px;gap:10px;">
+                <div class="fc-sol-row">
+                    <div class="fc-sol-field">
+                        <label class="fc-sol-label">Ubicación Origen</label>
+                        <select id="fc-sol-ubicacion" class="fc-sol-select" required>
+                            <option value="">-- Seleccione --</option>
+                            {% for u in ubicaciones %}
+                            <option value="{{ u.id }}">{{ u.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="fc-sol-field">
+                        <label class="fc-sol-label">OT Vinculada</label>
+                        <div style="padding:6px 8px;font-size:12px;font-weight:700;color:var(--sap-brand-color);background:#f0f5ff;border:1px solid #bfdbfe;border-radius:var(--sap-border-radius,2px);">
+                            {{ ot.codigo_de_orden|default:ot.id }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fc-sol-field">
+                    <label class="fc-sol-label">Buscar Material</label>
+                    <div class="fc-sol-search-wrap">
+                        <ion-icon name="search-outline" style="color:var(--sap-brand-color);flex-shrink:0;"></ion-icon>
+                        <input type="text" id="fc-sol-material-search" placeholder="Nombre o SKU..." autocomplete="off">
+                        <button type="button" class="fc-sol-add-btn" id="fc-sol-add-item-btn" onclick="addFcSolItem()" disabled>Añadir</button>
+                    </div>
+                    <div id="fc-sol-material-results" style="display:none;position:relative;">
+                        <div style="position:absolute;top:2px;left:0;right:0;background:#fff;border:1px solid #d9d9d9;max-height:180px;overflow-y:auto;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                    </div>
+                </div>
+
+                <div class="fc-sol-row" id="fc-sol-qty-row" style="display:none;">
+                    <div class="fc-sol-field">
+                        <label class="fc-sol-label">Cantidad</label>
+                        <input type="number" id="fc-sol-cantidad" class="fc-sol-input" step="0.01" min="0.01" placeholder="0.00">
+                    </div>
+                    <div class="fc-sol-field">
+                        <label class="fc-sol-label">Unidad</label>
+                        <div id="fc-sol-unidad" style="padding:6px 8px;font-size:12px;color:var(--sap-text-muted);">—</div>
+                    </div>
+                </div>
+
+                <div class="fc-sol-field">
+                    <label class="fc-sol-label">Comentarios</label>
+                    <textarea id="fc-sol-comentarios" class="fc-sol-input" style="min-height:36px;resize:vertical;" placeholder="Motivo de la solicitud..."></textarea>
+                </div>
+
+                <div id="fc-sol-auth-info" class="fc-sol-aut {% if requiere_autorizacion %}fc-sol-aut-warn{% else %}fc-sol-aut-ok{% endif %}">
+                    <ion-icon name="{% if requiere_autorizacion %}warning-outline{% else %}checkmark-circle-outline{% endif %}"></ion-icon>
+                    {% if requiere_autorizacion %}
+                    Esta solicitud requerirá autorización de <strong>{{ jefe_nombre }}</strong> antes de pasar al almacén.
+                    {% else %}
+                    Esta solicitud irá directamente al almacén para su despacho.
+                    {% endif %}
+                </div>
+
+                <div id="fc-sol-items-wrap" style="display:none;">
+                    <table class="fc-sol-items">
+                        <thead>
+                            <tr><th>Material</th><th>SKU</th><th>Cantidad</th><th>Unidad</th><th></th></tr>
+                        </thead>
+                        <tbody id="fc-sol-items-body"></tbody>
+                    </table>
+                </div>
+                <div id="fc-sol-empty-items" class="fc-sol-empty">
+                    <ion-icon name="cube-outline" style="font-size:22px;color:#d9d9d9;"></ion-icon>
+                    <p style="margin:4px 0 0;">Agregue al menos un material</p>
+                </div>
+
+                <button type="button" class="fc-sol-submit" id="fc-sol-submit-btn" onclick="submitFcSol()" disabled>
+                    <ion-icon name="paper-plane-outline"></ion-icon> Enviar Solicitud
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    var selectedMaterial = null;
+    var items = [];
+    var searchTimer;
+    var searchInput = document.getElementById('fc-sol-material-search');
+    var resultsContainer = document.getElementById('fc-sol-material-results');
+
+    window.pickFcSolMaterial = function(m) {
+        selectedMaterial = m;
+        searchInput.value = m.nombre + ' (' + m.sku + ')';
+        resultsContainer.style.display = 'none';
+        document.getElementById('fc-sol-qty-row').style.display = 'grid';
+        document.getElementById('fc-sol-unidad').textContent = m.unidad || '—';
+        document.getElementById('fc-sol-cantidad').value = '';
+        document.getElementById('fc-sol-cantidad').focus();
+        document.getElementById('fc-sol-add-item-btn').disabled = false;
+    };
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimer);
+            var q = this.value.trim();
+            if (q.length < 2) {
+                resultsContainer.style.display = 'none';
+                selectedMaterial = null;
+                document.getElementById('fc-sol-add-item-btn').disabled = true;
+                document.getElementById('fc-sol-qty-row').style.display = 'none';
+                return;
+            }
+            searchTimer = setTimeout(function() {
+                fetch('/inventarios/api/materials/?q=' + encodeURIComponent(q) + '&page=1')
+                .then(function(r){ return r.json(); })
+                .then(function(data){
+                    var items = data.results || [];
+                    var div = resultsContainer.querySelector('div');
+                    if (!items.length) {
+                        div.innerHTML = '<div style="padding:10px;color:#6a6d70;font-size:11px;">Sin resultados</div>';
+                    } else {
+                        div.innerHTML = items.slice(0, 15).map(function(m){
+                            var unidad = m.unidad || '';
+                            return '<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;" onclick="pickFcSolMaterial({id:' + m.id + ',nombre:\'' + (m.nombre||'').replace(/'/g,"\\'") + '\',sku:\'' + (m.sku||'').replace(/'/g,"\\'") + '\',unidad:\'' + unidad.replace(/'/g,"\\'") + '\'})"><span><strong>' + (m.nombre||'') + '</strong><br><small style="color:#6a6d70;">SKU: ' + (m.sku||'') + '</small></span><span style="font-size:10px;color:#6a6d70;">' + unidad + '</span></div>';
+                        }).join('');
+                    }
+                    resultsContainer.style.display = 'block';
+                })
+                .catch(function(){});
+            }, 300);
+        });
+        searchInput.addEventListener('blur', function() {
+            setTimeout(function(){ resultsContainer.style.display = 'none'; }, 200);
+        });
+        searchInput.addEventListener('focus', function() {
+            if (selectedMaterial) resultsContainer.style.display = 'block';
+        });
+    }
+
+    window.addFcSolItem = function() {
+        if (!selectedMaterial) return;
+        var qtyInput = document.getElementById('fc-sol-cantidad');
+        var qty = parseFloat(qtyInput.value);
+        if (!qty || qty <= 0) { qtyInput.focus(); return; }
+
+        var existing = items.filter(function(it){ return it.material_id === selectedMaterial.id; });
+        if (existing.length) {
+            existing[0].cantidad = qty;
+        } else {
+            items.push({
+                material_id: selectedMaterial.id,
+                nombre: selectedMaterial.nombre,
+                sku: selectedMaterial.sku,
+                unidad: selectedMaterial.unidad,
+                cantidad: qty
+            });
+        }
+        renderItems();
+        selectedMaterial = null;
+        searchInput.value = '';
+        document.getElementById('fc-sol-qty-row').style.display = 'none';
+        document.getElementById('fc-sol-add-item-btn').disabled = true;
+        resultsContainer.style.display = 'none';
+    };
+
+    window.removeFcSolItem = function(idx) {
+        items.splice(idx, 1);
+        renderItems();
+    };
+
+    function renderItems() {
+        var tbody = document.getElementById('fc-sol-items-body');
+        var wrap = document.getElementById('fc-sol-items-wrap');
+        var empty = document.getElementById('fc-sol-empty-items');
+        var submitBtn = document.getElementById('fc-sol-submit-btn');
+
+        tbody.innerHTML = items.map(function(it, i){
+            return '<tr><td style="font-weight:600;">' + it.nombre + '</td><td style="font-size:10px;color:#6a6d70;">' + it.sku + '</td><td style="font-weight:700;">' + it.cantidad.toFixed(2) + '</td><td style="font-size:10px;color:#6a6d70;">' + (it.unidad || '—') + '</td><td><button type="button" class="fc-sol-rm-btn" onclick="removeFcSolItem(' + i + ')">&times;</button></td></tr>';
+        }).join('');
+
+        if (items.length) {
+            wrap.style.display = 'block';
+            empty.style.display = 'none';
+            submitBtn.disabled = false;
+        } else {
+            wrap.style.display = 'none';
+            empty.style.display = 'block';
+            submitBtn.disabled = true;
+        }
+    }
+
+    window.submitFcSol = function() {
+        var ubicacion = document.getElementById('fc-sol-ubicacion').value;
+        if (!ubicacion) { alert('Seleccione una ubicación de origen.'); return; }
+        if (!items.length) { alert('Agregue al menos un material.'); return; }
+        var comentarios = document.getElementById('fc-sol-comentarios').value;
+
+        var btn = document.getElementById('fc-sol-submit-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Enviando...';
+
+        var items_json = JSON.stringify(items.map(function(it){
+            return { material_id: it.material_id, cantidad: it.cantidad };
+        }));
+
+        var formData = new FormData();
+        formData.append('ajax_mode', 'true');
+        formData.append('items_json', items_json);
+        formData.append('ubicacion_origen', ubicacion);
+        formData.append('orden_trabajo', '{{ ot.id|unlocalize }}');
+        formData.append('comentarios', comentarios);
+
+        fetch('{% url "inventarios:cart_checkout" %}', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon:'success',
+                    title:'Solicitud #' + data.solicitud_id,
+                    text: data.message,
+                    confirmButtonColor: '#0070f2'
+                }).then(function(){
+                    closeFcSolModal();
+                    // Reload the complete modal to show new solicitud
+                    var overlay = document.getElementById('fioriModalOverlay');
+                    if (overlay && overlay.classList.contains('active')) {
+                        var otId = {{ ot.id|unlocalize }};
+                        var content = document.getElementById('fioriModalContent');
+                        var dialog = overlay.querySelector('.fiori-modal-dialog');
+                        content.style.padding = '0';
+                        content.innerHTML = '<div class="fiori-loader-container"><div class="fiori-spinner"></div><p style="color:#64748b;font-weight:600;">Recargando...</p></div>';
+                        fetch('fiori-completa/' + otId + '/')
+                            .then(function(r){ return r.text(); })
+                            .then(function(html){ setFioriModalContent(content, html); });
+                    }
+                });
+            } else {
+                Swal.fire({ icon:'error', title:'Error', text:data.message || 'No se pudo crear la solicitud.' });
+                btn.disabled = false;
+                btn.innerHTML = '<ion-icon name="paper-plane-outline"></ion-icon> Enviar Solicitud';
+            }
+        })
+        .catch(function(err){
+            Swal.fire({ icon:'error', title:'Error de conexión', text: err.message });
+            btn.disabled = false;
+            btn.innerHTML = '<ion-icon name="paper-plane-outline"></ion-icon> Enviar Solicitud';
+        });
+    };
+
+    window.closeFcSolModal = function() {
+        var content = document.getElementById('fioriModalContent');
+        if (content) {
+            var otId = {{ ot.id|unlocalize }};
+            content.style.padding = '0';
+            content.innerHTML = '<div class="fiori-loader-container"><div class="fiori-spinner"></div><p style="color:#64748b;font-weight:600;">Recargando...</p></div>';
+            fetch('fiori-completa/' + otId + '/')
+                .then(function(r){ return r.text(); })
+                .then(function(html){ setFioriModalContent(content, html); });
+        }
+    };
+})();
+</script>

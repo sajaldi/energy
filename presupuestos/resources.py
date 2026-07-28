@@ -1,6 +1,6 @@
 from import_export import resources, fields, widgets
 from import_export.widgets import ForeignKeyWidget
-from .models import Requisicion, ItemSolicitudPago, SolicitudPago, PaqueteMaterialItem, PaqueteMaterial
+from .models import Requisicion, ItemSolicitudPago, SolicitudPago, PaqueteMaterialItem, PaqueteMaterial, CodigoExoneracion
 from inventarios.models import Material
 from mantenimiento.models import Empresa
 from django.contrib.auth.models import User
@@ -181,4 +181,25 @@ class ItemSolicitudPagoResource(resources.ModelResource):
         import_id_fields = ('solicitud', 'requisicion')
         fields = ('solicitud', 'requisicion', 'monto_solicitado', 'condicion_pago', 'descripcion', 'estatus')
         use_bulk = True
+        skip_diff = True
+
+
+class CodigoExoneracionResource(resources.ModelResource):
+    padre = fields.Field(
+        column_name='padre_codigo',
+        attribute='padre',
+        widget=CachedForeignKeyWidget(CodigoExoneracion, field='codigo')
+    )
+    dai = fields.Field(attribute='dai', widget=CleanDecimalWidget())
+    isc = fields.Field(attribute='isc', widget=CleanDecimalWidget())
+    ipc = fields.Field(attribute='ipc', widget=CleanDecimalWidget())
+    isv = fields.Field(attribute='isv', widget=CleanDecimalWidget())
+
+    class Meta:
+        model = CodigoExoneracion
+        import_id_fields = ('codigo',)
+        fields = ('codigo', 'descripcion', 'padre_codigo', 'dai', 'isc', 'ipc', 'isv', 'activo')
+        export_order = fields
+        use_bulk = True
+        batch_size = 2000
         skip_diff = True

@@ -405,3 +405,65 @@ def import_paquete_items_task(self, file_path, file_format, paquete_id, user_id=
 
     cache.set(cache_key, final, 3600)
     return final
+
+
+@shared_task(bind=True)
+def import_codigos_exoneracion_task(self, file_path, file_format, user_id=None, dry_run=False):
+    from .models import CodigoExoneracion
+    from .resources import CodigoExoneracionResource
+    resource = CodigoExoneracionResource()
+    cache_key = f"import_codigos_exoneracion_progress_{user_id}" if user_id else "import_codigos_exoneracion_progress_system"
+
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            content = f.read()
+            if file_format == 'csv':
+                dataset = Dataset().load(try_decode(content), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(content, format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except Exception as e:
+        err = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+        cache.set(cache_key, err, 3600)
+        return err
+
+    total_rows = len(dataset)
+    prog = {
+        'current': 0, 'total': total_rows, 'percent': 0,
+        'status': 'Procesando...',
+        'new': 0, 'updated': 0, 'skipped': 0, 'errors': 0
+    }
+    cache.set(cache_key, prog, 3600)
+    self.update_state(state='PROGRESS', meta=prog)
+
+    try:
+        result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
+
+        detailed_errors = []
+        for line, errors in result.row_errors():
+            for error in errors:
+                detailed_errors.append(f"Fila {line}: {str(error.error)}")
+
+        final = {
+            'status': 'completed',
+            'total': total_rows,
+            'new': result.totals.get('new', 0),
+            'updated': result.totals.get('update', 0),
+            'skipped': result.totals.get('skip', 0),
+            'deleted': result.totals.get('delete', 0),
+            'errors': len(detailed_errors),
+            'error_list': detailed_errors,
+        }
+    except Exception as e:
+        final = {'status': 'error', 'message': str(e)}
+
+    if not dry_run:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except:
+            pass
+
+    cache.set(cache_key, final, 3600)
+    return final

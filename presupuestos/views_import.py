@@ -8,7 +8,7 @@ from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from celery.result import AsyncResult
-from .tasks import import_requisiciones_task
+from .tasks import import_requisiciones_task, import_codigos_exoneracion_task
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.contrib import messages
@@ -1466,3 +1466,86 @@ def api_paquete_descargar_template(request):
     response = HttpResponse(dataset.export('xlsx'), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename="plantilla_paquete.xlsx"'
     return response
+
+
+@staff_member_required
+def import_codigos_exoneracion_view(request):
+    from django.contrib import admin
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Importación de Códigos de Exoneración',
+        'opts': {
+            'app_label': 'presupuestos',
+            'model_name': 'codigoexoneracion',
+        },
+    }
+    return render(request, 'admin/presupuestos/codigoexoneracion/import_background.html', context)
+
+
+@staff_member_required
+@csrf_exempt
+def import_codigos_exoneracion_process(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    is_confirm = request.POST.get('confirm', '').lower() in ['true', 'on', '1']
+    existing_path = request.POST.get('file_path')
+    import_file = request.FILES.get('import_file')
+
+    if not is_confirm:
+        if not import_file:
+            return JsonResponse({'error': 'No se subió ningún archivo'}, status=400)
+        file_ext = import_file.name.split('.')[-1].lower()
+        temp_name = f'tmp/import_codigos_exoneracion_{request.user.id}_{int(time.time())}.{file_ext}'
+        try:
+            path = default_storage.save(temp_name, import_file)
+        except Exception as e:
+            return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
+    else:
+        if not existing_path:
+            return JsonResponse({'error': 'Falta la ruta del archivo para confirmar'}, status=400)
+        path = existing_path
+        file_ext = path.split('.')[-1].lower()
+
+    cache_key = f"import_codigos_exoneracion_progress_{request.user.id}"
+    cache.delete(cache_key)
+
+    dry_run = not is_confirm
+    task = import_codigos_exoneracion_task.delay(
+        path, file_ext,
+        user_id=request.user.id,
+        dry_run=dry_run
+    )
+
+    return JsonResponse({
+        'status': 'started',
+        'task_id': task.id,
+        'dry_run': dry_run,
+    })
+
+
+@staff_member_required
+def import_codigos_exoneracion_progress(request):
+    task_id = request.GET.get('task_id')
+    if not task_id:
+        return JsonResponse({'error': 'Falta task_id'}, status=400)
+
+    cache_key = f"import_codigos_exoneracion_progress_{request.user.id}"
+    progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
+
+    res = AsyncResult(task_id)
+    if res.state == 'SUCCESS':
+        if isinstance(res.result, dict):
+            progress.update(res.result)
+        progress['state'] = 'COMPLETED'
+        progress['percent'] = 100
+    elif res.state == 'FAILURE':
+        progress['error'] = str(res.result)
+        progress['state'] = 'FAILURE'
+    elif res.state == 'PROGRESS':
+        if isinstance(res.info, dict):
+            progress.update(res.info)
+        progress['state'] = 'PROGRESS'
+    else:
+        progress['state'] = res.state or 'PENDING'
+    return JsonResponse(progress)

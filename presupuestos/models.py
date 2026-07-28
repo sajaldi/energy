@@ -1458,3 +1458,36 @@ class PaqueteMaterialItem(models.Model):
 
     def __str__(self):
         return self.descripcion or str(self.material) or f"Item #{self.orden}"
+
+
+class CodigoExoneracion(models.Model):
+    codigo = models.CharField(max_length=50, unique=True, verbose_name="Código")
+    descripcion = models.CharField(max_length=500, verbose_name="Descripción")
+    padre = models.ForeignKey(
+        'self', on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='children',
+        verbose_name="Partida Padre"
+    )
+    dai = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="DAI (%)")
+    isc = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="ISC (%)")
+    ipc = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="IPC (%)")
+    isv = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="ISV (%)")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    class Meta:
+        verbose_name = "Código de Exoneración"
+        verbose_name_plural = "Códigos de Exoneración"
+        ordering = ['codigo']
+
+    def __str__(self):
+        return f"{self.codigo} - {self.descripcion}"
+
+    @property
+    def nivel(self):
+        n = 0
+        p = self.padre
+        while p:
+            n += 1
+            p = p.padre
+        return n

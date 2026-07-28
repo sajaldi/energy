@@ -1,0 +1,180 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Verificación IHSS</title>
+    {% include 'core/fiori_tokens.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: var(--sap-font-family);
+            background: white;
+            margin: 0;
+            padding: 24px;
+            color: var(--sap-text-color);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--sap-brand-color);
+        }
+        .header h1 { margin: 0; font-size: 20px; color: var(--sap-brand-color); }
+        .header p { margin: 4px 0 0; font-size: 13px; color: #666; }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-card .value { font-size: 28px; font-weight: 700; }
+        .stat-card .label { font-size: 12px; color: #666; margin-top: 4px; }
+        .section {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+        .section h2 {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #eee;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            background: #f8f9fa;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+            font-size: 11px;
+            color: #999;
+        }
+        @media print {
+            .no-print { display: none; }
+            body { padding: 16px; }
+            .stat-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:right;margin-bottom:12px;">
+        <button onclick="window.print()" class="btn btn-primary" style="padding:8px 20px;border:none;border-radius:6px;background:var(--sap-brand-color);color:white;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">
+            <ion-icon name="print-outline" style="vertical-align:middle;"></ion-icon> Imprimir
+        </button>
+        <a href="{% url 'portalsub:personal_list' %}" style="display:inline-block;padding:8px 20px;margin-left:8px;border-radius:6px;background:#f2f2f2;color:#333;text-decoration:none;font-size:14px;font-weight:600;font-family:inherit;">
+            <ion-icon name="arrow-back-outline" style="vertical-align:middle;"></ion-icon> Volver
+        </a>
+    </div>
+
+    <div class="header">
+        <h1>Reporte de Verificación de IHSS</h1>
+        <p>{{ empresa.nombre }}{% if periodo %} · Período: {{ periodo }}{% endif %} · {{ fecha|date:"d/m/Y H:i" }}</p>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="value" style="color:#256f3a;">{{ coinciden|length }}</div>
+            <div class="label">Coincidencias</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" style="color:#bb2d3b;">{{ no_encontrados|length }}</div>
+            <div class="label">No encontrados</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" style="color:#e67e22;">{{ faltantes|length }}</div>
+            <div class="label">Faltan en PDF</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>✓ Coincidencias ({{ coinciden|length }})</h2>
+        <table>
+            <thead><tr><th>Nombre</th><th>Apellido</th><th>DNI</th><th>Estado</th></tr></thead>
+            <tbody>
+                {% for p in coinciden %}
+                <tr>
+                    <td>{{ p.nombre }}</td>
+                    <td>{{ p.apellido }}</td>
+                    <td>{{ p.dni }}</td>
+                    <td><span class="badge badge-success">Vigente</span></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;color:#999;">Sin coincidencias</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>✗ No encontrados en BD ({{ no_encontrados|length }})</h2>
+        <table>
+            <thead><tr><th>DNI</th></tr></thead>
+            <tbody>
+                {% for dni in no_encontrados %}
+                <tr><td>{{ dni }}</td></tr>
+                {% empty %}
+                <tr><td style="text-align:center;color:#999;">Ninguno</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>! En BD pero no en el PDF ({{ faltantes|length }})</h2>
+        <table>
+            <thead><tr><th>Nombre</th><th>Apellido</th><th>DNI</th></tr></thead>
+            <tbody>
+                {% for p in faltantes %}
+                <tr>
+                    <td>{{ p.nombre }}</td>
+                    <td>{{ p.apellido }}</td>
+                    <td>{{ p.dni }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" style="text-align:center;color:#999;">Ninguno</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer">
+        Generado el {{ fecha|date:"d/m/Y H:i" }} · SoftCoM-CCG
+    </div>
+</body>
+</html>

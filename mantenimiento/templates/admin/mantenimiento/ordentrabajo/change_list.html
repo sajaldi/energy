@@ -4,6 +4,39 @@
 {% block extrahead %}
 {{ block.super }}
 {% include 'core/fiori_tokens.html' %}
+<script>
+// ── Fiori Modal functions (defined in head for early availability) ──
+function openFioriCompletaModal(otId) {
+    const overlay = document.getElementById('fioriModalOverlay');
+    if (!overlay) return;
+    const content = document.getElementById('fioriModalContent');
+    const dialog = overlay.querySelector('.fiori-modal-dialog');
+    overlay.classList.add('active');
+    dialog.style.maxWidth = '1100px';
+    content.style.padding = '0';
+    content.innerHTML = '<div class="fiori-loader-container"><div class="fiori-spinner"></div><p style="color: #64748b; font-weight: 600;">Cargando vista completa de la orden...</p></div>';
+    fetch('fiori-completa/' + otId + '/')
+        .then(function(r){ return r.text(); })
+        .then(function(html){ setFioriModalContent(content, html); })
+        .catch(function(error){ content.innerHTML = '<p style="color: #ef4444; text-align: center; padding: 20px;">Error: ' + error + '</p>'; });
+}
+function closeFioriCompleteModal() { closeFioriModal(); }
+function openFioriCierreModal(otId) {
+    const overlay = document.getElementById('fioriModalOverlay');
+    if (!overlay) return;
+    const content = document.getElementById('fioriModalContent');
+    const dialog = overlay.querySelector('.fiori-modal-dialog');
+    overlay.classList.add('active');
+    dialog.style.maxWidth = '800px';
+    content.style.padding = '0';
+    content.innerHTML = '<div class="fiori-loader-container"><div class="fiori-spinner"></div><p style="color: #64748b; font-weight: 600;">Cargando cierre de orden...</p></div>';
+    fetch('fiori-cierre/' + otId + '/')
+        .then(function(r){ return r.text(); })
+        .then(function(html){ setFioriModalContent(content, html); })
+        .catch(function(error){ content.innerHTML = '<p style="color: #ef4444; text-align: center; padding: 20px;">Error: ' + error + '</p>'; });
+}
+function closeFioriCierreModal() { closeFioriModal(); }
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -47,6 +80,14 @@
 
     .fiori-modal-overlay.active .fiori-modal-dialog {
         transform: scale(1);
+    }
+
+    .fiori-modal-dialog.fc-maximized {
+        width: 98vw !important;
+        max-width: 98vw !important;
+        height: 96vh !important;
+        max-height: 96vh !important;
+        border-radius: 0 !important;
     }
 
     .fiori-modal-close {

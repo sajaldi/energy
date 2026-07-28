@@ -7,7 +7,7 @@ from django.utils.html import mark_safe
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from import_export.admin import ImportExportModelAdmin
-from .models import Material, StockRecord, MovimientoInventario, CategoriaMaterial, SolicitudMaterial, Lote, UnidadMedida, IngresoInventario, Rack, RackPosition
+from .models import Material, StockRecord, MovimientoInventario, CategoriaMaterial, SolicitudMaterial, Lote, UnidadMedida, IngresoInventario, Rack, RackPosition, MaterialUtilizadoOT
 from activos.models import Marca
 
 class StockRecordInline(admin.TabularInline):
@@ -211,6 +211,34 @@ class MaterialMovimientoInline(admin.TabularInline):
             'usuario', 'ubicacion_origen', 'ubicacion_destino', 'lote', 'solicitud'
         )
 
+class MaterialUsoEnOTInline(admin.TabularInline):
+    model = MaterialUtilizadoOT
+    fk_name = 'material'
+    extra = 0
+    max_num = 20
+    can_delete = False
+    show_change_link = True
+    verbose_name = "Uso en Orden de Trabajo"
+    verbose_name_plural = "Usos en Órdenes de Trabajo"
+    ordering = ('-fecha_registro',)
+    readonly_fields = ('orden_trabajo', 'activo', 'cantidad', 'fecha_registro', 'comentario')
+    fields = ('orden_trabajo', 'activo', 'cantidad', 'fecha_registro', 'comentario')
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'orden_trabajo', 'activo'
+        )
+
+
 @admin.register(Material)
 class MaterialAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/inventarios/material/change_list.html'
@@ -221,7 +249,7 @@ class MaterialAdmin(ImportExportModelAdmin):
     list_filter = ('categoria', 'tipo_material', 'unidad_medida', 'no_afecta_stock')
     list_select_related = ('categoria', 'marca')
     filter_horizontal = ('departamentos',)
-    inlines = [StockRecordInline]
+    inlines = [StockRecordInline, MaterialUsoEnOTInline]
     readonly_fields = ('imagen_preview',)
     fieldsets = [
         (None, {
@@ -294,6 +322,7 @@ class MaterialAdmin(ImportExportModelAdmin):
 
 @admin.register(MovimientoInventario)
 class MovimientoInventarioAdmin(admin.ModelAdmin):
+    change_form_template = 'admin/inventarios/movimientoinventario/change_form.html'
     list_display = ('fecha_movimiento', 'material', 'lote', 'tipo', 'cantidad', 'ubicacion_origen', 'ubicacion_destino', 'estado', 'usuario', 'es_inconsistente')
     list_filter = ('estado', 'tipo', 'fecha_movimiento', 'es_inconsistente')
     search_fields = ('material__nombre', 'material__sku', 'usuario__username', 'orden_trabajo__id')
@@ -302,6 +331,11 @@ class MovimientoInventarioAdmin(admin.ModelAdmin):
     raw_id_fields = ('solicitud', 'orden_trabajo')
     
     actions = ['liquidar_movimientos']
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['es_almacen'] = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     def liquidar_movimientos(self, request, queryset):
         # Verificar permiso
@@ -367,3 +401,12 @@ class RackPositionAdmin(admin.ModelAdmin):
     list_filter = ('rack__bodega', 'rack')
     search_fields = ('codigo', 'rack__nombre', 'material__nombre', 'material__sku')
     raw_id_fields = ('material', 'lote')
+
+
+@admin.register(MaterialUtilizadoOT)
+class MaterialUtilizadoOTAdmin(admin.ModelAdmin):
+    list_display = ('orden_trabajo', 'material', 'activo', 'cantidad', 'registrado_por', 'fecha_registro')
+    list_filter = ('fecha_registro', 'orden_trabajo__tipo')
+    search_fields = ('material__nombre', 'material__sku', 'orden_trabajo__codigo_de_orden', 'activo__nombre')
+    raw_id_fields = ('orden_trabajo', 'material', 'activo', 'movimiento')
+    readonly_fields = ('fecha_registro',)

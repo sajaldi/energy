@@ -135,4 +135,9 @@ urlpatterns = [
     # Partida Presupuestaria - Admin Fiori
     path('partidas/admin/', views.partida_admin_fiori, name='partida_admin_fiori'),
     path('api/partidas/admin/', views.partida_admin_api, name='partida_admin_api'),
+
+    # Códigos de Exoneración - Importación
+    path('codigos-exoneracion/import/', views_import.import_codigos_exoneracion_view, name='import_codigos_exoneracion'),
+    path('codigos-exoneracion/import/process/', views_import.import_codigos_exoneracion_process, name='import_codigos_exoneracion_process'),
+    path('codigos-exoneracion/import/progress/', views_import.import_codigos_exoneracion_progress, name='import_codigos_exoneracion_progress'),
 ]

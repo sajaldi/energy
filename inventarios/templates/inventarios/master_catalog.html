@@ -1,9 +1,7 @@
-{% extends "admin/base_site.html" %}
+{% extends "inventarios/base_inventarios.html" %}
 {% load i18n static %}
 
 {% block extrahead %}
-{{ block.super }}
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
     :root {
         --sap-shell: #354a5f;
@@ -23,40 +21,14 @@
     }
 
     body {
-        font-family: 'Inter', '72', Arial, sans-serif !important;
         background: var(--sap-bg) !important;
         -webkit-font-smoothing: antialiased;
-        margin: 0;
-    }
-
-    /* ====== FIORI SHELL BAR ====== */
-    .sap-shell-bar {
-        background: var(--sap-shell);
-        height: 64px;
-        padding: 0 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        color: #fff;
-        position: sticky;
-        top: 0; z-index: 1000;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .sap-shell-title {
-        display: flex; align-items: center; gap: 1rem;
-    }
-    .sap-shell-title h1 {
-        margin: 0; font-size: 1.15rem; font-weight: 700;
-        letter-spacing: -0.2px;
-    }
-    .sap-shell-icon { 
-        font-size: 1.5rem; color: #fff; opacity: 0.9;
     }
 
     /* ====== TOOLBAR / FILTERS ====== */
     .sap-filter-bar {
         background: #fff;
-        margin: 1rem 2rem;
+        margin: 1.5rem 2rem 1rem;
         padding: 1rem 1.5rem;
         border-radius: var(--radius-lg);
         border: 1px solid var(--sap-border);
@@ -225,27 +197,14 @@
         .modal-header-sap { padding: 1rem; }
     }
 </style>
-<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 {% endblock %}
 
-{% block content %}
-<div class="sap-shell-bar">
-    <div class="sap-shell-title">
-        <ion-icon name="cube" class="sap-shell-icon"></ion-icon>
-        <div>
-            <h1>Catálogo Maestro</h1>
-            <div style="font-size:0.7rem; opacity:0.7; font-weight:500;">Sistemas Energía S.A. · Inventarios</div>
-        </div>
-    </div>
-            <ion-icon name="arrow-back"></ion-icon> Panel Control
-        </a>
-        <div id="offline-badge" style="display:none; background:var(--sap-warning); color:white; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; align-items:center; gap:5px;">
-            <ion-icon name="cloud-offline-outline"></ion-icon> MODO OFFLINE
-        </div>
-    </div>
-</div>
-
+{% block inventarios_content %}
+{% csrf_token %}
 <div class="sap-filter-bar">
+    <div id="offline-badge" style="display:none; background:var(--sap-warning); color:white; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; align-items:center; gap:5px; position:absolute; right:2rem; top:1.5rem;">
+        <ion-icon name="cloud-offline-outline"></ion-icon> MODO OFFLINE
+    </div>
     <div class="filter-item">
         <div class="filter-label">Búsqueda Rápida</div>
         <div style="position:relative;">
@@ -306,6 +265,7 @@
         <div class="sap-tabs" style="display:flex; background:#f0f2f5; border-bottom:1px solid #ddd;">
             <button class="sap-tab active" onclick="switchTab('tab-general', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Información</button>
             <button class="sap-tab" onclick="switchTab('tab-locations', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Bodegas</button>
+            <button class="sap-tab" onclick="switchTab('tab-activos', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Activos</button>
             <button class="sap-tab" onclick="switchTab('tab-history', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Historial</button>
             <button class="sap-tab" onclick="switchTab('tab-print', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Etiquetas</button>
             <button class="sap-tab" onclick="switchTab('tab-requisiciones', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Requisiciones</button>
@@ -469,6 +429,7 @@
         }
 
         window.showDetails = async (id) => {
+            window._currentMaterialId = id;
             const modal = $('#detail-modal');
             const content = $('#modal-content');
             modal.addClass('active');
@@ -610,15 +571,19 @@
                                         <th style="padding:10px;">Tipo</th>
                                         <th style="padding:10px;">Ubicación</th>
                                         <th style="padding:10px; text-align:right;">Cantidad</th>
+                                        <th style="padding:10px; text-align:center;">Ver</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     ${data.movimientos_pendientes.map(p => `
-                                        <tr style="font-size:0.85rem; border-bottom:1px solid rgba(255,255,255,0.3);">
+                                        <tr style="font-size:0.85rem; border-bottom:1px solid rgba(255,255,255,0.3); cursor:pointer; transition:background 0.15s;" onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background=''" onclick="openMovimientoModal(${p.id})">
                                             <td style="padding:10px; font-weight:600;">${p.fecha}</td>
                                             <td style="padding:10px;"><span style="background:#ffedd5; color:#9a3412; padding:2px 6px; border-radius:4px; font-weight:700; font-size:0.7rem;">${p.tipo}</span></td>
                                             <td style="padding:10px;">${p.ubicacion}</td>
                                             <td style="padding:10px; text-align:right; font-weight:800; color:#c2410c;">+${p.cantidad} ${data.unidad}</td>
+                                            <td style="padding:10px; text-align:center;">
+                                                <ion-icon name="open-outline" style="color:var(--sap-blue); font-size:1.1rem;"></ion-icon>
+                                            </td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
@@ -627,6 +592,87 @@
                         </div>
                     </div>
                     ` : ''}
+                    `}
+                </div>
+                <div id="tab-activos" class="tab-content" style="display:none;">
+                    ${isOffline ? '<div class="sap-loading">Datos de activos no disponibles offline.</div>' : `
+
+                    <!-- Formulario para registrar vinculación -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:16px; margin-bottom:20px;">
+                        <div style="font-size:0.8rem; font-weight:700; color:var(--text-main); margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                            <ion-icon name="add-circle-outline" style="color:var(--sap-blue);"></ion-icon> Registrar uso en activo
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:end;">
+                            <div>
+                                <div style="font-size:0.7rem; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Activo</div>
+                                <div style="position:relative;">
+                                    <input type="text" id="vincular-activo-search" placeholder="Buscar activo..." autocomplete="off"
+                                        style="width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:0.85rem;">
+                                    <input type="hidden" id="vincular-activo-id">
+                                    <div id="vincular-activo-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-radius:0 0 6px 6px; max-height:180px; overflow-y:auto; z-index:50; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size:0.7rem; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Orden de Trabajo</div>
+                                <div style="position:relative;">
+                                    <input type="text" id="vincular-ot-search" placeholder="Buscar OT..." autocomplete="off"
+                                        style="width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:0.85rem;">
+                                    <input type="hidden" id="vincular-ot-id">
+                                    <div id="vincular-ot-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-radius:0 0 6px 6px; max-height:180px; overflow-y:auto; z-index:50; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:end;">
+                                <div>
+                                    <div style="font-size:0.7rem; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Cant.</div>
+                                    <input type="number" id="vincular-cantidad" value="1" min="0.01" step="0.01"
+                                        style="width:70px; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:0.85rem; text-align:center;">
+                                </div>
+                                <button onclick="submitVinculacion(${data.id})" style="background:var(--sap-blue); color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer; white-space:nowrap; height:36px;">
+                                    <ion-icon name="link-outline"></ion-icon> Vincular
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${data.activos_utilizados && data.activos_utilizados.length > 0 ? `
+                    <div style="margin-bottom:15px; font-size:0.8rem; font-weight:700; color:#7c3aed; display:flex; align-items:center; gap:8px;">
+                        <ion-icon name="hardware-chip-outline"></ion-icon> HISTORIAL DE USO EN ACTIVOS (${data.activos_utilizados.length})
+                    </div>
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead>
+                            <tr style="border-bottom:2px solid #ddd; text-align:left;">
+                                <th style="padding:12px;">Activo</th>
+                                <th style="padding:12px;">Orden de Trabajo</th>
+                                <th style="padding:12px; text-align:right;">Cantidad</th>
+                                <th style="padding:12px;">Fecha</th>
+                                <th style="padding:12px;">Registrado por</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.activos_utilizados.map(a => `
+                                <tr style="border-bottom:1px solid #eee;">
+                                    <td style="padding:12px;">
+                                        <div style="font-weight:700; font-size:0.9rem;">${a.activo_nombre}</div>
+                                        <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace;">${a.activo_codigo || ''}</div>
+                                    </td>
+                                    <td style="padding:12px;">
+                                        <div style="font-weight:600; font-size:0.85rem; color:var(--sap-blue);">${a.ot_codigo}</div>
+                                        <div style="font-size:0.72rem; color:var(--text-muted);">${a.ot_tipo}</div>
+                                    </td>
+                                    <td style="padding:12px; text-align:right; font-weight:800; color:#7c3aed;">${a.cantidad} ${data.unidad}</td>
+                                    <td style="padding:12px; font-size:0.85rem;">${a.fecha}</td>
+                                    <td style="padding:12px; font-size:0.85rem;">${a.registrado_por}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ` : `
+                    <div style="background:#f5f3ff; border-radius:12px; padding:2rem 1.5rem; text-align:center; border:2px dashed #c4b5fd;">
+                        <ion-icon name="hardware-chip-outline" style="font-size:2.5rem; color:#a78bfa; margin-bottom:0.8rem;"></ion-icon>
+                        <div style="font-weight:700; color:#475569; font-size:0.95rem;">Sin registros de uso en activos</div>
+                        <p style="margin:4px 0 0 0; color:#64748b; font-size:0.85rem;">Usa el formulario de arriba para registrar la primera vinculación.</p>
+                    </div>
+                    `}
                     `}
                 </div>
                 <div id="tab-history" class="tab-content" style="display:none;">
@@ -716,9 +762,259 @@
             $(btn).addClass('active');
         };
 
+        // === Vinculación Material ↔ Activo ===
+        let vinActivoTimeout, vinOtTimeout;
+
+        $(document).on('input', '#vincular-activo-search', function() {
+            clearTimeout(vinActivoTimeout);
+            const q = $(this).val().trim();
+            const results = $('#vincular-activo-results');
+            if (q.length < 2) { results.hide(); return; }
+            vinActivoTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/inventarios/api/activos/search/?q=${encodeURIComponent(q)}`);
+                    const data = await res.json();
+                    if (!data.results.length) {
+                        results.html('<div style="padding:10px; color:#94a3b8; font-size:0.8rem;">Sin resultados</div>').show();
+                    } else {
+                        results.html(data.results.map(a => `
+                            <div onclick="selectVinActivo(${a.id}, '${a.text.replace(/'/g, "\\'")}')" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.83rem;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                                <div style="font-weight:600;">${a.nombre}</div>
+                                <div style="font-size:0.72rem; color:#64748b;">${a.codigo} ${a.ubicacion ? '· ' + a.ubicacion : ''}</div>
+                            </div>
+                        `).join('')).show();
+                    }
+                } catch(e) { results.hide(); }
+            }, 300);
+        });
+
+        window.selectVinActivo = (id, text) => {
+            $('#vincular-activo-id').val(id);
+            $('#vincular-activo-search').val(text);
+            $('#vincular-activo-results').hide();
+        };
+
+        $(document).on('input', '#vincular-ot-search', function() {
+            clearTimeout(vinOtTimeout);
+            const q = $(this).val().trim();
+            const results = $('#vincular-ot-results');
+            if (q.length < 2) { results.hide(); return; }
+            vinOtTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/mantenimiento/api/search-ordenes/?q=${encodeURIComponent(q)}`);
+                    const data = await res.json();
+                    if (!data.results.length) {
+                        results.html('<div style="padding:10px; color:#94a3b8; font-size:0.8rem;">Sin resultados</div>').show();
+                    } else {
+                        results.html(data.results.map(ot => `
+                            <div onclick="selectVinOT(${ot.id}, '${ot.text.replace(/'/g, "\\'")}')" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.83rem;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                                ${ot.text}
+                            </div>
+                        `).join('')).show();
+                    }
+                } catch(e) { results.hide(); }
+            }, 300);
+        });
+
+        window.selectVinOT = (id, text) => {
+            $('#vincular-ot-id').val(id);
+            $('#vincular-ot-search').val(text);
+            $('#vincular-ot-results').hide();
+        };
+
+        window.submitVinculacion = async (materialId) => {
+            const activoId = $('#vincular-activo-id').val();
+            const otId = $('#vincular-ot-id').val();
+            const cantidad = parseFloat($('#vincular-cantidad').val()) || 0;
+
+            if (!otId) {
+                Swal.fire('Falta OT', 'Debes seleccionar una Orden de Trabajo.', 'warning');
+                return;
+            }
+            if (cantidad <= 0) {
+                Swal.fire('Cantidad inválida', 'La cantidad debe ser mayor a 0.', 'warning');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/inventarios/api/material/${materialId}/vincular-activo/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+                    body: JSON.stringify({
+                        activo_id: activoId || null,
+                        orden_trabajo_id: parseInt(otId),
+                        cantidad: cantidad,
+                        comentario: ''
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    Swal.fire({ icon: 'success', title: data.message, timer: 2000, showConfirmButton: false });
+                    // Refrescar modal
+                    setTimeout(() => showDetails(materialId), 1000);
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            } catch(e) {
+                Swal.fire('Error', 'No se pudo registrar la vinculación.', 'error');
+            }
+        };
+
+        function getCsrf() {
+            const el = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (el) return el.value;
+            let val = null;
+            document.cookie.split(';').forEach(c => { c = c.trim(); if (c.startsWith('csrftoken=')) val = c.substring(10); });
+            return val;
+        }
+
+        // Cerrar dropdowns al clic fuera
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#vincular-activo-search, #vincular-activo-results').length) $('#vincular-activo-results').hide();
+            if (!$(e.target).closest('#vincular-ot-search, #vincular-ot-results').length) $('#vincular-ot-results').hide();
+        });
+
         window.printMaterialLabel = (id) => {
             const qty = $('#print-qty').val();
             window.open(`/inventarios/api/print-label/${id}/?qty=${qty}`, '_blank');
+        };
+
+        window.openMovimientoModal = async (movId) => {
+            // Crear modal si no existe
+            if (!document.getElementById('mov-detail-modal')) {
+                $('body').append(`
+                    <div class="modal-overlay" id="mov-detail-modal" style="z-index:10002;">
+                        <div class="modal-window" style="max-width:700px; height:auto; max-height:90vh; border-radius:12px; margin:auto;">
+                            <div class="modal-header-sap" style="background:var(--sap-shell); padding:1.2rem 2rem; display:flex; justify-content:space-between; align-items:center; color:white; border-radius:12px 12px 0 0;">
+                                <h2 style="margin:0; font-size:1rem; display:flex; align-items:center; gap:10px; color:white;">
+                                    <ion-icon name="swap-horizontal-outline" style="font-size:1.4rem;"></ion-icon>
+                                    <span id="mov-modal-title">Detalle de Movimiento</span>
+                                </h2>
+                                <button onclick="$('#mov-detail-modal').removeClass('active')" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer; opacity:0.8;">✕</button>
+                            </div>
+                            <div id="mov-modal-body" style="padding:24px; overflow-y:auto; max-height:calc(90vh - 80px); background:#f8f9fa;">
+                            </div>
+                        </div>
+                    </div>
+                `);
+            }
+
+            const modal = $('#mov-detail-modal');
+            const body = $('#mov-modal-body');
+            modal.addClass('active');
+            body.html('<div style="text-align:center; padding:40px; color:var(--text-muted);"><ion-icon name="sync-outline" style="font-size:2rem; animation:spin 1s linear infinite;"></ion-icon><div style="margin-top:10px;">Cargando...</div></div>');
+
+            try {
+                const res = await fetch(`/inventarios/api/movimiento/${movId}/detalle/`);
+                const json = await res.json();
+                if (json.status !== 'success') throw new Error(json.message);
+                const m = json.movimiento;
+
+                const estadoColor = m.estado_raw === 'APROBADO' ? '#059669' : m.estado_raw === 'RECHAZADO' ? '#dc2626' : '#d97706';
+                const tipoColor = m.tipo_raw === 'ENTRADA' ? '#059669' : m.tipo_raw === 'SALIDA' ? '#dc2626' : '#0a6ed1';
+
+                $('#mov-modal-title').text(`Movimiento #${m.id}`);
+                body.html(`
+                    <!-- Estado Banner -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <span style="background:${estadoColor}; color:white; padding:6px 14px; border-radius:20px; font-size:0.78rem; font-weight:700;">${m.estado}</span>
+                        <span style="font-size:0.8rem; color:var(--text-muted);">${m.fecha}</span>
+                    </div>
+
+                    <!-- Material Card -->
+                    <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:16px; margin-bottom:16px; display:flex; gap:16px; align-items:center;">
+                        <div style="width:60px; height:60px; background:#f1f5f9; border-radius:6px; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+                            ${m.material.imagen ? `<img src="${m.material.imagen}" style="max-width:100%; max-height:100%; object-fit:contain;">` : `<ion-icon name="cube-outline" style="font-size:1.8rem; color:#94a3b8;"></ion-icon>`}
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:700; font-size:1rem; color:#1e293b;">${m.material.nombre}</div>
+                            <div style="font-family:monospace; font-size:0.8rem; color:var(--sap-blue);">${m.material.sku}</div>
+                            <div style="font-size:0.75rem; color:var(--text-muted);">${m.material.categoria} · ${m.material.unidad}</div>
+                        </div>
+                    </div>
+
+                    <!-- Info Grid -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                        <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:14px;">
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Tipo</div>
+                            <div style="font-weight:700; color:${tipoColor}; font-size:0.95rem;">${m.tipo}</div>
+                        </div>
+                        <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:14px;">
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Cantidad</div>
+                            <div style="font-weight:800; font-size:1.2rem; color:#1e293b;">${m.cantidad} <span style="font-size:0.8rem; font-weight:500; color:var(--text-muted);">${m.material.unidad}</span></div>
+                            ${m.cantidad_solicitada && m.cantidad_solicitada !== m.cantidad ? `<div style="font-size:0.75rem; color:var(--text-muted);">Solicitada: ${m.cantidad_solicitada}</div>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Ubicaciones -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                        ${m.ubicacion_origen ? `
+                        <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:14px;">
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Origen</div>
+                            <div style="font-weight:600; font-size:0.9rem;">${m.ubicacion_origen}</div>
+                        </div>` : ''}
+                        ${m.ubicacion_destino ? `
+                        <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:14px;">
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Destino</div>
+                            <div style="font-weight:600; font-size:0.9rem;">${m.ubicacion_destino}</div>
+                            ${m.ubicacion_especifica ? `<div style="font-size:0.75rem; color:var(--text-muted);">${m.ubicacion_especifica}</div>` : ''}
+                        </div>` : ''}
+                    </div>
+
+                    <!-- Contexto (OT, Solicitud, Ingreso) -->
+                    ${m.orden_trabajo || m.solicitud || m.ingreso ? `
+                    <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:16px;">
+                        <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Contexto</div>
+                        ${m.orden_trabajo ? `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;"><ion-icon name="construct-outline" style="color:var(--sap-blue);"></ion-icon><span style="font-size:0.85rem;"><strong>${m.orden_trabajo.codigo}</strong> — ${m.orden_trabajo.tipo} ${m.orden_trabajo.descripcion ? '· ' + m.orden_trabajo.descripcion : ''}</span></div>` : ''}
+                        ${m.solicitud ? `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;"><ion-icon name="cart-outline" style="color:#7c3aed;"></ion-icon><span style="font-size:0.85rem;">Solicitud #${m.solicitud.id} por ${m.solicitud.usuario} (${m.solicitud.estado})</span></div>` : ''}
+                        ${m.ingreso ? `<div style="display:flex; align-items:center; gap:8px;"><ion-icon name="arrow-down-circle-outline" style="color:#059669;"></ion-icon><span style="font-size:0.85rem;">Ingreso #${m.ingreso.id} — ${m.ingreso.fecha} por ${m.ingreso.usuario}</span></div>` : ''}
+                    </div>` : ''}
+
+                    <!-- Detalles adicionales -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+                        <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:14px;">
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Registrado por</div>
+                            <div style="font-weight:600; font-size:0.9rem;">${m.usuario}</div>
+                        </div>
+                        ${m.aprobado_por ? `
+                        <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:14px;">
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Aprobado por</div>
+                            <div style="font-weight:600; font-size:0.9rem;">${m.aprobado_por}</div>
+                            <div style="font-size:0.75rem; color:var(--text-muted);">${m.fecha_aprobacion}</div>
+                        </div>` : `
+                        <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:14px;">
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Lote</div>
+                            <div style="font-weight:600; font-size:0.9rem;">${m.lote || '—'}</div>
+                        </div>`}
+                    </div>
+
+                    <!-- Comentarios -->
+                    ${m.comentarios ? `
+                    <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:16px;">
+                        <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Comentarios</div>
+                        <div style="font-size:0.85rem; line-height:1.5; color:#475569;">${m.comentarios}</div>
+                    </div>` : ''}
+
+                    <!-- Inconsistencia Warning -->
+                    ${m.es_inconsistente ? `
+                    <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:14px; display:flex; align-items:center; gap:10px;">
+                        <ion-icon name="warning-outline" style="font-size:1.5rem; color:#dc2626;"></ion-icon>
+                        <div>
+                            <div style="font-weight:700; color:#dc2626; font-size:0.85rem;">Movimiento Inconsistente</div>
+                            <div style="font-size:0.8rem; color:#991b1b;">El stock teórico era insuficiente al momento de procesar este movimiento.</div>
+                        </div>
+                    </div>` : ''}
+
+                    <!-- Admin link -->
+                    <div style="margin-top:16px; text-align:center;">
+                        <a href="/admin/inventarios/movimientoinventario/${m.id}/change/" target="_blank" style="font-size:0.8rem; color:var(--sap-blue); text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                            <ion-icon name="open-outline"></ion-icon> Abrir en panel administrativo
+                        </a>
+                    </div>
+                `);
+            } catch (e) {
+                body.html(`<div style="text-align:center; padding:40px; color:#dc2626;"><ion-icon name="alert-circle-outline" style="font-size:2rem;"></ion-icon><div style="margin-top:10px;">Error al cargar el movimiento</div></div>`);
+            }
         };
 
         function renderPagination(data) {

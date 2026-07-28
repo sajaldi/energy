@@ -21,7 +21,7 @@
         {% endif %}
         <div style="flex: 1;">
             <h2 style="margin: 0; font-size: 18px;">{{ empleado.nombre }} {{ empleado.apellido }}</h2>
-            <p style="margin: 4px 0; font-size: 13px; color: #666;">{{ empleado.puesto|default:"Sin puesto" }}</p>
+            <p style="margin: 4px 0; font-size: 13px; color: #666;">{{ empleado.puesto|default:"Sin puesto" }}{% if empleado.puesto_en_empresa %} · {{ empleado.puesto_en_empresa }}{% endif %}</p>
             <div style="display: flex; gap: 8px; margin-top: 6px;">
                 {% if empleado.esta_vigente %}
                 <span class="badge badge-success">Vigente</span>
@@ -30,6 +30,9 @@
                 {% endif %}
                 {% if empleado.dni %}
                 <span class="badge badge-info">DNI: {{ empleado.dni }}</span>
+                {% endif %}
+                {% if empleado.ultima_verificacion %}
+                <span class="badge badge-success">Verif. {{ empleado.ultima_verificacion|date:"d/m/Y" }}</span>
                 {% endif %}
             </div>
         </div>

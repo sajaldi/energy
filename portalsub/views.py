@@ -1,10 +1,13 @@
 import calendar
+import io
+import re
+import openpyxl
 from datetime import date
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.db.models import Count, Q
@@ -387,6 +390,12 @@ def personal_list(request):
     today = date.today()
     personal = TecnicoPuesto.objects.filter(empresa=empresa).order_by('-esta_vigente', 'apellido', 'nombre')
 
+    q = request.GET.get('q', '').strip()
+    if q:
+        personal = personal.filter(
+            Q(nombre__icontains=q) | Q(apellido__icontains=q) | Q(dni__icontains=q)
+        )
+
     altas = personal.filter(
         fecha_alta__year=today.year, fecha_alta__month=today.month
     ).order_by('-fecha_alta')
@@ -409,10 +418,361 @@ def personal_list(request):
 
 
 @contratista_required
+def personal_plantilla_dni(request):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'DNI'
+    ws['A1'] = 'DNI'
+    ws['A2'] = '0801-1990-12345'
+    ws['A3'] = '0801-1985-67890'
+    ws['A4'] = '0801-2000-11111'
+    ws.column_dimensions['A'].width = 22
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="plantilla_dni.xlsx"'
+    wb.save(response)
+    return response
+
+
+@contratista_required
+def personal_verificar_pdf(request):
+    empresa = get_empresa(request)
+    resultado = None
+    paso = 1
+
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.error(request, 'Debes seleccionar un archivo.')
+            return redirect('portalsub:personal_verificar_pdf')
+
+        if not archivo.name.lower().endswith('.pdf'):
+            messages.error(request, 'Solo se admiten archivos .pdf')
+            return redirect('portalsub:personal_verificar_pdf')
+
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(io.BytesIO(archivo.read()))
+            texto = ''
+            for page in reader.pages:
+                texto += (page.extract_text() or '') + '\n'
+
+            if not texto.strip():
+                messages.error(request, 'No se pudo extraer texto del PDF.')
+                return redirect('portalsub:personal_verificar_pdf')
+
+            if 'INSTITUTO HONDUREÑO DE SEGURIDAD SOCIAL' not in texto.upper() or 'PLANILLA MENSUAL DE COTIZACION' not in texto.upper():
+                messages.error(request, 'El PDF subido no corresponde a una planilla del IHSS.')
+                return redirect('portalsub:personal_verificar_pdf')
+
+            def norm(val):
+                return val.replace('-', '').replace(' ', '').lower()
+
+            periodo = ''
+            lines = texto.split('\n')
+            for i, line in enumerate(lines):
+                if 'PERÍODO' in line.upper():
+                    for j in range(i, min(i + 10, len(lines))):
+                        candidate = lines[j].replace(' ', '')
+                        if not candidate.strip():
+                            continue
+                        m = re.search(r'\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4}', candidate)
+                        if m:
+                            periodo = m.group()
+                            break
+                    break
+            dnis_pdf = []
+            for match in re.finditer(r'\d{4}-?\d{4}-?\d{5}', texto):
+                raw = match.group()
+                dnis_pdf.append(raw)
+
+            if not dnis_pdf:
+                messages.error(request, 'No se encontraron números de IHSS en el PDF.')
+                return redirect('portalsub:personal_verificar_pdf')
+
+            dnis_pdf = list(dict.fromkeys(dnis_pdf))
+            pdf_norm = {norm(d): d for d in dnis_pdf}
+
+            vigentes_db = TecnicoPuesto.objects.filter(
+                empresa=empresa, esta_vigente=True, dni__isnull=False
+            ).exclude(dni__exact='')
+            db_map = {}
+            for p in vigentes_db:
+                db_map[norm(p.dni)] = p
+
+            coinciden = []
+            no_encontrados = []
+            for dni in dnis_pdf:
+                key = norm(dni)
+                if key in db_map:
+                    coinciden.append(db_map[key])
+                else:
+                    no_encontrados.append(dni)
+
+            faltantes = [p for p in vigentes_db if norm(p.dni) not in pdf_norm]
+
+            resultado = {
+                'total_pdf': len(dnis_pdf),
+                'coinciden': len(coinciden),
+                'coinciden_lista': coinciden,
+                'no_encontrados': no_encontrados,
+                'faltantes': faltantes,
+                'total_faltantes': len(faltantes),
+            }
+
+            request.session['pdf_dnis'] = dnis_pdf
+            request.session['pdf_periodo'] = periodo
+            paso = 3
+
+        except Exception as e:
+            messages.error(request, f'Error al leer el PDF: {e}')
+            return redirect('portalsub:personal_verificar_pdf')
+
+    pdf_dnis = request.session.get('pdf_dnis')
+    if pdf_dnis and not resultado:
+        paso = 2
+
+    return render(request, 'portalsub/personal_verificar_pdf.html', {
+        'active_tab': 'personal',
+        'empresa': empresa,
+        'resultado': resultado,
+        'paso': paso,
+        'periodo': request.session.get('pdf_periodo', ''),
+    })
+
+
+@contratista_required
+def personal_reporte_pdf(request):
+    empresa = get_empresa(request)
+    dnis_pdf = request.session.get('pdf_dnis')
+    if not dnis_pdf:
+        messages.error(request, 'No hay datos de verificación. Debes verificar un PDF primero.')
+        return redirect('portalsub:personal_verificar_pdf')
+
+    def norm(val):
+        return val.replace('-', '').replace(' ', '').lower()
+
+    pdf_norm = {norm(d): d for d in dnis_pdf}
+
+    vigentes_db = TecnicoPuesto.objects.filter(
+        empresa=empresa, esta_vigente=True, dni__isnull=False
+    ).exclude(dni__exact='')
+    db_map = {}
+    for p in vigentes_db:
+        db_map[norm(p.dni)] = p
+
+    coinciden = []
+    no_encontrados = []
+    for dni in dnis_pdf:
+        key = norm(dni)
+        if key in db_map:
+            coinciden.append(db_map[key])
+        else:
+            no_encontrados.append(dni)
+
+    faltantes = [p for p in vigentes_db if norm(p.dni) not in pdf_norm]
+
+    wb = openpyxl.Workbook()
+    ws_resumen = wb.active
+    ws_resumen.title = 'Resumen'
+    ws_resumen.append(['Indicador', 'Cantidad'])
+    ws_resumen.append(['Total DNI en PDF', len(dnis_pdf)])
+    ws_resumen.append(['Coincidencias', len(coinciden)])
+    ws_resumen.append(['No encontrados en BD', len(no_encontrados)])
+    ws_resumen.append(['Faltan en el PDF', len(faltantes)])
+    ws_resumen.column_dimensions['A'].width = 25
+    ws_resumen.column_dimensions['B'].width = 15
+
+    if coinciden:
+        ws_coinciden = wb.create_sheet('Coincidencias')
+        ws_coinciden.append(['Nombre', 'Apellido', 'DNI', 'Estado'])
+        for p in coinciden:
+            ws_coinciden.append([p.nombre, p.apellido, p.dni, 'Vigente' if p.esta_vigente else 'No Vigente'])
+
+    if no_encontrados:
+        ws_no = wb.create_sheet('No encontrados')
+        ws_no.append(['DNI'])
+        for d in no_encontrados:
+            ws_no.append([d])
+
+    if faltantes:
+        ws_faltan = wb.create_sheet('Faltan en PDF')
+        ws_faltan.append(['Nombre', 'Apellido', 'DNI', 'Estado'])
+        for p in faltantes:
+            ws_faltan.append([p.nombre, p.apellido, p.dni, 'Vigente' if p.esta_vigente else 'No Vigente'])
+
+    request.session['pdf_reporte_generado'] = True
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="reporte_verificacion_dni.xlsx"'
+    wb.save(response)
+    return response
+
+
+@contratista_required
+@require_POST
+def personal_guardar_cambios(request):
+    empresa = get_empresa(request)
+    vigentes_ids = request.POST.getlist('vigente_ids')
+    TecnicoPuesto.objects.filter(empresa=empresa, pk__in=vigentes_ids).update(esta_vigente=True)
+    TecnicoPuesto.objects.filter(empresa=empresa).exclude(pk__in=vigentes_ids).filter(
+        pk__in=request.POST.getlist('faltante_ids')
+    ).update(esta_vigente=False)
+    messages.success(request, 'Cambios guardados correctamente.')
+    return redirect('portalsub:personal_verificar_pdf')
+
+
+@contratista_required
+@require_POST
+def personal_completar_verificacion(request):
+    empresa = get_empresa(request)
+    periodo = request.session.get('pdf_periodo', '')
+    from datetime import datetime
+    try:
+        if '/' in periodo:
+            parts = periodo.split('/')
+            if len(parts) == 2:
+                mes, anio = parts
+                fecha_verif = datetime.strptime(f'01/{mes}/{anio}', '%d/%m/%Y')
+            elif len(parts) == 3:
+                fecha_verif = datetime.strptime(periodo, '%d/%m/%Y')
+            else:
+                fecha_verif = timezone.now()
+        else:
+            fecha_verif = timezone.now()
+    except (ValueError, IndexError):
+        fecha_verif = timezone.now()
+    TecnicoPuesto.objects.filter(empresa=empresa, esta_vigente=True).update(ultima_verificacion=fecha_verif)
+    messages.success(request, 'Verificación completada. Personal actualizado.')
+    return redirect('portalsub:personal_reporte_verificacion')
+
+
+@contratista_required
+def personal_reporte_verificacion(request):
+    empresa = get_empresa(request)
+    dnis_pdf = request.session.get('pdf_dnis')
+    if not dnis_pdf:
+        messages.error(request, 'No hay datos de verificación. Debes verificar un PDF primero.')
+        return redirect('portalsub:personal_verificar_pdf')
+
+    def norm(val):
+        return val.replace('-', '').replace(' ', '').lower()
+
+    pdf_norm = {norm(d): d for d in dnis_pdf}
+
+    vigentes_db = TecnicoPuesto.objects.filter(
+        empresa=empresa, esta_vigente=True, dni__isnull=False
+    ).exclude(dni__exact='')
+    db_map = {}
+    for p in vigentes_db:
+        db_map[norm(p.dni)] = p
+
+    coinciden = []
+    no_encontrados = []
+    for dni in dnis_pdf:
+        key = norm(dni)
+        if key in db_map:
+            coinciden.append(db_map[key])
+        else:
+            no_encontrados.append(dni)
+
+    faltantes = [p for p in vigentes_db if norm(p.dni) not in pdf_norm]
+
+    ahora = timezone.now()
+
+    response = render(request, 'portalsub/personal_reporte_verificacion.html', {
+        'active_tab': 'personal',
+        'empresa': empresa,
+        'coinciden': coinciden,
+        'no_encontrados': no_encontrados,
+        'faltantes': faltantes,
+        'total_pdf': len(dnis_pdf),
+        'fecha': ahora,
+        'periodo': request.session.get('pdf_periodo', ''),
+    })
+    return response
+
+
+@contratista_required
+def personal_importar_dni(request):
+    empresa = get_empresa(request)
+    resultado = None
+
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.error(request, 'Debes seleccionar un archivo.')
+            return redirect('portalsub:personal_importar_dni')
+
+        if not archivo.name.endswith('.xlsx'):
+            messages.error(request, 'Solo se admiten archivos .xlsx')
+            return redirect('portalsub:personal_importar_dni')
+
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(archivo.read()), read_only=True, data_only=True)
+            ws = wb.active
+
+            def norm(val):
+                return val.replace('-', '').replace(' ', '').lower()
+
+            dnis_archivo = []
+            for row in ws.iter_rows(min_row=1, values_only=True):
+                for cell in row:
+                    if cell is not None:
+                        val = str(cell).strip()
+                        if val:
+                            dnis_archivo.append(val)
+                    break
+
+            if not dnis_archivo:
+                messages.error(request, 'El archivo está vacío o no contiene datos en la primera columna.')
+                return redirect('portalsub:personal_importar_dni')
+
+            dnis_archivo_norm = {norm(d): d for d in dnis_archivo}
+
+            vigentes_db = TecnicoPuesto.objects.filter(
+                empresa=empresa, esta_vigente=True, dni__isnull=False
+            ).exclude(dni__exact='')
+            db_map = {}
+            for p in vigentes_db:
+                db_map[norm(p.dni)] = p
+
+            coinciden = []
+            no_encontrados = []
+            for dni_file in dnis_archivo:
+                key = norm(dni_file)
+                if key in db_map:
+                    coinciden.append(db_map[key])
+                else:
+                    no_encontrados.append(dni_file)
+
+            faltantes_en_archivo = [p for p in vigentes_db if norm(p.dni) not in dnis_archivo_norm]
+
+            resultado = {
+                'total_archivo': len(dnis_archivo),
+                'coinciden': len(coinciden),
+                'coinciden_lista': coinciden,
+                'no_encontrados': no_encontrados,
+                'faltantes_en_archivo': faltantes_en_archivo,
+                'total_faltantes': len(faltantes_en_archivo),
+            }
+
+        except Exception as e:
+            messages.error(request, f'Error al leer el archivo: {e}')
+            return redirect('portalsub:personal_importar_dni')
+
+    return render(request, 'portalsub/personal_importar_dni.html', {
+        'active_tab': 'personal',
+        'empresa': empresa,
+        'resultado': resultado,
+    })
+
+
+@contratista_required
 def personal_crear(request):
     empresa = get_empresa(request)
     puestos = PuestoTrabajo.objects.all().order_by('nombre')
     error = None
+    dni_inicial = request.GET.get('dni', '')
     if request.method == 'POST':
         nombre = request.POST.get('nombre', '').strip()
         apellido = request.POST.get('apellido', '').strip()
@@ -423,6 +783,7 @@ def personal_crear(request):
         telefono = request.POST.get('telefono', '').strip()
         telefono_emergencia = request.POST.get('telefono_emergencia', '').strip()
         puesto_id = request.POST.get('puesto_id')
+        puesto_en_empresa = request.POST.get('puesto_en_empresa', '').strip()
         foto = request.FILES.get('foto')
 
         if not nombre or not apellido:
@@ -439,6 +800,7 @@ def personal_crear(request):
                 telefono=telefono or None,
                 telefono_emergencia=telefono_emergencia or None,
                 puesto_id=puesto_id or None,
+                puesto_en_empresa=puesto_en_empresa or None,
                 foto=foto,
                 disponible=True,
                 esta_vigente=True,
@@ -455,6 +817,7 @@ def personal_crear(request):
         'puestos': puestos,
         'accion': 'Agregar',
         'error': error,
+        'dni_inicial': dni_inicial,
     })
 
 
@@ -462,19 +825,23 @@ def personal_crear(request):
 def personal_editar(request, pk):
     empresa = get_empresa(request)
     empleado = get_object_or_404(TecnicoPuesto, pk=pk, empresa=empresa)
+    old_empresa_id = empleado.empresa_id
     puestos = PuestoTrabajo.objects.all().order_by('nombre')
+    empresas = Empresa.objects.all().order_by('nombre')
     error = None
 
     if request.method == 'POST':
         nombre = request.POST.get('nombre', '').strip()
         apellido = request.POST.get('apellido', '').strip()
         dni = request.POST.get('dni', '').strip()
+        empresa_id = request.POST.get('empresa_id')
         fecha_nacimiento = request.POST.get('fecha_nacimiento') or None
         tipo_sangre = request.POST.get('tipo_sangre', '').strip()
         fecha_alta = request.POST.get('fecha_alta') or None
         telefono = request.POST.get('telefono', '').strip()
         telefono_emergencia = request.POST.get('telefono_emergencia', '').strip()
         puesto_id = request.POST.get('puesto_id')
+        puesto_en_empresa = request.POST.get('puesto_en_empresa', '').strip()
         foto = request.FILES.get('foto')
         esta_vigente = request.POST.get('esta_vigente') == 'on'
 
@@ -484,6 +851,9 @@ def personal_editar(request, pk):
             empleado.nombre = nombre
             empleado.apellido = apellido
             empleado.dni = dni or None
+            if empresa_id:
+                empleado.empresa_id = empresa_id
+            empleado.puesto_en_empresa = puesto_en_empresa or None
             empleado.fecha_nacimiento = fecha_nacimiento
             empleado.tipo_sangre = tipo_sangre or None
             empleado.fecha_alta = fecha_alta
@@ -513,6 +883,11 @@ def personal_editar(request, pk):
                     tecnico=empleado, tipo='CAMBIO_PUESTO', usuario=request.user,
                     detalle=f'Puesto anterior ID {old_puesto} → nuevo ID {empleado.puesto_id}'
                 )
+            if str(old_empresa_id) != str(empleado.empresa_id):
+                HistorialPersonal.objects.create(
+                    tecnico=empleado, tipo='CAMBIO_PUESTO', usuario=request.user,
+                    detalle=f'Empresa anterior ID {old_empresa_id} → nueva ID {empleado.empresa_id}'
+                )
             return redirect('portalsub:personal_detalle', pk=empleado.id)
 
     return render(request, 'portalsub/personal_form.html', {
@@ -520,16 +895,35 @@ def personal_editar(request, pk):
         'empresa': empresa,
         'empleado': empleado,
         'puestos': puestos,
+        'empresas': empresas,
         'accion': 'Editar',
         'error': error,
+        'dni_inicial': '',
     })
+
+
+@contratista_required
+@require_POST
+def personal_toggle_vigente(request, pk):
+    empresa = get_empresa(request)
+    empleado = get_object_or_404(TecnicoPuesto, pk=pk)
+    empleado.esta_vigente = not empleado.esta_vigente
+    empleado.save(update_fields=['esta_vigente'])
+    HistorialPersonal.objects.create(
+        tecnico=empleado, tipo='REINGRESO' if empleado.esta_vigente else 'BAJA',
+        usuario=request.user,
+        detalle=f'Cambió a {"Vigente" if empleado.esta_vigente else "No Vigente"} desde importación DNI'
+    )
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({'vigente': empleado.esta_vigente})
+    return redirect(request.META.get('HTTP_REFERER', 'portalsub:personal_importar_dni'))
 
 
 @contratista_required
 @require_POST
 def personal_eliminar(request, pk):
     empresa = get_empresa(request)
-    empleado = get_object_or_404(TecnicoPuesto, pk=pk, empresa=empresa)
+    empleado = get_object_or_404(TecnicoPuesto, pk=pk)
     HistorialPersonal.objects.create(
         tecnico=empleado, tipo='BAJA', usuario=request.user,
         detalle=f'Eliminado por {request.user.get_full_name() or request.user.username}'
@@ -560,7 +954,7 @@ def reporte_altas_bajas(request):
 @contratista_required
 def personal_detalle(request, pk):
     empresa = get_empresa(request)
-    empleado = get_object_or_404(TecnicoPuesto, pk=pk, empresa=empresa)
+    empleado = get_object_or_404(TecnicoPuesto, pk=pk)
     documentos = DocumentoPersonal.objects.filter(tecnico=empleado).select_related('tipo')
     tipos_doc = TipoDocumentoPersonal.objects.filter(activo=True)
 
@@ -588,7 +982,7 @@ def personal_detalle(request, pk):
 @require_POST
 def subir_documento_personal(request, pk):
     empresa = get_empresa(request)
-    empleado = get_object_or_404(TecnicoPuesto, pk=pk, empresa=empresa)
+    empleado = get_object_or_404(TecnicoPuesto, pk=pk)
     tipo_id = request.POST.get('tipo')
     archivo = request.FILES.get('archivo')
 
@@ -627,7 +1021,7 @@ def subir_documento_personal(request, pk):
 @require_POST
 def eliminar_documento_personal(request, pk, doc_id):
     empresa = get_empresa(request)
-    empleado = get_object_or_404(TecnicoPuesto, pk=pk, empresa=empresa)
+    empleado = get_object_or_404(TecnicoPuesto, pk=pk)
     doc = get_object_or_404(DocumentoPersonal, pk=doc_id, tecnico=empleado)
     doc.archivo.delete(save=False)
     doc.delete()

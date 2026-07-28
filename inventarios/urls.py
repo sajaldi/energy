@@ -57,6 +57,9 @@ urlpatterns = [
     path('api/pedidos/<int:pk>/detalle/', views.api_detalle_solicitud_almacen, name='api_detalle_solicitud_almacen'),
     path('api/pedidos/<int:pk>/despachar/', views.api_despachar_solicitud, name='api_despachar_solicitud'),
     path('api/discrepancy/resolve/', views.api_resolver_discrepancia, name='api_resolver_discrepancia'),
+    path('api/movimiento/<int:mov_id>/liquidar/', views.api_liquidar_movimiento, name='api_liquidar_movimiento'),
+    path('api/movimiento/<int:mov_id>/detalle/', views.api_detalle_movimiento, name='api_detalle_movimiento'),
+    path('api/movimiento/<int:mov_id>/vincular-ot/', views.api_vincular_ot_movimiento, name='api_vincular_ot_movimiento'),
     path('api/sync-master/', api_master_sync, name='api_master_sync'),
     path('api/check-ot-solicitud/<int:ot_id>/', views.api_check_ot_solicitud, name='api_check_ot_solicitud'),
     path('api/material/<int:material_id>/precios-historicos/', api_precios_historicos, name='api_precios_historicos'),
@@ -83,4 +86,11 @@ urlpatterns = [
     path('api/calendario/horarios/', views.api_calendario_horarios, name='api_calendario_horarios'),
     path('api/calendario/requisicion/<uuid:pk>/items/', views.api_calendario_requisicion_items, name='api_calendario_requisicion_items'),
     path('api/calendario/disponibilidad/<str:fecha>/', views.api_calendario_disponibilidad_diaria, name='api_calendario_disponibilidad'),
+
+    # API: Materiales Utilizados por OT (vinculación OT ↔ Activo ↔ Material)
+    path('api/ot/<int:ot_id>/materiales-utilizados/', views.api_materiales_utilizados_ot, name='api_materiales_utilizados_ot'),
+    path('api/material-utilizado/<int:registro_id>/delete/', views.api_materiales_utilizados_ot_delete, name='api_materiales_utilizados_ot_delete'),
+    path('api/activo/<int:activo_id>/historial-materiales/', views.api_historial_materiales_activo, name='api_historial_materiales_activo'),
+    path('api/material/<int:material_id>/vincular-activo/', views.api_vincular_material_activo, name='api_vincular_material_activo'),
+    path('api/activos/search/', views.api_search_activos, name='api_search_activos'),
 ]
