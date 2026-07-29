@@ -1,0 +1,925 @@
+{% extends "inventarios/base_inventarios.html" %}
+{% load i18n static core_tags %}
+
+{% block extrahead %}{{ block.super }}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Artifakt+Element:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fiori-shell: #354a5f;
+    --fiori-brand: #0a6ed1;
+    --fiori-brand-hover: #0854a0;
+    --fiori-positive: #107e3e;
+    --fiori-critical: #e9730c;
+    --fiori-negative: #bb0000;
+    --fiori-informative: #0854a0;
+    --fiori-accent: #6366f1;
+    --fiori-bg: #f7f7f7;
+    --fiori-surface: #ffffff;
+    --fiori-text: #1a1a1a;
+    --fiori-text-secondary: #4a4a4a;
+    --fiori-text-tertiary: #7a7a7a;
+    --fiori-separator: #1a1a1a;
+    --fiori-hover: rgba(0,0,0,0.02);
+    --fiori-active: rgba(0,0,0,0.04);
+    --fiori-border: 1px solid #1a1a1a;
+    --fiori-border-light: 1px solid rgba(0,0,0,0.15);
+    --fiori-shadow: none;
+    --fiori-shadow-lg: 0 4px 20px rgba(0,0,0,0.1);
+    --font: 'Artifakt Element', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .cv-page { padding: 0; font-family: var(--font); }
+  .cv-page * { font-family: var(--font); }
+
+  /* Header */
+  .cv-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 32px; flex-wrap: wrap; gap: 16px;
+  }
+  .cv-header h1 {
+    margin: 0; font-size: 1.6rem; font-weight: 300; color: var(--fiori-text);
+    display: flex; align-items: center; gap: 12px; letter-spacing: -0.3px;
+  }
+  .cv-header h1 ion-icon { color: var(--fiori-accent); font-size: 1.4rem; }
+  .cv-header-actions { display: flex; gap: 10px; align-items: center; }
+
+  /* Buttons - Fiori Ghost style */
+  .cv-add-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 0;
+    font-size: 0.82rem; font-weight: 500; letter-spacing: 0.2px;
+    border: var(--fiori-border); background: var(--fiori-text); color: #fff;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .cv-add-btn:hover { background: #000; }
+  .cv-back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 18px; border-radius: 0;
+    font-size: 0.82rem; font-weight: 500;
+    border: var(--fiori-border-light); background: transparent; color: var(--fiori-text-secondary);
+    cursor: pointer; text-decoration: none; transition: all 0.15s;
+  }
+  .cv-back-link:hover { background: var(--fiori-hover); border-color: var(--fiori-text); color: var(--fiori-text); }
+
+  /* Stats - Fiori Object Page KPI style */
+  .cv-stats {
+    display: flex; gap: 0; margin-bottom: 32px; flex-wrap: wrap;
+  }
+  .cv-stat {
+    background: var(--fiori-surface); border: none;
+    border-right: var(--fiori-border-light);
+    border-radius: 0; padding: 20px 28px;
+    display: flex; align-items: center; gap: 16px; flex: 1; min-width: 180px;
+    transition: background 0.15s;
+  }
+  .cv-stat:first-child { border-left: var(--fiori-border-light); }
+  .cv-stat:hover { background: var(--fiori-hover); }
+  .cv-stat-icon {
+    width: 44px; height: 44px; border-radius: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  }
+  .cv-stat-icon.blue { background: rgba(10,110,209,0.06); color: var(--fiori-brand); }
+  .cv-stat-icon.green { background: rgba(16,126,62,0.06); color: var(--fiori-positive); }
+  .cv-stat-icon.purple { background: rgba(99,102,241,0.06); color: var(--fiori-accent); }
+  .cv-stat-icon.orange { background: rgba(233,115,12,0.06); color: var(--fiori-critical); }
+  .cv-stat-value { font-size: 1.5rem; font-weight: 600; color: var(--fiori-text); letter-spacing: -0.5px; }
+  .cv-stat-label { font-size: 0.7rem; color: var(--fiori-text-tertiary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Tree Container - Borderless Fiori */
+  .cv-tree-container {
+    background: var(--fiori-surface); border: var(--fiori-border-light);
+    border-radius: 0; overflow: hidden;
+  }
+  .cv-tree-header {
+    padding: 20px 28px; border-bottom: var(--fiori-border-light);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .cv-tree-header h2 {
+    font-size: 0.9rem; font-weight: 600; color: var(--fiori-text);
+    display: flex; align-items: center; gap: 8px; margin: 0;
+  }
+  .cv-tree-header span { font-size: 0.72rem; color: var(--fiori-text-tertiary); font-weight: 400; }
+  .cv-tree-body { padding: 12px 16px; }
+
+  /* Category items - clean line style */
+  .cv-category {
+    border: none; border-radius: 0;
+    margin-bottom: 0; overflow: hidden;
+    border-bottom: var(--fiori-border-light);
+    transition: background 0.15s;
+  }
+  .cv-category:last-child { border-bottom: none; }
+  .cv-category:hover { background: var(--fiori-hover); }
+  .cv-category-main {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; border-radius: 0;
+    transition: background 0.15s;
+  }
+  .cv-category-main:hover { background: var(--fiori-active); }
+
+  .cv-category-icon {
+    width: 36px; height: 36px; border-radius: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(10,110,209,0.04); color: var(--fiori-brand);
+    font-size: 1rem; flex-shrink: 0; border: var(--fiori-border-light);
+  }
+  .cv-category-info { flex: 1; min-width: 0; }
+  .cv-category-name { font-weight: 500; font-size: 0.88rem; color: var(--fiori-text); }
+  .cv-category-desc { font-size: 0.74rem; color: var(--fiori-text-tertiary); margin-top: 2px; font-weight: 400; }
+  .cv-category-badges { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .cv-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 0; font-size: 0.66rem; font-weight: 500;
+    border: var(--fiori-border-light);
+  }
+  .cv-badge-blue { background: transparent; color: var(--fiori-brand); }
+  .cv-badge-green { background: transparent; color: var(--fiori-positive); }
+  .cv-badge-purple { background: transparent; color: var(--fiori-accent); }
+
+  .cv-exo-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 0; font-size: 0.7rem; font-weight: 500;
+    background: transparent; color: var(--fiori-accent); border: 1px solid var(--fiori-accent);
+  }
+  .cv-exo-tag ion-icon { font-size: 0.8rem; opacity: 0.7; }
+
+  /* Toggle & Children */
+  .cv-toggle {
+    width: 24px; height: 24px; border-radius: 0; border: none;
+    background: transparent; color: var(--fiori-text-tertiary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; transition: all 0.2s; flex-shrink: 0;
+  }
+  .cv-toggle:hover { background: var(--fiori-active); color: var(--fiori-text); }
+  .cv-toggle.open { transform: rotate(90deg); }
+  .cv-children { display: none; padding: 0 16px 8px 66px; }
+  .cv-children.show { display: block; }
+  .cv-child {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; margin-bottom: 0;
+    border-radius: 0; border-bottom: var(--fiori-border-light);
+    transition: background 0.15s;
+  }
+  .cv-child:last-child { border-bottom: none; }
+  .cv-child:hover { background: var(--fiori-hover); }
+  .cv-child-icon {
+    width: 28px; height: 28px; border-radius: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(16,126,62,0.04); color: var(--fiori-positive);
+    font-size: 0.85rem; flex-shrink: 0; border: var(--fiori-border-light);
+  }
+  .cv-child-info { flex: 1; min-width: 0; }
+  .cv-child-name { font-weight: 500; font-size: 0.82rem; color: var(--fiori-text); }
+  .cv-child-meta { font-size: 0.7rem; color: var(--fiori-text-tertiary); margin-top: 1px; }
+
+  /* Action buttons - transparent/ghost */
+  .cv-action-btn {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 6px 8px; border-radius: 0; font-size: 0.75rem;
+    border: none; background: transparent; color: var(--fiori-text-tertiary);
+    cursor: pointer; transition: all 0.15s; opacity: 0;
+  }
+  .cv-category-main:hover .cv-action-btn,
+  .cv-child:hover .cv-action-btn { opacity: 1; }
+  .cv-action-btn:hover { background: var(--fiori-active); color: var(--fiori-text); }
+  .cv-action-btn.edit:hover { color: var(--fiori-critical); }
+  .cv-action-btn.delete:hover { color: var(--fiori-negative); }
+  .cv-actions-group { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
+
+  /* Modal - Fiori Dialog */
+  .cv-modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.32);
+    z-index: 9999; align-items: center; justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .cv-modal-overlay.show { display: flex; }
+  .cv-modal {
+    background: var(--fiori-surface); border-radius: 0; padding: 32px;
+    width: 90%; max-width: 520px; box-shadow: var(--fiori-shadow-lg);
+    max-height: 90vh; overflow-y: auto; border: var(--fiori-border);
+  }
+  .cv-modal h3 {
+    font-size: 1.1rem; font-weight: 400; color: var(--fiori-text); margin-bottom: 24px;
+    display: flex; align-items: center; gap: 10px; letter-spacing: -0.2px;
+    padding-bottom: 16px; border-bottom: var(--fiori-border-light);
+  }
+
+  /* Form controls - Fiori underline style */
+  .cv-form-group { margin-bottom: 20px; }
+  .cv-form-group label {
+    display: block; font-size: 0.72rem; font-weight: 500;
+    color: var(--fiori-text-tertiary); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .cv-form-group input, .cv-form-group select, .cv-form-group textarea {
+    width: 100%; padding: 12px 0; border: none;
+    border-bottom: 1px solid var(--fiori-text);
+    border-radius: 0; font-size: 0.88rem; font-family: var(--font);
+    color: var(--fiori-text); background: transparent;
+    transition: border-color 0.2s;
+  }
+  .cv-form-group textarea { resize: vertical; min-height: 50px; padding: 12px 0; }
+  .cv-form-group input:focus, .cv-form-group select:focus, .cv-form-group textarea:focus {
+    border-bottom-color: var(--fiori-brand); outline: none; box-shadow: none;
+  }
+  .cv-form-group input::placeholder, .cv-form-group textarea::placeholder {
+    color: var(--fiori-text-tertiary); font-weight: 300;
+  }
+  .cv-form-group select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231a1a1a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 4px center;
+    padding-right: 20px;
+  }
+
+  /* Modal footer & buttons */
+  .cv-modal-footer {
+    margin-top: 28px; display: flex; justify-content: flex-end; gap: 10px;
+    padding-top: 20px; border-top: var(--fiori-border-light);
+  }
+  .cv-modal-btn {
+    padding: 10px 24px; border-radius: 0;
+    font-size: 0.82rem; font-weight: 500; border: none; cursor: pointer;
+    font-family: var(--font); transition: all 0.15s; letter-spacing: 0.2px;
+  }
+  .cv-modal-btn-cancel { background: transparent; color: var(--fiori-text-secondary); border: var(--fiori-border-light); }
+  .cv-modal-btn-cancel:hover { background: var(--fiori-hover); border-color: var(--fiori-text); }
+  .cv-modal-btn-save { background: var(--fiori-text); color: #fff; border: var(--fiori-border); }
+  .cv-modal-btn-save:hover { background: #000; }
+  .cv-modal-btn-green { background: var(--fiori-positive); color: #fff; border: 1px solid var(--fiori-positive); }
+  .cv-modal-btn-green:hover { background: #0d6632; }
+
+  /* Código search dropdown */
+  .cv-codigo-search { position: relative; }
+  .cv-codigo-results {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 10;
+    background: var(--fiori-surface); border: var(--fiori-border); border-radius: 0;
+    max-height: 200px; overflow-y: auto; display: none;
+    box-shadow: var(--fiori-shadow-lg);
+  }
+  .cv-codigo-results.show { display: block; }
+  .cv-codigo-item {
+    padding: 10px 14px; cursor: pointer; font-size: 0.8rem;
+    display: flex; gap: 10px; transition: background 0.1s;
+    border-bottom: var(--fiori-border-light);
+  }
+  .cv-codigo-item:last-child { border-bottom: none; }
+  .cv-codigo-item:hover { background: var(--fiori-hover); }
+  .cv-codigo-item-code { font-weight: 600; color: var(--fiori-accent); min-width: 70px; font-size: 0.75rem; }
+  .cv-codigo-item-desc { color: var(--fiori-text-secondary); flex: 1; font-size: 0.78rem; }
+
+  .cv-selected-codigo {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; background: transparent;
+    border: 1px solid var(--fiori-accent); border-radius: 0;
+    font-size: 0.78rem; color: var(--fiori-accent); margin-top: 10px;
+    font-weight: 500;
+  }
+  .cv-selected-codigo .remove {
+    cursor: pointer; font-weight: 600; color: var(--fiori-negative);
+    width: 18px; height: 18px; border-radius: 0; display: flex;
+    align-items: center; justify-content: center; font-size: 0.7rem;
+    transition: background 0.15s;
+  }
+  .cv-selected-codigo .remove:hover { background: rgba(187,0,0,0.06); }
+
+  /* Empty state */
+  .cv-empty {
+    text-align: center; padding: 60px 20px; color: var(--fiori-text-tertiary);
+  }
+  .cv-empty ion-icon { font-size: 2.5rem; display: block; margin: 0 auto 12px; opacity: 0.3; }
+  .cv-empty p { font-size: 0.85rem; font-weight: 400; }
+
+  /* Materials list */
+  .cv-materials {
+    display: none; padding: 0 16px 12px 66px;
+    border-top: var(--fiori-border-light);
+  }
+  .cv-materials.show { display: block; }
+  .cv-materials-header {
+    padding: 10px 0; font-size: 0.68rem; font-weight: 600;
+    color: var(--fiori-text-tertiary); text-transform: uppercase;
+    letter-spacing: 0.5px; border-bottom: var(--fiori-border-light);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .cv-mat-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.04);
+    font-size: 0.78rem;
+  }
+  .cv-mat-item:last-child { border-bottom: none; }
+  .cv-mat-sku {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.7rem; font-weight: 600; color: var(--fiori-brand);
+    min-width: 90px; letter-spacing: 0.3px;
+  }
+  .cv-mat-name { flex: 1; color: var(--fiori-text); font-weight: 400; }
+  .cv-mat-price { font-size: 0.72rem; color: var(--fiori-text-secondary); font-weight: 500; min-width: 70px; text-align: right; }
+  .cv-mat-toggle {
+    font-size: 0.7rem; color: var(--fiori-brand); cursor: pointer;
+    font-weight: 500; padding: 4px 8px; border: none; background: none;
+    transition: color 0.15s;
+  }
+  .cv-mat-toggle:hover { color: var(--fiori-text); }
+
+  @media (max-width: 768px) {
+    .cv-stats { flex-direction: column; }
+    .cv-stat { border-right: none; border-bottom: var(--fiori-border-light); }
+    .cv-category-main { flex-wrap: wrap; }
+    .cv-category-badges { width: 100%; margin-top: 8px; }
+    .cv-children { padding-left: 40px; }
+    .cv-actions-group { width: 100%; justify-content: flex-end; margin-top: 6px; }
+    .cv-action-btn { opacity: 1; }
+  }
+</style>
+{% endblock %}
+
+{% block inventarios_content %}
+<div class="cv-page">
+  <div class="cv-header">
+    <h1><ion-icon name="layers-outline"></ion-icon> Categorías de Materiales</h1>
+    <div class="cv-header-actions">
+      <button class="cv-add-btn" onclick="openCreateModal()">
+        <ion-icon name="add-outline"></ion-icon> Nueva Categoría
+      </button>
+      <a href="{% url 'inventarios:admin_catalogos' %}" class="cv-back-link">
+        <ion-icon name="arrow-back-outline"></ion-icon> Catálogos
+      </a>
+    </div>
+  </div>
+
+  <div class="cv-stats">
+    <div class="cv-stat">
+      <div class="cv-stat-icon blue"><ion-icon name="folder-outline"></ion-icon></div>
+      <div>
+        <div class="cv-stat-value">{{ categorias_all|length }}</div>
+        <div class="cv-stat-label">Total</div>
+      </div>
+    </div>
+    <div class="cv-stat">
+      <div class="cv-stat-icon green"><ion-icon name="git-branch-outline"></ion-icon></div>
+      <div>
+        <div class="cv-stat-value">{{ categorias_raiz|length }}</div>
+        <div class="cv-stat-label">Raíz</div>
+      </div>
+    </div>
+    <div class="cv-stat">
+      <div class="cv-stat-icon purple"><ion-icon name="document-text-outline"></ion-icon></div>
+      <div>
+        <div class="cv-stat-value" id="stat-con-codigo">0</div>
+        <div class="cv-stat-label">Con código</div>
+      </div>
+    </div>
+    <div class="cv-stat">
+      <div class="cv-stat-icon orange"><ion-icon name="alert-circle-outline"></ion-icon></div>
+      <div>
+        <div class="cv-stat-value" id="stat-sin-codigo">0</div>
+        <div class="cv-stat-label">Sin código</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cv-tree-container">
+    <div class="cv-tree-header">
+      <h2><ion-icon name="git-network-outline"></ion-icon> Árbol Jerárquico</h2>
+      <span>Hover para ver acciones</span>
+    </div>
+    <div class="cv-tree-body">
+      {% for cat in categorias_raiz %}
+      <div class="cv-category" data-id="{{ cat.id }}">
+        <div class="cv-category-main">
+          {% if cat.id in categorias_hijas %}
+          <button class="cv-toggle" id="toggle-{{ cat.id }}" onclick="toggleChildren({{ cat.id }})">▶</button>
+          {% else %}
+          <div style="width:24px;"></div>
+          {% endif %}
+          <div class="cv-category-icon"><ion-icon name="folder-outline"></ion-icon></div>
+          <div class="cv-category-info">
+            <div class="cv-category-name">{{ cat.nombre }}</div>
+            {% if cat.descripcion %}<div class="cv-category-desc">{{ cat.descripcion }}</div>{% endif %}
+          </div>
+          <div class="cv-category-badges">
+            <span class="cv-badge cv-badge-blue">{{ cat.materiales_count }} mat.</span>
+            {% if cat.subcategorias_count > 0 %}
+            <span class="cv-badge cv-badge-green">{{ cat.subcategorias_count }} sub</span>
+            {% endif %}
+          </div>
+          {% if cat.codigo_exoneracion %}
+          <div class="cv-exo-tag" title="{{ cat.codigo_exoneracion.descripcion }}">
+            <ion-icon name="document-text-outline"></ion-icon>
+            {{ cat.codigo_exoneracion.codigo }}
+          </div>
+          {% endif %}
+          <div class="cv-actions-group">
+            {% if cat.materiales_count > 0 %}
+            <button class="cv-action-btn" onclick="toggleMaterials({{ cat.id }})" title="Ver materiales" style="opacity:1;">
+              <ion-icon name="cube-outline"></ion-icon>
+            </button>
+            {% endif %}
+            <button class="cv-action-btn edit" onclick="openEditModal({{ cat.id }})" title="Editar">
+              <ion-icon name="create-outline"></ion-icon>
+            </button>
+            <button class="cv-action-btn delete" onclick="deleteCategoria({{ cat.id }}, '{{ cat.nombre|escapejs }}')" title="Eliminar">
+              <ion-icon name="trash-outline"></ion-icon>
+            </button>
+          </div>
+        </div>
+        <!-- Materiales de esta categoría -->
+        {% with mats=materiales_por_categoria|get_item:cat.id %}
+        {% if mats %}
+        <div class="cv-materials" id="materials-{{ cat.id }}">
+          <div class="cv-materials-header"><ion-icon name="cube-outline"></ion-icon> Materiales ({{ cat.materiales_count }})</div>
+          {% for m in mats %}
+          <div class="cv-mat-item" onclick="openMaterialModal({{ m.id }})" style="cursor:pointer;">
+            <span class="cv-mat-sku">{{ m.sku }}</span>
+            <span class="cv-mat-name">{{ m.nombre }}</span>
+            <span class="cv-mat-price">L {{ m.precio_estimado }}</span>
+            <button class="cv-action-btn edit" style="opacity:1;" onclick="event.stopPropagation(); openMaterialModal({{ m.id }})"><ion-icon name="create-outline"></ion-icon></button>
+          </div>
+          {% endfor %}
+          {% if cat.materiales_count > 20 %}
+          <div style="padding:6px 0; font-size:0.7rem; color:var(--fiori-text-tertiary);">... y {{ cat.materiales_count|add:"-20" }} más</div>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endwith %}
+        {% if cat.id in categorias_hijas %}
+        <div class="cv-children" id="children-{{ cat.id }}">
+          {% for child in categorias_hijas|get_item:cat.id %}
+          <div class="cv-child">
+            <div class="cv-child-icon"><ion-icon name="folder-open-outline"></ion-icon></div>
+            <div class="cv-child-info">
+              <div class="cv-child-name">{{ child.nombre }}</div>
+              <div class="cv-child-meta">{{ child.materiales_count }} materiales{% if child.descripcion %} · {{ child.descripcion|truncatechars:50 }}{% endif %}</div>
+            </div>
+            {% if child.codigo_exoneracion %}
+            <div class="cv-exo-tag" title="{{ child.codigo_exoneracion.descripcion }}">
+              <ion-icon name="document-text-outline"></ion-icon>
+              {{ child.codigo_exoneracion.codigo }}
+            </div>
+            {% endif %}
+            <div class="cv-actions-group">
+              {% if child.materiales_count > 0 %}
+              <button class="cv-action-btn" onclick="toggleMaterials({{ child.id }})" title="Ver materiales" style="opacity:1;">
+                <ion-icon name="cube-outline"></ion-icon>
+              </button>
+              {% endif %}
+              <button class="cv-action-btn edit" onclick="openEditModal({{ child.id }})" title="Editar">
+                <ion-icon name="create-outline"></ion-icon>
+              </button>
+              <button class="cv-action-btn delete" onclick="deleteCategoria({{ child.id }}, '{{ child.nombre|escapejs }}')" title="Eliminar">
+                <ion-icon name="trash-outline"></ion-icon>
+              </button>
+            </div>
+          </div>
+          {% with child_mats=materiales_por_categoria|get_item:child.id %}
+          {% if child_mats %}
+          <div class="cv-materials" id="materials-{{ child.id }}" style="padding-left:40px;">
+            <div class="cv-materials-header"><ion-icon name="cube-outline"></ion-icon> Materiales ({{ child.materiales_count }})</div>
+            {% for m in child_mats %}
+            <div class="cv-mat-item" onclick="openMaterialModal({{ m.id }})" style="cursor:pointer;">
+              <span class="cv-mat-sku">{{ m.sku }}</span>
+              <span class="cv-mat-name">{{ m.nombre }}</span>
+              <span class="cv-mat-price">L {{ m.precio_estimado }}</span>
+              <button class="cv-action-btn edit" style="opacity:1;" onclick="event.stopPropagation(); openMaterialModal({{ m.id }})"><ion-icon name="create-outline"></ion-icon></button>
+            </div>
+            {% endfor %}
+            {% if child.materiales_count > 20 %}
+            <div style="padding:6px 0; font-size:0.7rem; color:var(--fiori-text-tertiary);">... y {{ child.materiales_count|add:"-20" }} más</div>
+            {% endif %}
+          </div>
+          {% endif %}
+          {% endwith %}
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% empty %}
+      <div class="cv-empty">
+        <ion-icon name="folder-open-outline"></ion-icon>
+        <p>No hay categorías registradas</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar/Crear -->
+<div class="cv-modal-overlay" id="editModal">
+  <div class="cv-modal">
+    <h3 id="editModalTitle"><ion-icon name="create-outline" style="color:var(--fiori-critical);"></ion-icon> Editar Categoría</h3>
+    <input type="hidden" id="editCatId" value="">
+    
+    <div class="cv-form-group">
+      <label>Nombre</label>
+      <input type="text" id="editNombre" placeholder="Nombre de la categoría" required>
+    </div>
+    
+    <div class="cv-form-group">
+      <label>Descripción</label>
+      <textarea id="editDescripcion" placeholder="Descripción opcional"></textarea>
+    </div>
+    
+    <div class="cv-form-group">
+      <label>Categoría Padre</label>
+      <select id="editPadre">
+        <option value="">— Ninguno (Raíz) —</option>
+        {% for c in categorias_all %}
+        <option value="{{ c.id }}">{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    
+    <div class="cv-form-group">
+      <label>Código de Exoneración</label>
+      <div class="cv-codigo-search">
+        <input type="text" id="editCodigoSearch" placeholder="Buscar código..." oninput="searchCodigos()" onfocus="searchCodigos()">
+        <div class="cv-codigo-results" id="codigoResults">
+          {% for codigo in codigos_exoneracion %}
+          <div class="cv-codigo-item" data-id="{{ codigo.id }}" data-code="{{ codigo.codigo }}" data-desc="{{ codigo.descripcion }}" onclick="selectCodigoEdit({{ codigo.id }}, '{{ codigo.codigo|escapejs }}', '{{ codigo.descripcion|escapejs|truncatechars:40 }}')">
+            <span class="cv-codigo-item-code">{{ codigo.codigo }}</span>
+            <span class="cv-codigo-item-desc">{{ codigo.descripcion|truncatechars:50 }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="selectedCodigoDisplay" style="display:none;" class="cv-selected-codigo">
+        <ion-icon name="document-text-outline"></ion-icon>
+        <span id="selectedCodigoText"></span>
+        <span class="remove" onclick="clearCodigoSelection()">✕</span>
+      </div>
+      <input type="hidden" id="editCodigoId" value="">
+    </div>
+
+    <div class="cv-modal-footer">
+      <button class="cv-modal-btn cv-modal-btn-cancel" onclick="closeEditModal()">Cancelar</button>
+      <button class="cv-modal-btn cv-modal-btn-save" id="editSaveBtn" onclick="saveCategoria()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Material -->
+<div class="cv-modal-overlay" id="matModal">
+  <div class="cv-modal" style="max-width:600px;">
+    <h3><ion-icon name="cube-outline" style="color:var(--fiori-brand);"></ion-icon> Editar Material</h3>
+    <input type="hidden" id="matId" value="">
+    
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
+      <div class="cv-form-group">
+        <label>SKU</label>
+        <input type="text" id="matSku" placeholder="Código">
+      </div>
+      <div class="cv-form-group">
+        <label>Tipo</label>
+        <select id="matTipo">
+          <option value="INSUMO">Insumo</option>
+          <option value="REPUESTO">Repuesto</option>
+          <option value="CONSUMIBLE">Consumible</option>
+          <option value="MEDICAMENTO">Medicamento</option>
+          <option value="HERRAMIENTA">Herramienta</option>
+          <option value="EPP">EPP</option>
+          <option value="SERVICIO">Servicio</option>
+          <option value="ACTIVO">Activo</option>
+          <option value="OTRO">Otro</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="cv-form-group">
+      <label>Nombre</label>
+      <input type="text" id="matNombre" placeholder="Nombre del material">
+    </div>
+
+    <div class="cv-form-group">
+      <label>Descripción</label>
+      <textarea id="matDescripcion" placeholder="Descripción opcional"></textarea>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
+      <div class="cv-form-group">
+        <label>Precio Estimado (L)</label>
+        <input type="number" id="matPrecio" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="cv-form-group">
+        <label>Stock Mínimo</label>
+        <input type="number" id="matStockMin" step="0.01" min="0" placeholder="0">
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 24px;">
+      <div class="cv-form-group">
+        <label>Categoría</label>
+        <select id="matCategoria">
+          <option value="">— Sin categoría —</option>
+          {% for c in categorias_all %}
+          <option value="{{ c.id }}">{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="cv-form-group">
+        <label>Unidad de Medida</label>
+        <select id="matUnidad">
+          <option value="">— Ninguna —</option>
+          {% for u in unidades %}
+          <option value="{{ u.id }}">{{ u.nombre }} ({{ u.abreviatura }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="cv-form-group">
+      <label>Código de Exoneración</label>
+      <div class="cv-codigo-search">
+        <input type="text" id="matCodigoSearch" placeholder="Buscar código..." oninput="searchCodigosMat()" onfocus="searchCodigosMat()">
+        <div class="cv-codigo-results" id="matCodigoResults">
+          {% for codigo in codigos_exoneracion %}
+          <div class="cv-codigo-item" data-id="{{ codigo.id }}" data-code="{{ codigo.codigo }}" data-desc="{{ codigo.descripcion }}" onclick="selectCodigoMat({{ codigo.id }}, '{{ codigo.codigo|escapejs }}', '{{ codigo.descripcion|escapejs|truncatechars:40 }}')">
+            <span class="cv-codigo-item-code">{{ codigo.codigo }}</span>
+            <span class="cv-codigo-item-desc">{{ codigo.descripcion|truncatechars:50 }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="matSelectedCodigo" style="display:none;" class="cv-selected-codigo">
+        <ion-icon name="document-text-outline"></ion-icon>
+        <span id="matSelectedCodigoText"></span>
+        <span class="remove" onclick="clearCodigoMat()">✕</span>
+      </div>
+      <input type="hidden" id="matCodigoId" value="">
+    </div>
+
+    <div class="cv-form-group" style="margin-top:8px;">
+      <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; text-transform:none; font-size:0.8rem;">
+        <input type="checkbox" id="matNoAfectaStock" style="width:auto; border:var(--fiori-border); padding:0;">
+        No afecta stock
+      </label>
+    </div>
+
+    <div class="cv-modal-footer">
+      <button class="cv-modal-btn cv-modal-btn-cancel" onclick="closeMaterialModal()">Cancelar</button>
+      <button class="cv-modal-btn cv-modal-btn-save" onclick="saveMaterial()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+const PAGE_URL = window.location.pathname;
+
+function toggleChildren(catId) {
+  const children = document.getElementById('children-' + catId);
+  const toggle = document.getElementById('toggle-' + catId);
+  if (!children) return;
+  children.classList.toggle('show');
+  if (toggle) toggle.classList.toggle('open');
+}
+
+function toggleMaterials(catId) {
+  const el = document.getElementById('materials-' + catId);
+  if (!el) return;
+  el.classList.toggle('show');
+}
+
+function openCreateModal() {
+  document.getElementById('editModalTitle').innerHTML = '<ion-icon name="add-outline" style="color:var(--fiori-positive);"></ion-icon> Nueva Categoría';
+  document.getElementById('editCatId').value = '';
+  document.getElementById('editNombre').value = '';
+  document.getElementById('editDescripcion').value = '';
+  document.getElementById('editPadre').value = '';
+  document.getElementById('editCodigoId').value = '';
+  document.getElementById('editCodigoSearch').value = '';
+  document.getElementById('selectedCodigoDisplay').style.display = 'none';
+  document.getElementById('editSaveBtn').textContent = 'Crear';
+  document.getElementById('editSaveBtn').className = 'cv-modal-btn cv-modal-btn-green';
+  document.getElementById('editModal').classList.add('show');
+}
+
+function openEditModal(catId) {
+  $.ajax({
+    url: PAGE_URL, method: 'POST',
+    data: { action: 'get_categoria', categoria_id: catId, csrfmiddlewaretoken: CSRF },
+    success: function(resp) {
+      if (resp.status !== 'success') { Swal.fire('Error', resp.message, 'error'); return; }
+      const d = resp.data;
+      document.getElementById('editModalTitle').innerHTML = '<ion-icon name="create-outline" style="color:var(--fiori-critical);"></ion-icon> Editar Categoría';
+      document.getElementById('editCatId').value = d.id;
+      document.getElementById('editNombre').value = d.nombre;
+      document.getElementById('editDescripcion').value = d.descripcion;
+      document.getElementById('editPadre').value = d.padre_id || '';
+      document.getElementById('editCodigoId').value = d.codigo_exoneracion_id || '';
+      document.getElementById('editCodigoSearch').value = '';
+      if (d.codigo_exoneracion_id) {
+        document.getElementById('selectedCodigoDisplay').style.display = 'inline-flex';
+        document.getElementById('selectedCodigoText').textContent = d.codigo_exoneracion_str;
+      } else {
+        document.getElementById('selectedCodigoDisplay').style.display = 'none';
+      }
+      document.getElementById('editSaveBtn').textContent = 'Guardar';
+      document.getElementById('editSaveBtn').className = 'cv-modal-btn cv-modal-btn-save';
+      document.getElementById('editModal').classList.add('show');
+    },
+    error: function() { Swal.fire('Error', 'No se pudo cargar', 'error'); }
+  });
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('show');
+  document.getElementById('codigoResults').classList.remove('show');
+}
+
+function saveCategoria() {
+  const catId = document.getElementById('editCatId').value;
+  const nombre = document.getElementById('editNombre').value.trim();
+  const descripcion = document.getElementById('editDescripcion').value.trim();
+  const padreId = document.getElementById('editPadre').value;
+  const codigoId = document.getElementById('editCodigoId').value;
+  if (!nombre) { Swal.fire('', 'El nombre es obligatorio', 'warning'); return; }
+  const data = {
+    action: catId ? 'edit_categoria' : 'add_categoria',
+    nombre, descripcion, padre_id: padreId,
+    codigo_exoneracion_id: codigoId, csrfmiddlewaretoken: CSRF
+  };
+  if (catId) data.categoria_id = catId;
+  $.ajax({
+    url: PAGE_URL, method: 'POST', data,
+    success: function(resp) {
+      if (resp.status === 'success') {
+        closeEditModal();
+        Swal.fire({ icon: 'success', title: catId ? 'Actualizado' : 'Creado', timer: 1200, showConfirmButton: false });
+        setTimeout(() => location.reload(), 800);
+      } else { Swal.fire('Error', resp.message, 'error'); }
+    },
+    error: function() { Swal.fire('Error', 'Error del servidor', 'error'); }
+  });
+}
+
+function deleteCategoria(catId, catName) {
+  Swal.fire({
+    title: '¿Eliminar?',
+    html: `<strong>${catName}</strong> será eliminada permanentemente.`,
+    icon: 'warning', showCancelButton: true, confirmButtonColor: '#bb0000',
+    confirmButtonText: 'Eliminar', cancelButtonText: 'Cancelar'
+  }).then(result => {
+    if (!result.isConfirmed) return;
+    $.ajax({
+      url: PAGE_URL, method: 'POST',
+      data: { action: 'delete_categoria', categoria_id: catId, csrfmiddlewaretoken: CSRF },
+      success: function(resp) {
+        if (resp.status === 'success') {
+          Swal.fire({ icon: 'success', title: 'Eliminado', timer: 1000, showConfirmButton: false });
+          setTimeout(() => location.reload(), 700);
+        } else { Swal.fire('Error', resp.message, 'error'); }
+      },
+      error: function() { Swal.fire('Error', 'Error del servidor', 'error'); }
+    });
+  });
+}
+
+function searchCodigos() {
+  const query = document.getElementById('editCodigoSearch').value.toLowerCase();
+  const items = document.querySelectorAll('#codigoResults .cv-codigo-item');
+  let visible = 0;
+  items.forEach(item => {
+    const code = (item.dataset.code || '').toLowerCase();
+    const desc = (item.dataset.desc || '').toLowerCase();
+    const show = code.includes(query) || desc.includes(query);
+    item.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('codigoResults').classList.toggle('show', visible > 0);
+}
+
+function selectCodigoEdit(id, code, desc) {
+  document.getElementById('editCodigoId').value = id;
+  document.getElementById('editCodigoSearch').value = '';
+  document.getElementById('codigoResults').classList.remove('show');
+  document.getElementById('selectedCodigoDisplay').style.display = 'inline-flex';
+  document.getElementById('selectedCodigoText').textContent = code + ' — ' + desc;
+}
+
+function clearCodigoSelection() {
+  document.getElementById('editCodigoId').value = '';
+  document.getElementById('selectedCodigoDisplay').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const conCodigo = document.querySelectorAll('.cv-exo-tag').length;
+  const total = {{ categorias_all|length }};
+  document.getElementById('stat-con-codigo').textContent = conCodigo;
+  document.getElementById('stat-sin-codigo').textContent = total - conCodigo;
+});
+
+document.getElementById('editModal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
+document.getElementById('matModal').addEventListener('click', function(e) {
+  if (e.target === this) closeMaterialModal();
+});
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.cv-codigo-search')) {
+    document.getElementById('codigoResults').classList.remove('show');
+    document.getElementById('matCodigoResults').classList.remove('show');
+  }
+});
+
+// ─── Material Modal ──────────────────────────────────────────────
+function openMaterialModal(matId) {
+  $.ajax({
+    url: PAGE_URL, method: 'POST',
+    data: { action: 'get_material', material_id: matId, csrfmiddlewaretoken: CSRF },
+    success: function(resp) {
+      if (resp.status !== 'success') { Swal.fire('Error', resp.message, 'error'); return; }
+      const d = resp.data;
+      document.getElementById('matId').value = d.id;
+      document.getElementById('matSku').value = d.sku;
+      document.getElementById('matNombre').value = d.nombre;
+      document.getElementById('matDescripcion').value = d.descripcion;
+      document.getElementById('matPrecio').value = d.precio_estimado;
+      document.getElementById('matStockMin').value = d.stock_minimo;
+      document.getElementById('matTipo').value = d.tipo_material;
+      document.getElementById('matCategoria').value = d.categoria_id || '';
+      document.getElementById('matUnidad').value = d.unidad_medida_id || '';
+      document.getElementById('matCodigoId').value = d.codigo_exoneracion_id || '';
+      document.getElementById('matCodigoSearch').value = '';
+      document.getElementById('matNoAfectaStock').checked = d.no_afecta_stock;
+      if (d.codigo_exoneracion_id) {
+        document.getElementById('matSelectedCodigo').style.display = 'inline-flex';
+        document.getElementById('matSelectedCodigoText').textContent = d.codigo_exoneracion_str;
+      } else {
+        document.getElementById('matSelectedCodigo').style.display = 'none';
+      }
+      document.getElementById('matModal').classList.add('show');
+    },
+    error: function() { Swal.fire('Error', 'No se pudo cargar el material', 'error'); }
+  });
+}
+
+function closeMaterialModal() {
+  document.getElementById('matModal').classList.remove('show');
+  document.getElementById('matCodigoResults').classList.remove('show');
+}
+
+function saveMaterial() {
+  const matId = document.getElementById('matId').value;
+  const nombre = document.getElementById('matNombre').value.trim();
+  const sku = document.getElementById('matSku').value.trim();
+  if (!nombre || !sku) { Swal.fire('', 'Nombre y SKU son obligatorios', 'warning'); return; }
+  $.ajax({
+    url: PAGE_URL, method: 'POST',
+    data: {
+      action: 'edit_material',
+      material_id: matId,
+      nombre: nombre,
+      sku: sku,
+      descripcion: document.getElementById('matDescripcion').value.trim(),
+      precio_estimado: document.getElementById('matPrecio').value || '0',
+      stock_minimo: document.getElementById('matStockMin').value || '0',
+      tipo_material: document.getElementById('matTipo').value,
+      categoria_id: document.getElementById('matCategoria').value,
+      unidad_medida_id: document.getElementById('matUnidad').value,
+      codigo_exoneracion_id: document.getElementById('matCodigoId').value,
+      no_afecta_stock: document.getElementById('matNoAfectaStock').checked ? 'true' : 'false',
+      csrfmiddlewaretoken: CSRF
+    },
+    success: function(resp) {
+      if (resp.status === 'success') {
+        closeMaterialModal();
+        Swal.fire({ icon: 'success', title: 'Material actualizado', timer: 1200, showConfirmButton: false });
+        setTimeout(() => location.reload(), 800);
+      } else { Swal.fire('Error', resp.message, 'error'); }
+    },
+    error: function() { Swal.fire('Error', 'Error del servidor', 'error'); }
+  });
+}
+
+function searchCodigosMat() {
+  const query = document.getElementById('matCodigoSearch').value.toLowerCase();
+  const items = document.querySelectorAll('#matCodigoResults .cv-codigo-item');
+  let visible = 0;
+  items.forEach(item => {
+    const code = (item.dataset.code || '').toLowerCase();
+    const desc = (item.dataset.desc || '').toLowerCase();
+    const show = code.includes(query) || desc.includes(query);
+    item.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('matCodigoResults').classList.toggle('show', visible > 0);
+}
+
+function selectCodigoMat(id, code, desc) {
+  document.getElementById('matCodigoId').value = id;
+  document.getElementById('matCodigoSearch').value = '';
+  document.getElementById('matCodigoResults').classList.remove('show');
+  document.getElementById('matSelectedCodigo').style.display = 'inline-flex';
+  document.getElementById('matSelectedCodigoText').textContent = code + ' — ' + desc;
+}
+
+function clearCodigoMat() {
+  document.getElementById('matCodigoId').value = '';
+  document.getElementById('matSelectedCodigo').style.display = 'none';
+}
+</script>
+{% endblock %}

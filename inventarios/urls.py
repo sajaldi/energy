@@ -28,6 +28,7 @@ urlpatterns = [
     path('catalogo/', views.master_catalog, name='master_catalog'),
     path('nuevos-materiales/', views.solicitud_nuevos_materiales, name='solicitud_nuevos_materiales'),
     path('admin-catalogos/', views.admin_catalogos, name='admin_catalogos'),
+    path('categorias/', views.categorias_visualizer, name='categorias_visualizer'),
 
     # Mobile Views
     path('mobile/dashboard/', views.mobile_inventario_dashboard, name='mobile_dashboard'),

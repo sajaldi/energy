@@ -23,9 +23,10 @@ class StockRecordInline(admin.TabularInline):
 
 @admin.register(CategoriaMaterial)
 class CategoriaMaterialAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'padre')
+    list_display = ('nombre', 'padre', 'codigo_exoneracion')
     search_fields = ('nombre',)
-    list_filter = ('padre',)
+    list_filter = ('padre', 'codigo_exoneracion')
+    raw_id_fields = ('codigo_exoneracion',)
 
 @admin.register(Lote)
 class LoteAdmin(admin.ModelAdmin):

@@ -3687,3 +3687,186 @@ def api_search_activos(request):
     } for a in activos]
 
     return JsonResponse({'results': results})
+
+
+# ─── Visualizador de Categorías de Materiales ──────────────────────────────────
+
+@staff_member_required
+def categorias_visualizer(request):
+    """
+    Visualizador jerárquico de Categorías de Materiales con su código de exoneración asociado.
+    """
+    from .models import CategoriaMaterial
+    from presupuestos.models import CodigoExoneracion
+    from django.db.models import Count, Q
+
+    categorias = CategoriaMaterial.objects.select_related('padre', 'codigo_exoneracion').annotate(
+        materiales_count=Count('materiales'),
+        subcategorias_count=Count('subcategorias'),
+    ).order_by('nombre')
+
+    # Construir árbol jerárquico
+    categorias_raiz = [c for c in categorias if c.padre is None]
+    categorias_hijas = {}
+    for c in categorias:
+        if c.padre_id:
+            categorias_hijas.setdefault(c.padre_id, []).append(c)
+
+    # Códigos de exoneración disponibles para asignar
+    codigos_exoneracion = CodigoExoneracion.objects.filter(activo=True).order_by('codigo')
+
+    # Manejo de acciones POST (asignar/quitar código de exoneración)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action == 'assign_codigo':
+                cat_id = request.POST.get('categoria_id')
+                codigo_id = request.POST.get('codigo_id')
+                cat = CategoriaMaterial.objects.get(id=cat_id)
+                if codigo_id:
+                    cat.codigo_exoneracion_id = codigo_id
+                else:
+                    cat.codigo_exoneracion = None
+                cat.save()
+                return JsonResponse({'status': 'success', 'message': 'Código asignado correctamente'})
+
+            elif action == 'remove_codigo':
+                cat_id = request.POST.get('categoria_id')
+                cat = CategoriaMaterial.objects.get(id=cat_id)
+                cat.codigo_exoneracion = None
+                cat.save()
+                return JsonResponse({'status': 'success', 'message': 'Código removido'})
+
+            elif action == 'edit_categoria':
+                cat_id = request.POST.get('categoria_id')
+                cat = CategoriaMaterial.objects.get(id=cat_id)
+                nombre = request.POST.get('nombre', '').strip()
+                descripcion = request.POST.get('descripcion', '').strip()
+                padre_id = request.POST.get('padre_id') or None
+                codigo_id = request.POST.get('codigo_exoneracion_id') or None
+                if not nombre:
+                    return JsonResponse({'status': 'error', 'message': 'El nombre es obligatorio'})
+                # Evitar asignarse a sí misma como padre
+                if padre_id and int(padre_id) == cat.id:
+                    return JsonResponse({'status': 'error', 'message': 'Una categoría no puede ser su propio padre'})
+                cat.nombre = nombre
+                cat.descripcion = descripcion or None
+                cat.padre_id = padre_id
+                cat.codigo_exoneracion_id = codigo_id
+                cat.save()
+                return JsonResponse({'status': 'success', 'message': 'Categoría actualizada', 'nombre': str(cat)})
+
+            elif action == 'add_categoria':
+                nombre = request.POST.get('nombre', '').strip()
+                descripcion = request.POST.get('descripcion', '').strip()
+                padre_id = request.POST.get('padre_id') or None
+                codigo_id = request.POST.get('codigo_exoneracion_id') or None
+                if not nombre:
+                    return JsonResponse({'status': 'error', 'message': 'El nombre es obligatorio'})
+                cat = CategoriaMaterial.objects.create(
+                    nombre=nombre,
+                    descripcion=descripcion or None,
+                    padre_id=padre_id,
+                    codigo_exoneracion_id=codigo_id,
+                )
+                return JsonResponse({'status': 'success', 'id': cat.id, 'nombre': str(cat), 'message': 'Categoría creada'})
+
+            elif action == 'delete_categoria':
+                cat_id = request.POST.get('categoria_id')
+                cat = CategoriaMaterial.objects.get(id=cat_id)
+                # Verificar si tiene materiales
+                mat_count = cat.materiales.count()
+                sub_count = cat.subcategorias.count()
+                if mat_count > 0:
+                    return JsonResponse({'status': 'error', 'message': f'No se puede eliminar: tiene {mat_count} materiales asociados'})
+                if sub_count > 0:
+                    return JsonResponse({'status': 'error', 'message': f'No se puede eliminar: tiene {sub_count} subcategorías'})
+                cat.delete()
+                return JsonResponse({'status': 'success', 'message': 'Categoría eliminada'})
+
+            elif action == 'get_categoria':
+                cat_id = request.POST.get('categoria_id')
+                cat = CategoriaMaterial.objects.select_related('codigo_exoneracion').get(id=cat_id)
+                return JsonResponse({
+                    'status': 'success',
+                    'data': {
+                        'id': cat.id,
+                        'nombre': cat.nombre,
+                        'descripcion': cat.descripcion or '',
+                        'padre_id': cat.padre_id,
+                        'codigo_exoneracion_id': cat.codigo_exoneracion_id,
+                        'codigo_exoneracion_str': str(cat.codigo_exoneracion) if cat.codigo_exoneracion else '',
+                    }
+                })
+
+            elif action == 'get_material':
+                mat_id = request.POST.get('material_id')
+                mat = Material.objects.select_related('categoria', 'unidad_medida', 'marca', 'codigo_exoneracion').get(id=mat_id)
+                return JsonResponse({
+                    'status': 'success',
+                    'data': {
+                        'id': mat.id,
+                        'nombre': mat.nombre,
+                        'sku': mat.sku,
+                        'descripcion': mat.descripcion or '',
+                        'precio_estimado': str(mat.precio_estimado),
+                        'stock_minimo': str(mat.stock_minimo),
+                        'tipo_material': mat.tipo_material,
+                        'categoria_id': mat.categoria_id,
+                        'unidad_medida_id': mat.unidad_medida_id,
+                        'unidad_medida_str': str(mat.unidad_medida) if mat.unidad_medida else '',
+                        'marca_id': mat.marca_id,
+                        'marca_str': str(mat.marca) if mat.marca else '',
+                        'codigo_exoneracion_id': mat.codigo_exoneracion_id,
+                        'codigo_exoneracion_str': str(mat.codigo_exoneracion) if mat.codigo_exoneracion else '',
+                        'no_afecta_stock': mat.no_afecta_stock,
+                    }
+                })
+
+            elif action == 'edit_material':
+                mat_id = request.POST.get('material_id')
+                mat = Material.objects.get(id=mat_id)
+                nombre = request.POST.get('nombre', '').strip()
+                sku = request.POST.get('sku', '').strip()
+                if not nombre or not sku:
+                    return JsonResponse({'status': 'error', 'message': 'Nombre y SKU son obligatorios'})
+                if Material.objects.filter(sku=sku).exclude(id=mat.id).exists():
+                    return JsonResponse({'status': 'error', 'message': f'El SKU "{sku}" ya está en uso'})
+                mat.nombre = nombre
+                mat.sku = sku
+                mat.descripcion = request.POST.get('descripcion', '').strip() or None
+                mat.precio_estimado = request.POST.get('precio_estimado') or 0
+                mat.stock_minimo = request.POST.get('stock_minimo') or 0
+                mat.tipo_material = request.POST.get('tipo_material', 'INSUMO')
+                mat.categoria_id = request.POST.get('categoria_id') or None
+                mat.unidad_medida_id = request.POST.get('unidad_medida_id') or None
+                mat.codigo_exoneracion_id = request.POST.get('codigo_exoneracion_id') or None
+                mat.no_afecta_stock = request.POST.get('no_afecta_stock') == 'true'
+                mat.save()
+                return JsonResponse({'status': 'success', 'message': 'Material actualizado'})
+
+            return JsonResponse({'status': 'error', 'message': 'Acción no válida'})
+        except CategoriaMaterial.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Categoría no encontrada'})
+        except Material.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Material no encontrado'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+
+    # Unidades de medida para el modal de material
+    unidades = UnidadMedida.objects.all().order_by('nombre')
+
+    context = {
+        'categorias_raiz': categorias_raiz,
+        'categorias_hijas': categorias_hijas,
+        'categorias_all': categorias,
+        'codigos_exoneracion': codigos_exoneracion,
+        'unidades': unidades,
+        'materiales_por_categoria': {
+            c.id: list(c.materiales.values('id', 'sku', 'nombre', 'precio_estimado')[:20])
+            for c in categorias
+        },
+        'active_tab': 'categorias_visualizer',
+        'title': 'Visualizador de Categorías',
+    }
+    return render(request, 'inventarios/categorias_visualizer.html', context)

@@ -49,6 +49,14 @@ class CategoriaMaterial(models.Model):
     nombre = models.CharField(max_length=100, verbose_name="Nombre de la Categoría")
     padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subcategorias', verbose_name="Categoría Padre")
     descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
+    codigo_exoneracion = models.ForeignKey(
+        'presupuestos.CodigoExoneracion',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='categorias_material',
+        verbose_name="Código de Exoneración",
+        help_text="Código arancelario asociado a esta categoría"
+    )
 
     class Meta:
         verbose_name = "Categoría de Material"
