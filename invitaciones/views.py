@@ -1,18 +1,17 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 
 from .services import TokenService
 from .exceptions import TokenNotFound, TokenExpired, TokenAlreadyUsed
 
 
-@login_required
 def complete_registration(request):
     """
     Vista de completar registro desde el enlace de invitación.
     GET  : muestra el formulario.
     POST : valida token, setea contraseña, guarda perfil y activa usuario.
+    NO requiere login — el usuario invitado aún no tiene cuenta activa.
     """
     raw_token = request.GET.get('token') or request.POST.get('token', '')
 
