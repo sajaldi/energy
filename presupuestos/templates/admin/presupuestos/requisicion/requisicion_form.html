@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load i18n static humanize %}
+{% load i18n static humanize l10n %}
 
 {% block extrahead %}
 {{ block.super }}
@@ -61,7 +61,7 @@
     {% if is_readonly %}
     <!-- Banner de Bloqueo -->
     <div
-        style="background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%); border-left: 4px solid #ff9800; padding: 20px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        style="background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%); border-left: 4px solid #ff9800; padding: 20px; border-radius: 0; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
         <div style="display: flex; align-items: center; justify-content: space-between;">
             <div style="flex: 1;">
                 <h4 style="margin: 0 0 8px 0; color: #e65100; font-size: 1.1rem;">🔒 Requisición Bloqueada para Edición
@@ -78,7 +78,7 @@
             {% if can_unlock %}
             <div style="margin-left: 20px;">
                 <button type="button" id="btn-unlock-edit" class="btn-custom"
-                    style="background: #ff9800; color: white; border: none; padding: 12px 24px; font-weight: 600; border-radius: 6px; cursor: pointer; white-space: nowrap;">🔓
+                    style="background: #ff9800; color: white; border: none; padding: 12px 24px; font-weight: 600; border-radius: 0; cursor: pointer; white-space: nowrap;">🔓
                     Desbloquear para Editar</button>
             </div>
             {% endif %}
@@ -115,14 +115,14 @@
                                     style="display: flex; justify-content: space-between; align-items: center;">
                                     Solicitante
                                     <button type="button" id="toggle-behalf"
-                                        style="font-size: 0.7rem; padding: 2px 8px; background: var(--secondary); color: white; border: none; border-radius: 4px; cursor: pointer;">👤
+                                        style="font-size: 0.7rem; padding: 2px 8px; background: var(--secondary); color: white; border: none; border-radius: 0; cursor: pointer;">👤
                                         En nombre de...</button>
                                 </label>
                                 {{ form.usuario_solicitante }}
                             </div>
                             <div class="form-group" style="margin-top: 8px;">
                                 <label class="form-label">Departamento</label>
-                                <div style="padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; color: #1e293b; font-weight: 500;">
+                                <div style="padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0; font-size: 0.9rem; color: #1e293b; font-weight: 500;">
                                     {% if instance.usuario_solicitante.perfil.departamento %}
                                         {{ instance.usuario_solicitante.perfil.departamento.nombre }}
                                     {% else %}
@@ -138,7 +138,7 @@
                         </div>
 
                         <div id="on-behalf-container"
-                            style="display: {% if form.usuario_en_nombre_de.value %}block{% else %}none{% endif %}; margin-bottom: 20px; padding: 15px; background: rgba(0,0,0,0.03); border-radius: 8px; border-left: 4px solid var(--secondary);">
+                            style="display: {% if form.usuario_en_nombre_de.value %}block{% else %}none{% endif %}; margin-bottom: 20px; padding: 15px; background: rgba(0,0,0,0.03); border-radius: 0; border-left: 4px solid var(--secondary);">
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label class="form-label">👤 En nombre de:</label>
                                 <div class="on-behalf-search-wrapper" style="position: relative;">
@@ -181,7 +181,7 @@
                             <label class="form-label">Partida Presupuestaria</label>
                             <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
                                 <div style="flex: 1;">{{ form.partida }}</div>
-                                <button type="button" onclick="window.open('{% url 'presupuestos:partida_admin_fiori' %}', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes')" class="btn-icon-admin" title="Administrar Partidas Presupuestarias" style="padding: 6px 10px; border: 1px solid #d0d0d0; border-radius: 4px; background: #f8f9fa; cursor: pointer; font-size: 1rem; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; height: 36px;">
+                                <button type="button" onclick="window.open('{% url 'presupuestos:partida_admin_fiori' %}', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes')" class="btn-icon-admin" title="Administrar Partidas Presupuestarias" style="padding: 6px 10px; border: 1px solid #d0d0d0; border-radius: 0; background: #f8f9fa; cursor: pointer; font-size: 1rem; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; height: 36px;">
                                     ⚙️ <span style="font-size: 0.75rem; font-weight: 500;">Admin</span>
                                 </button>
                             </div>
@@ -272,18 +272,25 @@
                 <div id="articles-container">
                     {% for a_form in articulo_formset %}
                     <div class="article-row inline-row formset-row" id="article-{{ forloop.counter0 }}"
-                        data-provider="{{ a_form.proveedor.value|default:'' }}">
+                        data-provider="{{ a_form.proveedor.value|default:'' }}" data-index="{{ forloop.counter0 }}">
                         {{ a_form.cr8ca_itemderequisicionid }}
                         <div style="display:none">{{ a_form.proveedor }}</div>
                         <div>
                             {{ a_form.material }}
-                            <input type="text" class="form-control" value="{% if a_form.instance.material %}{{ a_form.instance.material.sku }}{% endif %}" readonly>
+                            <input type="text" class="form-control sku-display" value="{% if a_form.instance.material %}{{ a_form.instance.material.sku }}{% endif %}" readonly
+                                style="cursor:pointer; color:var(--primary); font-weight:600;"
+                                onclick="abrirHistorialDesdeRow({{ forloop.counter0 }})" title="Clic para ver historial">
                         </div>
                         <div>{{ a_form.cr8ca_articulo }}</div>
                         <div>{{ a_form.cr8ca_cantidad }}</div>
                         <div>{{ a_form.cr8ca_costoaproximado }}</div>
                         <div style="text-align: right;"><span class="row-total">0.00</span></div>
-                        <div style="text-align: right;">
+                        <div style="text-align: right; display:flex; gap:4px; justify-content:flex-end;">
+                            {% if request.user.is_superuser or 'Procura' in request.user.groups.all|join:',' %}
+                            <button type="button" class="btn-custom btn-outline-custom edit-article-btn"
+                                onclick="abrirEditArticulo({{ forloop.counter0 }})"
+                                style="padding: 6px 8px; font-size:.75rem;" title="Editar artículo">✏️</button>
+                            {% endif %}
                             {% if a_form.instance.pk %}
                             <div style="display:none">{{ a_form.DELETE }}</div>
                             <button type="button" class="btn-custom btn-danger-custom delete-row"
@@ -336,7 +343,7 @@
             </div>
             <div class="card-body" id="document-formset">
                 <p
-                    style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px; background: #fff8e1; padding: 10px; border-radius: 4px; border-left: 4px solid #ffb300;">
+                    style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px; background: #fff8e1; padding: 10px; border-radius: 0; border-left: 4px solid #ffb300;">
                     💡 <strong>Nota:</strong> Cargue aquí cotizaciones, documentos de referencia y otros que le sirvan a
                     procura.
                 </p>
@@ -352,7 +359,7 @@
                             <span class="document-preview-item" 
                                   data-url="{% url 'presupuestos:requisicion_documento_proxy' d_form.instance.pk %}"
                                   data-name="{{ d_form.instance.nombre|default:d_form.instance.archivo.name }}"
-                                  style="cursor: pointer; color: var(--primary); font-weight: 500; display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: #f8fafc; transition: all 0.2s;"
+                                  style="cursor: pointer; color: var(--primary); font-weight: 500; display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 0; background: #f8fafc; transition: all 0.2s;"
                                   title="Clic para vista previa">
                                 {% with ext=d_form.instance.archivo.name|lower %}
                                 {% if ".pdf" in ext %}📕
@@ -484,7 +491,7 @@
                         <div class="review-value" style="padding-top: 8px;">
                             {% for prov in instance.proveedores_sugeridos.all %}
                             <span
-                                style="background: var(--bg-body); padding: 4px 10px; border-radius: 15px; margin-right: 5px; border: 1px solid var(--border); font-size: 0.8rem; display: inline-block; margin-bottom: 4px;">{{ prov.nombre }}</span>
+                                style="background: var(--bg-body); padding: 4px 10px; border-radius: 0; margin-right: 5px; border: 1px solid var(--border); font-size: 0.8rem; display: inline-block; margin-bottom: 4px;">{{ prov.nombre }}</span>
                             {% empty %}
                             <span style="color: var(--text-muted); font-style: italic;">Sin proveedores
                                 seleccionados</span>
@@ -504,22 +511,22 @@
                 <!-- QR y PDF para requisiciones autorizadas -->
                 {% if instance.pk and instance.estado_requisicion == 'AUTORIZADO' %}
                 <div
-                    style="margin: 24px 0; padding: 20px; background: #f0fdf4; border: 1px solid #166534; border-radius: 8px; text-align: center;">
+                    style="margin: 24px 0; padding: 20px; background: #f0fdf4; border: 1px solid #166534; border-radius: 0; text-align: center;">
                     <h4 style="margin: 0 0 15px 0; color: #166534;">✅ Requisición Autorizada</h4>
                     <div
-                        style="margin-bottom: 20px; display: inline-block; padding: 10px; background: white; border: 1px solid #22c55e; border-radius: 8px;">
+                        style="margin-bottom: 20px; display: inline-block; padding: 10px; background: white; border: 1px solid #22c55e; border-radius: 0;">
                         <img src="{% url 'presupuestos:requisicion_qr' instance.pk %}" alt="QR Code"
                             style="width: 180px; height: 180px; display: block;">
                     </div>
                     <div style="margin-top: 10px; display: flex; gap: 10px; justify-content: center;">
                         <a href="{% url 'presupuestos:requisicion_pdf' instance.pk %}" class="btn-custom"
                             target="_blank"
-                            style="background: #166534; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+                            style="background: #166534; color: white; text-decoration: none; padding: 12px 24px; border-radius: 0; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
                             📥 Descargar Requisición PDF
                         </a>
                         <a href="{% url 'presupuestos:requisicion_docx' instance.pk %}" class="btn-custom"
                             target="_blank"
-                            style="background: #1e3a8a; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+                            style="background: #1e3a8a; color: white; text-decoration: none; padding: 12px 24px; border-radius: 0; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
                             📥 Descargar Requisición Word (DOCX)
                         </a>
                     </div>
@@ -536,7 +543,7 @@
                 {% for item in instance.resumen_por_proveedor %}
                 <div style="margin-top: 25px; margin-bottom: 20px;">
                     <div
-                        style="background: #f1f5f9; padding: 10px 15px; border-radius: 6px; font-weight: 700; color: var(--primary-dark); font-size: 1rem; border-left: 4px solid var(--primary); display: flex; align-items: center; justify-content: space-between;">
+                        style="background: #f1f5f9; padding: 10px 15px; font-weight: 700; color: var(--primary-dark); font-size: 1rem; border-left: 4px solid var(--primary); display: flex; align-items: center; justify-content: space-between;">
                         <span>🏢 {{ item.proveedor.nombre|default:"Sin Proveedor Asignado" }}</span>
                     </div>
 
@@ -552,7 +559,16 @@
                         <tbody>
                             {% for art in item.articulos %}
                             <tr style="border-bottom: 1px solid var(--border);">
-                                <td style="padding: 12px 10px; font-weight: 500;">{{ art.material.sku|default:"-" }}
+                                <td style="padding: 12px 10px; font-weight: 500;">
+                                    {% if art.material %}
+                                    <a href="#" onclick="abrirModalMaterial({{ art.material.id|stringformat:'d' }}); return false;"
+                                       style="color: var(--primary); text-decoration: none; font-weight: 600; cursor: pointer;"
+                                       title="Ver historial: {{ art.material.nombre }}">
+                                        {{ art.material.sku }}
+                                    </a>
+                                    {% else %}
+                                    -
+                                    {% endif %}
                                 </td>
                                 <td style="padding: 12px 10px; color: var(--text-muted);">{{ art.cr8ca_articulo }}</td>
                                 <td style="padding: 12px 10px; text-align: center;">{{ art.cr8ca_cantidad }}</td>
@@ -574,7 +590,7 @@
                 {% endfor %}
 
                 <div
-                    style="margin-top: 30px; padding: 20px; background: var(--bg-body); border-radius: 8px; border: 2px solid var(--primary);">
+                    style="margin-top: 30px; padding: 20px; background: var(--bg-body); border-radius: 0; border: 2px solid var(--primary);">
                     <div style="display: flex; justify-content: flex-end; align-items: center; gap: 60px;">
                         <div style="text-align: right;">
                             <span style="display: block; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Subtotal</span>
@@ -594,7 +610,7 @@
                 </div>
                 {% else %}
                 <div
-                    style="padding: 20px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 8px;">
+                    style="padding: 20px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 0;">
                     Completa los pasos anteriores para visualizar los artículos.
                 </div>
                 {% endif %}
@@ -605,7 +621,7 @@
                     {% for doc in instance.documentos.all %}
                     <div class="document-preview-item" data-url="{% url 'presupuestos:requisicion_documento_proxy' doc.id %}"
                         data-name="{{ doc.nombre|default:doc.archivo.name }}"
-                        style="padding: 10px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; background: #f8fafc; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;">
+                        style="padding: 10px 14px; border: 1px solid var(--border); border-radius: 0; font-size: 0.85rem; background: #f8fafc; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;">
                         {% with ext=doc.archivo.name|lower %}
                         {% if ".pdf" in ext %}📕
                         {% elif ".doc" in ext or ".docx" in ext %}📘
@@ -617,7 +633,7 @@
                         <span>{{ doc.nombre|default:doc.archivo.name }}</span>
                         <a href="{% url 'presupuestos:requisicion_documento_proxy' doc.id %}?download=1" 
                            class="doc-download-link"
-                           style="margin-left: 6px; font-size: 0.75rem; color: var(--primary); text-decoration: none; padding: 2px 6px; border: 1px solid var(--primary); border-radius: 4px;"
+                           style="margin-left: 6px; font-size: 0.75rem; color: var(--primary); text-decoration: none; padding: 2px 6px; border: 1px solid var(--primary); border-radius: 0;"
                            title="Descargar" 
                            onclick="event.stopPropagation();">⬇️</a>
                     </div>
@@ -799,5 +815,755 @@
             }
         }
     }
+</script>
+
+<!-- Modal Editar Artículo -->
+<div id="edit-article-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:99998; justify-content:center; align-items:center;">
+    <div style="background:white; max-width:600px; width:90%; max-height:85vh; overflow-y:auto; padding:1.5rem; position:relative; border-top:4px solid #0a6ed1;">
+        <button onclick="cerrarEditArticulo()" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#666;">&times;</button>
+        <h3 style="margin:0 0 1rem; font-size:1.1rem; color:#32363a;">✏️ Editar Artículo</h3>
+        
+        <div style="display:grid; gap:1rem;">
+            <div>
+                <label style="font-size:.75rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:4px;">Material (SKU)</label>
+                <div style="display:flex; gap:6px;">
+                    <input type="text" id="edit-art-material-display" readonly 
+                        style="flex:1; padding:8px 12px; border:1px solid #d9d9d9; background:#f7f7f7; font-size:.875rem;">
+                    <button type="button" onclick="toggleBuscadorMaterial()" 
+                        style="padding:8px 12px; background:#0a6ed1; color:white; border:none; font-size:.75rem; font-weight:600; cursor:pointer;">🔍 Cambiar</button>
+                    <button type="button" onclick="abrirCrearMaterial()" 
+                        style="padding:8px 12px; background:#107e3e; color:white; border:none; font-size:.75rem; font-weight:600; cursor:pointer;">➕ Nuevo</button>
+                    <button type="button" id="btn-editar-material-admin" onclick="editarMaterialAdmin()" 
+                        style="display:none; padding:8px 12px; background:#354a5f; color:white; border:none; font-size:.75rem; font-weight:600; cursor:pointer;">⚙️ Editar</button>
+                </div>
+                <div id="edit-art-search-box" style="display:none; margin-top:8px;">
+                    <input type="text" id="edit-art-search-input" placeholder="Buscar por nombre o SKU..."
+                        style="width:100%; padding:8px 12px; border:1px solid #0a6ed1; font-size:.8125rem;"
+                        oninput="buscarMaterialEnEdit(this.value)">
+                    <div id="edit-art-search-results" style="max-height:200px; overflow-y:auto; border:1px solid #d9d9d9; border-top:none; background:white;"></div>
+                </div>
+                <!-- Formulario crear material inline -->
+                <div id="nuevo-mat-form-inline" style="display:none; margin-top:8px; padding:12px; background:#f0fdf4; border:1px solid #c5e1c5;">
+                    <h4 style="margin:0 0 8px; font-size:.8rem; color:#107e3e;">➕ Crear Nuevo Material</h4>
+                    <div style="display:grid; gap:8px;">
+                        <input type="text" id="new-mat-inline-nombre" placeholder="Nombre del material *"
+                            style="width:100%; padding:8px; border:1px solid #d9d9d9; font-size:.8125rem;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <input type="text" id="new-mat-inline-sku" placeholder="SKU (opcional, se genera auto)"
+                                style="padding:8px; border:1px solid #d9d9d9; font-size:.8125rem;">
+                            <input type="number" id="new-mat-inline-precio" placeholder="Precio estimado" step="0.01"
+                                style="padding:8px; border:1px solid #d9d9d9; font-size:.8125rem;">
+                        </div>
+                        <div style="display:flex; gap:6px; justify-content:flex-end;">
+                            <button type="button" onclick="document.getElementById('nuevo-mat-form-inline').style.display='none'"
+                                style="padding:6px 12px; background:#f1f3f4; border:1px solid #d9d9d9; font-size:.75rem; cursor:pointer;">Cancelar</button>
+                            <button type="button" id="btn-crear-mat-inline" onclick="crearMaterialInline()"
+                                style="padding:6px 12px; background:#107e3e; color:white; border:none; font-size:.75rem; font-weight:600; cursor:pointer;">✓ Crear y Seleccionar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label style="font-size:.75rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:4px;">Descripción / Detalle</label>
+                <textarea id="edit-art-descripcion" rows="3" 
+                    style="width:100%; padding:8px 12px; border:1px solid #d9d9d9; font-size:.875rem; resize:vertical;"></textarea>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div>
+                    <label style="font-size:.75rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:4px;">Cantidad</label>
+                    <input type="number" id="edit-art-cantidad" step="0.01" min="0.01"
+                        style="width:100%; padding:8px 12px; border:1px solid #d9d9d9; font-size:.875rem;">
+                </div>
+                <div>
+                    <label style="font-size:.75rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:4px;">Costo Unitario (L.)</label>
+                    <input type="number" id="edit-art-costo" step="0.01" min="0"
+                        style="width:100%; padding:8px 12px; border:1px solid #d9d9d9; font-size:.875rem;">
+                </div>
+            </div>
+            <div>
+                <label style="font-size:.75rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:4px;">Subtotal</label>
+                <div id="edit-art-subtotal" style="font-size:1.1rem; font-weight:700; color:#0a6ed1; padding:8px 0;">L. 0.00</div>
+            </div>
+            <div>
+                <label style="font-size:.75rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:4px;">Proveedor</label>
+                <input type="text" id="edit-art-proveedor-search" placeholder="🔍 Buscar proveedor..."
+                    style="width:100%; padding:8px 12px; border:1px solid #d9d9d9; font-size:.8125rem; margin-bottom:4px;"
+                    oninput="buscarProveedorEnEdit(this.value)">
+                <div id="edit-art-proveedor-results" style="max-height:150px; overflow-y:auto; border:1px solid #d9d9d9; background:white; display:none;"></div>
+                <div id="edit-art-proveedor-selected" style="margin-top:6px; font-size:.8rem; color:#32363a; font-weight:600;"></div>
+                <select id="edit-art-proveedor" style="display:none;">
+                    <option value="">— Sin proveedor —</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:.5rem;">
+            <button type="button" onclick="cerrarEditArticulo()" 
+                style="padding:8px 16px; background:#f1f3f4; border:1px solid #d9d9d9; color:#32363a; font-size:.8125rem; cursor:pointer;">Cancelar</button>
+            <button type="button" onclick="guardarEditArticulo()"
+                style="padding:8px 16px; background:#0a6ed1; border:none; color:white; font-size:.8125rem; font-weight:600; cursor:pointer;">💾 Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let editArticleIndex = null;
+
+function abrirHistorialDesdeRow(index) {
+    const row = document.getElementById('article-' + index);
+    if (!row) return;
+    const materialSelect = row.querySelector('[name$="-material"]');
+    const materialId = materialSelect ? materialSelect.value : null;
+    if (materialId) {
+        abrirModalMaterial(parseInt(materialId));
+    } else {
+        // Si no tiene material vinculado, abrir edición directamente
+        abrirEditArticulo(index);
+    }
+}
+
+function abrirEditArticulo(index) {
+    editArticleIndex = index;
+    const row = document.getElementById('article-' + index);
+    if (!row) return;
+
+    const modal = document.getElementById('edit-article-modal');
+    selectedMaterialId = null;
+    
+    // Leer valores actuales del formset
+    const materialSelect = row.querySelector('[name$="-material"]');
+    const skuInput = row.querySelector('.sku-display');
+    const descInput = row.querySelector('[name$="-cr8ca_articulo"]');
+    const cantInput = row.querySelector('[name$="-cr8ca_cantidad"]');
+    const costoInput = row.querySelector('[name$="-cr8ca_costoaproximado"]');
+    const provSelect = row.querySelector('[name$="-proveedor"]');
+
+    // Llenar modal
+    document.getElementById('edit-art-material-display').value = skuInput ? skuInput.value || '(Sin material vinculado)' : '(Sin material)';
+    document.getElementById('edit-art-descripcion').value = descInput ? descInput.value : '';
+    document.getElementById('edit-art-cantidad').value = cantInput ? cantInput.value : '1';
+    document.getElementById('edit-art-costo').value = costoInput ? costoInput.value : '0';
+
+    // Mostrar/ocultar botón "Editar Material" en admin
+    const btnEditarMat = document.getElementById('btn-editar-material-admin');
+    const matId = materialSelect ? materialSelect.value : '';
+    if (matId && matId !== '' && matId !== 'None') {
+        btnEditarMat.style.display = 'inline-block';
+        btnEditarMat.dataset.materialId = matId;
+    } else {
+        btnEditarMat.style.display = 'none';
+        btnEditarMat.dataset.materialId = '';
+    }
+
+    // Poblar select de proveedor (oculto, se usa internamente)
+    const editProvSelect = document.getElementById('edit-art-proveedor');
+    editProvSelect.innerHTML = '<option value="">— Sin proveedor —</option>';
+    const provSelectedDisplay = document.getElementById('edit-art-proveedor-selected');
+    const provSearchInput = document.getElementById('edit-art-proveedor-search');
+    
+    if (provSelect) {
+        Array.from(provSelect.options).forEach(opt => {
+            if (opt.value) {
+                const newOpt = document.createElement('option');
+                newOpt.value = opt.value;
+                newOpt.textContent = opt.textContent;
+                if (opt.value === provSelect.value) newOpt.selected = true;
+                editProvSelect.appendChild(newOpt);
+            }
+        });
+        // Mostrar proveedor actual
+        if (provSelect.value) {
+            const selectedOpt = provSelect.options[provSelect.selectedIndex];
+            provSelectedDisplay.innerHTML = '🏢 <span style="color:#0a6ed1;">' + (selectedOpt ? selectedOpt.textContent : '') + '</span> <a href="#" onclick="limpiarProveedorEdit(); return false;" style="color:#bb0000; font-size:.7rem; margin-left:8px;">✕ Quitar</a>';
+        } else {
+            provSelectedDisplay.textContent = 'Sin proveedor asignado';
+        }
+    }
+    provSearchInput.value = '';
+
+    // Calcular subtotal
+    actualizarSubtotalEdit();
+
+    modal.style.display = 'flex';
+}
+
+function actualizarSubtotalEdit() {
+    const cant = parseFloat(document.getElementById('edit-art-cantidad').value) || 0;
+    const costo = parseFloat(document.getElementById('edit-art-costo').value) || 0;
+    const subtotal = cant * costo;
+    document.getElementById('edit-art-subtotal').textContent = 'L. ' + subtotal.toLocaleString('es-HN', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+document.getElementById('edit-art-cantidad').addEventListener('input', actualizarSubtotalEdit);
+document.getElementById('edit-art-costo').addEventListener('input', actualizarSubtotalEdit);
+
+function guardarEditArticulo() {
+    if (editArticleIndex === null) return;
+    const row = document.getElementById('article-' + editArticleIndex);
+    if (!row) return;
+
+    // Escribir valores de vuelta al formset
+    const materialSelect = row.querySelector('[name$="-material"]');
+    const skuInput = row.querySelector('.sku-display');
+    const descInput = row.querySelector('[name$="-cr8ca_articulo"]');
+    const cantInput = row.querySelector('[name$="-cr8ca_cantidad"]');
+    const costoInput = row.querySelector('[name$="-cr8ca_costoaproximado"]');
+    const provSelect = row.querySelector('[name$="-proveedor"]');
+
+    // Si se seleccionó un nuevo material, actualizarlo
+    if (selectedMaterialId && materialSelect) {
+        // Verificar si el option existe, si no, crearlo
+        let opt = materialSelect.querySelector('option[value="' + selectedMaterialId + '"]');
+        if (!opt) {
+            opt = document.createElement('option');
+            opt.value = selectedMaterialId;
+            opt.textContent = document.getElementById('edit-art-material-display').value;
+            materialSelect.appendChild(opt);
+        }
+        materialSelect.value = selectedMaterialId;
+        // Actualizar SKU display
+        if (skuInput) {
+            skuInput.value = document.getElementById('edit-art-material-display').value.split(' - ')[0];
+        }
+        // Trigger select2 si existe
+        if (window.$ && $(materialSelect).data('select2')) {
+            $(materialSelect).trigger('change.select2');
+        }
+    }
+
+    if (descInput) descInput.value = document.getElementById('edit-art-descripcion').value;
+    if (cantInput) cantInput.value = document.getElementById('edit-art-cantidad').value;
+    if (costoInput) costoInput.value = document.getElementById('edit-art-costo').value;
+    if (provSelect) provSelect.value = document.getElementById('edit-art-proveedor').value;
+
+    // Disparar recalculo de totales
+    if (cantInput) cantInput.dispatchEvent(new Event('input', {bubbles: true}));
+    if (costoInput) costoInput.dispatchEvent(new Event('input', {bubbles: true}));
+
+    // Reset
+    selectedMaterialId = null;
+
+    // Feedback visual
+    row.style.background = '#ecfdf5';
+    setTimeout(() => row.style.background = '', 1500);
+
+    cerrarEditArticulo();
+}
+
+function cerrarEditArticulo() {
+    document.getElementById('edit-article-modal').style.display = 'none';
+    document.getElementById('edit-art-search-box').style.display = 'none';
+    document.getElementById('edit-art-search-results').innerHTML = '';
+    editArticleIndex = null;
+}
+
+document.getElementById('edit-article-modal').addEventListener('click', function(e) {
+    if (e.target === this) cerrarEditArticulo();
+});
+
+let searchTimeout = null;
+let selectedMaterialId = null;
+
+function toggleBuscadorMaterial() {
+    const box = document.getElementById('edit-art-search-box');
+    if (box.style.display === 'none') {
+        box.style.display = 'block';
+        document.getElementById('edit-art-search-input').focus();
+    } else {
+        box.style.display = 'none';
+        document.getElementById('edit-art-search-results').innerHTML = '';
+    }
+}
+
+function buscarMaterialEnEdit(query) {
+    clearTimeout(searchTimeout);
+    if (query.length < 2) {
+        document.getElementById('edit-art-search-results').innerHTML = '';
+        return;
+    }
+    searchTimeout = setTimeout(function() {
+        fetch('/inventarios/api/materials/?q=' + encodeURIComponent(query) + '&page=1')
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('edit-art-search-results');
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = '<div style="padding:12px; color:#999; font-size:.8rem; text-align:center;">No se encontraron materiales</div>';
+                return;
+            }
+            let html = '';
+            data.results.forEach(function(m) {
+                html += '<div onclick="seleccionarMaterialEdit(' + m.id + ',\'' + m.sku.replace(/'/g, "\\'") + '\',\'' + m.nombre.replace(/'/g, "\\'") + '\',' + (m.precio_estimado || 0) + ')" ' +
+                    'style="padding:10px 12px; cursor:pointer; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; transition:background .1s;" ' +
+                    'onmouseover="this.style.background=\'#e8f0fe\'" onmouseout="this.style.background=\'white\'">' +
+                    '<div><strong style="font-size:.8rem; color:#32363a;">' + m.nombre + '</strong>' +
+                    '<div style="font-size:.7rem; color:#6a6d70;">SKU: ' + m.sku + ' · Stock: ' + (m.stock || 0) + ' ' + (m.unidad || '') + '</div></div>' +
+                    '<span style="font-size:.8rem; font-weight:600; color:#0a6ed1;">L. ' + parseFloat(m.precio_estimado || 0).toLocaleString('es-HN', {minimumFractionDigits:2}) + '</span>' +
+                    '</div>';
+            });
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            document.getElementById('edit-art-search-results').innerHTML = '<div style="padding:12px; color:#bb0000; font-size:.8rem;">Error: ' + err.message + '</div>';
+        });
+    }, 300);
+}
+
+function seleccionarMaterialEdit(id, sku, nombre, precio) {
+    selectedMaterialId = id;
+    document.getElementById('edit-art-material-display').value = sku + ' - ' + nombre;
+    document.getElementById('edit-art-search-box').style.display = 'none';
+    document.getElementById('edit-art-search-results').innerHTML = '';
+    document.getElementById('nuevo-mat-form-inline').style.display = 'none';
+    
+    // Siempre actualizar descripción con el nombre del nuevo material
+    document.getElementById('edit-art-descripcion').value = nombre;
+    
+    // Actualizar precio con el del nuevo material
+    document.getElementById('edit-art-costo').value = precio;
+    actualizarSubtotalEdit();
+}
+
+function abrirCrearMaterial() {
+    document.getElementById('edit-art-search-box').style.display = 'none';
+    const form = document.getElementById('nuevo-mat-form-inline');
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        document.getElementById('new-mat-inline-nombre').focus();
+    } else {
+        form.style.display = 'none';
+    }
+}
+
+function crearMaterialInline() {
+    const nombre = document.getElementById('new-mat-inline-nombre').value.trim();
+    const sku = document.getElementById('new-mat-inline-sku').value.trim();
+    const precio = document.getElementById('new-mat-inline-precio').value || '0';
+
+    if (!nombre) {
+        alert('El nombre es requerido.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-crear-mat-inline');
+    btn.disabled = true;
+    btn.textContent = 'Creando...';
+
+    fetch('/inventarios/api/materials/create/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: JSON.stringify({ nombre: nombre, sku: sku, precio_estimado: precio })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            btn.disabled = false;
+            btn.textContent = '✓ Crear y Seleccionar';
+            return;
+        }
+        // Seleccionar el material recién creado
+        seleccionarMaterialEdit(data.id, data.sku, data.nombre, parseFloat(data.precio_estimado || 0));
+        document.getElementById('nuevo-mat-form-inline').style.display = 'none';
+        // Limpiar
+        document.getElementById('new-mat-inline-nombre').value = '';
+        document.getElementById('new-mat-inline-sku').value = '';
+        document.getElementById('new-mat-inline-precio').value = '';
+        btn.disabled = false;
+        btn.textContent = '✓ Crear y Seleccionar';
+    })
+    .catch(err => {
+        alert('Error de conexión: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = '✓ Crear y Seleccionar';
+    });
+}
+
+// --- Buscador de Proveedor ---
+let proveedorSearchTimeout = null;
+
+function buscarProveedorEnEdit(query) {
+    const resultsDiv = document.getElementById('edit-art-proveedor-results');
+    const selectHidden = document.getElementById('edit-art-proveedor');
+    
+    if (query.length < 1) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
+
+    clearTimeout(proveedorSearchTimeout);
+    proveedorSearchTimeout = setTimeout(function() {
+        const opciones = Array.from(selectHidden.options).filter(opt => 
+            opt.value && opt.textContent.toLowerCase().includes(query.toLowerCase())
+        );
+
+        if (opciones.length === 0) {
+            resultsDiv.innerHTML = '<div style="padding:10px; color:#999; font-size:.8rem; text-align:center;">No se encontraron proveedores</div>';
+            resultsDiv.style.display = 'block';
+            return;
+        }
+
+        let html = '';
+        opciones.forEach(function(opt) {
+            html += '<div onclick="seleccionarProveedorEdit(\'' + opt.value + '\',\'' + opt.textContent.replace(/'/g, "\\'") + '\')" ' +
+                'style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f0f0f0; font-size:.8rem; transition:background .1s;" ' +
+                'onmouseover="this.style.background=\'#e8f0fe\'" onmouseout="this.style.background=\'white\'">' +
+                '🏢 ' + opt.textContent + '</div>';
+        });
+        resultsDiv.innerHTML = html;
+        resultsDiv.style.display = 'block';
+    }, 150);
+}
+
+function seleccionarProveedorEdit(id, nombre) {
+    document.getElementById('edit-art-proveedor').value = id;
+    document.getElementById('edit-art-proveedor-search').value = '';
+    document.getElementById('edit-art-proveedor-results').style.display = 'none';
+    document.getElementById('edit-art-proveedor-selected').innerHTML = 
+        '🏢 <span style="color:#0a6ed1;">' + nombre + '</span> <a href="#" onclick="limpiarProveedorEdit(); return false;" style="color:#bb0000; font-size:.7rem; margin-left:8px;">✕ Quitar</a>';
+}
+
+function limpiarProveedorEdit() {
+    document.getElementById('edit-art-proveedor').value = '';
+    document.getElementById('edit-art-proveedor-selected').textContent = 'Sin proveedor asignado';
+}
+
+function editarMaterialAdmin() {
+    const btn = document.getElementById('btn-editar-material-admin');
+    const matId = btn.dataset.materialId;
+    if (!matId) return;
+
+    const modal = document.getElementById('material-full-edit-modal');
+    const content = document.getElementById('mat-full-edit-content');
+    modal.style.display = 'flex';
+    content.innerHTML = '<div style="text-align:center; padding:3rem; color:#6a6d70;"><i class="fas fa-spinner fa-spin"></i> Cargando material...</div>';
+
+    fetch('/inventarios/api/material/' + matId + '/detail/')
+    .then(r => r.json())
+    .then(data => {
+        let tipoOpts = '';
+        data.opciones_tipo.forEach(t => {
+            tipoOpts += '<option value="' + t[0] + '"' + (t[0] === data.tipo_material ? ' selected' : '') + '>' + t[1] + '</option>';
+        });
+        let catOpts = '<option value="">— Sin categoría —</option>';
+        data.opciones_categoria.forEach(c => {
+            catOpts += '<option value="' + c.id + '"' + (c.id === data.categoria_id ? ' selected' : '') + '>' + c.nombre + '</option>';
+        });
+        let uniOpts = '<option value="">— Sin unidad —</option>';
+        data.opciones_unidad.forEach(u => {
+            uniOpts += '<option value="' + u.id + '"' + (u.id === data.unidad_medida_id ? ' selected' : '') + '>' + u.nombre + '</option>';
+        });
+
+        content.innerHTML = `
+        <div style="margin-bottom:1rem;">
+            <div style="display:flex; gap:8px; border-bottom:2px solid #8a95a5; margin-bottom:1rem;">
+                <button type="button" class="mat-tab active" data-tab="general" onclick="switchMatTab('general')">General</button>
+                <button type="button" class="mat-tab" data-tab="comercial" onclick="switchMatTab('comercial')">Comercial</button>
+                <button type="button" class="mat-tab" data-tab="dimensiones" onclick="switchMatTab('dimensiones')">Dimensiones</button>
+                <button type="button" class="mat-tab" data-tab="info" onclick="switchMatTab('info')">Info</button>
+            </div>
+        </div>
+
+        <div id="mat-tab-general" class="mat-tab-content active">
+            <div style="display:grid; gap:.75rem;">
+                <div style="display:grid; grid-template-columns:2fr 1fr; gap:.75rem;">
+                    <div><label class="mat-lbl">Nombre</label><input type="text" id="mfe-nombre" value="${data.nombre}" class="mat-inp"></div>
+                    <div><label class="mat-lbl">SKU</label><input type="text" id="mfe-sku" value="${data.sku}" class="mat-inp"></div>
+                </div>
+                <div><label class="mat-lbl">Descripción</label><textarea id="mfe-descripcion" class="mat-inp" rows="3">${data.descripcion}</textarea></div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:.75rem;">
+                    <div><label class="mat-lbl">Tipo</label><select id="mfe-tipo" class="mat-inp">${tipoOpts}</select></div>
+                    <div><label class="mat-lbl">Categoría</label><select id="mfe-categoria" class="mat-inp">${catOpts}</select></div>
+                    <div><label class="mat-lbl">Unidad Medida</label><select id="mfe-unidad" class="mat-inp">${uniOpts}</select></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="mat-tab-comercial" class="mat-tab-content" style="display:none;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+                <div><label class="mat-lbl">Precio Estimado (L.)</label><input type="number" id="mfe-precio" value="${data.precio_estimado}" step="0.01" class="mat-inp"></div>
+                <div><label class="mat-lbl">Stock Mínimo</label><input type="number" id="mfe-stock-min" value="${data.stock_minimo}" step="0.01" class="mat-inp"></div>
+            </div>
+            <div style="margin-top:.75rem;">
+                <label class="mat-lbl">Código de Exoneración</label>
+                <div style="display:flex; gap:6px;">
+                    <input type="text" id="mfe-exoneracion-search" placeholder="Buscar código o descripción..."
+                        class="mat-inp" style="flex:1;" oninput="buscarCodigoExoneracion(this.value)">
+                </div>
+                <div id="mfe-exoneracion-results" style="max-height:150px; overflow-y:auto; border:1px solid #8a95a5; background:white; display:none;"></div>
+                <div id="mfe-exoneracion-selected" style="margin-top:6px; font-size:.8rem;">
+                    ${data.codigo_exoneracion ? '<span style="color:#1e3a5f; font-weight:600;">📋 ' + data.codigo_exoneracion_codigo + ' - ' + data.codigo_exoneracion_desc + '</span> <a href="#" onclick="limpiarExoneracion(); return false;" style="color:#bb0000; font-size:.7rem; margin-left:6px;">✕</a>' : '<span style="color:#5a6a7e;">Sin código asignado</span>'}
+                </div>
+                <input type="hidden" id="mfe-exoneracion-id" value="${data.codigo_exoneracion_id || ''}">
+                ${data.codigo_exoneracion ? '<div style="margin-top:6px; font-size:.7rem; color:#5a6a7e; display:grid; grid-template-columns:repeat(4,1fr); gap:4px;"><span>DAI: ' + data.codigo_exoneracion_dai + '%</span><span>ISC: ' + data.codigo_exoneracion_isc + '%</span><span>IPC: ' + data.codigo_exoneracion_ipc + '%</span><span>ISV: ' + data.codigo_exoneracion_isv + '%</span></div>' : ''}
+            </div>
+            <div style="margin-top:.75rem; display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+                <div style="padding:12px; background:#f4f6f8; border:1px solid #8a95a5;">
+                    <span style="font-size:.7rem; color:#5a6a7e; text-transform:uppercase;">Stock Actual</span>
+                    <div style="font-size:1.25rem; font-weight:700; color:#1e3a5f;">${data.stock_total}</div>
+                </div>
+                <div style="padding:12px; background:#f4f6f8; border:1px solid #8a95a5;">
+                    <label style="font-size:.75rem; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                        <input type="checkbox" id="mfe-no-stock" ${data.no_afecta_stock ? 'checked' : ''}>
+                        No afecta stock
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="mat-tab-dimensiones" class="mat-tab-content" style="display:none;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+                <div><label class="mat-lbl">Alto (cm)</label><input type="number" id="mfe-alto" value="${data.alto || ''}" step="0.01" class="mat-inp"></div>
+                <div><label class="mat-lbl">Ancho (cm)</label><input type="number" id="mfe-ancho" value="${data.ancho || ''}" step="0.01" class="mat-inp"></div>
+                <div><label class="mat-lbl">Profundidad (cm)</label><input type="number" id="mfe-profundidad" value="${data.profundidad || ''}" step="0.01" class="mat-inp"></div>
+                <div><label class="mat-lbl">Peso (lb)</label><input type="number" id="mfe-peso" value="${data.peso || ''}" step="0.01" class="mat-inp"></div>
+            </div>
+        </div>
+
+        <div id="mat-tab-info" class="mat-tab-content" style="display:none;">
+            <div style="display:grid; gap:.5rem; font-size:.8rem; color:#5a6a7e;">
+                <div><strong>ID:</strong> ${data.id}</div>
+                <div><strong>Marca:</strong> ${data.marca || '—'}</div>
+                <div><strong>Creado:</strong> ${data.creado_en}</div>
+                <div><strong>Actualizado:</strong> ${data.actualizado_en}</div>
+                ${data.imagen_url ? '<div><strong>Imagen:</strong><br><img src="' + data.imagen_url + '" style="max-width:200px; max-height:150px; margin-top:6px; border:1px solid #8a95a5;"></div>' : ''}
+            </div>
+        </div>
+
+        <div style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid #8a95a5; display:flex; justify-content:space-between; align-items:center;">
+            <button type="button" onclick="window.open('/admin/inventarios/material/${data.id}/change/','_blank','width=1000,height=700,scrollbars=yes')" style="padding:8px 16px; background:transparent; border:1px solid #8a95a5; color:#5a6a7e; font-size:.75rem; cursor:pointer;">🔗 Abrir en Admin</button>
+            <div style="display:flex; gap:.5rem;">
+                <button type="button" onclick="cerrarMaterialFullEdit()" style="padding:8px 16px; background:#f4f6f8; border:1px solid #8a95a5; color:#1a2332; font-size:.8125rem; cursor:pointer;">Cancelar</button>
+                <button type="button" onclick="guardarMaterialFullEdit(${data.id})" style="padding:8px 16px; background:#1e3a5f; border:none; color:white; font-size:.8125rem; font-weight:600; cursor:pointer;">💾 Guardar Material</button>
+            </div>
+        </div>`;
+    })
+    .catch(err => {
+        content.innerHTML = '<div style="padding:2rem; color:#bb0000; text-align:center;">Error: ' + err.message + '</div>';
+    });
+}
+
+function switchMatTab(tab) {
+    document.querySelectorAll('.mat-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.mat-tab-content').forEach(c => { c.style.display = 'none'; c.classList.remove('active'); });
+    document.querySelector('.mat-tab[data-tab="' + tab + '"]').classList.add('active');
+    const panel = document.getElementById('mat-tab-' + tab);
+    panel.style.display = 'block';
+    panel.classList.add('active');
+}
+
+function guardarMaterialFullEdit(matId) {
+    const payload = {
+        nombre: document.getElementById('mfe-nombre').value,
+        sku: document.getElementById('mfe-sku').value,
+        descripcion: document.getElementById('mfe-descripcion').value,
+        tipo_material: document.getElementById('mfe-tipo').value,
+        categoria_id: document.getElementById('mfe-categoria').value || null,
+        unidad_medida_id: document.getElementById('mfe-unidad').value || null,
+        precio_estimado: document.getElementById('mfe-precio').value,
+        stock_minimo: document.getElementById('mfe-stock-min').value,
+        no_afecta_stock: document.getElementById('mfe-no-stock').checked,
+        alto: document.getElementById('mfe-alto').value || null,
+        ancho: document.getElementById('mfe-ancho').value || null,
+        profundidad: document.getElementById('mfe-profundidad').value || null,
+        peso: document.getElementById('mfe-peso').value || null,
+        codigo_exoneracion_id: document.getElementById('mfe-exoneracion-id').value || null,
+    };
+
+    fetch('/inventarios/api/material/' + matId + '/update/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert('Error: ' + data.error); return; }
+        // Actualizar SKU display en la fila
+        if (editArticleIndex !== null) {
+            const row = document.getElementById('article-' + editArticleIndex);
+            if (row) {
+                const skuDisp = row.querySelector('.sku-display');
+                if (skuDisp && data.sku) skuDisp.value = data.sku;
+            }
+        }
+        // Actualizar el campo del modal de edición de artículo
+        if (data.sku && data.nombre) {
+            document.getElementById('edit-art-material-display').value = data.sku + ' - ' + data.nombre;
+        }
+        if (data.precio_estimado !== undefined) {
+            document.getElementById('edit-art-costo').value = data.precio_estimado;
+            actualizarSubtotalEdit();
+        }
+        cerrarMaterialFullEdit();
+        // Feedback
+        alert('✅ Material actualizado correctamente.');
+    })
+    .catch(err => { alert('Error: ' + err.message); });
+}
+
+function cerrarMaterialFullEdit() {
+    document.getElementById('material-full-edit-modal').style.display = 'none';
+}
+document.getElementById('material-full-edit-modal').addEventListener('click', function(e) { if (e.target === this) cerrarMaterialFullEdit(); });
+
+// --- Buscador de Código de Exoneración ---
+let exoSearchTimeout = null;
+
+function buscarCodigoExoneracion(query) {
+    const resultsDiv = document.getElementById('mfe-exoneracion-results');
+    if (query.length < 2) { resultsDiv.style.display = 'none'; return; }
+
+    clearTimeout(exoSearchTimeout);
+    exoSearchTimeout = setTimeout(function() {
+        fetch('/inventarios/api/codigos-exoneracion/search/?q=' + encodeURIComponent(query))
+        .then(r => r.json())
+        .then(data => {
+            if (!data.results || data.results.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding:10px; color:#999; font-size:.8rem; text-align:center;">No se encontraron códigos</div>';
+                resultsDiv.style.display = 'block';
+                return;
+            }
+            let html = '';
+            data.results.forEach(function(c) {
+                html += '<div onclick="seleccionarExoneracion(' + c.id + ',\'' + c.codigo.replace(/'/g, "\\'") + '\',\'' + c.descripcion.replace(/'/g, "\\'") + '\',' + c.dai + ',' + c.isc + ',' + c.ipc + ',' + c.isv + ')" ' +
+                    'style="padding:8px 10px; cursor:pointer; border-bottom:1px solid #f0f0f0; font-size:.75rem; transition:background .1s;" ' +
+                    'onmouseover="this.style.background=\'#e8f0fe\'" onmouseout="this.style.background=\'white\'">' +
+                    '<strong>' + c.codigo + '</strong> - ' + c.descripcion +
+                    '<div style="color:#5a6a7e; font-size:.65rem; margin-top:2px;">DAI:' + c.dai + '% | ISC:' + c.isc + '% | IPC:' + c.ipc + '% | ISV:' + c.isv + '%</div>' +
+                    '</div>';
+            });
+            resultsDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+        });
+    }, 300);
+}
+
+function seleccionarExoneracion(id, codigo, desc, dai, isc, ipc, isv) {
+    document.getElementById('mfe-exoneracion-id').value = id;
+    document.getElementById('mfe-exoneracion-search').value = '';
+    document.getElementById('mfe-exoneracion-results').style.display = 'none';
+    document.getElementById('mfe-exoneracion-selected').innerHTML =
+        '<span style="color:#1e3a5f; font-weight:600;">📋 ' + codigo + ' - ' + desc + '</span> <a href="#" onclick="limpiarExoneracion(); return false;" style="color:#bb0000; font-size:.7rem; margin-left:6px;">✕</a>' +
+        '<div style="margin-top:4px; font-size:.7rem; color:#5a6a7e; display:grid; grid-template-columns:repeat(4,1fr); gap:4px;"><span>DAI: ' + dai + '%</span><span>ISC: ' + isc + '%</span><span>IPC: ' + ipc + '%</span><span>ISV: ' + isv + '%</span></div>';
+}
+
+function limpiarExoneracion() {
+    document.getElementById('mfe-exoneracion-id').value = '';
+    document.getElementById('mfe-exoneracion-selected').innerHTML = '<span style="color:#5a6a7e;">Sin código asignado</span>';
+}
+</script>
+
+<!-- Modal Edición Completa de Material -->
+<div id="material-full-edit-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
+    <div style="background:white; max-width:700px; width:90%; max-height:85vh; overflow-y:auto; padding:1.5rem; position:relative; border-top:4px solid #1e3a5f;">
+        <button onclick="cerrarMaterialFullEdit()" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#666;">&times;</button>
+        <h3 style="margin:0 0 1rem; font-size:1.1rem; color:#1a2332;">⚙️ Editar Material / Repuesto</h3>
+        <div id="mat-full-edit-content"></div>
+    </div>
+</div>
+
+<style>
+.mat-tab { padding:8px 16px; background:none; border:none; font-size:.8125rem; font-weight:600; color:#5a6a7e; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; }
+.mat-tab.active { color:#1e3a5f; border-bottom-color:#1e3a5f; }
+.mat-tab:hover { color:#1e3a5f; }
+.mat-lbl { font-size:.7rem; font-weight:600; color:#5a6a7e; display:block; margin-bottom:3px; text-transform:uppercase; letter-spacing:.3px; }
+.mat-inp { width:100%; padding:8px 10px; border:1px solid #8a95a5; font-size:.8125rem; background:white; }
+.mat-inp:focus { outline:none; border-color:#1e3a5f; }
+</style>
+
+<!-- Modal Historial de Material -->
+<div id="material-history-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:99999; justify-content:center; align-items:center;">
+    <div style="background:white; max-width:650px; width:90%; max-height:80vh; overflow-y:auto; padding:1.5rem; position:relative; border-top:4px solid #0a6ed1;">
+        <button onclick="cerrarModalMaterial()" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#666;">&times;</button>
+        <h3 id="mat-modal-title" style="margin:0 0 .5rem; font-size:1rem; color:#32363a;"></h3>
+        <p id="mat-modal-subtitle" style="margin:0 0 1rem; font-size:.8rem; color:#6a6d70;"></p>
+        <div id="mat-modal-content" style="font-size:.8125rem;">
+            <div style="text-align:center; padding:2rem; color:#999;"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+function abrirModalMaterial(materialId) {
+    const modal = document.getElementById('material-history-modal');
+    const content = document.getElementById('mat-modal-content');
+    const title = document.getElementById('mat-modal-title');
+    const subtitle = document.getElementById('mat-modal-subtitle');
+    
+    modal.style.display = 'flex';
+    content.innerHTML = '<div style="text-align:center; padding:2rem; color:#999;"><i class="fas fa-spinner fa-spin"></i> Cargando historial...</div>';
+    title.textContent = '';
+    subtitle.textContent = '';
+
+    fetch('/inventarios/api/material/' + materialId + '/precios-historicos/')
+    .then(r => r.json())
+    .then(data => {
+        title.textContent = data.material || 'Material';
+        subtitle.textContent = 'SKU: ' + (data.material_sku || '-') + ' · Precio actual: L. ' + parseFloat(data.precio_actual || 0).toLocaleString('es-HN', {minimumFractionDigits:2});
+
+        if (!data.historial || data.historial.length === 0) {
+            content.innerHTML = '<div style="text-align:center; padding:2rem; color:#999;">No hay historial de compras para este material.</div>';
+            return;
+        }
+
+        let html = '<table style="width:100%; border-collapse:collapse; font-size:.8rem;">';
+        html += '<thead><tr style="background:#f7f7f7; border-bottom:2px solid #d9d9d9;">';
+        html += '<th style="padding:8px; text-align:left;">Requisición</th>';
+        html += '<th style="padding:8px; text-align:left;">Fecha</th>';
+        html += '<th style="padding:8px; text-align:left;">Proveedor</th>';
+        html += '<th style="padding:8px; text-align:center;">Cant.</th>';
+        html += '<th style="padding:8px; text-align:right;">Precio Unit.</th>';
+        html += '<th style="padding:8px; text-align:left;">Estado</th>';
+        html += '</tr></thead><tbody>';
+
+        data.historial.forEach(function(item) {
+            const estadoColor = item.estado === 'Autorizado' ? '#107e3e' : 
+                               item.estado === 'En Orden de Compra' ? '#0a6ed1' : '#6a6d70';
+            html += '<tr style="border-bottom:1px solid #eee;">';
+            html += '<td style="padding:8px;">' + (item.req_id ? '<a href="/presupuestos/requisiciones/editar/' + item.req_id + '/?step=4" style="color:#0a6ed1; text-decoration:none; font-weight:600;">' + item.req_num + '</a>' : item.req_num) + '</td>';
+            html += '<td style="padding:8px;">' + item.fecha + '</td>';
+            html += '<td style="padding:8px;">' + item.proveedor + '</td>';
+            html += '<td style="padding:8px; text-align:center;">' + item.cantidad + '</td>';
+            html += '<td style="padding:8px; text-align:right; font-weight:600;">L. ' + parseFloat(item.precio_unitario).toLocaleString('es-HN', {minimumFractionDigits:2}) + '</td>';
+            html += '<td style="padding:8px;"><span style="color:' + estadoColor + '; font-weight:600; font-size:.75rem;">' + item.estado + '</span></td>';
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        
+        // Calcular totales
+        let totalCantidad = 0;
+        let totalMonto = 0;
+        data.historial.forEach(function(item) {
+            totalCantidad += parseFloat(item.cantidad) || 0;
+            totalMonto += parseFloat(item.subtotal) || (parseFloat(item.cantidad) * parseFloat(item.precio_unitario)) || 0;
+        });
+        
+        html += '<table style="width:100%; border-collapse:collapse; font-size:.8rem; margin-top:8px; border-top:2px solid #0a6ed1;">';
+        html += '<tr style="background:#e8f0fe; font-weight:700;">';
+        html += '<td style="padding:8px;" colspan="3">TOTALES</td>';
+        html += '<td style="padding:8px; text-align:center;">' + totalCantidad.toLocaleString('es-HN', {minimumFractionDigits:0}) + '</td>';
+        html += '<td style="padding:8px; text-align:right; color:#0a6ed1;">L. ' + totalMonto.toLocaleString('es-HN', {minimumFractionDigits:2}) + '</td>';
+        html += '<td style="padding:8px;"></td>';
+        html += '</tr></table>';
+        
+        html += '<div style="margin-top:1rem; padding-top:.75rem; border-top:1px solid #eee; font-size:.75rem; color:#6a6d70; text-align:right;">' + data.total_registros + ' registros encontrados</div>';
+        content.innerHTML = html;
+    })
+    .catch(err => {
+        content.innerHTML = '<div style="text-align:center; padding:2rem; color:#bb0000;">Error al cargar historial: ' + err.message + '</div>';
+    });
+}
+
+function cerrarModalMaterial() {
+    document.getElementById('material-history-modal').style.display = 'none';
+}
+
+document.getElementById('material-history-modal').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalMaterial();
+});
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cerrarModalMaterial(); });
 </script>
 {% endblock %}

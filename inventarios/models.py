@@ -90,6 +90,7 @@ class Material(models.Model):
         ('HERRAMIENTA', 'Herramienta'),
         ('EPP', 'Equipo de Protección (EPP)'),
         ('SERVICIO', 'Servicio'),
+        ('ACTIVO', 'Activo'),
         ('OTRO', 'Otro'),
     ]
     tipo_material = models.CharField(max_length=20, choices=TIPO_MATERIAL_CHOICES, default='INSUMO', verbose_name="Tipo de Material")
@@ -111,6 +112,15 @@ class Material(models.Model):
         default=False,
         verbose_name="No Afecta Stock",
         help_text="Activar para materiales de ingreso que no deben afectar inventario (ej. compra de agua, servicios, etc.)"
+    )
+
+    codigo_exoneracion = models.ForeignKey(
+        'presupuestos.CodigoExoneracion',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='materiales',
+        verbose_name="Código de Exoneración",
+        help_text="Código arancelario para calcular impuestos de importación"
     )
 
     creado_en = models.DateTimeField(auto_now_add=True)

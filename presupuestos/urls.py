@@ -65,6 +65,9 @@ urlpatterns = [
     path('proveedores/dashboard/', views_pagos.dashboard_proveedores, name='dashboard_proveedores'),
     path('proveedores/<int:empresa_id>/detalle/', views_pagos.detalle_proveedor, name='detalle_proveedor'),
     
+    # REPEX Dashboard
+    path('repex/dashboard/', views_import.repex_dashboard, name='repex_dashboard'),
+    
     # REPEX Cronograma / Visualizador
     path('repex/<int:pk>/', views.cronograma_repex, name='cronograma_repex'),
     path('api/repex/update-item/', views.api_update_repex_item, name='api_update_repex_item'),
@@ -140,4 +143,9 @@ urlpatterns = [
     path('codigos-exoneracion/import/', views_import.import_codigos_exoneracion_view, name='import_codigos_exoneracion'),
     path('codigos-exoneracion/import/process/', views_import.import_codigos_exoneracion_process, name='import_codigos_exoneracion_process'),
     path('codigos-exoneracion/import/progress/', views_import.import_codigos_exoneracion_progress, name='import_codigos_exoneracion_progress'),
+    path('api/codigos-exoneracion/create/', views_import.api_create_codigo_exoneracion, name='api_create_codigo_exoneracion'),
+    path('api/codigos-exoneracion/<int:pk>/detalle/', views_import.api_detalle_codigo_exoneracion, name='api_detalle_codigo_exoneracion'),
+    path('api/codigos-exoneracion/add-material/', views_import.api_add_material_exoneracion, name='api_add_material_exoneracion'),
+    path('api/codigos-exoneracion/remove-material/', views_import.api_remove_material_exoneracion, name='api_remove_material_exoneracion'),
+    path('api/codigos-exoneracion/update-material/', views_import.api_update_material_exoneracion, name='api_update_material_exoneracion'),
 ]

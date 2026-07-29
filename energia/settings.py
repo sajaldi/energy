@@ -709,6 +709,12 @@ JAZZMIN_SETTINGS = {
                 "icon": "fas fa-file-signature",
                 "permissions": ["presupuestos.view_requisicion"],
             },
+            {
+                "name": "🔄 Dashboard REPEX",
+                "url": "/presupuestos/repex/dashboard/",
+                "icon": "fas fa-sync-alt",
+                "permissions": ["presupuestos.view_repex"],
+            },
         ],
         "servicios": [
             {

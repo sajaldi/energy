@@ -44,6 +44,8 @@ def handle_requisicion_notifications(sender, instance, created, **kwargs):
             enlace=req_url,
             icono='checkmark-circle-outline',
         )
+        # Actualizar precios de materiales al autorizar
+        _actualizar_precios_materiales(instance)
 
     # Rechazada -> notificar al solicitante
     elif old != 'RECHAZADO' and instance.estado_requisicion == 'RECHAZADO' and instance.usuario_solicitante:
@@ -145,3 +147,43 @@ def handle_oc_notifications(sender, instance, created, **kwargs):
                 enlace=oc_url,
                 icono='close-outline',
             )
+
+
+def _actualizar_precios_materiales(requisicion):
+    """
+    Actualiza el precio_estimado de cada Material vinculado a los artículos
+    de la requisición aprobada (EN_ORDEN_COMPRA).
+    Solo actualiza si el artículo tiene material vinculado y precio > 0.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        from .models import ArticuloRequisicion
+
+        articulos = ArticuloRequisicion.objects.filter(
+            requisicion=requisicion,
+            material__isnull=False,
+        ).exclude(
+            cr8ca_costoaproximado__isnull=True
+        ).exclude(
+            cr8ca_costoaproximado=0
+        ).select_related('material')
+
+        materiales_actualizados = 0
+        for articulo in articulos:
+            material = articulo.material
+            nuevo_precio = articulo.cr8ca_costoaproximado
+
+            if nuevo_precio and nuevo_precio > 0:
+                material.precio_estimado = nuevo_precio
+                material.save(update_fields=['precio_estimado', 'actualizado_en'])
+                materiales_actualizados += 1
+
+        if materiales_actualizados:
+            logger.info(
+                f"Precios actualizados: {materiales_actualizados} materiales "
+                f"desde requisición {requisicion.cr8ca_requisicion}"
+            )
+    except Exception as e:
+        logger.warning(f"Error actualizando precios desde requisición: {e}")

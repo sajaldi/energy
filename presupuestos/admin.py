@@ -727,4 +727,7 @@ class CodigoExoneracionAdmin(ImportExportModelAdmin):
     search_fields = ('codigo', 'descripcion')
     list_editable = ('dai', 'isc', 'ipc', 'isv', 'activo')
     export_formats = [XLSX, CSV]
-    # change_list_template = 'admin/presupuestos/codigoexoneracion/change_list.html'
+
+    def get_export_queryset(self, request):
+        """Fix para django-import-export que pasa file_format como query param."""
+        return self.model.objects.all()

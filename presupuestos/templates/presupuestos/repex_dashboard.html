@@ -1,0 +1,665 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+
+{% block title %}Dashboard REPEX{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --fiori-shell: #354a5f;
+        --fiori-brand: #0a6ed1;
+        --fiori-brand-hover: #0854a0;
+        --fiori-positive: #107e3e;
+        --fiori-critical: #e9730c;
+        --fiori-negative: #bb0000;
+        --fiori-bg: #f7f7f7;
+        --fiori-card: #ffffff;
+        --fiori-border: #d9d9d9;
+        --fiori-text: #32363a;
+        --fiori-text-secondary: #6a6d70;
+        --fiori-shadow: 0 0 0 1px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .repex-container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+
+    .page-header {
+        margin-bottom: 1.5rem; padding-bottom: 1rem;
+        border-bottom: 1px solid var(--fiori-border);
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .page-header h1 { font-size: 1.5rem; font-weight: 400; color: var(--fiori-text); margin: 0; }
+
+    .header-actions { display: flex; gap: .5rem; }
+    .btn-fiori {
+        display: inline-flex; align-items: center; gap: .375rem;
+        padding: .5rem 1rem; font-size: .8125rem; font-weight: 600;
+        border: none; cursor: pointer; text-decoration: none;
+        font-family: '72', 'Segoe UI', Arial, sans-serif;
+        transition: all .15s;
+    }
+    .btn-primary { background: var(--fiori-brand); color: white; }
+    .btn-primary:hover { background: var(--fiori-brand-hover); color: white; text-decoration: none; }
+    .btn-secondary { background: transparent; color: var(--fiori-brand); border: 1px solid var(--fiori-brand); }
+    .btn-secondary:hover { background: var(--fiori-brand); color: white; text-decoration: none; }
+
+    /* KPI Tiles */
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin-bottom: 1.5rem; }
+    .kpi-tile {
+        background: var(--fiori-card); border: 1px solid var(--fiori-border);
+        padding: 1rem; box-shadow: var(--fiori-shadow);
+    }
+    .kpi-tile .kpi-value { font-size: 1.75rem; font-weight: 300; color: var(--fiori-text); }
+    .kpi-tile .kpi-label { font-size: .6875rem; color: var(--fiori-text-secondary); text-transform: uppercase; letter-spacing: .5px; margin-top: .25rem; }
+    .kpi-tile.positive .kpi-value { color: var(--fiori-positive); }
+    .kpi-tile.critical .kpi-value { color: var(--fiori-critical); }
+    .kpi-tile.negative .kpi-value { color: var(--fiori-negative); }
+    .kpi-tile.brand .kpi-value { color: var(--fiori-brand); }
+
+    /* Sections */
+    .section-title {
+        font-size: .8125rem; font-weight: 600; color: var(--fiori-text-secondary);
+        text-transform: uppercase; letter-spacing: .5px;
+        margin: 1.5rem 0 .75rem; padding-bottom: .5rem;
+        border-bottom: 1px solid var(--fiori-border);
+    }
+
+    /* Cards Grid */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: .75rem; margin-bottom: 1.5rem; }
+
+    .plan-card {
+        background: var(--fiori-card); border: 1px solid var(--fiori-border);
+        padding: 1rem; box-shadow: var(--fiori-shadow);
+        display: flex; flex-direction: column; gap: .5rem;
+        transition: border-color .15s; text-decoration: none; color: inherit;
+    }
+    .plan-card:hover { border-color: var(--fiori-brand); text-decoration: none; color: inherit; }
+    .plan-card .plan-name { font-size: .875rem; font-weight: 600; color: var(--fiori-text); }
+    .plan-card .plan-year { font-size: .75rem; color: var(--fiori-text-secondary); }
+    .plan-card .plan-meta { display: flex; justify-content: space-between; align-items: center; }
+    .plan-card .plan-cost { font-size: 1rem; font-weight: 600; color: var(--fiori-brand); }
+    .plan-card .plan-items { font-size: .75rem; color: var(--fiori-text-secondary); }
+
+    .status-tag {
+        display: inline-block; padding: .125rem .5rem;
+        font-size: .6875rem; font-weight: 600;
+    }
+    .status-borrador { background: #f5f5f5; color: #6a6d70; border: 1px solid #d9d9d9; }
+    .status-aprobado { background: #f1f8f1; color: var(--fiori-positive); border: 1px solid #c5e1c5; }
+    .status-ejecucion { background: #e2ecf7; color: var(--fiori-brand); border: 1px solid #b8d4ea; }
+    .status-cerrado { background: #f5f5f5; color: #999; border: 1px solid #d9d9d9; }
+
+    /* Import Card */
+    .import-card {
+        background: var(--fiori-card); border: 1px solid var(--fiori-border);
+        padding: 1.5rem; box-shadow: var(--fiori-shadow);
+        display: flex; align-items: center; gap: 1rem;
+    }
+    .import-card-icon {
+        width: 48px; height: 48px; background: #e2ecf7;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.25rem; color: var(--fiori-brand);
+    }
+    .import-card-info { flex: 1; }
+    .import-card-info h4 { font-size: .875rem; font-weight: 600; color: var(--fiori-text); margin: 0 0 .25rem; }
+    .import-card-info p { font-size: .75rem; color: var(--fiori-text-secondary); margin: 0; }
+</style>
+
+<div class="repex-container">
+    <div class="page-header">
+        <h1>Dashboard REPEX</h1>
+        <div class="header-actions">
+            <a href="{% url 'presupuestos:import_codigos_exoneracion' %}" class="btn-fiori btn-secondary">
+                <i class="fas fa-file-import"></i> Importar Códigos Exoneración
+            </a>
+            <a href="/admin/presupuestos/repex/add/" class="btn-fiori btn-primary">
+                <i class="fas fa-plus"></i> Nuevo Plan REPEX
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Tiles -->
+    <div class="kpi-row">
+        <div class="kpi-tile brand">
+            <div class="kpi-value">{{ stats.total_planes }}</div>
+            <div class="kpi-label">Planes REPEX</div>
+        </div>
+        <div class="kpi-tile positive">
+            <div class="kpi-value">{{ stats.planes_activos }}</div>
+            <div class="kpi-label">Planes Activos</div>
+        </div>
+        <div class="kpi-tile">
+            <div class="kpi-value">{{ stats.total_items|intcomma }}</div>
+            <div class="kpi-label">Ítems Totales</div>
+        </div>
+        <div class="kpi-tile brand">
+            <div class="kpi-value">L {{ stats.costo_total|floatformat:0|intcomma }}</div>
+            <div class="kpi-label">Inversión Total</div>
+        </div>
+        <div class="kpi-tile negative">
+            <div class="kpi-value">{{ stats.items_alta }}</div>
+            <div class="kpi-label">Prioridad Alta</div>
+        </div>
+        <div class="kpi-tile critical">
+            <div class="kpi-value">{{ stats.items_media }}</div>
+            <div class="kpi-label">Prioridad Media</div>
+        </div>
+    </div>
+
+    <!-- Códigos de Exoneración -->
+    <div class="section-title">Códigos de Exoneración</div>
+    <div class="cards-grid">
+        <a href="{% url 'presupuestos:import_codigos_exoneracion' %}" class="import-card" style="text-decoration:none; color:inherit;">
+            <div class="import-card-icon"><i class="fas fa-file-import"></i></div>
+            <div class="import-card-info">
+                <h4>Importar Códigos de Exoneración</h4>
+                <p>Carga masiva desde Excel/CSV del catálogo arancelario</p>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:1.25rem; font-weight:600; color:var(--fiori-brand);">{{ codigos_stats.total|intcomma }}</div>
+                <div style="font-size:.6875rem; color:var(--fiori-text-secondary);">códigos cargados</div>
+            </div>
+        </a>
+        <div class="import-card" style="cursor:pointer;" onclick="abrirModalCodigos()">
+            <div class="import-card-icon"><i class="fas fa-list-alt"></i></div>
+            <div class="import-card-info">
+                <h4>Gestionar Códigos</h4>
+                <p>Buscar, editar y crear códigos de exoneración</p>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:1.25rem; font-weight:600; color:var(--fiori-positive);">{{ codigos_stats.activos|intcomma }}</div>
+                <div style="font-size:.6875rem; color:var(--fiori-text-secondary);">activos</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Planes REPEX -->
+    <div class="section-title">Planes de Reposición</div>
+    {% if planes %}
+    <div class="cards-grid">
+        {% for plan in planes %}
+        <a href="{% url 'presupuestos:cronograma_repex' plan.id %}" class="plan-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <div class="plan-name">{{ plan.nombre }}</div>
+                    <div class="plan-year">Año {{ plan.anio }}</div>
+                </div>
+                {% if plan.estado == 'BORRADOR' %}
+                <span class="status-tag status-borrador">Borrador</span>
+                {% elif plan.estado == 'APROBADO' %}
+                <span class="status-tag status-aprobado">Aprobado</span>
+                {% elif plan.estado == 'EJECUCION' %}
+                <span class="status-tag status-ejecucion">En Ejecución</span>
+                {% else %}
+                <span class="status-tag status-cerrado">Cerrado</span>
+                {% endif %}
+            </div>
+            <div class="plan-meta">
+                <span class="plan-cost">L {{ plan.costo_total|default:0|floatformat:0|intcomma }}</span>
+                <span class="plan-items">{{ plan.total_items }} ítems</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:3rem; color:var(--fiori-text-secondary);">
+        <i class="fas fa-clipboard-list" style="font-size:2rem; color:#d9d9d9; display:block; margin-bottom:.75rem;"></i>
+        <p>No hay planes REPEX creados todavía.</p>
+        <a href="/admin/presupuestos/repex/add/" class="btn-fiori btn-primary" style="margin-top:.5rem;">
+            <i class="fas fa-plus"></i> Crear primer plan
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal Gestión de Códigos de Exoneración -->
+<div id="codigos-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:white; width:90%; max-width:900px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; border-top:4px solid var(--fiori-brand);">
+        <!-- Header -->
+        <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--fiori-border); display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; font-size:1.1rem; color:var(--fiori-text);">📋 Gestionar Códigos de Exoneración</h3>
+            <button onclick="cerrarModalCodigos()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#666;">&times;</button>
+        </div>
+        
+        <!-- Toolbar -->
+        <div style="padding:.75rem 1.5rem; border-bottom:1px solid var(--fiori-border); display:flex; gap:.5rem; align-items:center;">
+            <input type="text" id="cod-search" placeholder="Buscar por código o descripción..." 
+                style="flex:1; padding:8px 12px; border:1px solid var(--fiori-border); font-size:.8125rem;"
+                oninput="buscarCodigos(this.value)">
+            <button onclick="mostrarFormNuevoCodigo()" class="btn-fiori btn-primary" style="padding:.4rem .75rem; font-size:.75rem;">
+                <i class="fas fa-plus"></i> Nuevo
+            </button>
+        </div>
+
+        <!-- Form Nuevo (oculto) -->
+        <div id="cod-nuevo-form" style="display:none; padding:1rem 1.5rem; background:#f4f6f8; border-bottom:1px solid var(--fiori-border);">
+            <div style="display:grid; grid-template-columns:1fr 2fr repeat(4, .7fr) auto; gap:.5rem; align-items:end;">
+                <div><label style="font-size:.65rem; font-weight:600; color:var(--fiori-text-secondary); display:block;">Código</label>
+                    <input type="text" id="cod-new-codigo" style="width:100%; padding:6px 8px; border:1px solid var(--fiori-border); font-size:.8rem;"></div>
+                <div><label style="font-size:.65rem; font-weight:600; color:var(--fiori-text-secondary); display:block;">Descripción</label>
+                    <input type="text" id="cod-new-desc" style="width:100%; padding:6px 8px; border:1px solid var(--fiori-border); font-size:.8rem;"></div>
+                <div><label style="font-size:.65rem; font-weight:600; color:var(--fiori-text-secondary); display:block;">DAI%</label>
+                    <input type="number" id="cod-new-dai" value="0" step="0.01" style="width:100%; padding:6px 8px; border:1px solid var(--fiori-border); font-size:.8rem;"></div>
+                <div><label style="font-size:.65rem; font-weight:600; color:var(--fiori-text-secondary); display:block;">ISC%</label>
+                    <input type="number" id="cod-new-isc" value="0" step="0.01" style="width:100%; padding:6px 8px; border:1px solid var(--fiori-border); font-size:.8rem;"></div>
+                <div><label style="font-size:.65rem; font-weight:600; color:var(--fiori-text-secondary); display:block;">IPC%</label>
+                    <input type="number" id="cod-new-ipc" value="0" step="0.01" style="width:100%; padding:6px 8px; border:1px solid var(--fiori-border); font-size:.8rem;"></div>
+                <div><label style="font-size:.65rem; font-weight:600; color:var(--fiori-text-secondary); display:block;">ISV%</label>
+                    <input type="number" id="cod-new-isv" value="0" step="0.01" style="width:100%; padding:6px 8px; border:1px solid var(--fiori-border); font-size:.8rem;"></div>
+                <div><button onclick="crearCodigo()" style="padding:6px 12px; background:var(--fiori-positive); color:white; border:none; font-size:.75rem; font-weight:600; cursor:pointer;">✓ Crear</button></div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div style="flex:1; overflow-y:auto; padding:0;">
+            <table style="width:100%; border-collapse:collapse; font-size:.8rem;">
+                <thead style="position:sticky; top:0; background:var(--fiori-bg); z-index:1;">
+                    <tr style="border-bottom:2px solid var(--fiori-border);">
+                        <th style="padding:10px 12px; text-align:left; font-size:.7rem; color:var(--fiori-text-secondary); text-transform:uppercase;">Código</th>
+                        <th style="padding:10px 12px; text-align:left; font-size:.7rem; color:var(--fiori-text-secondary); text-transform:uppercase;">Descripción</th>
+                        <th style="padding:10px 8px; text-align:center; font-size:.7rem; color:var(--fiori-text-secondary);">Mats.</th>
+                        <th style="padding:10px 8px; text-align:center; font-size:.7rem; color:var(--fiori-text-secondary);">Cant.</th>
+                        <th style="padding:10px 8px; text-align:right; font-size:.7rem; color:var(--fiori-text-secondary);">Monto</th>
+                        <th style="padding:10px 8px; text-align:center; font-size:.7rem; color:var(--fiori-text-secondary);">DAI%</th>
+                        <th style="padding:10px 8px; text-align:center; font-size:.7rem; color:var(--fiori-text-secondary);">ISV%</th>
+                        <th style="padding:10px 8px; width:40px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="cod-table-body">
+                    <tr><td colspan="8" style="padding:3rem; text-align:center; color:var(--fiori-text-secondary);">Escribe para buscar códigos...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding:.75rem 1.5rem; border-top:1px solid var(--fiori-border); display:flex; justify-content:space-between; align-items:center;">
+            <span id="cod-count" style="font-size:.75rem; color:var(--fiori-text-secondary);"></span>
+            <button onclick="cerrarModalCodigos()" class="btn-fiori btn-secondary" style="padding:.4rem .75rem; font-size:.75rem;">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalle de Código -->
+<div id="codigo-detalle-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10000; justify-content:center; align-items:center;">
+    <div style="background:white; width:95%; max-width:1100px; max-height:90vh; overflow-y:auto; padding:1.5rem; position:relative; border-top:4px solid var(--fiori-brand);">
+        <button onclick="cerrarDetalleCodigo()" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#666;">&times;</button>
+        <div id="codigo-detalle-content"></div>
+        
+        <!-- Form agregar material (fijo, fuera del contenido dinámico) -->
+        <div id="cod-add-mat-form" style="display:none; padding:.75rem; background:#f4f6f8; border:1px solid var(--fiori-border); margin-top:.75rem;">
+            <div style="display:flex; gap:.5rem; margin-bottom:.5rem;">
+                <input type="text" id="cod-mat-search" placeholder="Buscar material por nombre o SKU..." 
+                    style="flex:1; padding:8px 10px; border:1px solid var(--fiori-border); font-size:.8rem;">
+                <button onclick="toggleCrearMatEnCodigo()" style="padding:6px 10px; background:var(--fiori-positive); color:white; border:none; font-size:.7rem; font-weight:600; cursor:pointer; white-space:nowrap;">➕ Crear Nuevo</button>
+            </div>
+            <div id="cod-mat-results" style="max-height:150px; overflow-y:auto;"></div>
+            <!-- Form crear material inline -->
+            <div id="cod-crear-mat-form" style="display:none; margin-top:.5rem; padding:.75rem; background:white; border:1px solid var(--fiori-positive);">
+                <h5 style="margin:0 0 .5rem; font-size:.8rem; color:var(--fiori-positive);">➕ Crear Nuevo Material</h5>
+                <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:.5rem; margin-bottom:.5rem;">
+                    <input type="text" id="cod-new-mat-nombre" placeholder="Nombre *" style="padding:6px 8px; border:1px solid var(--fiori-border); font-size:.8rem;">
+                    <input type="text" id="cod-new-mat-sku" placeholder="SKU (auto)" style="padding:6px 8px; border:1px solid var(--fiori-border); font-size:.8rem;">
+                    <input type="number" id="cod-new-mat-precio" placeholder="Precio" step="0.01" style="padding:6px 8px; border:1px solid var(--fiori-border); font-size:.8rem;">
+                </div>
+                <div style="display:flex; gap:.5rem; align-items:center;">
+                    <input type="number" id="cod-new-mat-cantidad" value="1" min="1" step="1" style="width:60px; padding:6px 8px; border:1px solid var(--fiori-border); font-size:.8rem; text-align:center;">
+                    <span style="font-size:.75rem; color:var(--fiori-text-secondary);">unidades</span>
+                    <div style="flex:1;"></div>
+                    <button onclick="document.getElementById('cod-crear-mat-form').style.display='none'" style="padding:5px 10px; background:#f4f6f8; border:1px solid var(--fiori-border); font-size:.75rem; cursor:pointer;">Cancelar</button>
+                    <button onclick="crearMatYAgregarACodigo()" id="btn-crear-mat-cod" style="padding:5px 10px; background:var(--fiori-positive); color:white; border:none; font-size:.75rem; font-weight:600; cursor:pointer;">✓ Crear y Agregar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function abrirModalCodigos() {
+    document.getElementById('codigos-modal').style.display = 'flex';
+    document.getElementById('cod-search').focus();
+    buscarCodigos('');
+}
+
+function toggleCodigoExpand(codigoId, arrowEl) {
+    const expandRow = document.getElementById('cod-expand-' + codigoId);
+    const contentDiv = document.getElementById('cod-expand-content-' + codigoId);
+    
+    if (expandRow.style.display === 'none') {
+        expandRow.style.display = '';
+        arrowEl.style.transform = 'rotate(90deg)';
+        contentDiv.innerHTML = '<div style="padding:8px; color:#6a6d70; font-size:.75rem;"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>';
+        
+        fetch('/presupuestos/api/codigos-exoneracion/' + codigoId + '/detalle/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.materiales.length === 0) {
+                contentDiv.innerHTML = '<div style="padding:6px; color:#6a6d70; font-size:.75rem; font-style:italic;">Sin materiales asignados</div>';
+                return;
+            }
+            let html = '<table style="width:100%; border-collapse:collapse; font-size:.75rem;">';
+            data.materiales.forEach(function(m) {
+                html += '<tr style="border-bottom:1px solid #eee;">';
+                html += '<td style="padding:4px 6px; color:var(--fiori-brand); font-weight:600;">' + m.sku + '</td>';
+                html += '<td style="padding:4px 6px;">' + m.nombre + '</td>';
+                html += '<td style="padding:4px 6px; text-align:center;">' + m.cantidad + '</td>';
+                html += '<td style="padding:4px 6px; text-align:right;">L. ' + parseFloat(m.precio).toLocaleString('es-HN',{minimumFractionDigits:2}) + '</td>';
+                html += '<td style="padding:4px 6px; text-align:right; font-weight:600;">L. ' + parseFloat(m.subtotal).toLocaleString('es-HN',{minimumFractionDigits:2}) + '</td>';
+                html += '</tr>';
+            });
+            html += '</table>';
+            contentDiv.innerHTML = html;
+        })
+        .catch(err => { contentDiv.innerHTML = '<div style="color:red; font-size:.75rem;">Error: ' + err.message + '</div>'; });
+    } else {
+        expandRow.style.display = 'none';
+        arrowEl.style.transform = '';
+    }
+}
+
+function cerrarModalCodigos() {
+    document.getElementById('codigos-modal').style.display = 'none';
+}
+
+document.getElementById('codigos-modal').addEventListener('click', function(e) { if (e.target === this) cerrarModalCodigos(); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cerrarModalCodigos(); });
+
+function mostrarFormNuevoCodigo() {
+    const form = document.getElementById('cod-nuevo-form');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    if (form.style.display === 'block') document.getElementById('cod-new-codigo').focus();
+}
+
+let codSearchTimeout = null;
+function buscarCodigos(query) {
+    clearTimeout(codSearchTimeout);
+    codSearchTimeout = setTimeout(function() {
+        const url = '/inventarios/api/codigos-exoneracion/search/?q=' + encodeURIComponent(query || '*');
+        fetch(query.length >= 2 ? url : '/inventarios/api/codigos-exoneracion/search/?q=*')
+        .then(r => r.json())
+        .then(data => renderCodigos(data.results || []))
+        .catch(() => {});
+    }, 300);
+}
+
+function renderCodigos(codigos) {
+    const tbody = document.getElementById('cod-table-body');
+    document.getElementById('cod-count').textContent = codigos.length + ' códigos';
+    
+    if (codigos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:2rem; text-align:center; color:var(--fiori-text-secondary);">No se encontraron códigos.</td></tr>';
+        return;
+    }
+
+    let html = '';
+    codigos.forEach(function(c) {
+        const montoStr = c.total_monto > 0 ? 'L. ' + parseFloat(c.total_monto).toLocaleString('es-HN',{minimumFractionDigits:0}) : '—';
+        const hasItems = c.total_materiales > 0;
+        const arrow = hasItems ? '<span class="cod-expand" onclick="toggleCodigoExpand(' + c.id + ', this); event.stopPropagation();" style="cursor:pointer; margin-right:4px; display:inline-block; transition:transform .2s; font-size:.7rem;">▶</span>' : '<span style="display:inline-block; width:14px;"></span>';
+        
+        html += '<tr id="cod-row-' + c.id + '" style="border-bottom:1px solid #eee;">';
+        html += '<td style="padding:8px 12px; font-weight:600; color:var(--fiori-brand);">' + arrow + '<span style="cursor:pointer; text-decoration:underline;" onclick="abrirDetalleCodigo(' + c.id + ')">' + c.codigo + '</span></td>';
+        html += '<td style="padding:8px 12px; color:var(--fiori-text); font-size:.75rem;">' + c.descripcion + '</td>';
+        html += '<td style="padding:8px; text-align:center; font-weight:600;">' + (c.total_materiales || 0) + '</td>';
+        html += '<td style="padding:8px; text-align:center; font-weight:600; color:var(--fiori-brand);">' + (c.total_cantidad || 0) + '</td>';
+        html += '<td style="padding:8px; text-align:right; font-weight:600; font-size:.75rem;">' + montoStr + '</td>';
+        html += '<td style="padding:8px; text-align:center; font-size:.75rem;">' + c.dai + '</td>';
+        html += '<td style="padding:8px; text-align:center; font-size:.75rem;">' + c.isv + '</td>';
+        html += '<td style="padding:8px; text-align:center;"><a href="/admin/presupuestos/codigoexoneracion/' + c.id + '/change/" target="_blank" style="color:var(--fiori-brand); font-size:.75rem; text-decoration:none;">✏️</a></td>';
+        html += '</tr>';
+        // Fila expandible (oculta)
+        html += '<tr id="cod-expand-' + c.id + '" style="display:none;"><td colspan="8" style="padding:0 12px 8px 30px; background:#f9fafb;"><div id="cod-expand-content-' + c.id + '"></div></td></tr>';
+    });
+    tbody.innerHTML = html;
+}
+
+function crearCodigo() {
+    const codigo = document.getElementById('cod-new-codigo').value.trim();
+    const desc = document.getElementById('cod-new-desc').value.trim();
+    if (!codigo || !desc) { alert('Código y descripción son requeridos.'); return; }
+
+    fetch('/presupuestos/api/codigos-exoneracion/create/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({
+            codigo: codigo,
+            descripcion: desc,
+            dai: document.getElementById('cod-new-dai').value || 0,
+            isc: document.getElementById('cod-new-isc').value || 0,
+            ipc: document.getElementById('cod-new-ipc').value || 0,
+            isv: document.getElementById('cod-new-isv').value || 0,
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert('Error: ' + data.error); return; }
+        document.getElementById('cod-new-codigo').value = '';
+        document.getElementById('cod-new-desc').value = '';
+        document.getElementById('cod-new-dai').value = '0';
+        document.getElementById('cod-new-isc').value = '0';
+        document.getElementById('cod-new-ipc').value = '0';
+        document.getElementById('cod-new-isv').value = '0';
+        document.getElementById('cod-nuevo-form').style.display = 'none';
+        buscarCodigos(document.getElementById('cod-search').value);
+        alert('✅ Código creado: ' + data.codigo);
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+function abrirDetalleCodigo(id) {
+    const modal = document.getElementById('codigo-detalle-modal');
+    const content = document.getElementById('codigo-detalle-content');
+    modal.style.display = 'flex';
+    content.innerHTML = '<div style="text-align:center; padding:2rem; color:#6a6d70;"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>';
+
+    fetch('/presupuestos/api/codigos-exoneracion/' + id + '/detalle/')
+    .then(r => r.json())
+    .then(data => {
+        let html = '<div style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--fiori-border);">';
+        html += '<h4 style="margin:0 0 .5rem; color:var(--fiori-text);">' + data.codigo + '</h4>';
+        html += '<p style="margin:0 0 .75rem; font-size:.85rem; color:var(--fiori-text-secondary);">' + data.descripcion + '</p>';
+        html += '<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:.5rem;">';
+        html += '<div style="padding:8px; background:#f4f6f8; border:1px solid var(--fiori-border); text-align:center;"><div style="font-size:.65rem; color:var(--fiori-text-secondary);">DAI</div><div style="font-size:1rem; font-weight:700; color:var(--fiori-brand);">' + data.dai + '%</div></div>';
+        html += '<div style="padding:8px; background:#f4f6f8; border:1px solid var(--fiori-border); text-align:center;"><div style="font-size:.65rem; color:var(--fiori-text-secondary);">ISC</div><div style="font-size:1rem; font-weight:700; color:var(--fiori-brand);">' + data.isc + '%</div></div>';
+        html += '<div style="padding:8px; background:#f4f6f8; border:1px solid var(--fiori-border); text-align:center;"><div style="font-size:.65rem; color:var(--fiori-text-secondary);">IPC</div><div style="font-size:1rem; font-weight:700; color:var(--fiori-brand);">' + data.ipc + '%</div></div>';
+        html += '<div style="padding:8px; background:#f4f6f8; border:1px solid var(--fiori-border); text-align:center;"><div style="font-size:.65rem; color:var(--fiori-text-secondary);">ISV</div><div style="font-size:1rem; font-weight:700; color:var(--fiori-brand);">' + data.isv + '%</div></div>';
+        html += '</div></div>';
+
+        // Materiales relacionados
+        html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem;">';
+        html += '<h5 style="margin:0; font-size:.85rem; color:var(--fiori-text);">📦 Materiales con este código (' + data.materiales.length + ')</h5>';
+        html += '<button onclick="toggleAgregarMaterial(' + data.id + ')" style="padding:4px 10px; background:var(--fiori-brand); color:white; border:none; font-size:.7rem; font-weight:600; cursor:pointer;"><i class="fas fa-plus"></i> Agregar Material</button>';
+        html += '</div>';
+
+        if (data.materiales.length > 0) {
+            html += '<table style="width:100%; border-collapse:collapse; font-size:.8rem;">';
+            html += '<thead><tr style="border-bottom:2px solid var(--fiori-border); background:var(--fiori-bg);"><th style="padding:8px; text-align:left;">SKU</th><th style="padding:8px; text-align:left;">Nombre</th><th style="padding:8px; text-align:center;">Cantidad</th><th style="padding:8px; text-align:right;">Precio Unit.</th><th style="padding:8px; text-align:right;">Subtotal</th><th style="padding:8px; width:30px;"></th></tr></thead><tbody>';
+            data.materiales.forEach(function(m) {
+                html += '<tr style="border-bottom:1px solid #eee;">';
+                html += '<td style="padding:6px 8px; font-weight:600; color:var(--fiori-brand);">' + m.sku + '</td>';
+                html += '<td style="padding:6px 8px;">' + m.nombre + '</td>';
+                html += '<td style="padding:6px 8px; text-align:center;"><input type="number" value="' + m.cantidad + '" min="0.01" step="1" style="width:60px; padding:4px; border:1px solid var(--fiori-border); text-align:center; font-size:.8rem;" onchange="actualizarItemExo(' + m.item_id + ',' + data.id + ',this.value,null)"></td>';
+                html += '<td style="padding:6px 8px; text-align:right;"><input type="number" value="' + m.precio + '" min="0" step="0.01" style="width:110px; padding:4px; border:1px solid var(--fiori-border); text-align:right; font-size:.8rem;" onchange="actualizarItemExo(' + m.item_id + ',' + data.id + ',null,this.value)"></td>';
+                html += '<td style="padding:6px 8px; text-align:right; font-weight:600;">L. ' + parseFloat(m.subtotal).toLocaleString('es-HN',{minimumFractionDigits:2}) + '</td>';
+                html += '<td style="padding:6px 8px; text-align:center;"><button onclick="eliminarMatExoneracion(' + m.item_id + ',' + data.id + ')" style="background:none; border:none; color:var(--fiori-negative); cursor:pointer; font-size:.8rem;" title="Quitar">✕</button></td>';
+                html += '</tr>';
+            });
+            html += '</tbody>';
+            html += '<tfoot><tr style="border-top:2px solid var(--fiori-brand); background:#f4f6f8; font-weight:700;">';
+            html += '<td colspan="2" style="padding:8px;">TOTAL</td>';
+            html += '<td style="padding:8px; text-align:center;">' + data.total_cantidad + '</td>';
+            html += '<td style="padding:8px;"></td>';
+            html += '<td style="padding:8px; text-align:right; color:var(--fiori-brand);">L. ' + parseFloat(data.total_monto).toLocaleString('es-HN',{minimumFractionDigits:2}) + '</td>';
+            html += '<td></td></tr></tfoot>';
+            html += '</table>';
+        } else {
+            html += '<p style="color:var(--fiori-text-secondary); font-size:.8rem; padding:1rem; text-align:center; border:1px dashed var(--fiori-border);">No hay materiales asociados a este código.</p>';
+        }
+
+        html += '<div style="margin-top:1rem; text-align:right;"><a href="/admin/presupuestos/codigoexoneracion/' + data.id + '/change/" target="_blank" style="font-size:.75rem; color:var(--fiori-brand);">✏️ Editar en Admin</a></div>';
+        content.innerHTML = html;
+    })
+    .catch(err => { content.innerHTML = '<div style="padding:2rem; color:var(--fiori-negative);">Error: ' + err.message + '</div>'; });
+}
+
+function cerrarDetalleCodigo() {
+    document.getElementById('codigo-detalle-modal').style.display = 'none';
+    document.getElementById('cod-add-mat-form').style.display = 'none';
+}
+
+function eliminarMatExoneracion(itemId, codigoId) {
+    if (!confirm('¿Quitar este material de la exoneración?')) return;
+    fetch('/presupuestos/api/codigos-exoneracion/remove-material/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ item_id: itemId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert('Error: ' + data.error); return; }
+        abrirDetalleCodigo(codigoId);
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+function actualizarItemExo(itemId, codigoId, cantidad, precio) {
+    const payload = { item_id: itemId };
+    if (cantidad !== null) payload.cantidad = cantidad;
+    if (precio !== null) payload.precio = precio;
+
+    fetch('/presupuestos/api/codigos-exoneracion/update-material/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert('Error: ' + data.error); return; }
+        // Refrescar para recalcular subtotales
+        abrirDetalleCodigo(codigoId);
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+function toggleCrearMatEnCodigo() {
+    const form = document.getElementById('cod-crear-mat-form');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    if (form.style.display === 'block') document.getElementById('cod-new-mat-nombre').focus();
+}
+
+function crearMatYAgregarACodigo() {
+    const nombre = document.getElementById('cod-new-mat-nombre').value.trim();
+    const sku = document.getElementById('cod-new-mat-sku').value.trim();
+    const precio = document.getElementById('cod-new-mat-precio').value || '0';
+    const cantidad = document.getElementById('cod-new-mat-cantidad').value || '1';
+
+    if (!nombre) { alert('El nombre es requerido.'); return; }
+    if (!currentCodigoId) { alert('Error: no hay código seleccionado.'); return; }
+
+    const btn = document.getElementById('btn-crear-mat-cod');
+    btn.disabled = true;
+    btn.textContent = 'Creando...';
+
+    // 1. Crear material
+    fetch('/inventarios/api/materials/create/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ nombre: nombre, sku: sku, precio_estimado: precio })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert('Error: ' + data.error); btn.disabled = false; btn.textContent = '✓ Crear y Agregar'; return; }
+        
+        // 2. Agregar al código de exoneración
+        return fetch('/presupuestos/api/codigos-exoneracion/add-material/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ codigo_exoneracion_id: currentCodigoId, material_id: data.id, cantidad: cantidad })
+        }).then(r => r.json());
+    })
+    .then(data => {
+        if (data && data.error) { alert('Material creado pero error al asignar: ' + data.error); }
+        // Limpiar
+        document.getElementById('cod-new-mat-nombre').value = '';
+        document.getElementById('cod-new-mat-sku').value = '';
+        document.getElementById('cod-new-mat-precio').value = '';
+        document.getElementById('cod-new-mat-cantidad').value = '1';
+        document.getElementById('cod-crear-mat-form').style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = '✓ Crear y Agregar';
+        // Refrescar
+        abrirDetalleCodigo(currentCodigoId);
+    })
+    .catch(err => { alert('Error: ' + err.message); btn.disabled = false; btn.textContent = '✓ Crear y Agregar'; });
+}
+
+let currentCodigoId = null;
+
+function toggleAgregarMaterial(codigoId) {
+    currentCodigoId = codigoId;
+    const form = document.getElementById('cod-add-mat-form');
+    if (!form) { alert('Form no encontrado'); return; }
+    if (form.style.display === 'none' || form.style.display === '') {
+        form.style.display = 'block';
+        document.getElementById('cod-mat-search').value = '';
+        document.getElementById('cod-mat-results').innerHTML = '';
+        document.getElementById('cod-mat-search').focus();
+        // Bind input event
+        document.getElementById('cod-mat-search').oninput = function() {
+            buscarMatParaCodigo(this.value, currentCodigoId);
+        };
+    } else {
+        form.style.display = 'none';
+    }
+}
+
+let codMatSearchTimeout = null;
+function buscarMatParaCodigo(query, codigoId) {
+    clearTimeout(codMatSearchTimeout);
+    const resultsDiv = document.getElementById('cod-mat-results');
+    if (query.length < 2) { resultsDiv.innerHTML = ''; return; }
+
+    codMatSearchTimeout = setTimeout(function() {
+        fetch('/inventarios/api/materials/?q=' + encodeURIComponent(query) + '&page=1')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.results || data.results.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding:10px; color:#999; font-size:.8rem; text-align:center;">No se encontraron materiales</div>';
+                return;
+            }
+            let html = '';
+            data.results.forEach(function(m) {
+                html += '<div style="padding:8px 10px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; font-size:.8rem; gap:6px;">';
+                html += '<div style="flex:1;"><strong>' + m.sku + '</strong> - ' + m.nombre + '<br><span style="font-size:.7rem; color:var(--fiori-text-secondary);">L. ' + parseFloat(m.precio_estimado).toLocaleString('es-HN',{minimumFractionDigits:2}) + '</span></div>';
+                html += '<input type="number" id="cod-mat-qty-' + m.id + '" value="1" min="0.01" step="1" style="width:60px; padding:4px; border:1px solid var(--fiori-border); font-size:.8rem; text-align:center;">';
+                html += '<button onclick="agregarMatACodigo(' + m.id + ', ' + codigoId + ', this)" style="padding:4px 8px; background:var(--fiori-positive); color:white; border:none; font-size:.7rem; cursor:pointer; white-space:nowrap;">+ Agregar</button>';
+                html += '</div>';
+            });
+            resultsDiv.innerHTML = html;
+        });
+    }, 300);
+}
+
+function agregarMatACodigo(materialId, codigoId, btn) {
+    const qtyInput = document.getElementById('cod-mat-qty-' + materialId);
+    const cantidad = qtyInput ? qtyInput.value : 1;
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    fetch('/presupuestos/api/codigos-exoneracion/add-material/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ codigo_exoneracion_id: codigoId, material_id: materialId, cantidad: cantidad })
+    })
+    .then(r => { if (!r.ok) return r.text().then(t => { throw new Error('HTTP ' + r.status); }); return r.json(); })
+    .then(data => {
+        if (data.error) { alert('Error: ' + data.error); btn.disabled = false; btn.textContent = '+ Agregar'; return; }
+        btn.textContent = '✓';
+        btn.style.background = '#6a6d70';
+        // Refrescar detalle
+        setTimeout(function() { abrirDetalleCodigo(codigoId); }, 500);
+    })
+    .catch(err => { alert('Error: ' + err.message); btn.disabled = false; btn.textContent = '+ Agregar'; });
+}
+</script>
+{% endblock %}

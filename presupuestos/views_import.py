@@ -192,7 +192,10 @@ def requisicion_upsert(request, pk=None):
         # Estados que bloquean la edición
         locked_states = ['PENDIENTE', 'AUTORIZADO', 'VISTO_PROCURA', 'PROCURA_PROCESANDO', 'EN_ORDEN_COMPRA', 'RECHAZADO']
         
-        if instance.estado_requisicion in locked_states:
+        # Superusuarios y grupo Procura pueden editar SIEMPRE
+        is_privileged = request.user.is_superuser or request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+        
+        if instance.estado_requisicion in locked_states and not is_privileged:
             is_readonly = True
             
             # Solo puede desbloquear si está PENDIENTE (enviada a aprobar pero no decidida)
@@ -1549,3 +1552,252 @@ def import_codigos_exoneracion_progress(request):
     else:
         progress['state'] = res.state or 'PENDING'
     return JsonResponse(progress)
+
+
+@staff_member_required
+def repex_dashboard(request):
+    """Dashboard principal de REPEX con estadísticas y acceso a importación de códigos."""
+    from .models import REPEX, REPEXItem, CodigoExoneracion
+    from django.db.models import Sum, Count, Q
+
+    # Planes REPEX
+    planes = REPEX.objects.annotate(
+        total_items=Count('items'),
+        costo_total=Sum('items__costo_reposicion'),
+    ).order_by('-anio', 'nombre')
+
+    # Estadísticas generales
+    stats = {
+        'total_planes': planes.count(),
+        'planes_activos': planes.exclude(estado='CERRADO').count(),
+        'total_items': REPEXItem.objects.count(),
+        'costo_total': REPEXItem.objects.aggregate(t=Sum('costo_reposicion'))['t'] or 0,
+        'items_alta': REPEXItem.objects.filter(prioridad='ALTA').count(),
+        'items_media': REPEXItem.objects.filter(prioridad='MEDIA').count(),
+        'items_baja': REPEXItem.objects.filter(prioridad='BAJA').count(),
+    }
+
+    # Códigos de exoneración
+    from .models import MaterialExoneracion
+    from django.db.models import Sum as DSum
+    codigos_stats = {
+        'total': CodigoExoneracion.objects.count(),
+        'activos': CodigoExoneracion.objects.filter(activo=True).count(),
+        'materiales_solicitud': MaterialExoneracion.objects.count(),
+        'cantidad_total': MaterialExoneracion.objects.aggregate(t=DSum('cantidad'))['t'] or 0,
+    }
+
+    from django.contrib import admin
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Dashboard REPEX',
+        'planes': planes,
+        'stats': stats,
+        'codigos_stats': codigos_stats,
+    }
+    return render(request, 'presupuestos/repex_dashboard.html', context)
+
+
+@staff_member_required
+def api_create_codigo_exoneracion(request):
+    """Crea un código de exoneración via AJAX."""
+    import json
+    from .models import CodigoExoneracion
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST requerido'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    codigo = data.get('codigo', '').strip()
+    descripcion = data.get('descripcion', '').strip()
+
+    if not codigo or not descripcion:
+        return JsonResponse({'error': 'Código y descripción son requeridos.'}, status=400)
+
+    if CodigoExoneracion.objects.filter(codigo=codigo).exists():
+        return JsonResponse({'error': f'El código "{codigo}" ya existe.'}, status=400)
+
+    obj = CodigoExoneracion.objects.create(
+        codigo=codigo,
+        descripcion=descripcion,
+        dai=data.get('dai', 0),
+        isc=data.get('isc', 0),
+        ipc=data.get('ipc', 0),
+        isv=data.get('isv', 0),
+        activo=True,
+    )
+
+    return JsonResponse({
+        'id': obj.id,
+        'codigo': obj.codigo,
+        'descripcion': obj.descripcion,
+    })
+
+
+@staff_member_required
+def api_detalle_codigo_exoneracion(request, pk):
+    """Retorna detalle de un código de exoneración con sus materiales y cantidades."""
+    from .models import CodigoExoneracion, MaterialExoneracion
+
+    codigo = get_object_or_404(CodigoExoneracion, pk=pk)
+
+    items = MaterialExoneracion.objects.filter(
+        codigo_exoneracion=codigo
+    ).select_related('material').order_by('material__nombre')
+
+    materiales = [{
+        'id': item.material.id,
+        'item_id': item.id,
+        'nombre': item.material.nombre,
+        'sku': item.material.sku,
+        'precio': float(item.material.precio_estimado or 0),
+        'cantidad': float(item.cantidad),
+        'subtotal': float(item.cantidad * (item.material.precio_estimado or 0)),
+        'notas': item.notas,
+    } for item in items]
+
+    total_cantidad = sum(m['cantidad'] for m in materiales)
+    total_monto = sum(m['subtotal'] for m in materiales)
+
+    return JsonResponse({
+        'id': codigo.id,
+        'codigo': codigo.codigo,
+        'descripcion': codigo.descripcion,
+        'dai': float(codigo.dai),
+        'isc': float(codigo.isc),
+        'ipc': float(codigo.ipc),
+        'isv': float(codigo.isv),
+        'activo': codigo.activo,
+        'materiales': materiales,
+        'total_cantidad': total_cantidad,
+        'total_monto': total_monto,
+    })
+
+
+@staff_member_required
+@csrf_exempt
+def api_add_material_exoneracion(request):
+    """Agrega un material a un código de exoneración con cantidad."""
+    import json
+    from .models import CodigoExoneracion, MaterialExoneracion
+    from inventarios.models import Material
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST requerido'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    codigo_id = data.get('codigo_exoneracion_id')
+    material_id = data.get('material_id')
+    cantidad = data.get('cantidad', 1)
+
+    if not codigo_id or not material_id:
+        return JsonResponse({'error': 'codigo_exoneracion_id y material_id son requeridos.'}, status=400)
+
+    codigo = get_object_or_404(CodigoExoneracion, pk=codigo_id)
+    material = get_object_or_404(Material, pk=material_id)
+
+    try:
+        cantidad = float(cantidad)
+        if cantidad <= 0:
+            cantidad = 1
+    except (ValueError, TypeError):
+        cantidad = 1
+
+    # Crear o actualizar
+    item, created = MaterialExoneracion.objects.update_or_create(
+        codigo_exoneracion=codigo,
+        material=material,
+        defaults={'cantidad': cantidad, 'notas': data.get('notas', '')}
+    )
+
+    # También asignar el código de exoneración al material si no lo tiene
+    if not material.codigo_exoneracion_id or material.codigo_exoneracion_id != codigo.id:
+        material.codigo_exoneracion = codigo
+        material.save(update_fields=['codigo_exoneracion_id'])
+
+    return JsonResponse({
+        'success': True,
+        'item_id': item.id,
+        'created': created,
+        'material': material.nombre,
+        'cantidad': float(item.cantidad),
+    })
+
+
+@staff_member_required
+@csrf_exempt
+def api_remove_material_exoneracion(request):
+    """Elimina un material de un código de exoneración."""
+    import json
+    from .models import MaterialExoneracion
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST requerido'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    item_id = data.get('item_id')
+    if not item_id:
+        return JsonResponse({'error': 'item_id requerido'}, status=400)
+
+    try:
+        item = MaterialExoneracion.objects.get(pk=item_id)
+        item.delete()
+        return JsonResponse({'success': True})
+    except MaterialExoneracion.DoesNotExist:
+        return JsonResponse({'error': 'Item no encontrado'}, status=404)
+
+
+@staff_member_required
+@csrf_exempt
+def api_update_material_exoneracion(request):
+    """Actualiza cantidad y/o precio de un material en exoneración."""
+    import json
+    from .models import MaterialExoneracion
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST requerido'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    item_id = data.get('item_id')
+    if not item_id:
+        return JsonResponse({'error': 'item_id requerido'}, status=400)
+
+    try:
+        item = MaterialExoneracion.objects.select_related('material').get(pk=item_id)
+    except MaterialExoneracion.DoesNotExist:
+        return JsonResponse({'error': 'Item no encontrado'}, status=404)
+
+    # Actualizar cantidad
+    if 'cantidad' in data and data['cantidad'] is not None:
+        try:
+            item.cantidad = max(0.01, float(data['cantidad']))
+            item.save(update_fields=['cantidad'])
+        except (ValueError, TypeError):
+            pass
+
+    # Actualizar precio del material
+    if 'precio' in data and data['precio'] is not None:
+        try:
+            nuevo_precio = max(0, float(data['precio']))
+            item.material.precio_estimado = nuevo_precio
+            item.material.save(update_fields=['precio_estimado', 'actualizado_en'])
+        except (ValueError, TypeError):
+            pass
+
+    return JsonResponse({'success': True})

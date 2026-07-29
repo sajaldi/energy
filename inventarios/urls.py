@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from .views import mobile_crear_solicitud
-from .api_materials import api_list_materials, api_list_categories, api_master_sync, api_precios_historicos
+from .api_materials import api_list_materials, api_list_categories, api_master_sync, api_precios_historicos, api_create_material, api_material_detail, api_material_update, api_search_codigos_exoneracion
 
 app_name = 'inventarios'
 
@@ -20,6 +20,10 @@ urlpatterns = [
     
     # API para selector visual
     path('api/materials/', api_list_materials, name='api_list_materials'),
+    path('api/materials/create/', api_create_material, name='api_create_material'),
+    path('api/material/<int:material_id>/detail/', api_material_detail, name='api_material_detail'),
+    path('api/material/<int:material_id>/update/', api_material_update, name='api_material_update'),
+    path('api/codigos-exoneracion/search/', api_search_codigos_exoneracion, name='api_search_codigos_exoneracion'),
     path('api/categories/', api_list_categories, name='api_list_categories'),
     path('catalogo/', views.master_catalog, name='master_catalog'),
     path('nuevos-materiales/', views.solicitud_nuevos_materiales, name='solicitud_nuevos_materiales'),

@@ -1491,3 +1491,41 @@ class CodigoExoneracion(models.Model):
             n += 1
             p = p.padre
         return n
+
+
+class MaterialExoneracion(models.Model):
+    """
+    Relación entre un código de exoneración y un material con cantidad a solicitar.
+    Permite armar la lista de materiales a importar por código arancelario.
+    """
+    codigo_exoneracion = models.ForeignKey(
+        CodigoExoneracion,
+        on_delete=models.CASCADE,
+        related_name='materiales_solicitud',
+        verbose_name="Código de Exoneración"
+    )
+    material = models.ForeignKey(
+        'inventarios.Material',
+        on_delete=models.CASCADE,
+        related_name='exoneraciones_solicitud',
+        verbose_name="Material"
+    )
+    cantidad = models.DecimalField(
+        max_digits=12, decimal_places=2, default=1,
+        verbose_name="Cantidad a Solicitar"
+    )
+    notas = models.CharField(max_length=500, blank=True, verbose_name="Notas / Justificación")
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Material en Exoneración"
+        verbose_name_plural = "Materiales en Exoneración"
+        unique_together = ('codigo_exoneracion', 'material')
+        ordering = ['codigo_exoneracion', 'material__nombre']
+
+    def __str__(self):
+        return f"{self.material.nombre} x{self.cantidad} → {self.codigo_exoneracion.codigo}"
+
+    @property
+    def subtotal(self):
+        return self.cantidad * (self.material.precio_estimado or 0)

@@ -246,3 +246,214 @@ def api_precios_historicos(request, material_id):
         'historial': data,
         'total_registros': len(data),
     })
+
+
+@login_required
+def api_create_material(request):
+    """Crea un material rápido desde la requisición (nombre, sku opcional, precio)."""
+    import json
+    import uuid
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST requerido'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    nombre = data.get('nombre', '').strip()
+    if not nombre:
+        return JsonResponse({'error': 'El nombre es requerido.'}, status=400)
+
+    sku = data.get('sku', '').strip()
+    precio = data.get('precio_estimado', 0)
+
+    try:
+        precio = float(precio) if precio else 0
+    except (ValueError, TypeError):
+        precio = 0
+
+    # Generar SKU automático si no se proporcionó
+    if not sku:
+        sku = f"MAT-{uuid.uuid4().hex[:8].upper()}"
+
+    # Verificar que el SKU no exista
+    if Material.objects.filter(sku=sku).exists():
+        return JsonResponse({'error': f'El SKU "{sku}" ya existe.'}, status=400)
+
+    material = Material.objects.create(
+        nombre=nombre,
+        sku=sku,
+        precio_estimado=precio,
+    )
+
+    return JsonResponse({
+        'id': material.id,
+        'nombre': material.nombre,
+        'sku': material.sku,
+        'precio_estimado': float(material.precio_estimado),
+    })
+
+
+@login_required
+def api_material_detail(request, material_id):
+    """Retorna todos los datos de un material para edición en modal."""
+    material = get_object_or_404(Material, pk=material_id)
+    
+    data = {
+        'id': material.id,
+        'nombre': material.nombre,
+        'sku': material.sku,
+        'descripcion': material.descripcion or '',
+        'precio_estimado': float(material.precio_estimado or 0),
+        'stock_minimo': float(material.stock_minimo or 0),
+        'tipo_material': material.tipo_material,
+        'marca': material.marca.nombre if material.marca else '',
+        'marca_id': material.marca_id,
+        'categoria': material.categoria.nombre if material.categoria else '',
+        'categoria_id': material.categoria_id,
+        'unidad_medida': material.unidad_medida.nombre if material.unidad_medida else '',
+        'unidad_medida_id': material.unidad_medida_id,
+        'alto': float(material.alto) if material.alto else None,
+        'ancho': float(material.ancho) if material.ancho else None,
+        'peso': float(material.peso) if material.peso else None,
+        'profundidad': float(material.profundidad) if material.profundidad else None,
+        'no_afecta_stock': material.no_afecta_stock,
+        'imagen_url': material.imagen.url if material.imagen else '',
+        'stock_total': float(material.get_stock_total()),
+        'creado_en': material.creado_en.strftime('%d/%m/%Y %H:%M') if material.creado_en else '',
+        'actualizado_en': material.actualizado_en.strftime('%d/%m/%Y %H:%M') if material.actualizado_en else '',
+        # Código de exoneración
+        'codigo_exoneracion': material.codigo_exoneracion is not None,
+        'codigo_exoneracion_id': material.codigo_exoneracion_id,
+        'codigo_exoneracion_codigo': material.codigo_exoneracion.codigo if material.codigo_exoneracion else '',
+        'codigo_exoneracion_desc': material.codigo_exoneracion.descripcion[:80] if material.codigo_exoneracion else '',
+        'codigo_exoneracion_dai': float(material.codigo_exoneracion.dai) if material.codigo_exoneracion else 0,
+        'codigo_exoneracion_isc': float(material.codigo_exoneracion.isc) if material.codigo_exoneracion else 0,
+        'codigo_exoneracion_ipc': float(material.codigo_exoneracion.ipc) if material.codigo_exoneracion else 0,
+        'codigo_exoneracion_isv': float(material.codigo_exoneracion.isv) if material.codigo_exoneracion else 0,
+    }
+    
+    # Opciones para selects
+    from activos.models import Marca
+    data['opciones_tipo'] = Material.TIPO_MATERIAL_CHOICES
+    data['opciones_categoria'] = list(CategoriaMaterial.objects.values('id', 'nombre').order_by('nombre'))
+    data['opciones_unidad'] = list(
+        Material.unidad_medida.field.related_model.objects.values('id', 'nombre').order_by('nombre')
+    )
+    
+    return JsonResponse(data)
+
+
+@login_required 
+def api_material_update(request, material_id):
+    """Actualiza un material desde el modal de edición."""
+    import json
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST requerido'}, status=405)
+    
+    material = get_object_or_404(Material, pk=material_id)
+    
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+    
+    # Actualizar campos
+    if 'nombre' in data and data['nombre'].strip():
+        material.nombre = data['nombre'].strip()
+    if 'sku' in data and data['sku'].strip():
+        # Verificar unicidad
+        if Material.objects.filter(sku=data['sku']).exclude(pk=material.pk).exists():
+            return JsonResponse({'error': f'El SKU "{data["sku"]}" ya existe en otro material.'}, status=400)
+        material.sku = data['sku'].strip()
+    if 'descripcion' in data:
+        material.descripcion = data['descripcion']
+    if 'precio_estimado' in data:
+        try:
+            material.precio_estimado = float(data['precio_estimado']) if data['precio_estimado'] else 0
+        except (ValueError, TypeError):
+            pass
+    if 'stock_minimo' in data:
+        try:
+            material.stock_minimo = float(data['stock_minimo']) if data['stock_minimo'] else 0
+        except (ValueError, TypeError):
+            pass
+    if 'tipo_material' in data:
+        material.tipo_material = data['tipo_material']
+    if 'categoria_id' in data:
+        material.categoria_id = data['categoria_id'] or None
+    if 'unidad_medida_id' in data:
+        material.unidad_medida_id = data['unidad_medida_id'] or None
+    if 'alto' in data:
+        material.alto = float(data['alto']) if data['alto'] else None
+    if 'ancho' in data:
+        material.ancho = float(data['ancho']) if data['ancho'] else None
+    if 'peso' in data:
+        material.peso = float(data['peso']) if data['peso'] else None
+    if 'profundidad' in data:
+        material.profundidad = float(data['profundidad']) if data['profundidad'] else None
+    if 'no_afecta_stock' in data:
+        material.no_afecta_stock = bool(data['no_afecta_stock'])
+    if 'codigo_exoneracion_id' in data:
+        material.codigo_exoneracion_id = data['codigo_exoneracion_id'] or None
+    
+    material.save()
+    
+    return JsonResponse({
+        'success': True,
+        'id': material.id,
+        'nombre': material.nombre,
+        'sku': material.sku,
+        'precio_estimado': float(material.precio_estimado),
+    })
+
+
+@login_required
+def api_search_codigos_exoneracion(request):
+    """Busca códigos de exoneración por código o descripción, con totales de materiales."""
+    query = request.GET.get('q', '').strip()
+    
+    from presupuestos.models import CodigoExoneracion, MaterialExoneracion
+    from django.db.models import Sum, Count, F, DecimalField
+    from django.db.models.functions import Coalesce
+    
+    if query == '*' or query == '':
+        qs = CodigoExoneracion.objects.filter(activo=True)
+    elif len(query) < 2:
+        return JsonResponse({'results': []})
+    else:
+        qs = CodigoExoneracion.objects.filter(
+            Q(codigo__icontains=query) | Q(descripcion__icontains=query),
+            activo=True
+        )
+
+    results = qs.annotate(
+        total_materiales=Count('materiales_solicitud'),
+        total_cantidad=Coalesce(Sum('materiales_solicitud__cantidad'), 0, output_field=DecimalField()),
+    ).order_by('codigo')[:50]
+
+    # Calcular monto total (cantidad * precio del material)
+    data = []
+    for c in results:
+        monto = 0
+        if c.total_materiales > 0:
+            items = MaterialExoneracion.objects.filter(codigo_exoneracion=c).select_related('material')
+            monto = sum(float(i.cantidad * (i.material.precio_estimado or 0)) for i in items)
+        
+        data.append({
+            'id': c.id,
+            'codigo': c.codigo,
+            'descripcion': c.descripcion[:100],
+            'dai': float(c.dai),
+            'isc': float(c.isc),
+            'ipc': float(c.ipc),
+            'isv': float(c.isv),
+            'total_materiales': c.total_materiales,
+            'total_cantidad': float(c.total_cantidad),
+            'total_monto': monto,
+        })
+
+    return JsonResponse({'results': data})
