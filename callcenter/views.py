@@ -1690,7 +1690,9 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
     tareas = acuerdo.tareas.all().order_by('fecha_inicio')
     
     total_start = acuerdo.creado_en
-    if total_start and timezone.is_naive(total_start):
+    if not total_start:
+        total_start = timezone.now()
+    if timezone.is_naive(total_start):
         total_start = timezone.make_aware(total_start)
         
     if tareas.exists():
@@ -1702,6 +1704,8 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
                 total_start = first_start
             
     total_end = acuerdo.fecha_solucion_final
+    if not total_end:
+        total_end = timezone.now()
     total_seconds = (total_end - total_start).total_seconds()
     if total_seconds <= 0: total_seconds = 1
         
