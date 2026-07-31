@@ -671,6 +671,12 @@ JAZZMIN_SETTINGS = {
                 "icon": "fas fa-chart-line",
                 "permissions": ["mantenimiento.view_ordentrabajo"],
             },
+            {
+                "name": "🔍 Buscador IA Cronograma",
+                "url": "/mantenimiento/cronograma/buscador-ia/",
+                "icon": "fas fa-sparkles",
+                "permissions": ["mantenimiento.view_ordentrabajo"],
+            },
         ],
         "inventarios": [
             {
@@ -901,6 +907,8 @@ OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://localhost:11434')
 
 
 # Programación de tareas periódicas (Celery Beat)
+from celery.schedules import crontab
+
 CELERY_BEAT_SCHEDULE = {
     'sync-document-embeddings-every-minute': {
         'task': 'documentos.tasks.sync_document_embeddings',
@@ -914,6 +922,15 @@ CELERY_BEAT_SCHEDULE = {
     'sync-tickets-automatico-cada-2-horas': {
         'task': 'callcenter.tasks.sync_tickets_automatico_task',
         'schedule': 7200.0,  # Sincroniza tickets automáticamente cada 2 horas (sin filtro de fechas)
+    },
+    # --- Riesgos de Negocio: Notificaciones periódicas (diarias a las 7:00 AM) ---
+    'check-review-notifications-daily': {
+        'task': 'servicios.tasks_riesgos.check_review_notifications',
+        'schedule': crontab(hour=7, minute=0),  # Todos los días a las 7:00 AM
+    },
+    'check-overdue-actions-daily': {
+        'task': 'servicios.tasks_riesgos.check_overdue_actions',
+        'schedule': crontab(hour=7, minute=30),  # Todos los días a las 7:30 AM
     },
 }
 

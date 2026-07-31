@@ -57,6 +57,7 @@ from .mobile import (
 )
 from .dashboard import dashboard_cargas, asignar_puesto_ajax
 from .dashboard_general import mantenimiento_dashboard
+from .ai_search import buscador_ia_cronograma, api_busqueda_ia
 from . import import_personal
 from . import import_procedimientos
 from . import import_categorias

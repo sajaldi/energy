@@ -10,7 +10,7 @@ from .models import (
     REPEX, REPEXItem, Moneda,
     OrdenCompra, OrdenCompraArticulo, CentroCosto,
     Cotizacion, ItemCotizacion, ItemPredefinido,
-    CodigoExoneracion,
+    CodigoExoneracion, GrupoRequisicion,
 )
 from .resources import RequisicionResource, CodigoExoneracionResource
 
@@ -717,6 +717,18 @@ class ItemPredefinidoAdmin(admin.ModelAdmin):
     list_filter = ('disciplina', 'moneda', 'activo')
     search_fields = ('codigo', 'descripcion')
     autocomplete_fields = ('disciplina', 'moneda')
+
+
+@admin.register(GrupoRequisicion)
+class GrupoRequisicionAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'total_requisiciones', 'color', 'activo', 'creado_en')
+    list_filter = ('activo',)
+    search_fields = ('nombre', 'descripcion')
+    list_editable = ('activo', 'color')
+
+    def total_requisiciones(self, obj):
+        return obj.total_requisiciones
+    total_requisiciones.short_description = "Requisiciones"
 
 
 @admin.register(CodigoExoneracion)

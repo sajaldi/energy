@@ -73,6 +73,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);min-height:100vh;
     <div class="hdr">
         <div><h1>Partidas Presupuestarias</h1><p class="sub">Presupuesto Anual → Partida → Ítems (carga bajo demanda)</p></div>
         <div style="display:flex;gap:6px">
+            <button class="btn btn-g" onclick="openCreatePresupuesto()">+ Nuevo Presupuesto</button>
             <button class="btn btn-g" onclick="collapseAll()">▸ Colapsar</button>
             <button class="btn btn-p" onclick="openCreateModal()">+ Nueva Partida</button>
         </div>
@@ -338,6 +339,68 @@ function execDel(){
     fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':ck('csrftoken')},
         body:JSON.stringify({action:'delete',id:parseInt(id)})
     }).then(r=>r.json()).then(d=>{if(d.status==='ok'){closeDel();location.reload();}else alert('Error: '+d.message);}).catch(e=>alert('Error: '+e));
+}
+</script>
+<!-- Modal: Crear Presupuesto Anual -->
+<div class="mo" id="mpres">
+    <div class="md">
+        <div class="md-h"><h2>Nuevo Presupuesto Anual</h2><button class="x" onclick="document.getElementById('mpres').classList.remove('active')">&times;</button></div>
+        <div class="md-b">
+            <div class="fg"><label>Nombre *</label><input type="text" id="np-nombre" placeholder="Ej: Presupuesto Eléctrica 2026"></div>
+            <div class="fg"><label>Año *</label><input type="number" id="np-anio" value="2026" min="2020" max="2100"></div>
+            <div class="fg"><label>Departamento</label>
+                <select id="np-dept"><option value="">— Global (sin departamento) —</option>
+                {% for d in departamentos %}<option value="{{ d.id }}">{{ d.nombre }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="fg"><label>Descripción</label><textarea id="np-desc" rows="2" placeholder="Notas opcionales..."></textarea></div>
+        </div>
+        <div class="md-f">
+            <button class="btn btn-g" onclick="document.getElementById('mpres').classList.remove('active')">Cancelar</button>
+            <button class="btn btn-p" onclick="crearPresupuesto()">Crear Presupuesto</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openCreatePresupuesto() {
+    document.getElementById('np-nombre').value = '';
+    document.getElementById('np-anio').value = new Date().getFullYear();
+    document.getElementById('np-dept').value = '';
+    document.getElementById('np-desc').value = '';
+    document.getElementById('mpres').classList.add('active');
+    document.getElementById('np-nombre').focus();
+}
+
+function crearPresupuesto() {
+    const nombre = document.getElementById('np-nombre').value.trim();
+    const anio = document.getElementById('np-anio').value;
+    const dept = document.getElementById('np-dept').value;
+    const desc = document.getElementById('np-desc').value;
+
+    if (!nombre || !anio) { alert('Nombre y Año son requeridos.'); return; }
+
+    fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': ck('csrftoken') },
+        body: JSON.stringify({
+            action: 'create_presupuesto',
+            nombre: nombre,
+            anio: parseInt(anio),
+            departamento_id: dept ? parseInt(dept) : null,
+            descripcion: desc,
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            document.getElementById('mpres').classList.remove('active');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Error desconocido'));
+        }
+    })
+    .catch(e => alert('Error: ' + e));
 }
 </script>
 </body>

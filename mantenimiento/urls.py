@@ -101,6 +101,10 @@ urlpatterns = [
     path('import-tipos/progress/', views.import_categorias.import_categorias_progress, name='tipo_import_progress'),
     path('import-tipos/template/', views.import_categorias.download_categorias_template, name='tipo_download_template'),
 
+    # Buscador Inteligente con IA
+    path('cronograma/buscador-ia/', views.buscador_ia_cronograma, name='buscador_ia'),
+    path('api/busqueda-ia/', views.api_busqueda_ia, name='api_busqueda_ia'),
+
     path('api/search-ordenes/', views.api_search_ordenes, name='api_search_ordenes'),
     path('api/busqueda-global/', views.api_busqueda_global, name='api_busqueda_global'),
     path('api/ot/<int:pk>/detalle/', views.api_get_ot_detail, name='api_get_ot_detail'),

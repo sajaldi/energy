@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador IA - Cronograma de Mantenimiento</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #c00000;
+            --primary-dark: #8b0000;
+            --primary-light: #fee2e2;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --text-light: #94a3b8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --purple: #8b5cf6;
+            --radius: 12px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        .layout {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* ── Header ── */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            background: var(--card-bg);
+            padding: 20px 28px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+        }
+
+        .page-header .title-section {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .page-header .title-section .icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-header .title-section .icon svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: white;
+            stroke-width: 2;
+        }
+
+        .page-header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .page-header .subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-links a {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-decoration: none;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        /* ── Search Section ── */
+        .search-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .search-box {
+            position: relative;
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .search-input-wrap {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-input-wrap svg {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            stroke: var(--text-light);
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 16px 16px 16px 48px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+            color: var(--text-main);
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(192, 0, 0, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-light);
+        }
+
+        .search-btn {
+            padding: 16px 28px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(192, 0, 0, 0.3);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .search-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        /* ── Suggestions ── */
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .suggestion-chip {
+            padding: 6px 14px;
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .suggestion-chip:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* ── Loading ── */
+        .loading-container {
+            display: none;
+            text-align: center;
+            padding: 48px 24px;
+        }
+
+        .loading-container.active {
+            display: block;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 12px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* ── Results ── */
+        .results-container {
+            display: none;
+        }
+
+        .results-container.active {
+            display: block;
+        }
+
+        /* IA Response Card */
+        .ia-response {
+            background: linear-gradient(135deg, #fefce8, #fff7ed);
+            border: 1px solid #fde68a;
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .ia-response-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .ia-response-header .ia-badge {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .ia-response-header .ia-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #92400e;
+        }
+
+        .ia-response-body {
+            font-size: 0.88rem;
+            line-height: 1.7;
+            color: #451a03;
+        }
+
+        .ia-response-body strong {
+            font-weight: 600;
+        }
+
+        .ia-response-body ul {
+            padding-left: 20px;
+            margin: 8px 0;
+        }
+
+        .ia-response-body li {
+            margin-bottom: 4px;
+        }
+
+        /* Filters detected */
+        .filters-detected {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            color: #1e40af;
+            font-weight: 500;
+        }
+
+        .filter-tag .label {
+            color: #6b7280;
+        }
+
+        /* Results stats */
+        .results-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .results-stats .count {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .results-stats .count strong {
+            color: var(--text-main);
+        }
+
+        /* Results Table */
+        .results-table-wrapper {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        .results-table thead {
+            background: #f8fafc;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .results-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .results-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        .results-table tbody tr {
+            transition: background 0.15s;
+        }
+
+        .results-table tbody tr:hover {
+            background: #fafbfc;
+        }
+
+        .results-table .code-cell {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .results-table .code-cell a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .results-table .code-cell a:hover {
+            text-decoration: underline;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-preventiva { background: #dbeafe; color: #1e40af; }
+        .badge-correctiva { background: #fee2e2; color: #991b1b; }
+        .badge-no_programada { background: #fef3c7; color: #92400e; }
+        .badge-programacion { background: #e0e7ff; color: #3730a3; }
+
+        .badge-espera { background: #f1f5f9; color: #475569; }
+        .badge-programada { background: #dbeafe; color: #1e40af; }
+        .badge-ejecucion { background: #fef3c7; color: #92400e; }
+        .badge-realizada { background: #d1fae5; color: #065f46; }
+        .badge-cancelada { background: #fee2e2; color: #991b1b; }
+        .badge-activa { background: #d1fae5; color: #065f46; }
+
+        .relevancia-tag {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        .relevancia-filtro { background: var(--info); }
+        .relevancia-semantica { background: var(--purple); }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 24px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            stroke: var(--text-light);
+            fill: none;
+            stroke-width: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        .empty-state p {
+            font-size: 0.85rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .layout { padding: 12px; }
+            .page-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .search-box { flex-direction: column; }
+            .results-table-wrapper { overflow-x: auto; }
+            .results-table { min-width: 700px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="title-section">
+                <div class="icon">
+                    <svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                </div>
+                <div>
+                    <h1>Buscador Inteligente</h1>
+                    <div class="subtitle">Búsqueda con IA en el cronograma de mantenimiento</div>
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="{% url 'mantenimiento:cronograma' %}">← Cronograma</a>
+                <a href="{% url 'mantenimiento:calendario' %}">Calendario</a>
+                <a href="{% url 'mantenimiento:dashboard' %}">Dashboard</a>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <form id="searchForm" onsubmit="buscarIA(event)">
+                <div class="search-box">
+                    <div class="search-input-wrap">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <input type="text" id="searchInput" class="search-input" 
+                               placeholder="Pregunta en lenguaje natural... Ej: ¿Qué mantenimientos se hicieron en la subestación en junio?" 
+                               autocomplete="off">
+                    </div>
+                    <button type="submit" class="search-btn" id="searchBtn">
+                        <svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                        Buscar con IA
+                    </button>
+                </div>
+            </form>
+
+            <div class="suggestions">
+                <span class="suggestion-chip" onclick="usarSugerencia(this)">¿Qué preventivos hay programados esta semana?</span>
+                <span class="suggestion-chip" onclick="usarSugerencia(this)">Mantenimientos realizados en enero 2026</span>
+                <span class="suggestion-chip" onclick="usarSugerencia(this)">Correctivos pendientes de alta prioridad</span>
+                <span class="suggestion-chip" onclick="usarSugerencia(this)">¿Qué trabajos se hicieron en el compresor?</span>
+                <span class="suggestion-chip" onclick="usarSugerencia(this)">Órdenes canceladas del último mes</span>
+                <span class="suggestion-chip" onclick="usarSugerencia(this)">Actividades de la próxima semana</span>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading-container" id="loadingContainer">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Analizando tu consulta con IA y buscando en la base de datos...</div>
+        </div>
+
+        <!-- Results -->
+        <div class="results-container" id="resultsContainer">
+            <!-- IA Response -->
+            <div class="ia-response" id="iaResponse">
+                <div class="ia-response-header">
+                    <span class="ia-badge">IA</span>
+                    <span class="ia-label">Respuesta del Asistente</span>
+                </div>
+                <div class="ia-response-body" id="iaResponseBody"></div>
+            </div>
+
+            <!-- Filters detected -->
+            <div class="filters-detected" id="filtersDetected"></div>
+
+            <!-- Stats -->
+            <div class="results-stats">
+                <div class="count" id="resultsCount"></div>
+            </div>
+
+            <!-- Table -->
+            <div class="results-table-wrapper">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            <th>Ubicación</th>
+                            <th>Fecha</th>
+                            <th>Técnico</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+
+            <!-- Empty state -->
+            <div class="empty-state" id="emptyState" style="display:none;">
+                <svg viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <h3>Sin resultados</h3>
+                <p>No se encontraron mantenimientos que coincidan. Intenta reformular tu pregunta.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const csrfToken = '{{ csrf_token }}';
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const loadingContainer = document.getElementById('loadingContainer');
+        const resultsContainer = document.getElementById('resultsContainer');
+
+        function usarSugerencia(el) {
+            searchInput.value = el.textContent;
+            searchInput.focus();
+        }
+
+        async function buscarIA(e) {
+            e.preventDefault();
+            const query = searchInput.value.trim();
+            if (!query) return;
+
+            // Show loading
+            searchBtn.disabled = true;
+            loadingContainer.classList.add('active');
+            resultsContainer.classList.remove('active');
+
+            try {
+                const resp = await fetch("{% url 'mantenimiento:api_busqueda_ia' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await resp.json();
+
+                if (data.status === 'success') {
+                    renderResults(data);
+                } else {
+                    alert(data.error || 'Error en la búsqueda');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error de conexión con el servidor');
+            } finally {
+                searchBtn.disabled = false;
+                loadingContainer.classList.remove('active');
+            }
+        }
+
+        function renderResults(data) {
+            resultsContainer.classList.add('active');
+
+            // IA Response
+            const iaBody = document.getElementById('iaResponseBody');
+            iaBody.innerHTML = markdownToHtml(data.respuesta_ia || '');
+
+            // Filters
+            const filtersEl = document.getElementById('filtersDetected');
+            filtersEl.innerHTML = '';
+            const filtros = data.filtros_detectados || {};
+            const filterLabels = {
+                tipo: 'Tipo', estado: 'Estado', prioridad: 'Prioridad',
+                fecha_desde: 'Desde', fecha_hasta: 'Hasta',
+                ubicacion: 'Ubicación', rutina: 'Rutina', activo: 'Activo',
+                tecnico: 'Técnico', temporal: 'Temporal'
+            };
+            for (const [key, val] of Object.entries(filtros)) {
+                if (val && key !== 'palabras_clave') {
+                    const tag = document.createElement('span');
+                    tag.className = 'filter-tag';
+                    tag.innerHTML = `<span class="label">${filterLabels[key] || key}:</span> ${val}`;
+                    filtersEl.appendChild(tag);
+                }
+            }
+
+            // Count
+            document.getElementById('resultsCount').innerHTML = `<strong>${data.total}</strong> resultados encontrados`;
+
+            // Table
+            const tbody = document.getElementById('resultsBody');
+            const emptyState = document.getElementById('emptyState');
+            const tableWrapper = document.querySelector('.results-table-wrapper');
+
+            if (!data.resultados || data.resultados.length === 0) {
+                tbody.innerHTML = '';
+                tableWrapper.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            tableWrapper.style.display = 'block';
+            emptyState.style.display = 'none';
+
+            tbody.innerHTML = data.resultados.map(r => {
+                const tipoClass = r.tipo_raw ? `badge-${r.tipo_raw.toLowerCase()}` : 'badge-programacion';
+                const estadoClass = r.estado_raw ? `badge-${r.estado_raw.toLowerCase()}` : '';
+                const relClass = r.relevancia === 'semantica' ? 'relevancia-semantica' : 'relevancia-filtro';
+
+                return `<tr>
+                    <td><span class="relevancia-tag ${relClass}" title="${r.relevancia === 'semantica' ? 'Búsqueda semántica' : 'Filtro exacto'}"></span></td>
+                    <td class="code-cell"><a href="${r.url}" target="_blank">${r.codigo}</a></td>
+                    <td>${r.titulo || ''}</td>
+                    <td><span class="badge ${tipoClass}">${r.tipo}</span></td>
+                    <td><span class="badge ${estadoClass}">${r.estado}</span></td>
+                    <td>${r.ubicacion || ''}</td>
+                    <td>${r.fecha_programada || ''}</td>
+                    <td>${r.tecnico || ''}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function markdownToHtml(text) {
+            if (!text) return '';
+            // Basic markdown conversion
+            let html = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                .replace(/^• (.+)$/gm, '<li>$1</li>')
+                .replace(/\n/g, '<br>');
+            
+            // Wrap consecutive li elements in ul
+            html = html.replace(/(<li>.*?<\/li>(<br>)?)+/g, (match) => {
+                return '<ul>' + match.replace(/<br>/g, '') + '</ul>';
+            });
+            
+            return html;
+        }
+
+        // Enter key shortcut
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+            }
+        });
+
+        // Focus on load
+        searchInput.focus();
+    </script>
+</body>
+</html>

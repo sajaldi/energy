@@ -311,6 +311,122 @@
         font-style: italic;
     }
 
+    /* Search Bar */
+    .kpi-search-container {
+        background: var(--fiori-card-bg);
+        border: 1px solid var(--fiori-border);
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin-bottom: 30px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+
+    .search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 16px;
+        color: var(--fiori-label);
+        font-size: 16px;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 14px 44px 14px 44px;
+        border: 1px solid var(--fiori-border);
+        border-radius: 10px;
+        font-size: 14px;
+        font-family: inherit;
+        color: var(--fiori-text);
+        background: #f9fafb;
+        transition: all 0.2s ease;
+    }
+
+    .search-box input:focus {
+        outline: none;
+        border-color: var(--fiori-blue);
+        background: white;
+        box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.1);
+    }
+
+    .search-box input::placeholder {
+        color: #aaa;
+    }
+
+    .clear-btn {
+        position: absolute;
+        right: 14px;
+        background: none;
+        border: none;
+        color: var(--fiori-label);
+        cursor: pointer;
+        font-size: 14px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+
+    .clear-btn:hover {
+        color: var(--fiori-error);
+        background: #ffebeb;
+    }
+
+    .search-filters {
+        display: flex;
+        gap: 12px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+    }
+
+    .filter-select {
+        padding: 8px 14px;
+        border: 1px solid var(--fiori-border);
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: inherit;
+        color: var(--fiori-text);
+        background: white;
+        cursor: pointer;
+        transition: all 0.2s;
+        min-width: 160px;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--fiori-blue);
+        box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.1);
+    }
+
+    .search-results-count {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--fiori-label);
+        font-weight: 500;
+        padding: 6px 0;
+    }
+
+    .search-results-count span {
+        font-weight: 700;
+        color: var(--fiori-blue);
+    }
+
+    .kpi-row.hidden-by-search {
+        display: none !important;
+    }
+
+    .service-item.hidden-by-search {
+        display: none !important;
+    }
+
+    .kpi-row.highlight-match td {
+        background: #f0f7ff;
+    }
+
     /* Animations */
     @keyframes slideInUp {
         from { opacity: 0; transform: translateY(20px); }
@@ -334,6 +450,40 @@
             <a href="{% url 'servicios:kpi_form' %}" class="btn-add-kpi">
                 <i class="fas fa-plus"></i> Nuevo KPI
             </a>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="kpi-search-container">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="kpiSearchInput" placeholder="Buscar KPIs por nombre, descripción, servicio..." autocomplete="off">
+            <button type="button" id="clearSearch" class="clear-btn" style="display:none;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="search-filters">
+            <select id="filterEstado" class="filter-select">
+                <option value="">Todos los estados</option>
+                <option value="CUMPLIMIENTO">En Cumplimiento</option>
+                <option value="PARCIAL">Parcial</option>
+                <option value="INCUMPLIMIENTO">Incumplimiento</option>
+            </select>
+            <select id="filterCategoria" class="filter-select">
+                <option value="">Todas las categorías</option>
+                <option value="MAYOR">Mayor</option>
+                <option value="MEDIA">Media</option>
+                <option value="MENOR">Menor</option>
+            </select>
+            <select id="filterServicio" class="filter-select">
+                <option value="">Todos los servicios</option>
+                {% for item in servicios_data %}
+                <option value="{{ item.obj.id }}">{{ item.obj.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="searchResultsCount" class="search-results-count" style="display:none;">
+            <span id="matchCount">0</span> KPIs encontrados
         </div>
     </div>
 
@@ -463,5 +613,132 @@
         const item = document.getElementById('service-' + id);
         item.classList.toggle('expanded');
     }
+
+    // ======== KPI Search Functionality ========
+    (function() {
+        const searchInput = document.getElementById('kpiSearchInput');
+        const clearBtn = document.getElementById('clearSearch');
+        const filterEstado = document.getElementById('filterEstado');
+        const filterCategoria = document.getElementById('filterCategoria');
+        const filterServicio = document.getElementById('filterServicio');
+        const resultsCount = document.getElementById('searchResultsCount');
+        const matchCount = document.getElementById('matchCount');
+
+        function normalize(text) {
+            return (text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        }
+
+        function performSearch() {
+            const query = normalize(searchInput.value.trim());
+            const estado = filterEstado.value;
+            const categoria = filterCategoria.value;
+            const servicioId = filterServicio.value;
+
+            const isFiltering = query.length > 0 || estado || categoria || servicioId;
+
+            // Show/hide clear button
+            clearBtn.style.display = (searchInput.value.length > 0) ? 'block' : 'none';
+
+            const serviceItems = document.querySelectorAll('.service-item');
+            let totalMatches = 0;
+
+            serviceItems.forEach(function(serviceItem) {
+                const serviceId = serviceItem.id.replace('service-', '');
+                
+                // Filter by servicio select
+                if (servicioId && serviceId !== servicioId) {
+                    serviceItem.classList.add('hidden-by-search');
+                    return;
+                }
+
+                const rows = serviceItem.querySelectorAll('.kpi-row');
+                let visibleInService = 0;
+
+                rows.forEach(function(row) {
+                    const nombre = normalize(row.querySelector('td:nth-child(1)')?.textContent || '');
+                    const cat = row.querySelector('td:nth-child(2)')?.textContent.trim().toUpperCase() || '';
+                    const estadoCell = row.querySelector('.status-badge');
+                    const rowEstado = estadoCell ? estadoCell.className.replace('status-badge status-', '').trim() : '';
+
+                    let matches = true;
+
+                    // Text search
+                    if (query && !nombre.includes(query)) {
+                        matches = false;
+                    }
+
+                    // Estado filter
+                    if (estado && rowEstado !== estado) {
+                        matches = false;
+                    }
+
+                    // Categoria filter
+                    if (categoria) {
+                        const catMap = {'MAYOR': 'mayor', 'MEDIA': 'media', 'MENOR': 'menor'};
+                        if (!cat.toLowerCase().includes(catMap[categoria] || categoria.toLowerCase())) {
+                            matches = false;
+                        }
+                    }
+
+                    if (matches) {
+                        row.classList.remove('hidden-by-search');
+                        row.classList.toggle('highlight-match', isFiltering);
+                        visibleInService++;
+                        totalMatches++;
+                    } else {
+                        row.classList.add('hidden-by-search');
+                        row.classList.remove('highlight-match');
+                    }
+                });
+
+                if (isFiltering && visibleInService === 0) {
+                    serviceItem.classList.add('hidden-by-search');
+                } else {
+                    serviceItem.classList.remove('hidden-by-search');
+                    // Auto-expand services with matches when searching
+                    if (isFiltering && visibleInService > 0) {
+                        serviceItem.classList.add('expanded');
+                    } else if (!isFiltering) {
+                        // Reset highlight when not filtering
+                        rows.forEach(function(row) {
+                            row.classList.remove('highlight-match');
+                        });
+                    }
+                }
+            });
+
+            // Show results count
+            if (isFiltering) {
+                resultsCount.style.display = 'block';
+                matchCount.textContent = totalMatches;
+            } else {
+                resultsCount.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        searchInput.addEventListener('input', performSearch);
+        filterEstado.addEventListener('change', performSearch);
+        filterCategoria.addEventListener('change', performSearch);
+        filterServicio.addEventListener('change', performSearch);
+
+        clearBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            filterEstado.value = '';
+            filterCategoria.value = '';
+            filterServicio.value = '';
+            performSearch();
+            searchInput.focus();
+        });
+
+        // Keyboard shortcut: Ctrl+K to focus search
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput.focus();
+                searchInput.select();
+            }
+        });
+    })();
 </script>
 {% endblock %}

@@ -1,0 +1,794 @@
+ï»¿{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Riesgos</title>
+    {% include "core/fiori_tokens.html" %}
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    .panel-container {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 24px 16px 60px;
+        font-family: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+    }
+
+    /* Page Header */
+    .panel-header {
+        background: var(--sap-shell-bg);
+        color: white;
+        padding: 20px 24px;
+        border-radius:0;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .panel-header h1 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .panel-header .subtitle {
+        font-size: 0.85rem;
+        opacity: 0.8;
+        margin-top: 4px;
+    }
+
+    .panel-header-links {
+        display: flex;
+        gap: 10px;
+    }
+
+    .panel-header-links a {
+        padding: 6px 14px;
+        border-radius:0;
+        color: rgba(255,255,255,0.85);
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 500;
+        background: rgba(255,255,255,0.1);
+        transition: all 0.2s;
+    }
+
+    .panel-header-links a:hover {
+        background: rgba(255,255,255,0.2);
+        color: white;
+    }
+
+    /* Filters Card */
+    .filters-card {
+        background: var(--sap-card-bg);
+        border: 1px solid var(--sap-border-color);
+        border-radius:0;
+        padding: 20px;
+        margin-bottom: 24px;
+        box-shadow: var(--sap-card-shadow);
+    }
+
+    .filters-card h3 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sap-text-muted);
+        margin: 0 0 12px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .filters-form {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .filter-group label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--sap-text-muted);
+    }
+
+    .filter-group select,
+    .filter-group input[type="date"] {
+        padding: 8px 12px;
+        border: 1px solid var(--sap-border-color);
+        border-radius:0;
+        font-size: 0.875rem;
+        font-family: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+        color: var(--sap-text-color);
+        background: #fff;
+        min-width: 160px;
+    }
+
+    .filter-group select:focus,
+    .filter-group input[type="date"]:focus {
+        outline: none;
+        border-color: var(--sap-brand-color);
+        box-shadow: 0 0 0 2px rgba(10, 110, 209, 0.15);
+    }
+
+    .btn-filter {
+        padding: 8px 16px;
+        background: var(--sap-brand-color);
+        color: #fff;
+        border: none;
+        border-radius:0;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+    }
+
+    .btn-filter:hover {
+        background: #0056b3;
+    }
+
+    .btn-clear {
+        padding: 8px 16px;
+        background: transparent;
+        color: var(--sap-text-muted);
+        border: 1px solid var(--sap-border-color);
+        border-radius:0;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+        text-decoration: none;
+    }
+
+    .btn-clear:hover {
+        background: var(--sap-bg-color);
+    }
+
+    /* KPI Cards Row */
+    .kpi-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .kpi-card {
+        background: var(--sap-card-bg);
+        border: 1px solid var(--sap-border-color);
+        border-radius:0;
+        padding: 20px;
+        box-shadow: var(--sap-card-shadow);
+    }
+
+    .kpi-card .kpi-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sap-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .kpi-card .kpi-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--sap-text-color);
+        line-height: 1;
+    }
+
+    .kpi-card .kpi-detail {
+        font-size: 0.8rem;
+        color: var(--sap-text-muted);
+        margin-top: 8px;
+    }
+
+    /* Zone Badges */
+    .zone-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+    }
+
+    .zone-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius:0;
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+
+    .zone-badge.bajo { background: #e8f5e9; color: #2e7d32; }
+    .zone-badge.medio { background: #fffde7; color: #f9a825; }
+    .zone-badge.alto { background: #fff3e0; color: #e65100; }
+    .zone-badge.critico { background: #ffebee; color: #c62828; }
+
+    /* Category List */
+    .category-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+    }
+
+    .category-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius:0;
+        font-size: 0.72rem;
+        font-weight: 500;
+        background: var(--sap-information-bg);
+        color: var(--sap-information);
+    }
+
+    /* Section Cards */
+    .section-card {
+        background: var(--sap-card-bg);
+        border: 1px solid var(--sap-border-color);
+        border-radius:0;
+        padding: 20px;
+        margin-bottom: 24px;
+        box-shadow: var(--sap-card-shadow);
+    }
+
+    .section-card h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sap-text-color);
+        margin: 0 0 16px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-card h3 i {
+        color: var(--sap-brand-color);
+    }
+
+    /* Tables */
+    .panel-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    .panel-table thead th {
+        text-align: left;
+        padding: 10px 12px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        color: var(--sap-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        border-bottom: 2px solid var(--sap-border-color);
+    }
+
+    .panel-table tbody tr {
+        border-bottom: 1px solid var(--sap-border-color);
+        transition: background 0.15s;
+    }
+
+    .panel-table tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    .panel-table tbody tr:hover {
+        background: var(--sap-bg-color);
+    }
+
+    .panel-table tbody td {
+        padding: 10px 12px;
+        color: var(--sap-text-color);
+        vertical-align: middle;
+    }
+
+    .panel-table .nivel-cell {
+        font-weight: 700;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .panel-table .zona-cell {
+        font-weight: 600;
+        font-size: 0.75rem;
+        padding: 3px 8px;
+        border-radius:0;
+        display: inline-block;
+    }
+
+    .zona-cell.BAJO { background: #e8f5e9; color: #2e7d32; }
+    .zona-cell.MEDIO { background: #fffde7; color: #f9a825; }
+    .zona-cell.ALTO { background: #fff3e0; color: #e65100; }
+    .zona-cell.CRITICO { background: #ffebee; color: #c62828; }
+
+    /* Two Column Layout */
+    .two-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+        .two-columns {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Overdue Lists */
+    .overdue-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .overdue-list li {
+        padding: 10px 0;
+        border-bottom: 1px solid var(--sap-border-color);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.84rem;
+    }
+
+    .overdue-list li:last-child {
+        border-bottom: none;
+    }
+
+    .overdue-code {
+        font-weight: 600;
+        color: var(--sap-brand-color);
+        white-space: nowrap;
+    }
+
+    .overdue-title {
+        flex: 1;
+        color: var(--sap-text-color);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .overdue-date {
+        font-size: 0.72rem;
+        color: var(--sap-error);
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    /* KPIs en riesgo section */
+    .kpi-riesgo-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .kpi-riesgo-list li {
+        padding: 10px 0;
+        border-bottom: 1px solid var(--sap-border-color);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.84rem;
+    }
+
+    .kpi-riesgo-list li:last-child {
+        border-bottom: none;
+    }
+
+    .kpi-estado-badge {
+        display: inline-flex;
+        padding: 3px 8px;
+        border-radius:0;
+        font-size: 0.7rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .kpi-estado-badge.INCUMPLIMIENTO {
+        background: #ffebee;
+        color: #c62828;
+    }
+
+    .kpi-estado-badge.PARCIAL {
+        background: #fff3e0;
+        color: #e65100;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 60px 24px;
+        color: var(--sap-text-muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 16px;
+        opacity: 0.4;
+    }
+
+    .empty-state p {
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .empty-state .subtitle {
+        font-size: 0.85rem;
+        margin-top: 8px;
+        color: var(--sap-text-muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .panel-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .kpi-cards {
+            grid-template-columns: 1fr 1fr;
+        }
+        .filters-form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .filter-group select,
+        .filter-group input[type="date"] {
+            min-width: unset;
+            width: 100%;
+        }
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    #instrucciones-body ol li {
+        margin-bottom: 4px;
+    }
+
+    @media (max-width: 768px) {
+        #instrucciones-body > div {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+</head>
+<body style="margin:0; background:var(--sap-bg-color, #f5f6f7);">
+
+<div class="panel-container">
+    <!-- Header -->
+    <div class="panel-header">
+        <div>
+            <h1>
+                <i class="fas fa-shield-halved"></i>
+                Panel de Riesgos
+            </h1>
+            <div class="subtitle">Monitoreo consolidado de riesgos de negocio (ISO 31000)</div>
+        </div>
+        <div class="panel-header-links">
+            <a href="javascript:void(0)" onclick="abrirModal()" style="background:rgba(40,167,69,0.9);">
+                <i class="fas fa-plus"></i> Nuevo Riesgo
+            </a>
+            <a href="{% url 'servicios:mapa_calor_consolidado' %}">
+                <i class="fas fa-fire"></i> Mapa Consolidado
+            </a>
+            <a href="{% url 'admin:servicios_riesgo_changelist' %}">
+                <i class="fas fa-list"></i> Listado Admin
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-card">
+        <h3><i class="fas fa-filter"></i> Filtros</h3>
+        <form method="get" class="filters-form">
+            <div class="filter-group">
+                <label for="id_servicio">Servicio</label>
+                <select name="servicio" id="id_servicio">
+                    <option value="">‚¬â€ Todos los Servicios ‚¬â€</option>
+                    {% for s in servicios %}
+                    <option value="{{ s.pk }}" {% if filtro_servicio == s.pk|stringformat:"d" %}selected{% endif %}>{{ s.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="id_categoria">categoria</label>
+                <select name="categoria" id="id_categoria">
+                    <option value="">‚¬â€ Todas ‚¬â€</option>
+                    {% for value, label in categorias %}
+                    <option value="{{ value }}" {% if filtro_categoria == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="id_fecha_inicio">Desde</label>
+                <input type="date" name="fecha_inicio" id="id_fecha_inicio" value="{{ filtro_fecha_inicio|default:'' }}">
+            </div>
+            <div class="filter-group">
+                <label for="id_fecha_fin">Hasta</label>
+                <input type="date" name="fecha_fin" id="id_fecha_fin" value="{{ filtro_fecha_fin|default:'' }}">
+            </div>
+            <button type="submit" class="btn-filter">
+                <i class="fas fa-search"></i> Filtrar
+            </button>
+            <a href="?" class="btn-clear">Limpiar</a>
+        </form>
+    </div>
+
+    <!-- Panel de Instrucciones (colapsable) -->
+    <div class="section-card" id="instrucciones-card" style="border-left: 4px solid var(--sap-brand-color);">
+        <h3 style="cursor:pointer;" onclick="document.getElementById('instrucciones-body').classList.toggle('hidden');">
+            <i class="fas fa-book-open"></i> Guía Rápida: Gestión de Riesgos
+            <span style="float:right; font-size:0.75rem; color:var(--sap-text-muted); font-weight:400;">
+                <i class="fas fa-chevron-down"></i> click para expandir/colapsar
+            </span>
+        </h3>
+        <div id="instrucciones-body">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:12px;">
+                <!-- Columna 1: Paso a paso -->
+                <div>
+                    <h4 style="font-size:0.85rem; font-weight:600; color:var(--sap-text-color); margin-bottom:10px;">
+                        <i class="fas fa-shoe-prints" style="color:var(--sap-brand-color);"></i> Paso a Paso
+                    </h4>
+                    <ol style="padding-left:18px; font-size:0.82rem; color:var(--sap-text-color); line-height:2;">
+                        <li><strong>Crear Riesgo:</strong> Click en <span style="background:#28a745;color:#fff;padding:2px 6px;border-radius:0;font-size:0.72rem;">+ Nuevo Riesgo</span> arriba. Llene titulo, descripcion, categoria, fuente y consecuencias.</li>
+                        <li><strong>Evaluar:</strong> En el detalle del riesgo, agregue evaluaciones (Inherente y Residual) con probabilidad (1-5) e impacto (1-5). El sistema calcula el nivel automaticamente.</li>
+                        <li><strong>Configurar Apetito:</strong> En <em>Admin € â€™ Configuracion de Riesgo por Servicio</em>, defina el apetito y tolerancia para cada servicio.</li>
+                        <li><strong>Plan de Tratamiento:</strong> Cree un plan (Mitigar/Transferir/Evitar/Aceptar) con acciones, responsables y fechas.</li>
+                        <li><strong>Revisar periodicamente:</strong> El sistema notificara cuando se acerque la fecha de revision. Complete la revision actualizando la evaluacion.</li>
+                        <li><strong>Vincular KPIs:</strong> Asocie KPIs del mismo servicio al riesgo para monitorear posible materializacion.</li>
+                        <li><strong>Exportar:</strong> Use las opciones de exportacion Excel/PDF desde el listado admin o las acciones masivas.</li>
+                    </ol>
+                </div>
+                <!-- Columna 2: Conceptos clave -->
+                <div>
+                    <h4 style="font-size:0.85rem; font-weight:600; color:var(--sap-text-color); margin-bottom:10px;">
+                        <i class="fas fa-lightbulb" style="color:#e9730c;"></i> Conceptos Clave
+                    </h4>
+                    <table style="width:100%; font-size:0.78rem; border-collapse:collapse;">
+                        <tr style="border-bottom:1px solid var(--sap-border-color);">
+                            <td style="padding:6px 4px;"><strong>Matriz 5x”5</strong></td>
+                            <td style="padding:6px 4px;">Probabilidad (1-5) x” Impacto (1-5) = Nivel de Riesgo (1-25)</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--sap-border-color);">
+                            <td style="padding:6px 4px;"><strong>Zonas</strong></td>
+                            <td style="padding:6px 4px;">
+                                <span style="background:#c6efce;padding:1px 6px;border-radius:0;font-size:0.7rem;">Bajo 1-4</span>
+                                <span style="background:#fff2cc;padding:1px 6px;border-radius:0;font-size:0.7rem;">Medio 5-9</span>
+                                <span style="background:#ffd9b3;padding:1px 6px;border-radius:0;font-size:0.7rem;">Alto 10-16</span>
+                                <span style="background:#ffc7ce;padding:1px 6px;border-radius:0;font-size:0.7rem;">Critico 17-25</span>
+                            </td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--sap-border-color);">
+                            <td style="padding:6px 4px;"><strong>Apetito</strong></td>
+                            <td style="padding:6px 4px;">Nivel maximo de riesgo aceptable para el servicio</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--sap-border-color);">
+                            <td style="padding:6px 4px;"><strong>Tolerancia</strong></td>
+                            <td style="padding:6px 4px;">Margen adicional sobre el apetito antes de requerir accion inmediata</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--sap-border-color);">
+                            <td style="padding:6px 4px;"><strong>categorias</strong></td>
+                            <td style="padding:6px 4px;">Operacional, Financiero, Estrategico, Cumplimiento, Reputacional</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px 4px;"><strong>Ciclo revision</strong></td>
+                            <td style="padding:6px 4px;">Mensual, Bimestral, Trimestral, Semestral o Anual</td>
+                        </tr>
+                    </table>
+
+                    <h4 style="font-size:0.85rem; font-weight:600; color:var(--sap-text-color); margin:14px 0 8px;">
+                        <i class="fas fa-link" style="color:var(--sap-brand-color);"></i> Accesos Rapidos
+                    </h4>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                        <a href="javascript:void(0)" onclick="abrirModal()" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:#e8f5e9;color:#2e7d32;border-radius:0;font-size:0.75rem;font-weight:500;text-decoration:none;">
+                            <i class="fas fa-plus"></i> Nuevo Riesgo
+                        </a>
+                        <a href="{% url 'admin:servicios_plantratamiento_add' %}" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:#e8f4fd;color:#0a6ed1;border-radius:0;font-size:0.75rem;font-weight:500;text-decoration:none;">
+                            <i class="fas fa-clipboard-list"></i> Nuevo Plan
+                        </a>
+                        <a href="{% url 'admin:servicios_configuracionriesgoservicio_changelist' %}" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:#fff3e0;color:#e65100;border-radius:0;font-size:0.75rem;font-weight:500;text-decoration:none;">
+                            <i class="fas fa-sliders"></i> Configurar Apetito
+                        </a>
+                        <a href="{% url 'admin:servicios_riesgo_changelist' %}" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:#f3e5f5;color:#7b1fa2;border-radius:0;font-size:0.75rem;font-weight:500;text-decoration:none;">
+                            <i class="fas fa-table-list"></i> Todos los Riesgos
+                        </a>
+                        <a href="{% url 'admin:servicios_plantratamiento_changelist' %}" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:#fce4ec;color:#c62828;border-radius:0;font-size:0.75rem;font-weight:500;text-decoration:none;">
+                            <i class="fas fa-briefcase-medical"></i> Planes de Tratamiento
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if sin_resultados %}
+    <!-- Empty State (Req 9.7) -->
+    <div class="section-card">
+        <div class="empty-state">
+            <i class="fas fa-shield-halved"></i>
+            <p>No existen riesgos para los criterios seleccionados.</p>
+            <p class="subtitle">Modifique los filtros para ampliar la busqueda.</p>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- KPI Cards Row (Req 9.1) -->
+    <div class="kpi-cards">
+        <!-- Total Active Risks -->
+        <div class="kpi-card">
+            <div class="kpi-label">Riesgos Activos</div>
+            <div class="kpi-value">{{ total_activos }}</div>
+            <div class="kpi-detail">Total de riesgos en estado activo</div>
+        </div>
+
+        <!-- Distribution by Zone -->
+        <div class="kpi-card">
+            <div class="kpi-label">Distribucion por Zona</div>
+            <div class="zone-badges">
+                <span class="zone-badge bajo">
+                    <i class="fas fa-circle" style="font-size:0.5rem;"></i>
+                    Bajo: {{ distribucion_zona.BAJO }} ({{ distribucion_zona_pct.BAJO }}%)
+                </span>
+                <span class="zone-badge medio">
+                    <i class="fas fa-circle" style="font-size:0.5rem;"></i>
+                    Medio: {{ distribucion_zona.MEDIO }} ({{ distribucion_zona_pct.MEDIO }}%)
+                </span>
+                <span class="zone-badge alto">
+                    <i class="fas fa-circle" style="font-size:0.5rem;"></i>
+                    Alto: {{ distribucion_zona.ALTO }} ({{ distribucion_zona_pct.ALTO }}%)
+                </span>
+                <span class="zone-badge critico">
+                    <i class="fas fa-circle" style="font-size:0.5rem;"></i>
+                    Critico: {{ distribucion_zona.CRITICO }} ({{ distribucion_zona_pct.CRITICO }}%)
+                </span>
+            </div>
+        </div>
+
+        <!-- % Plans Implemented -->
+        <div class="kpi-card">
+            <div class="kpi-label">Planes Implementados</div>
+            <div class="kpi-value">{{ pct_implementados }}%</div>
+            <div class="kpi-detail">{{ planes_implementados }} de {{ total_planes }} planes</div>
+        </div>
+    </div>
+
+    <!-- Distribution by Category -->
+    <div class="section-card">
+        <h3><i class="fas fa-tags"></i> Distribucion por categoria</h3>
+        {% if distribucion_categoria %}
+        <div class="category-badges">
+            {% for cat, count in distribucion_categoria.items %}
+            <span class="category-badge">
+                {{ cat }}: {{ count }}
+            </span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--sap-text-muted); font-size:0.85rem; margin:0;">Sin datos de categoria disponibles.</p>
+        {% endif %}
+    </div>
+
+    <!-- Top 10 Risks Table (Req 9.2) -->
+    <div class="section-card">
+        <h3><i class="fas fa-ranking-star"></i> Top Riesgos por Nivel Residual</h3>
+        {% if top_riesgos %}
+        <div style="overflow-x:auto;">
+            <table class="panel-table">
+                <thead>
+                    <tr>
+                        <th>Codigo</th>
+                        <th>titulo</th>
+                        <th>Nivel</th>
+                        <th>Zona</th>
+                        <th>Responsable</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for riesgo in top_riesgos %}
+                    <tr>
+                        <td><strong>{{ riesgo.codigo }}</strong></td>
+                        <td>{{ riesgo.titulo|truncatechars:60 }}</td>
+                        <td class="nivel-cell">{{ riesgo.nivel_residual|default:"-" }}</td>
+                        <td>
+                            {% with zona=riesgo.zona_residual|default:"BAJO" %}
+                            <span class="zona-cell {{ zona }}">{{ zona }}</span>
+                            {% endwith %}
+                        </td>
+                        <td>{{ riesgo.responsable.get_full_name|default:riesgo.responsable.username|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color:var(--sap-text-muted); font-size:0.85rem; margin:0;">No hay riesgos evaluados con nivel residual.</p>
+        {% endif %}
+    </div>
+
+    <!-- Two Columns: Overdue Reviews | Overdue Actions (Req 9.3) -->
+    <div class="two-columns">
+        <!-- Revisiones Vencidas -->
+        <div class="section-card">
+            <h3><i class="fas fa-clock-rotate-left"></i> Revisiones Vencidas</h3>
+            {% if revisiones_vencidas %}
+            <ul class="overdue-list">
+                {% for riesgo in revisiones_vencidas %}
+                <li>
+                    <span class="overdue-code">{{ riesgo.codigo }}</span>
+                    <span class="overdue-title">{{ riesgo.titulo|truncatechars:40 }}</span>
+                    <span class="overdue-date">
+                        <i class="fas fa-calendar-xmark"></i>
+                        {{ riesgo.proxima_revision|date:"d/m/Y" }}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p style="color:var(--sap-text-muted); font-size:0.85rem; margin:0;">No hay revisiones vencidas.</p>
+            {% endif %}
+        </div>
+
+        <!-- Acciones Vencidas -->
+        <div class="section-card">
+            <h3><i class="fas fa-triangle-exclamation"></i> Acciones Vencidas</h3>
+            {% if acciones_vencidas %}
+            <ul class="overdue-list">
+                {% for accion in acciones_vencidas %}
+                <li>
+                    <span class="overdue-code">{{ accion.plan.riesgo.codigo }}</span>
+                    <span class="overdue-title">{{ accion.descripcion|truncatechars:40 }}</span>
+                    <span class="overdue-date">
+                        <i class="fas fa-calendar-xmark"></i>
+                        {{ accion.fecha_limite|date:"d/m/Y" }}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p style="color:var(--sap-text-muted); font-size:0.85rem; margin:0;">No hay acciones vencidas.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- KPIs en Riesgo (Req 7.6) -->
+    <div class="section-card">
+        <h3><i class="fas fa-chart-line"></i> KPIs en Riesgo</h3>
+        <p style="color:var(--sap-text-muted); font-size:0.78rem; margin:0 0 12px 0;">
+            KPIs en incumplimiento o parcial con riesgos asociados en zona Alta/Critica (max. 10)
+        </p>
+        {% if kpis_en_riesgo %}
+        <ul class="kpi-riesgo-list">
+            {% for kpi in kpis_en_riesgo %}
+            <li>
+                <span class="kpi-estado-badge {{ kpi.estado }}">{{ kpi.get_estado_display|default:kpi.estado }}</span>
+                <span style="flex:1; color:var(--sap-text-color);">{{ kpi.nombre|truncatechars:60 }}</span>
+                <span style="font-size:0.72rem; color:var(--sap-text-muted);">{{ kpi.servicio.nombre }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p style="color:var(--sap-text-muted); font-size:0.85rem; margin:0;">No hay KPIs en riesgo actualmente.</p>
+        {% endif %}
+    </div>
+
+    {% endif %}
+</div>
+
+{% include "servicios/riesgos/modal_nuevo_riesgo.html" %}
+</body>
+</html>

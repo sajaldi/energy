@@ -5,6 +5,14 @@ class Categoria(models.Model):
     padre = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='subcategorias')
     icono = models.CharField(max_length=50, default='location', help_text="Nombre del icono de Ionicons (ej: flash, water, construct, bulb)")
     descripcion = models.TextField(blank=True, null=True)
+    codigo_exoneracion = models.ForeignKey(
+        'presupuestos.CodigoExoneracion',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='categorias_activos',
+        verbose_name="Código de exoneración",
+        help_text="Código arancelario de exoneración fiscal vinculado a esta categoría"
+    )
 
     @property
     def tiene_hijos(self):

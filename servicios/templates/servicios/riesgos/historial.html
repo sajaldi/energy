@@ -1,0 +1,548 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Historial - {{ riesgo.codigo }}{% endblock %}
+
+{% block extrahead %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% if chart_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endif %}
+{% include 'core/fiori_tokens.html' %}
+<style>
+    :root {
+        --sap-blue: #0a6ed1;
+        --sap-shell: #354a5f;
+        --sap-bg: #f5f6f7;
+        --sap-card-bg: #ffffff;
+        --sap-label: #6a6d70;
+        --sap-text: #32363a;
+        --sap-border: #d9d9d9;
+        --sap-success: #107e3e;
+        --sap-success-bg: #e5f5ea;
+        --sap-warning: #e9730c;
+        --sap-warning-bg: #fef7e0;
+        --sap-error: #bb0000;
+        --sap-error-bg: #ffeaea;
+        --sap-info: #0a6ed1;
+        --sap-info-bg: #e8f4fd;
+    }
+
+    .historial-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .page-header h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--sap-text);
+        margin: 0;
+    }
+
+    .page-header .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: var(--sap-info-bg);
+        color: var(--sap-info);
+    }
+
+    /* Filters Card */
+    .filters-card {
+        background: var(--sap-card-bg);
+        border: 1px solid var(--sap-border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .filters-card h3 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--sap-label);
+        margin: 0 0 12px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .filters-form {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .filter-group label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--sap-label);
+    }
+
+    .filter-group select,
+    .filter-group input[type="date"] {
+        padding: 8px 12px;
+        border: 1px solid var(--sap-border);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-family: 'Inter', sans-serif;
+        color: var(--sap-text);
+        background: #fff;
+        min-width: 160px;
+    }
+
+    .filter-group select:focus,
+    .filter-group input[type="date"]:focus {
+        outline: none;
+        border-color: var(--sap-blue);
+        box-shadow: 0 0 0 2px rgba(10, 110, 209, 0.15);
+    }
+
+    .btn-filter {
+        padding: 8px 16px;
+        background: var(--sap-blue);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .btn-filter:hover {
+        background: #085cad;
+    }
+
+    .btn-clear {
+        padding: 8px 16px;
+        background: transparent;
+        color: var(--sap-label);
+        border: 1px solid var(--sap-border);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        text-decoration: none;
+    }
+
+    .btn-clear:hover {
+        background: var(--sap-bg);
+    }
+
+    /* Chart Section */
+    .chart-card {
+        background: var(--sap-card-bg);
+        border: 1px solid var(--sap-border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .chart-card h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sap-text);
+        margin: 0 0 16px 0;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 250px;
+        width: 100%;
+    }
+
+    .info-message {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        background: var(--sap-info-bg);
+        border-radius: 8px;
+        color: var(--sap-info);
+        font-size: 0.875rem;
+    }
+
+    .info-message i {
+        font-size: 1rem;
+    }
+
+    /* Timeline */
+    .timeline-card {
+        background: var(--sap-card-bg);
+        border: 1px solid var(--sap-border);
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .timeline-card h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sap-text);
+        margin: 0 0 16px 0;
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 28px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 8px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--sap-border);
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--sap-bg);
+        margin-bottom: 16px;
+    }
+
+    .timeline-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -24px;
+        top: 4px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--sap-blue);
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px var(--sap-blue);
+    }
+
+    .timeline-item.tipo-EVALUACION::before { background: #0a6ed1; box-shadow: 0 0 0 2px #0a6ed1; }
+    .timeline-item.tipo-TRATAMIENTO::before { background: #e9730c; box-shadow: 0 0 0 2px #e9730c; }
+    .timeline-item.tipo-REVISION::before { background: #107e3e; box-shadow: 0 0 0 2px #107e3e; }
+    .timeline-item.tipo-CREACION::before { background: #6a6d70; box-shadow: 0 0 0 2px #6a6d70; }
+    .timeline-item.tipo-ESTADO::before { background: #bb0000; box-shadow: 0 0 0 2px #bb0000; }
+    .timeline-item.tipo-KPI_VINCULADO::before { background: #8367c7; box-shadow: 0 0 0 2px #8367c7; }
+    .timeline-item.tipo-KPI_DESVINCULADO::before { background: #8367c7; box-shadow: 0 0 0 2px #8367c7; }
+
+    .timeline-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+        flex-wrap: wrap;
+    }
+
+    .timeline-type {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .tipo-EVALUACION .timeline-type { background: #e8f4fd; color: #0a6ed1; }
+    .tipo-TRATAMIENTO .timeline-type { background: #fef7e0; color: #e9730c; }
+    .tipo-REVISION .timeline-type { background: #e5f5ea; color: #107e3e; }
+    .tipo-CREACION .timeline-type { background: #f0f0f0; color: #6a6d70; }
+    .tipo-ESTADO .timeline-type { background: #ffeaea; color: #bb0000; }
+    .tipo-KPI_VINCULADO .timeline-type { background: #f0e8ff; color: #8367c7; }
+    .tipo-KPI_DESVINCULADO .timeline-type { background: #f0e8ff; color: #8367c7; }
+
+    .timeline-date {
+        font-size: 0.75rem;
+        color: var(--sap-label);
+    }
+
+    .timeline-user {
+        font-size: 0.75rem;
+        color: var(--sap-label);
+        margin-left: auto;
+    }
+
+    .timeline-body {
+        font-size: 0.875rem;
+        color: var(--sap-text);
+        line-height: 1.5;
+    }
+
+    .timeline-body .justificacion {
+        font-style: italic;
+        color: var(--sap-label);
+        margin-top: 4px;
+    }
+
+    /* Pagination */
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 24px;
+        padding-top: 16px;
+        border-top: 1px solid var(--sap-border);
+    }
+
+    .pagination-container a,
+    .pagination-container span {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        text-decoration: none;
+        color: var(--sap-text);
+    }
+
+    .pagination-container a {
+        border: 1px solid var(--sap-border);
+    }
+
+    .pagination-container a:hover {
+        background: var(--sap-bg);
+    }
+
+    .pagination-container .current {
+        background: var(--sap-blue);
+        color: #fff;
+        border: 1px solid var(--sap-blue);
+        font-weight: 600;
+    }
+
+    .pagination-container .disabled {
+        color: var(--sap-border);
+        pointer-events: none;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--sap-label);
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+        opacity: 0.5;
+    }
+
+    .empty-state p {
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="historial-container">
+    <!-- Header -->
+    <div class="page-header">
+        <h1>
+            <i class="fas fa-history"></i>
+            Historial: {{ riesgo.codigo }} - {{ riesgo.titulo|truncatechars:60 }}
+        </h1>
+        <span class="badge">{{ riesgo.get_estado_display }}</span>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-card">
+        <h3><i class="fas fa-filter"></i> Filtros</h3>
+        <form method="get" class="filters-form">
+            <div class="filter-group">
+                <label for="tipo_evento">Tipo de Evento</label>
+                <select name="tipo_evento" id="tipo_evento">
+                    <option value="">— Todos —</option>
+                    {% for value, label in tipo_evento_choices %}
+                    <option value="{{ value }}" {% if filtro_tipo_evento == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="fecha_desde">Desde</label>
+                <input type="date" name="fecha_desde" id="fecha_desde" value="{{ filtro_fecha_desde }}">
+            </div>
+            <div class="filter-group">
+                <label for="fecha_hasta">Hasta</label>
+                <input type="date" name="fecha_hasta" id="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+            </div>
+            <button type="submit" class="btn-filter">
+                <i class="fas fa-search"></i> Filtrar
+            </button>
+            <a href="?" class="btn-clear">Limpiar</a>
+        </form>
+    </div>
+
+    <!-- Trend Chart -->
+    <div class="chart-card">
+        <h3><i class="fas fa-chart-line"></i> Tendencia de Nivel de Riesgo</h3>
+        {% if tiene_suficientes_evaluaciones %}
+        <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+        </div>
+        {% else %}
+        <div class="info-message">
+            <i class="fas fa-info-circle"></i>
+            Se requieren al menos 2 evaluaciones residuales para generar el gráfico de tendencia.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline-card">
+        <h3><i class="fas fa-stream"></i> Línea de Tiempo</h3>
+        {% if page_obj.object_list %}
+        <div class="timeline">
+            {% for entry in page_obj %}
+            <div class="timeline-item tipo-{{ entry.tipo_evento }}">
+                <div class="timeline-header">
+                    <span class="timeline-type">{{ entry.get_tipo_evento_display }}</span>
+                    <span class="timeline-date">
+                        <i class="far fa-clock"></i>
+                        {{ entry.fecha_hora|date:"d M Y H:i" }}
+                    </span>
+                    {% if entry.usuario %}
+                    <span class="timeline-user">
+                        <i class="far fa-user"></i> {{ entry.usuario.get_full_name|default:entry.usuario.username }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="timeline-body">
+                    {% if entry.valores_anteriores %}
+                    <span><strong>Anterior:</strong> {{ entry.valores_anteriores }}</span><br>
+                    {% endif %}
+                    {% if entry.valores_nuevos %}
+                    <span><strong>Nuevo:</strong> {{ entry.valores_nuevos }}</span>
+                    {% endif %}
+                    {% if entry.justificacion %}
+                    <p class="justificacion">"{{ entry.justificacion }}"</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="pagination-container">
+            {% if page_obj.has_previous %}
+            <a href="?page=1{% if filtro_tipo_evento %}&tipo_evento={{ filtro_tipo_evento }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}">
+                <i class="fas fa-angle-double-left"></i>
+            </a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if filtro_tipo_evento %}&tipo_evento={{ filtro_tipo_evento }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}">
+                <i class="fas fa-angle-left"></i>
+            </a>
+            {% endif %}
+
+            <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if filtro_tipo_evento %}&tipo_evento={{ filtro_tipo_evento }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}">
+                <i class="fas fa-angle-right"></i>
+            </a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if filtro_tipo_evento %}&tipo_evento={{ filtro_tipo_evento }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}">
+                <i class="fas fa-angle-double-right"></i>
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <p>No hay registros de historial{% if filtro_tipo_evento or filtro_fecha_desde or filtro_fecha_hasta %} para los filtros seleccionados{% endif %}.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if chart_data %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chartData = {{ chart_data|safe }};
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: 'Nivel de Riesgo Residual',
+                data: chartData.values,
+                borderColor: '#0a6ed1',
+                backgroundColor: 'rgba(10, 110, 209, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#0a6ed1',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: 1,
+                    max: 25,
+                    title: {
+                        display: true,
+                        text: 'Nivel de Riesgo',
+                        font: { family: 'Inter', size: 12 }
+                    },
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Fecha de Evaluación',
+                        font: { family: 'Inter', size: 12 }
+                    },
+                    grid: { display: false }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: { font: { family: 'Inter' } }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(53, 74, 95, 0.95)',
+                    titleFont: { family: 'Inter' },
+                    bodyFont: { family: 'Inter' },
+                    padding: 12,
+                    cornerRadius: 8
+                }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

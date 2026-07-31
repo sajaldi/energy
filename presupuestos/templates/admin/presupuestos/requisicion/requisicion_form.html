@@ -550,10 +550,11 @@
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 10px;">
                         <thead>
                             <tr style="text-align: left; background: #fafafa; border-bottom: 2px solid var(--border);">
-                                <th style="padding: 12px 10px; width: 30%;">Material</th>
-                                <th style="padding: 12px 10px; width: 40%;">Descripción</th>
+                                <th style="padding: 12px 10px; width: 20%;">Material</th>
+                                <th style="padding: 12px 10px; width: 15%;">Cód. Exoneración</th>
+                                <th style="padding: 12px 10px; width: 30%;">Descripción</th>
                                 <th style="padding: 12px 10px; width: 10%; text-align: center;">Cant.</th>
-                                <th style="padding: 12px 10px; width: 20%; text-align: right;">Costo Est.</th>
+                                <th style="padding: 12px 10px; width: 15%; text-align: right;">Costo Est.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -568,6 +569,13 @@
                                     </a>
                                     {% else %}
                                     -
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 12px 10px; font-size: 0.8rem;">
+                                    {% if art.material and art.material.codigo_exoneracion %}
+                                    <span style="color: var(--primary); font-weight: 500;" title="{{ art.material.codigo_exoneracion.descripcion }}">{{ art.material.codigo_exoneracion.codigo }}</span>
+                                    {% else %}
+                                    <span style="color: #999;">—</span>
                                     {% endif %}
                                 </td>
                                 <td style="padding: 12px 10px; color: var(--text-muted);">{{ art.cr8ca_articulo }}</td>

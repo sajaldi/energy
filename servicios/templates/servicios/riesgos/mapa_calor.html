@@ -1,0 +1,659 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}
+{% if consolidado %}Mapa de Calor Consolidado{% else %}Mapa de Calor - {{ servicio.nombre }}{% endif %}
+{% endblock %}
+
+{% block extrahead %}
+{% include "core/fiori_tokens.html" %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    #content {
+        background: var(--sap-bg-color) !important;
+        padding: 0 !important;
+    }
+
+    .mapa-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px 16px 60px;
+        font-family: 'Inter', var(--sap-font-family);
+    }
+
+    /* Page Header */
+    .mapa-header {
+        background: var(--sap-shell-bg);
+        color: white;
+        padding: 20px 24px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .mapa-header h1 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .mapa-header .subtitle {
+        font-size: 0.85rem;
+        opacity: 0.8;
+        margin-top: 4px;
+    }
+
+    /* Toggle Controls */
+    .vista-toggle {
+        display: flex;
+        gap: 4px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 4px;
+    }
+
+    .vista-toggle a {
+        padding: 6px 14px;
+        border-radius: 6px;
+        color: rgba(255,255,255,0.7);
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .vista-toggle a.active,
+    .vista-toggle a:hover {
+        background: rgba(255,255,255,0.2);
+        color: white;
+    }
+
+    .vista-toggle a.active {
+        background: var(--sap-brand-color);
+    }
+
+    /* Legend */
+    .mapa-legend {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        padding: 12px 16px;
+        background: var(--sap-card-bg);
+        border-radius: 8px;
+        border: 1px solid var(--sap-border-color);
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: var(--sap-text-color);
+    }
+
+    .legend-swatch {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+    }
+
+    .legend-swatch.bajo { background: #c8e6c9; border: 1px solid #4caf50; }
+    .legend-swatch.medio { background: #fff9c4; border: 1px solid #fbc02d; }
+    .legend-swatch.alto { background: #ffe0b2; border: 1px solid #ff9800; }
+    .legend-swatch.critico { background: #ffcdd2; border: 1px solid #f44336; }
+
+    .legend-marker {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #555;
+    }
+
+    .legend-marker.inherente {
+        border: 2px dashed #1565c0;
+        background: rgba(21, 101, 192, 0.2);
+    }
+
+    .legend-marker.residual {
+        border: 2px solid #c62828;
+        background: rgba(198, 40, 40, 0.2);
+    }
+
+    /* Grid Container */
+    .grid-wrapper {
+        position: relative;
+        background: var(--sap-card-bg);
+        border-radius: 12px;
+        border: 1px solid var(--sap-border-color);
+        padding: 24px;
+        box-shadow: var(--sap-card-shadow);
+    }
+
+    .grid-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .grid-table th {
+        padding: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sap-text-muted);
+        text-align: center;
+    }
+
+    .axis-label-y {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--sap-text-muted);
+        padding: 8px 4px;
+        text-align: center;
+        width: 30px;
+    }
+
+    .axis-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--sap-text-color);
+        text-align: center;
+        padding: 8px;
+    }
+
+    /* Cells */
+    .grid-cell {
+        border: 1px solid rgba(0,0,0,0.08);
+        padding: 6px;
+        vertical-align: top;
+        min-height: 70px;
+        height: 80px;
+        position: relative;
+        transition: all 0.15s;
+        cursor: default;
+    }
+
+    .grid-cell:hover {
+        box-shadow: inset 0 0 0 2px var(--sap-brand-color);
+    }
+
+    .grid-cell.zona-BAJO { background: #e8f5e9; }
+    .grid-cell.zona-MEDIO { background: #fffde7; }
+    .grid-cell.zona-ALTO { background: #fff3e0; }
+    .grid-cell.zona-CRITICO { background: #ffebee; }
+
+    .cell-nivel {
+        position: absolute;
+        top: 3px;
+        right: 5px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: rgba(0,0,0,0.3);
+    }
+
+    /* Risk markers in cells */
+    .cell-markers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        align-items: flex-start;
+    }
+
+    .risk-marker {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.5rem;
+        font-weight: 700;
+        color: white;
+        cursor: pointer;
+        position: relative;
+        transition: transform 0.15s;
+    }
+
+    .risk-marker:hover {
+        transform: scale(1.4);
+        z-index: 10;
+    }
+
+    .risk-marker.inherente {
+        border: 2px dashed #1565c0;
+        background: rgba(21, 101, 192, 0.6);
+    }
+
+    .risk-marker.residual {
+        border: 2px solid #c62828;
+        background: rgba(198, 40, 40, 0.6);
+    }
+
+    /* Consolidated cell count */
+    .cell-count {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: rgba(0,0,0,0.5);
+    }
+
+    .cell-count.has-risks {
+        color: var(--sap-text-color);
+    }
+
+    /* Appetite/Tolerance lines */
+    .line-apetito,
+    .line-tolerancia {
+        position: absolute;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    /* Tooltip */
+    .tooltip-container {
+        display: none;
+        position: absolute;
+        z-index: 100;
+        background: var(--sap-card-bg);
+        border: 1px solid var(--sap-border-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        padding: 12px;
+        min-width: 220px;
+        max-width: 320px;
+        font-size: 0.78rem;
+    }
+
+    .tooltip-container.show {
+        display: block;
+    }
+
+    .tooltip-title {
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: var(--sap-text-color);
+        border-bottom: 1px solid var(--sap-border-color);
+        padding-bottom: 4px;
+    }
+
+    .tooltip-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .tooltip-list li {
+        padding: 3px 0;
+        color: var(--sap-text-color);
+    }
+
+    .tooltip-list li a {
+        color: var(--sap-brand-color);
+        text-decoration: none;
+    }
+
+    .tooltip-list li a:hover {
+        text-decoration: underline;
+    }
+
+    .tooltip-extra {
+        font-style: italic;
+        color: var(--sap-text-muted);
+        margin-top: 4px;
+    }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 60px 24px;
+        color: var(--sap-text-muted);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 16px;
+        opacity: 0.4;
+    }
+
+    .empty-state p {
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    /* Appetite/Tolerance visual indicators */
+    .lines-legend {
+        display: flex;
+        gap: 20px;
+        margin-top: 12px;
+        font-size: 0.78rem;
+    }
+
+    .line-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .line-sample {
+        width: 30px;
+        height: 3px;
+    }
+
+    .line-sample.apetito {
+        background: #2196f3;
+        border-style: dashed;
+    }
+
+    .line-sample.tolerancia {
+        background: #ff5722;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .mapa-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .grid-cell {
+            height: 60px;
+            padding: 4px;
+        }
+        .risk-marker {
+            width: 12px;
+            height: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mapa-container">
+    <!-- Header -->
+    <div class="mapa-header">
+        <div>
+            <h1>
+                <i class="fas fa-fire"></i>
+                {% if consolidado %}
+                    Mapa de Calor Consolidado
+                {% else %}
+                    Mapa de Calor &mdash; {{ servicio.nombre }}
+                {% endif %}
+            </h1>
+            <div class="subtitle">
+                {% if consolidado %}
+                    Vista consolidada de riesgos activos de todos los Servicios
+                {% else %}
+                    Matriz de Probabilidad × Impacto (ISO 31000)
+                {% endif %}
+            </div>
+        </div>
+
+        {% if not consolidado %}
+        <div class="vista-toggle">
+            <a href="?vista=inherente" class="{% if vista == 'inherente' %}active{% endif %}">Inherente</a>
+            <a href="?vista=residual" class="{% if vista == 'residual' %}active{% endif %}">Residual</a>
+            <a href="?vista=ambos" class="{% if vista == 'ambos' %}active{% endif %}">Ambos</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Legend -->
+    <div class="mapa-legend">
+        <span style="font-weight:600; font-size:0.8rem; color:var(--sap-text-muted);">Zonas:</span>
+        <div class="legend-item"><div class="legend-swatch bajo"></div> Bajo (1-4)</div>
+        <div class="legend-item"><div class="legend-swatch medio"></div> Medio (5-9)</div>
+        <div class="legend-item"><div class="legend-swatch alto"></div> Alto (10-16)</div>
+        <div class="legend-item"><div class="legend-swatch critico"></div> Crítico (17-25)</div>
+
+        {% if not consolidado %}
+        <span style="margin-left:12px; font-weight:600; font-size:0.8rem; color:var(--sap-text-muted);">Marcadores:</span>
+        <div class="legend-item"><div class="legend-marker inherente"></div> Inherente</div>
+        <div class="legend-item"><div class="legend-marker residual"></div> Residual</div>
+        {% endif %}
+    </div>
+
+    {% if not tiene_riesgos and not consolidado %}
+    <!-- Empty state for services without active risks (Req 8.7) -->
+    <div class="grid-wrapper">
+        <div class="empty-state">
+            <i class="fas fa-shield-halved"></i>
+            <p>No existen riesgos activos registrados para <strong>{{ servicio.nombre }}</strong>.</p>
+            <p style="font-size:0.85rem; margin-top:8px; color:var(--sap-text-muted);">
+                Registre riesgos desde el panel de administración para visualizarlos en el mapa de calor.
+            </p>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Grid 5×5 -->
+    <div class="grid-wrapper" id="gridWrapper">
+        <table class="grid-table">
+            <thead>
+                <tr>
+                    <th style="width:30px;"></th>
+                    <th colspan="5" class="axis-title">Impacto →</th>
+                </tr>
+                <tr>
+                    <th></th>
+                    <th>1<br><small>Insignificante</small></th>
+                    <th>2<br><small>Menor</small></th>
+                    <th>3<br><small>Moderado</small></th>
+                    <th>4<br><small>Mayor</small></th>
+                    <th>5<br><small>Catastrófico</small></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in grid_data %}
+                <tr>
+                    <td class="axis-label-y">
+                        {{ row.prob }}
+                        {% if row.prob == 5 %}<br><small>Muy Alta</small>
+                        {% elif row.prob == 4 %}<br><small>Alta</small>
+                        {% elif row.prob == 3 %}<br><small>Media</small>
+                        {% elif row.prob == 2 %}<br><small>Baja</small>
+                        {% elif row.prob == 1 %}<br><small>Muy Baja</small>
+                        {% endif %}
+                    </td>
+                    {% for cell in row.cells %}
+                    <td class="grid-cell zona-{{ cell.zona }}"
+                        data-prob="{{ cell.prob }}" data-imp="{{ cell.imp }}" data-nivel="{{ cell.nivel }}">
+                        <span class="cell-nivel">{{ cell.nivel }}</span>
+
+                        {% if consolidado %}
+                        <!-- Consolidated: show count -->
+                        <div class="cell-count {% if cell.conteo > 0 %}has-risks{% endif %}">
+                            {% if cell.conteo > 0 %}{{ cell.conteo }}{% endif %}
+                        </div>
+                        {% else %}
+                        <!-- Per-service: show risk markers -->
+                        <div class="cell-markers">
+                            {% if vista == 'inherente' or vista == 'ambos' %}
+                                {% for riesgo in cell.riesgos_inherente %}
+                                <a href="{% url 'admin:servicios_riesgo_change' riesgo.pk %}"
+                                   class="risk-marker inherente"
+                                   title="{{ riesgo.codigo }} - {{ riesgo.titulo }}"
+                                   data-codigo="{{ riesgo.codigo }}"
+                                   data-titulo="{{ riesgo.titulo }}"
+                                   data-tipo="inherente">
+                                </a>
+                                {% endfor %}
+                                {% if cell.extra_inherente > 0 %}
+                                <span class="risk-marker inherente" style="font-size:0.5rem;">+{{ cell.extra_inherente }}</span>
+                                {% endif %}
+                            {% endif %}
+
+                            {% if vista == 'residual' or vista == 'ambos' %}
+                                {% for riesgo in cell.riesgos_residual %}
+                                <a href="{% url 'admin:servicios_riesgo_change' riesgo.pk %}"
+                                   class="risk-marker residual"
+                                   title="{{ riesgo.codigo }} - {{ riesgo.titulo }}"
+                                   data-codigo="{{ riesgo.codigo }}"
+                                   data-titulo="{{ riesgo.titulo }}"
+                                   data-tipo="residual">
+                                </a>
+                                {% endfor %}
+                                {% if cell.extra_residual > 0 %}
+                                <span class="risk-marker residual" style="font-size:0.5rem;">+{{ cell.extra_residual }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td></td>
+                    <td colspan="5" class="axis-title" style="padding-top:4px;">
+                        <span style="font-size:0.75rem; color:var(--sap-text-muted);">↑ Probabilidad</span>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+
+        {% if apetito or tolerancia %}
+        <div class="lines-legend">
+            {% if apetito %}
+            <div class="line-legend-item">
+                <div class="line-sample apetito"></div>
+                <span>Apetito de Riesgo ({{ apetito }})</span>
+            </div>
+            {% endif %}
+            {% if tolerancia %}
+            <div class="line-legend-item">
+                <div class="line-sample tolerancia"></div>
+                <span>Tolerancia ({{ tolerancia }})</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ===== Tooltip functionality (Req 8.3) =====
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip-container';
+    document.body.appendChild(tooltip);
+
+    const cells = document.querySelectorAll('.grid-cell');
+    cells.forEach(cell => {
+        cell.addEventListener('mouseenter', function(e) {
+            const markers = cell.querySelectorAll('.risk-marker[data-codigo]');
+            if (markers.length === 0) return;
+
+            let html = '<div class="tooltip-title">Riesgos en celda P=' +
+                cell.dataset.prob + ' × I=' + cell.dataset.imp +
+                ' (Nivel ' + cell.dataset.nivel + ')</div>';
+            html += '<ul class="tooltip-list">';
+
+            const maxShow = 10;
+            let shown = 0;
+            markers.forEach(function(marker, idx) {
+                if (idx < maxShow) {
+                    const tipo = marker.dataset.tipo === 'inherente' ? '◌' : '●';
+                    html += '<li>' + tipo + ' <a href="' + marker.getAttribute('href') + '">' +
+                        marker.dataset.codigo + '</a> - ' + marker.dataset.titulo + '</li>';
+                    shown++;
+                }
+            });
+            html += '</ul>';
+
+            if (markers.length > maxShow) {
+                html += '<div class="tooltip-extra">... y ' + (markers.length - maxShow) + ' más</div>';
+            }
+
+            tooltip.innerHTML = html;
+            tooltip.classList.add('show');
+
+            // Position tooltip
+            const rect = cell.getBoundingClientRect();
+            let left = rect.right + 10;
+            let top = rect.top;
+
+            if (left + 320 > window.innerWidth) {
+                left = rect.left - 330;
+            }
+            if (top + tooltip.offsetHeight > window.innerHeight) {
+                top = window.innerHeight - tooltip.offsetHeight - 10;
+            }
+
+            tooltip.style.left = left + window.scrollX + 'px';
+            tooltip.style.top = top + window.scrollY + 'px';
+        });
+
+        cell.addEventListener('mouseleave', function() {
+            tooltip.classList.remove('show');
+        });
+    });
+
+    // ===== Appetite/Tolerance lines visualization (Req 3.6) =====
+    {% if apetito or tolerancia %}
+    const gridWrapper = document.getElementById('gridWrapper');
+    const table = gridWrapper.querySelector('.grid-table');
+    const gridCells = table.querySelectorAll('.grid-cell');
+
+    function drawLines() {
+        // Remove existing line overlays
+        gridWrapper.querySelectorAll('.appetite-line-overlay, .tolerance-line-overlay').forEach(el => el.remove());
+
+        {% if apetito %}
+        // Highlight cells at appetite boundary
+        gridCells.forEach(cell => {
+            const nivel = parseInt(cell.dataset.nivel);
+            if (nivel === {{ apetito }}) {
+                cell.style.boxShadow = 'inset 0 0 0 2px #2196f3';
+            }
+        });
+
+        // Draw dashed border on cells at appetite level
+        gridCells.forEach(cell => {
+            const nivel = parseInt(cell.dataset.nivel);
+            if (nivel <= {{ apetito }}) {
+                const overlay = document.createElement('div');
+                overlay.className = 'appetite-line-overlay';
+                overlay.style.cssText = 'position:absolute;inset:0;border:2px dashed rgba(33,150,243,0.4);pointer-events:none;z-index:2;';
+                cell.style.position = 'relative';
+                cell.appendChild(overlay);
+            }
+        });
+        {% endif %}
+
+        {% if tolerancia %}
+        // Draw solid line on cells at tolerance boundary
+        gridCells.forEach(cell => {
+            const nivel = parseInt(cell.dataset.nivel);
+            if (nivel <= {{ tolerancia }} && nivel > {{ apetito|default:"0" }}) {
+                const overlay = document.createElement('div');
+                overlay.className = 'tolerance-line-overlay';
+                overlay.style.cssText = 'position:absolute;inset:0;border:2px solid rgba(255,87,34,0.4);pointer-events:none;z-index:2;';
+                cell.style.position = 'relative';
+                cell.appendChild(overlay);
+            }
+        });
+        {% endif %}
+    }
+
+    drawLines();
+    {% endif %}
+});
+</script>
+{% endblock %}

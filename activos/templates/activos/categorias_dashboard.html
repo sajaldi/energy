@@ -4,504 +4,516 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jerarquía de Categorías | Activos</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
-    <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+    <title>Display Equipment: Structure List | SoftCoM</title>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <style>
         :root {
-            --sap-shell-color: #354a5f;
-            --sap-background: #f7f7f7;
-            --sap-text-color: #32363a;
-            --sap-text-muted: #6a6d70;
-            --sap-primary: #0070f2;
-            --sap-primary-hover: #0056b3;
-            --sap-border: #d9d9d9;
-            --sap-card-bg: #ffffff;
-            --sap-tile-bg: #ffffff;
-            --sap-accent: #e9730c;
-            --sap-success: #107e3e;
-            --sap-error: #bb0000;
-            --sap-info: #0a6ed1;
-            
-            --primary: var(--sap-primary);
-            --bg: var(--sap-background);
-            --text-main: var(--sap-text-color);
-            --text-muted: var(--sap-text-muted);
-            --border: var(--sap-border);
+            --sap-toolbar-bg: #e8eef4;
+            --sap-toolbar-border: #a0b4c8;
+            --sap-header-bg: #f0f4f8;
+            --sap-tree-bg: #ffffff;
+            --sap-text: #1a2a3a;
+            --sap-text-muted: #5a6a7a;
+            --sap-blue: #1a56a0;
+            --sap-highlight: #2870c8;
+            --sap-highlight-text: #ffffff;
+            --sap-border: #b0c4d8;
+            --sap-green-bg: #dff5e3;
+            --sap-red-bg: #fde8e8;
+            --sap-yellow-bg: #fff8e0;
+            --sap-grid-line: #d0dae4;
+            --sap-icon-yellow: #6a8db8;
+            --sap-icon-blue: #2870c8;
+            --sap-icon-green: #3a7a5a;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--sap-background);
-            color: var(--text-main);
-            min-height: 100vh;
+            font-family: "Segoe UI", Tahoma, Geneva, sans-serif;
+            font-size: 13px;
+            background: var(--sap-header-bg);
+            color: var(--sap-text);
         }
 
-        .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
-
-        .dashboard-header {
-            background: var(--sap-shell-color);
-            color: white;
-            padding: 1rem 2rem;
+        /* SAP-style toolbar */
+        .sap-toolbar {
+            background: var(--sap-toolbar-bg);
+            border-bottom: 1px solid var(--sap-toolbar-border);
+            padding: 4px 8px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            gap: 4px;
         }
 
-        .header-title h1 { font-size: 1.25rem; font-weight: 600; margin: 0; }
-        .header-title p { color: #d9d9d9; font-size: 0.85rem; margin-top: 2px; }
-
-        .sub-header {
+        .sap-toolbar-btn {
+            width: 26px; height: 26px;
+            border: 1px solid var(--sap-toolbar-border);
             background: #ffffff;
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 14px;
+            border-radius: 3px;
+            color: var(--sap-blue);
+        }
+        .sap-toolbar-btn:hover { background: #dbe8f4; }
+        .sap-toolbar-btn:active { background: #c0d4e8; }
+
+        .sap-toolbar-sep {
+            width: 1px; height: 22px;
+            background: var(--sap-toolbar-border);
+            margin: 0 4px;
         }
 
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid transparent;
-            text-decoration: none;
+        .sap-toolbar-label {
+            font-size: 12px; color: var(--sap-text-muted);
+            margin-left: 8px;
         }
 
-        .btn-primary { background-color: var(--sap-primary); color: white; }
-        .btn-primary:hover { background-color: var(--sap-primary-hover); }
-        .btn-outline { background-color: transparent; border-color: var(--sap-primary); color: var(--sap-primary); }
-        .btn-outline:hover { background-color: #f0f7ff; }
-        .btn-danger { background-color: var(--sap-error); color: white; }
-
-        .explorer-card {
-            background: #ffffff;
-            border-radius: 0.25rem;
-            overflow: hidden;
-            box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08);
-            border: 1px solid var(--border);
-        }
-
-        .search-bar {
-            padding: 1rem 1.5rem;
-            background: #f8fafc;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .form-control {
-            padding: 0.5rem 0.75rem;
-            border: 1px solid var(--border);
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-            outline: none;
-            width: 100%;
-        }
-
-        .form-control:focus { border-color: var(--sap-primary); }
-
-        .tree-container { padding: 1.5rem; max-height: 75vh; overflow-y: auto; }
-        .tree-node { margin-left: 1.5rem; }
-        .tree-node[data-level="0"] { margin-left: 0; }
-        
-        .tree-row {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid #eeeeee;
-            cursor: pointer;
-            transition: background-color 0.1s;
-        }
-
-        .tree-row:hover { background-color: #f8fafc; }
-        
-        .tree-icon { display: flex; align-items: center; margin-right: 10px; }
-        .chevron { transition: transform 0.2s; }
-        .tree-node.expanded > .tree-row .chevron { transform: rotate(90deg); }
-        .tree-node.expanded > .tree-content { display: block !important; }
-
-        .action-btns { display: flex; gap: 8px; opacity: 0; transition: opacity 0.2s; }
-        .tree-row:hover .action-btns { opacity: 1; }
-
-        .btn-action {
-            width: 28px;
-            height: 28px;
-            border-radius: 4px;
-            border: none;
-            background: #fff;
-            color: var(--sap-text-muted);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .btn-action:hover { transform: scale(1.1); background: #f1f5f9; }
-
-        .drag-handle-cat { cursor: grab; color: #cbd5e1; display: flex; align-items: center; justify-content: center; padding-right: 15px; border-right: 1px solid #f1f5f9; margin-right: 15px; width: 40px; }
-        .model-row:hover { background: #f0f7ff !important; }
-        .brand-row:hover { background: #f8fafc; }
-        .drag-handle-cat:active { cursor: grabbing; }
-        .sortable-ghost { opacity: 0.4; background: #eff6ff; border: 2px dashed #0070f2; }
-        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 999999; display: flex; flex-direction: column; gap: 8px; }
-        .toast { padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideIn 0.3s ease; }
-        .toast.success { background: #107e3e; }
-        .toast.error { background: #bb0000; }
-        .toast.info { background: #0a6ed1; }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-        /* Modal Styles */
-        .modal-backdrop {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            backdrop-filter: blur(4px);
-        }
-
-        .modal-content {
-            background: white;
-            width: 90%;
-            max-width: 500px;
-            border-radius: 0.5rem;
-            overflow: hidden;
-            box-shadow: 0 1rem 3rem rgba(0,0,0,0.2);
-        }
-
-        .modal-header { padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .modal-body { padding: 1.5rem; }
-        .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); background: #f8fafc; display: flex; justify-content: flex-end; gap: 0.75rem; }
-
-        .form-group { margin-bottom: 1.25rem; }
-        .form-group label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; }
-
-        .icon-grid {
+        /* Header info */
+        .sap-header-info {
+            background: var(--sap-header-bg);
+            border-bottom: 1px solid var(--sap-border);
+            padding: 8px 12px;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-            gap: 8px;
-            max-height: 150px;
-            overflow-y: auto;
-            border: 1px solid var(--border);
-            padding: 8px;
-            border-radius: 4px;
+            grid-template-columns: 150px 1fr 150px 1fr;
+            gap: 4px 12px;
+            font-size: 12px;
+        }
+        .sap-header-info .label { font-weight: 700; color: var(--sap-text-muted); }
+        .sap-header-info .value { color: var(--sap-text); }
+
+        /* Tree container */
+        .sap-tree-wrap {
+            background: var(--sap-tree-bg);
+            border: 1px solid var(--sap-border);
+            margin: 8px;
+            overflow: auto;
+            max-height: calc(100vh - 160px);
+            border-radius: 3px;
         }
 
-        .icon-item {
+        .sap-tree {
+            padding: 4px 0;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            font-size: 13px;
+            white-space: nowrap;
+            min-width: 100%;
+        }
+
+        /* Tree lines */
+        .sap-node {
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .sap-node::before {
+            content: '';
+            position: absolute;
+            left: 9px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--sap-grid-line);
+        }
+
+        .sap-node:last-child::before {
+            bottom: 50%;
+        }
+
+        .sap-row {
+            position: relative;
             display: flex;
             align-items: center;
-            justify-content: center;
-            padding: 8px;
+            padding: 1px 4px;
             cursor: pointer;
-            border-radius: 4px;
-            border: 1px solid transparent;
+            min-height: 22px;
+            gap: 4px;
         }
 
-        .icon-item:hover { background: #f1f5f9; }
-        .icon-item.selected { border-color: var(--sap-primary); background: #eff6ff; color: var(--sap-primary); }
-
-        /* Tom Select Customization */
-        .ts-control { border-radius: 0.25rem !important; padding: 0.5rem 0.75rem !important; border: 1px solid var(--border) !important; box-shadow: none !important; }
-        .ts-control:focus { border-color: var(--sap-primary) !important; }
-        .ts-dropdown { border-radius: 0.25rem !important; box-shadow: 0 1rem 3rem rgba(0,0,0,0.1) !important; border: 1px solid var(--border) !important; }
-        .ts-dropdown .active { background-color: #eff6ff !important; color: var(--sap-primary) !important; }
-
-        /* Drawer Styles */
-        .drawer-backdrop {
-            position: fixed;
-            top: 0; right: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.3);
-            display: none;
-            z-index: 1000;
-            backdrop-filter: blur(2px);
-        }
-
-        .drawer-content {
+        .sap-row::before {
+            content: '';
             position: absolute;
-            top: 0; right: -450px; width: 450px; height: 100%;
-            background: white;
-            box-shadow: -0.5rem 0 2rem rgba(0,0,0,0.1);
-            transition: right 0.3s ease;
-            display: flex;
-            flex-direction: column;
+            left: -11px;
+            top: 50%;
+            width: 11px;
+            height: 1px;
+            background: var(--sap-grid-line);
         }
 
-        .drawer-content.active { right: 0; }
+        .sap-row:hover { background: #e8f0f8; }
+        .sap-row.selected { background: var(--sap-highlight); color: var(--sap-highlight-text); }
 
-        .drawer-header { padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
-        .drawer-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+        /* Toggle arrow */
+        .sap-toggle {
+            width: 16px; height: 16px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; flex-shrink: 0;
+            font-size: 10px; color: #333;
+        }
+        .sap-toggle.empty { visibility: hidden; }
 
-        .model-card {
+        /* Node icons */
+        .sap-icon {
+            width: 16px; height: 16px;
+            flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px;
+        }
+        .sap-icon.cat { color: var(--sap-icon-yellow); }
+        .sap-icon.brand { color: var(--sap-icon-blue); }
+        .sap-icon.model { color: var(--sap-icon-green); }
+
+        /* Node text */
+        .sap-label { margin-left: 4px; font-size: 13px; }
+        .sap-label-name { font-weight: 400; }
+        .sap-label-desc { color: var(--sap-text-muted); margin-left: 16px; }
+        .sap-label-count {
+            color: var(--sap-blue);
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
+        /* Children container */
+        .sap-children {
+            display: none;
+        }
+        .sap-node.open > .sap-children { display: block; }
+        .sap-node.open > .sap-row .sap-toggle::after { content: '▼'; }
+        .sap-node > .sap-row .sap-toggle::after { content: '▶'; }
+
+        /* Action buttons on hover */
+        .sap-actions {
+            margin-left: auto;
+            display: none;
+            gap: 2px;
+            padding-right: 8px;
+        }
+        .sap-row:hover .sap-actions { display: flex; }
+
+        .sap-act-btn {
+            width: 20px; height: 20px;
+            border: 1px solid transparent;
+            background: transparent;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; color: var(--sap-text-muted);
+            border-radius: 2px;
+        }
+        .sap-act-btn:hover {
+            border-color: var(--sap-toolbar-border);
+            background: #dbe8f4;
+        }
+
+        /* Search bar */
+        .sap-search-bar {
+            background: var(--sap-toolbar-bg);
+            padding: 4px 8px;
             display: flex;
-            gap: 1rem;
-            padding: 1rem;
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            margin-bottom: 1rem;
+            align-items: center;
+            gap: 6px;
+            border-bottom: 1px solid var(--sap-border);
+        }
+        .sap-search-input {
+            border: 1px solid var(--sap-toolbar-border);
+            padding: 4px 8px;
+            font-size: 12px;
+            width: 300px;
+            font-family: inherit;
+            border-radius: 3px;
+        }
+        .sap-search-input:focus { outline: none; border-color: var(--sap-highlight); box-shadow: 0 0 0 2px rgba(40,112,200,0.15); }
+
+        /* Modal */
+        .sap-modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            display: none; align-items: center; justify-content: center;
+            z-index: 9999;
+        }
+        .sap-modal {
+            background: #ffffff;
+            border: 1px solid var(--sap-border);
+            width: 420px; max-width: 95vw;
+            border-radius: 4px;
+            box-shadow: 0 8px 24px rgba(20,50,80,0.2);
+        }
+        .sap-modal-title {
+            background: var(--sap-highlight);
+            color: white;
+            padding: 6px 10px;
+            font-weight: 700;
+            font-size: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-radius: 3px 3px 0 0;
+        }
+        .sap-modal-title button {
+            background: #ffffff;
+            border: 1px solid var(--sap-border);
+            width: 18px; height: 18px;
+            cursor: pointer; font-size: 11px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 2px;
+            color: var(--sap-text);
+        }
+        .sap-modal-body { padding: 12px; }
+        .sap-modal-footer {
+            padding: 6px 12px;
+            border-top: 1px solid var(--sap-border);
+            display: flex; justify-content: flex-end; gap: 6px;
+        }
+
+        .sap-field { margin-bottom: 10px; }
+        .sap-field label {
+            display: block; font-size: 11px; font-weight: 700;
+            margin-bottom: 3px; color: var(--sap-text-muted);
+        }
+        .sap-field input, .sap-field textarea, .sap-field select {
+            width: 100%; border: 1px solid var(--sap-toolbar-border);
+            padding: 5px 8px; font-size: 12px; font-family: inherit;
+            background: white; border-radius: 3px;
+        }
+        .sap-field input:focus, .sap-field textarea:focus, .sap-field select:focus {
+            outline: none; border-color: var(--sap-highlight);
+            box-shadow: 0 0 0 2px rgba(40,112,200,0.15);
+        }
+
+        .sap-btn {
+            border: 1px solid var(--sap-border);
+            background: #ffffff;
+            padding: 4px 16px;
+            font-size: 12px; font-family: inherit;
+            cursor: pointer;
+            border-radius: 3px;
+            color: var(--sap-text);
+        }
+        .sap-btn:hover { background: #e8f0f8; }
+        .sap-btn:active { background: #d0dae4; }
+        .sap-btn.primary { background: var(--sap-highlight); color: white; border-color: #1a56a0; }
+        .sap-btn.primary:hover { background: #1a56a0; }
+        .sap-btn.danger { background: #cc3333; color: white; border-color: #aa2222; }
+        .sap-btn.danger:hover { background: #aa2222; }
+
+        /* Detail drawer */
+        .sap-drawer-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.3);
+            display: none; z-index: 5000;
+        }
+        .sap-drawer {
+            position: absolute; top: 0; right: 0;
+            width: 580px; height: 100%;
+            background: #ffffff;
+            border-left: 1px solid var(--sap-border);
+            display: flex; flex-direction: column;
+            transform: translateX(100%);
             transition: transform 0.2s;
-            text-decoration: none;
-            color: inherit;
+            box-shadow: -4px 0 16px rgba(20,50,80,0.1);
         }
+        .sap-drawer.open { transform: translateX(0); }
+        .sap-drawer-header {
+            background: var(--sap-highlight);
+            color: white; padding: 8px 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: 700; font-size: 13px;
+        }
+        .sap-drawer-body { flex: 1; overflow-y: auto; padding: 8px; background: white; }
 
-        .model-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: var(--sap-primary); }
+        /* Detail table */
+        .sap-detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .sap-detail-table th {
+            background: var(--sap-toolbar-bg);
+            border: 1px solid var(--sap-grid-line);
+            padding: 4px 8px; text-align: left; font-weight: 700;
+            color: var(--sap-text-muted);
+        }
+        .sap-detail-table td {
+            border: 1px solid var(--sap-grid-line);
+            padding: 4px 8px;
+        }
+        .sap-detail-table tr:hover td { background: #f0f6fc; }
 
-        .model-img { width: 60px; height: 60px; border-radius: 4px; object-fit: cover; background: #f1f5f9; }
-        .model-info { flex: 1; }
-        .model-name { font-weight: 600; font-size: 0.95rem; display: block; margin-bottom: 2px; }
-        .model-badge { font-size: 0.75rem; background: #eff6ff; color: var(--sap-primary); padding: 2px 8px; border-radius: 12px; font-weight: 600; margin-top: 4px; display: inline-block; }
+        /* Status colors */
+        .st-operativo { background: var(--sap-green-bg); }
+        .st-mantenimiento { background: var(--sap-yellow-bg); }
+        .st-reparacion, .st-fuera_servicio { background: var(--sap-red-bg); }
 
-        /* Table Styles for Modal */
-        .asset-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.85rem; }
-        .asset-table th { text-align: left; padding: 0.75rem; background: #f8fafc; border-bottom: 2px solid var(--border); color: var(--text-muted); font-weight: 700; }
-        .asset-table td { padding: 0.75rem; border-bottom: 1px solid #eee; }
-        .status-pill { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; }
+        /* Toast */
+        .sap-toast-container { position: fixed; bottom: 12px; right: 12px; z-index: 99999; }
+        .sap-toast {
+            padding: 6px 14px; margin-top: 4px;
+            font-size: 12px; border: 1px solid;
+            animation: fadeIn 0.3s;
+        }
+        .sap-toast.success { background: #e6f4ea; border-color: #34a853; color: #1a6b2e; }
+        .sap-toast.error { background: #fde8e8; border-color: #cc3333; color: #8b1a1a; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Tom Select override for SAP look */
+        .ts-control { border-radius: 3px !important; border: 1px solid var(--sap-toolbar-border) !important; padding: 4px 8px !important; font-size: 12px !important; box-shadow: none !important; }
+        .ts-control:focus-within { border-color: var(--sap-highlight) !important; box-shadow: 0 0 0 2px rgba(40,112,200,0.15) !important; }
     </style>
 </head>
 <body>
-    <div class="dashboard-header">
-        <div class="header-title">
-            <h1>📂 Jerarquía de Categorías de Activos</h1>
-            <p>Organización estructural del inventario</p>
-        </div>
-        <div class="header-actions">
-            <button class="btn btn-primary" onclick="openCategoriaModal()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg> Nueva Categoría
-            </button>
-        </div>
+    <!-- Toolbar -->
+    <div class="sap-toolbar">
+        <button class="sap-toolbar-btn" onclick="openCategoriaModal()" title="Crear categoría">＋</button>
+        <button class="sap-toolbar-btn" onclick="expandAll()" title="Expandir todo">⊞</button>
+        <button class="sap-toolbar-btn" onclick="collapseAll()" title="Colapsar todo">⊟</button>
+        <div class="sap-toolbar-sep"></div>
+        <button class="sap-toolbar-btn" onclick="location.reload()" title="Refrescar">↻</button>
+        <span class="sap-toolbar-label">Display Equipment: Structure List</span>
+        <span class="sap-toolbar-label" style="margin-left: auto;">
+            Categorías: <b>{{ total_categorias }}</b> &nbsp;|&nbsp; Activos: <b>{{ total_activos }}</b>
+        </span>
     </div>
 
-    <div class="sub-header">
-        <div class="breadcrumb" style="font-size: 0.9rem; color: var(--text-muted);">
-            <span>Activos</span> / <span style="font-weight: 600; color: var(--text-main);">Categorías</span>
-        </div>
-        <div style="font-size: 0.9rem; font-weight: 500; display: flex; gap: 1.5rem;">
-            <span>Categorías: <span style="color: var(--sap-primary);">{{ total_categorias }}</span></span>
-            <span>Activos: <span style="color: var(--sap-success);">{{ total_activos }}</span></span>
-        </div>
+    <!-- Header info -->
+    <div class="sap-header-info">
+        <span class="label">Sistema:</span>
+        <span class="value">SoftCoM EAM</span>
+        <span class="label">Descripción:</span>
+        <span class="value">Jerarquía de Categorías de Activos</span>
     </div>
 
-    <div class="container">
-        <div class="explorer-card">
-            <div class="search-bar">
-                <div style="position: relative; flex: 1;">
-                    <input type="text" id="tree-search" class="form-control" placeholder="Buscar categoría, marca o modelo..." value="{{ search }}" onkeyup="handleSearch(event)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
-                        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
+    <!-- Search -->
+    <div class="sap-search-bar">
+        <span style="font-size: 11px; font-weight: 700;">🔍</span>
+        <input type="text" class="sap-search-input" id="tree-search"
+               placeholder="Buscar categoría, marca o modelo..."
+               value="{{ search }}" onkeyup="if(event.key==='Enter') applySearch()">
+        <button class="sap-btn" onclick="applySearch()">Buscar</button>
+        {% if search %}
+        <button class="sap-btn" onclick="location.href='?'">Limpiar</button>
+        {% endif %}
+    </div>
+
+    <!-- Tree -->
+    <div class="sap-tree-wrap">
+        <div class="sap-tree" id="sap-tree">
+            {% if tree %}
+                {% for node in tree %}
+                    {% include "activos/partials/categoria_tree_node.html" with node=node level=0 %}
+                {% endfor %}
+            {% else %}
+                <div style="padding: 20px; text-align: center; color: var(--sap-text-muted);">
+                    No se encontraron categorías.
                 </div>
-                <button class="btn btn-outline" onclick="applySearch()">Buscar</button>
-            </div>
-
-            <div class="tree-container" id="tree-container">
-                {% if tree %}
-                    <div class="categories-container" data-parent-cat-id="" style="min-height: 20px;">
-                        {% for node in tree %}
-                            {% include "activos/partials/categoria_tree_node.html" with node=node %}
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div style="text-align: center; padding: 4rem; color: var(--text-muted);">
-                        <p>No se encontraron categorías.</p>
-                    </div>
-                {% endif %}
-            </div>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Drawer Modelos -->
-    <div id="modelosDrawerBackdrop" class="drawer-backdrop" onclick="closeModelosDrawer()">
-        <div class="drawer-content" id="modelosDrawer" onclick="event.stopPropagation()">
-            <div class="drawer-header">
-                <div>
-                    <h2 style="font-size: 1.1rem; font-weight: 700;">Modelos Relacionados</h2>
-                    <p id="drawerSubTitle" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;"></p>
-                </div>
-                <button class="btn-action" onclick="closeModelosDrawer()">✕</button>
+    <!-- Drawer: Modelo detail -->
+    <div class="sap-drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()">
+        <div class="sap-drawer" id="drawer" onclick="event.stopPropagation()">
+            <div class="sap-drawer-header">
+                <span id="drawerTitle">Detalle del Modelo</span>
+                <button class="sap-toolbar-btn" onclick="closeDrawer()" style="width:18px;height:18px;font-size:11px;">✕</button>
             </div>
-            <div class="drawer-body" id="drawerBody">
-                <!-- Model cards will be loaded here -->
-            </div>
+            <div class="sap-drawer-body" id="drawerBody"></div>
         </div>
     </div>
 
-    <!-- Modal Detalles de Modelo -->
-    <div id="modeloDetailModal" class="modal-backdrop">
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <h2 id="modelDetailTitle">Detalles del Modelo</h2>
-                <button class="btn-action" onclick="closeModelDetailModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <div id="modelDetailContent">
-                    <!-- Loaded via JS -->
-                </div>
-                <div style="margin-top: 2rem;">
-                    <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem;">Equipos Asociados (Inventario)</h3>
-                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 0.5rem;">
-                        <table class="asset-table">
-                            <thead>
-                                <tr>
-                                    <th>Código</th>
-                                    <th>Nombre</th>
-                                    <th>Estado</th>
-                                    <th>Ubicación</th>
-                                </tr>
-                            </thead>
-                            <tbody id="modelAssetsBody">
-                                <!-- Loaded via JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <a id="adminLink" href="#" target="_blank" class="btn btn-outline">Ir al Administrador</a>
-                <button type="button" class="btn btn-primary" onclick="closeModelDetailModal()">Cerrar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Categoría -->
-    <div id="categoriaModal" class="modal-backdrop">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">Nueva Categoría</h2>
-                <button class="btn-action" onclick="closeCategoriaModal()">✕</button>
+    <!-- Modal: Categoría CRUD -->
+    <div class="sap-modal-backdrop" id="categoriaModal">
+        <div class="sap-modal">
+            <div class="sap-modal-title">
+                <span id="modalTitle">Crear Categoría</span>
+                <button onclick="closeCategoriaModal()">✕</button>
             </div>
             <form id="categoriaForm" onsubmit="saveCategoria(event)">
-                <div class="modal-body">
+                <div class="sap-modal-body">
                     <input type="hidden" id="cat-id">
-                    
-                    <div class="form-group">
-                        <label for="cat-nombre">Nombre de la Categoría</label>
-                        <input type="text" id="cat-nombre" class="form-control" required placeholder="Ej: Equipos Eléctricos">
+                    <div class="sap-field">
+                        <label>Nombre *</label>
+                        <input type="text" id="cat-nombre" required placeholder="Ej: Equipos Eléctricos">
                     </div>
-
-                    <div class="form-group">
-                        <label for="cat-padre">Categoría Padre</label>
-                        <select id="cat-padre" class="form-control">
-                            <option value="">-- Nodo Raíz (Sin Padre) --</option>
+                    <div class="sap-field">
+                        <label>Categoría Padre</label>
+                        <select id="cat-padre">
+                            <option value="">-- Raíz (Sin Padre) --</option>
                             {% for cat in todas_categorias %}
-                                <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
                             {% endfor %}
                         </select>
                     </div>
-
-                    <div class="form-group">
-                        <label>Icono</label>
-                        <input type="hidden" id="cat-icono" value="location">
-                        <div class="icon-grid" id="iconGrid">
-                            <!-- Icons will be populated by JS -->
-                        </div>
+                    <div class="sap-field">
+                        <label>Descripción</label>
+                        <textarea id="cat-descripcion" rows="2"></textarea>
                     </div>
-
-                    <div class="form-group">
-                        <label for="cat-descripcion">Descripción</label>
-                        <textarea id="cat-descripcion" class="form-control" rows="3"></textarea>
+                    <div class="sap-field">
+                        <label>Código de Exoneración</label>
+                        <select id="cat-codigo-exoneracion">
+                            <option value="">-- Sin exoneración --</option>
+                            {% for exo in codigos_exoneracion %}
+                            <option value="{{ exo.id }}">{{ exo.codigo }} - {{ exo.descripcion }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline" onclick="closeCategoriaModal()">Cancelar</button>
-                    <button type="button" id="btn-delete" class="btn btn-danger" style="display: none;" onclick="deleteCategoria()">Eliminar</button>
-                    <button type="submit" class="btn btn-primary">Guardar</button>
+                <div class="sap-modal-footer">
+                    <button type="button" class="sap-btn" onclick="closeCategoriaModal()">Cancelar</button>
+                    <button type="button" id="btn-delete" class="sap-btn danger" style="display:none;" onclick="deleteCategoria()">Eliminar</button>
+                    <button type="submit" class="sap-btn primary">Guardar</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    <script>
-        const icons = ['location', 'flash', 'water', 'construct', 'bulb', 'cog', 'hammer', 'thermometer', 'shield', 'wifi', 'battery-charging', 'desktop', 'business', 'home', 'cube'];
+    <div class="sap-toast-container" id="toast-container"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
         let tomSelectInstance;
+        let tomSelectExoneracion;
 
         document.addEventListener('DOMContentLoaded', () => {
-            const grid = document.getElementById('iconGrid');
-            icons.forEach(icon => {
-                const item = document.createElement('div');
-                item.className = 'icon-item';
-                item.innerHTML = `<ion-icon name="${icon}" style="font-size: 20px;"></ion-icon>`;
-                item.onclick = () => selectIcon(icon, item);
-                if (icon === 'location') item.classList.add('selected');
-                grid.appendChild(item);
-            });
-
-            // Initialize Tom Select
             tomSelectInstance = new TomSelect('#cat-padre', {
                 create: false,
                 sortField: { field: 'text', direction: 'asc' },
-                placeholder: 'Selecciona una categoría padre...',
+                placeholder: 'Seleccionar...',
+                allowEmptyOption: true,
+            });
+            tomSelectExoneracion = new TomSelect('#cat-codigo-exoneracion', {
+                create: false,
+                sortField: { field: 'text', direction: 'asc' },
+                placeholder: 'Buscar código de exoneración...',
                 allowEmptyOption: true,
             });
         });
 
-        function selectIcon(icon, element) {
-            document.querySelectorAll('.icon-item').forEach(i => i.classList.remove('selected'));
-            element.classList.add('selected');
-            document.getElementById('cat-icono').value = icon;
+        // --- Tree toggle ---
+        function toggleNode(el) {
+            const node = el.closest('.sap-node');
+            node.classList.toggle('open');
         }
 
-        function toggleNode(element) {
-            const node = element.closest('.tree-node');
-            node.classList.toggle('expanded');
+        function expandAll() {
+            document.querySelectorAll('.sap-node').forEach(n => n.classList.add('open'));
+        }
+        function collapseAll() {
+            document.querySelectorAll('.sap-node').forEach(n => n.classList.remove('open'));
         }
 
-        function toggleBrand(element) {
-            const brandNode = element.closest('.brand-node');
-            const modelsContainer = brandNode.querySelector('.brand-models');
-            const chevron = element.querySelector('.chevron');
-            if (modelsContainer) {
-                const isVisible = modelsContainer.style.display !== 'none';
-                modelsContainer.style.display = isVisible ? 'none' : 'block';
-                if (chevron) {
-                    chevron.style.transform = isVisible ? '' : 'rotate(90deg)';
-                    chevron.style.transition = 'transform 0.2s';
-                }
-            }
-        }
-
-        function handleSearch(e) {
-            if (e.key === 'Enter') applySearch();
-        }
-
+        // --- Search ---
         function applySearch() {
             const val = document.getElementById('tree-search').value;
-            window.location.href = `?search=${val}`;
+            window.location.href = `?search=${encodeURIComponent(val)}`;
         }
 
+        // --- Categoria Modal ---
         function openCategoriaModal(id = null, padreId = null) {
             const modal = document.getElementById('categoriaModal');
             const form = document.getElementById('categoriaForm');
             const title = document.getElementById('modalTitle');
             const btnDelete = document.getElementById('btn-delete');
-            
+
             form.reset();
             document.getElementById('cat-id').value = id || '';
             tomSelectInstance.setValue(padreId || '');
-            btnDelete.style.display = id ? 'block' : 'none';
-            title.innerText = id ? 'Editar Categoría' : 'Nueva Categoría';
+            tomSelectExoneracion.setValue('');
+            btnDelete.style.display = id ? 'inline-block' : 'none';
+            title.innerText = id ? 'Modificar Categoría' : 'Crear Categoría';
 
             if (id) {
                 fetch(`{% url 'activos:categoria_detail_api' 0 %}`.replace('0', id))
@@ -511,21 +523,10 @@
                             document.getElementById('cat-nombre').value = data.categoria.nombre;
                             tomSelectInstance.setValue(data.categoria.padre_id || '');
                             document.getElementById('cat-descripcion').value = data.categoria.descripcion;
-                            document.getElementById('cat-icono').value = data.categoria.icono;
-                            
-                            // Select icon in grid
-                            document.querySelectorAll('.icon-item').forEach(item => {
-                                const ion = item.querySelector('ion-icon');
-                                if (ion.getAttribute('name') === data.categoria.icono) {
-                                    item.classList.add('selected');
-                                } else {
-                                    item.classList.remove('selected');
-                                }
-                            });
+                            tomSelectExoneracion.setValue(data.categoria.codigo_exoneracion_id || '');
                         }
                     });
             }
-
             modal.style.display = 'flex';
         }
 
@@ -539,248 +540,231 @@
                 id: document.getElementById('cat-id').value,
                 nombre: document.getElementById('cat-nombre').value,
                 padre_id: document.getElementById('cat-padre').value,
-                icono: document.getElementById('cat-icono').value,
-                descripcion: document.getElementById('cat-descripcion').value
+                icono: 'location',
+                descripcion: document.getElementById('cat-descripcion').value,
+                codigo_exoneracion_id: document.getElementById('cat-codigo-exoneracion').value
             };
-
             fetch(`{% url 'activos:categoria_save_api' %}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                 body: JSON.stringify(data)
             })
             .then(r => r.json())
             .then(res => {
                 if (res.status === 'success') {
-                    Swal.fire('¡Éxito!', res.message, 'success').then(() => location.reload());
+                    showToast(res.message, 'success');
+                    setTimeout(() => location.reload(), 800);
                 } else {
-                    Swal.fire('Error', res.message, 'error');
+                    showToast(res.message, 'error');
                 }
             });
         }
 
         function deleteCategoria() {
             const id = document.getElementById('cat-id').value;
-            Swal.fire({
-                title: '¿Estás seguro?',
-                text: "No podrás revertir esta acción",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#bb0000',
-                confirmButtonText: 'Sí, eliminar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    fetch(`{% url 'activos:categoria_delete_api' 0 %}`.replace('0', id), {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-                    })
-                    .then(r => r.json())
-                    .then(res => {
-                        if (res.status === 'success') {
-                            Swal.fire('Eliminado', res.message, 'success').then(() => location.reload());
-                        } else {
-                            Swal.fire('Error', res.message, 'error');
-                        }
-                    });
+            if (!confirm('¿Eliminar esta categoría?')) return;
+            fetch(`{% url 'activos:categoria_delete_api' 0 %}`.replace('0', id), {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    showToast(res.message, 'success');
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showToast(res.message, 'error');
                 }
             });
         }
 
-        function openModelosDrawer(id) {
-            const backdrop = document.getElementById('modelosDrawerBackdrop');
-            const drawer = document.getElementById('modelosDrawer');
+        // --- Drawer: Model detail ---
+        let currentModelActivos = []; // Store for filtering
+
+        function openModelDetail(id) {
+            const backdrop = document.getElementById('drawerBackdrop');
+            const drawer = document.getElementById('drawer');
             const body = document.getElementById('drawerBody');
-            const subTitle = document.getElementById('drawerSubTitle');
+            const title = document.getElementById('drawerTitle');
 
-            body.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);"><ion-icon name="sync" class="spin" style="font-size: 2rem;"></ion-icon><p>Cargando modelos...</p></div>';
+            body.innerHTML = '<p style="padding:12px;color:#555;">Cargando...</p>';
             backdrop.style.display = 'block';
-            setTimeout(() => drawer.classList.add('active'), 10);
-
-            fetch(`{% url 'activos:get_categoria_modelos_api' 0 %}`.replace('0', id))
-                .then(r => r.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        subTitle.innerText = `Categoría: ${data.categoria_nombre}`;
-                        body.innerHTML = '';
-                        
-                        if (data.modelos.length === 0) {
-                            body.innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--text-muted);"><ion-icon name="cube-outline" style="font-size: 3rem; opacity: 0.3;"></ion-icon><p>No hay modelos vinculados a esta categoría.</p></div>';
-                            return;
-                        }
-
-                        data.modelos.forEach(m => {
-                            const card = document.createElement('div');
-                            card.className = 'model-card';
-                            card.style.cursor = 'pointer';
-                            card.onclick = () => openModelDetailModal(m.id);
-                            
-                            const imgSrc = m.imagen || 'https://via.placeholder.com/60?text=No+Img';
-                            
-                            card.innerHTML = `
-                                <img src="${imgSrc}" class="model-img" alt="${m.nombre}">
-                                <div class="model-info">
-                                    <span class="model-name">${m.nombre}</span>
-                                    <span class="model-brand">${m.marca}</span><br>
-                                    <span class="model-badge">${m.total_activos} equipos</span>
-                                </div>
-                                <ion-icon name="chevron-forward-outline" style="align-self: center; color: #cbd5e1;"></ion-icon>
-                            `;
-                            body.appendChild(card);
-                        });
-                    }
-                });
-        }
-
-        function closeModelosDrawer() {
-            const backdrop = document.getElementById('modelosDrawerBackdrop');
-            const drawer = document.getElementById('modelosDrawer');
-            drawer.classList.remove('active');
-            setTimeout(() => backdrop.style.display = 'none', 300);
-        }
-
-        function openModelDetailModal(id) {
-            const modal = document.getElementById('modeloDetailModal');
-            const content = document.getElementById('modelDetailContent');
-            const assetsBody = document.getElementById('modelAssetsBody');
-            const adminLink = document.getElementById('adminLink');
-
-            content.innerHTML = '<div style="text-align: center; padding: 2rem;"><ion-icon name="sync" class="spin" style="font-size: 2rem;"></ion-icon></div>';
-            assetsBody.innerHTML = '';
-            adminLink.href = `/admin/activos/modelo/${id}/change/`;
-            modal.style.display = 'flex';
+            setTimeout(() => drawer.classList.add('open'), 10);
 
             fetch(`{% url 'activos:get_modelo_details_api' 0 %}`.replace('0', id))
                 .then(r => r.json())
                 .then(data => {
                     if (data.status === 'success') {
                         const m = data.modelo;
-                        content.innerHTML = `
-                            <div style="display: flex; gap: 2rem;">
-                                <img src="${m.imagen || ''}" style="width: 150px; height: 150px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border);">
-                                <div style="flex: 1;">
-                                    <h2 style="font-size: 1.5rem; color: var(--sap-primary);">${m.nombre}</h2>
-                                    <p style="font-weight: 600; color: var(--text-muted);">${m.marca} | ${m.categoria}</p>
-                                    <div style="margin-top: 1rem; font-size: 0.9rem; line-height: 1.5;">
-                                        ${m.descripcion}
-                                    </div>
-                                    <div style="margin-top: 1rem; display: flex; gap: 2rem;">
-                                        <div>
-                                            <small style="display: block; color: var(--text-muted); font-weight: 700; font-size: 0.7rem; text-transform: uppercase;">Precio Promedio</small>
-                                            <span style="font-size: 1.1rem; font-weight: 600; color: #107e3e;">$${m.precio_promedio.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                </div>
+                        currentModelActivos = data.activos;
+                        title.innerText = `${m.marca} — ${m.nombre}`;
+
+                        // Collect unique estados and ubicaciones for filters
+                        const estados = [...new Set(data.activos.map(a => a.estado))].sort();
+                        const ubicaciones = [...new Set(data.activos.map(a => a.ubicacion))].sort();
+
+                        let html = `<div style="padding:8px;">
+                            <table class="sap-detail-table" style="margin-bottom:12px;">
+                                <tr><th>Modelo</th><td>${m.nombre}</td></tr>
+                                <tr><th>Marca</th><td>${m.marca}</td></tr>
+                                <tr><th>Categoría</th><td>${m.categoria}</td></tr>
+                                <tr><th>Precio Prom.</th><td>$${Number(m.precio_promedio).toLocaleString()}</td></tr>
+                            </table>
+                            <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+                                <input type="text" id="drawer-search" class="sap-search-input" style="width:180px;"
+                                       placeholder="Buscar equipo..." oninput="filterModelActivos()">
+                                <select id="drawer-filter-estado" style="border:1px solid var(--sap-toolbar-border);padding:3px 6px;font-size:11px;border-radius:3px;" onchange="filterModelActivos()">
+                                    <option value="">Todos los estados</option>`;
+                        estados.forEach(e => { html += `<option value="${e}">${e}</option>`; });
+                        html += `</select>
+                                <select id="drawer-filter-ubicacion" style="border:1px solid var(--sap-toolbar-border);padding:3px 6px;font-size:11px;border-radius:3px;max-width:180px;" onchange="filterModelActivos()">
+                                    <option value="">Todas las ubicaciones</option>`;
+                        ubicaciones.forEach(u => { html += `<option value="${u}">${u}</option>`; });
+                        html += `</select>
+                                <span id="drawer-count" style="font-size:11px;color:var(--sap-text-muted);margin-left:auto;"></span>
                             </div>
-                        `;
-
-                        if (data.activos.length === 0) {
-                            assetsBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">No hay activos registrados para este modelo.</td></tr>';
-                        } else {
-                            data.activos.forEach(a => {
-                                const tr = document.createElement('tr');
-                                const statusColor = getStatusColor(a.estado_raw);
-                                tr.innerHTML = `
-                                    <td style="font-family: monospace; font-weight: 600;">${a.codigo}</td>
-                                    <td>${a.nombre} <br><small style="color: #94a3b8;">S/N: ${a.serie}</small></td>
-                                    <td><span class="status-pill" style="background: ${statusColor}15; color: ${statusColor};">${a.estado}</span></td>
-                                    <td style="font-size: 0.75rem;">${a.ubicacion}</td>
-                                `;
-                                assetsBody.appendChild(tr);
-                            });
-                        }
+                            <div style="max-height:calc(100vh - 360px);overflow-y:auto;border:1px solid var(--sap-grid-line);border-radius:3px;">
+                                <table class="sap-detail-table" style="margin:0;">
+                                    <thead><tr><th>Código</th><th>Nombre</th><th>Estado</th><th>Ubicación</th></tr></thead>
+                                    <tbody id="drawer-activos-body"></tbody>
+                                </table>
+                            </div>
+                            <div id="drawer-pagination"></div>
+                        </div>`;
+                        body.innerHTML = html;
+                        filterModelActivos();
                     }
                 });
         }
 
-        function getStatusColor(status) {
-            const colors = {
-                'OPERATIVO': '#10b981',
-                'MANTENIMIENTO': '#f59e0b',
-                'REPARACION': '#ef4444',
-                'FUERA_SERVICIO': '#4b5563',
-                'OBSOLETO': '#64748b'
-            };
-            return colors[status] || '#000';
-        }
+        function filterModelActivos() {
+            const search = (document.getElementById('drawer-search')?.value || '').toLowerCase();
+            const estado = document.getElementById('drawer-filter-estado')?.value || '';
+            const ubicacion = document.getElementById('drawer-filter-ubicacion')?.value || '';
+            const tbody = document.getElementById('drawer-activos-body');
+            const countEl = document.getElementById('drawer-count');
+            if (!tbody) return;
 
-        function closeModelDetailModal() {
-            document.getElementById('modeloDetailModal').style.display = 'none';
-        }
-
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container') || createToastContainer();
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.innerHTML = `<span>${message}</span>`;
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
-
-        function createToastContainer() {
-            const div = document.createElement('div');
-            div.id = 'toast-container';
-            div.className = 'toast-container';
-            document.body.appendChild(div);
-            return div;
-        }
-
-        function moveCategoria(catId, newParentId, itemEl, fromList, toList) {
-            fetch(`{% url 'activos:categoria_move_api' 0 %}`.replace('0', catId), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: JSON.stringify({ padre_id: newParentId ? parseInt(newParentId) : null })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.status === 'success') {
-                    showToast('Categoría movida correctamente', 'success');
-                } else {
-                    showToast('Error: ' + res.message, 'error');
-                    fromList.appendChild(itemEl);
+            const filtered = currentModelActivos.filter(a => {
+                if (estado && a.estado !== estado) return false;
+                if (ubicacion && a.ubicacion !== ubicacion) return false;
+                if (search) {
+                    const haystack = `${a.codigo} ${a.nombre} ${a.serie} ${a.ubicacion}`.toLowerCase();
+                    if (!haystack.includes(search)) return false;
                 }
-            })
-            .catch(err => {
-                console.error(err);
-                showToast('Error de conexión al mover categoría', 'error');
-                fromList.appendChild(itemEl);
+                return true;
             });
+
+            countEl.textContent = `${filtered.length} de ${currentModelActivos.length}`;
+            currentFilteredActivos = filtered;
+            currentPage = 1;
+            renderActivosPage();
         }
 
-        function initSortable() {
-            const categoryContainers = document.querySelectorAll('.categories-container');
-            categoryContainers.forEach(container => {
-                new Sortable(container, {
-                    group: 'categorias',
-                    animation: 150,
-                    handle: '.drag-handle-cat',
-                    ghostClass: 'sortable-ghost',
-                    onEnd: function (evt) {
-                        const itemEl = evt.item;
-                        const toList = evt.to;
-                        const fromList = evt.from;
+        const PAGE_SIZE = 50;
+        let currentFilteredActivos = [];
+        let currentPage = 1;
 
-                        if (toList === fromList && evt.newIndex === evt.oldIndex) return;
+        function renderActivosPage() {
+            const tbody = document.getElementById('drawer-activos-body');
+            if (!tbody) return;
 
-                        const catId = itemEl.getAttribute('data-cat-id');
-                        const newParentId = toList.getAttribute('data-parent-cat-id');
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const end = start + PAGE_SIZE;
+            const page = currentFilteredActivos.slice(start, end);
+            const totalPages = Math.ceil(currentFilteredActivos.length / PAGE_SIZE);
 
-                        moveCategoria(catId, newParentId, itemEl, fromList, toList);
-                    }
+            if (currentFilteredActivos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;padding:12px;">Sin resultados</td></tr>';
+                document.getElementById('drawer-pagination').innerHTML = '';
+                return;
+            }
+
+            tbody.innerHTML = page.map(a => {
+                const cls = 'st-' + (a.estado_raw || '').toLowerCase();
+                return `<tr class="${cls}">
+                    <td style="font-family:monospace;font-size:12px;">${a.codigo}</td>
+                    <td>${a.nombre}<br><small style="color:#888;">S/N: ${a.serie}</small></td>
+                    <td style="font-size:11px;">${a.estado}</td>
+                    <td style="font-size:11px;">${a.ubicacion}</td>
+                </tr>`;
+            }).join('');
+
+            // Render pagination
+            const pagDiv = document.getElementById('drawer-pagination');
+            if (totalPages <= 1) { pagDiv.innerHTML = ''; return; }
+
+            let pagHtml = '<div style="display:flex;align-items:center;gap:4px;padding:6px 0;justify-content:center;">';
+            pagHtml += `<button class="sap-btn" ${currentPage <= 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})" style="padding:2px 8px;font-size:11px;">‹</button>`;
+            
+            // Show max 7 page buttons
+            let startP = Math.max(1, currentPage - 3);
+            let endP = Math.min(totalPages, startP + 6);
+            if (endP - startP < 6) startP = Math.max(1, endP - 6);
+
+            for (let p = startP; p <= endP; p++) {
+                const active = p === currentPage ? 'background:var(--sap-highlight);color:white;' : '';
+                pagHtml += `<button class="sap-btn" onclick="goPage(${p})" style="padding:2px 8px;font-size:11px;${active}">${p}</button>`;
+            }
+            pagHtml += `<button class="sap-btn" ${currentPage >= totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})" style="padding:2px 8px;font-size:11px;">›</button>`;
+            pagHtml += `<span style="font-size:10px;color:var(--sap-text-muted);margin-left:6px;">${currentPage}/${totalPages}</span>`;
+            pagHtml += '</div>';
+            pagDiv.innerHTML = pagHtml;
+        }
+
+        function goPage(p) {
+            const totalPages = Math.ceil(currentFilteredActivos.length / PAGE_SIZE);
+            if (p < 1 || p > totalPages) return;
+            currentPage = p;
+            renderActivosPage();
+            // Scroll table to top
+            const tableWrap = document.querySelector('#drawerBody .sap-detail-table')?.closest('div[style*="overflow"]');
+            if (tableWrap) tableWrap.scrollTop = 0;
+        }
+
+        // --- Drawer: Brand detail (all models of a brand) ---
+        function openBrandDetail(brandName, modelos) {
+            const backdrop = document.getElementById('drawerBackdrop');
+            const drawer = document.getElementById('drawer');
+            const body = document.getElementById('drawerBody');
+            const title = document.getElementById('drawerTitle');
+
+            title.innerText = `Marca: ${brandName} (${modelos.length} modelos)`;
+            backdrop.style.display = 'block';
+            setTimeout(() => drawer.classList.add('open'), 10);
+
+            let html = '<div style="padding:8px;">';
+            html += `<table class="sap-detail-table">
+                <tr><th>Modelo</th><th style="width:80px;text-align:center;">Equipos</th><th style="width:60px;"></th></tr>`;
+            if (modelos.length === 0) {
+                html += '<tr><td colspan="3" style="text-align:center;color:#888;">Sin modelos</td></tr>';
+            } else {
+                modelos.forEach(([id, nombre, count]) => {
+                    html += `<tr style="cursor:pointer;" onclick="openModelDetail(${id})">
+                        <td><span style="color:var(--sap-icon-green);margin-right:6px;">◆</span>${nombre}</td>
+                        <td style="text-align:center;font-weight:700;color:var(--sap-blue);">${count}</td>
+                        <td style="text-align:center;font-size:11px;color:#888;">ver →</td>
+                    </tr>`;
                 });
-            });
+            }
+            html += '</table></div>';
+            body.innerHTML = html;
         }
 
-        document.addEventListener('DOMContentLoaded', initSortable);
+        function closeDrawer() {
+            document.getElementById('drawer').classList.remove('open');
+            setTimeout(() => { document.getElementById('drawerBackdrop').style.display = 'none'; }, 200);
+        }
+
+        // --- Toast ---
+        function showToast(msg, type) {
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = 'sap-toast ' + type;
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
     </script>
-    <style>
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    </style>
-    <div id="toast-container" class="toast-container"></div>
 </body>
 </html>

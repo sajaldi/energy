@@ -1,109 +1,58 @@
-{% load l10n %}<div class="tree-node{% if search and node.modelos_por_marca %} expanded{% endif %}" data-cat-id="{{ node.categoria.id|unlocalize }}" data-cat-name="{{ node.categoria.nombre|lower }}">
-    <div class="tree-row cat-row {% if node.subcategorias %}has-children{% endif %}" onclick="toggleNode(this)">
-        <span class="tree-icon drag-handle-cat" style="cursor: grab; margin-right: 4px; color: #cbd5e1;" title="Arrastrar para mover categoría" onclick="event.stopPropagation();">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/>
-                <circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>
-            </svg>
-        </span>
-        <span class="tree-icon">
-            {% if node.subcategorias %}
-            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #6a6d70;">
-                <path d="M9 18l6-6-6-6" />
-            </svg>
-            {% else %}
-            <span style="display: inline-block; width: 16px;"></span>
+{% load l10n %}
+<div class="sap-node{% if search %} open{% endif %}" data-cat-id="{{ node.categoria.id|unlocalize }}">
+    <div class="sap-row" onclick="toggleNode(this)">
+        <span class="sap-toggle{% if not node.subcategorias and not node.modelos_por_marca %} empty{% endif %}"></span>
+        <span class="sap-icon cat">⚙</span>
+        <span class="sap-label">
+            <span class="sap-label-name">{{ node.categoria.nombre }}</span>
+            {% if node.total_activos > 0 %}
+            <span class="sap-label-count">{{ node.total_activos }}</span>
             {% endif %}
-            <ion-icon name="{{ node.categoria.icono|default:'location' }}" style="font-size: 20px; color: #326391; margin-right: 4px;"></ion-icon>
         </span>
-        <div style="display: flex; flex-direction: column;">
-            <div style="display: flex; align-items: center;">
-                <span class="cat-name" style="font-size: 0.95rem; font-weight: 500; color: #32363a;">{{ node.categoria.nombre }}</span>
-                <span class="cat-count" style="font-size: 0.95rem; font-weight: 700; color: var(--sap-primary); margin-left: 8px; background: #eff6ff; padding: 1px 8px; border-radius: 10px;">
-                    {% if node.total_activos > 0 %}{{ node.total_activos }}{% endif %}
+        <span class="sap-actions">
+            <button class="sap-act-btn" onclick="event.stopPropagation(); openCategoriaModal({{ node.categoria.id|unlocalize }})" title="Editar">✎</button>
+            <button class="sap-act-btn" onclick="event.stopPropagation(); openCategoriaModal(null, {{ node.categoria.id|unlocalize }})" title="Nueva sub-categoría">＋</button>
+        </span>
+    </div>
+    <div class="sap-children">
+        {% for subnode in node.subcategorias %}
+            {% include "activos/partials/categoria_tree_node.html" with node=subnode %}
+        {% endfor %}
+        {% for marca, info_marca in node.modelos_por_marca.items %}
+        <div class="sap-node open">
+            <div class="sap-row" onclick="toggleNode(this)">
+                <span class="sap-toggle{% if not info_marca.modelos %} empty{% endif %}"></span>
+                <span class="sap-icon brand">📁</span>
+                <span class="sap-label">
+                    <span class="sap-label-name">{{ marca }}</span>
+                    <span style="color:#555;margin-left:4px;font-size:11px;">({{ info_marca.modelos|length }})</span>
+                    {% if info_marca.total > 0 %}
+                    <span class="sap-label-count">{{ info_marca.total }}</span>
+                    {% endif %}
+                </span>
+                <span class="sap-actions">
+                    <button class="sap-act-btn" onclick="event.stopPropagation(); openBrandDetail('{{ marca|escapejs }}', [{% for item in info_marca.modelos %}[{{ item.1|unlocalize }},'{{ item.0|escapejs }}',{{ item.2 }}]{% if not forloop.last %},{% endif %}{% endfor %}])" title="Ver modelos de {{ marca }}">📋</button>
                 </span>
             </div>
-            {% if search and node.path|length > 1 %}
-            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 1px;">
-                {% for p in node.path %}{% if forloop.last %}{{ p }}{% else %}{{ p }} <span style="color: #cbd5e1;">›</span> {% endif %}{% endfor %}
-            </div>
-            {% endif %}
-        </div>
-        
-        <div class="action-btns" style="margin-left: auto;">
-            <button class="btn-action" onclick="event.stopPropagation(); openModelosDrawer({{ node.categoria.id|unlocalize }})" title="Ver Modelos Relacionados" style="color: #6a6d70;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                </svg>
-            </button>
-            <button class="btn-action" onclick="event.stopPropagation(); openCategoriaModal({{ node.categoria.id|unlocalize }})" title="Editar Categoría" style="color: #0070f2;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
-            </button>
-            <button class="btn-action" onclick="event.stopPropagation(); openCategoriaModal(null, {{ node.categoria.id|unlocalize }})" title="Nueva Sub-categoría" style="color: #107e3e;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-            </button>
-        </div>
-    </div>
-
-    <div class="tree-content" style="display: {% if search and node.modelos_por_marca %}block{% else %}none{% endif %};">
-        <div class="categories-container" data-parent-cat-id="{{ node.categoria.id|unlocalize }}" style="min-height: 10px; padding-bottom: 5px;">
-            {% for subnode in node.subcategorias %}
-                {% include "activos/partials/categoria_tree_node.html" with node=subnode %}
-            {% endfor %}
-        </div>
-        {% if node.modelos_por_marca %}
-        <div class="brands-container" style="min-height: 5px; padding-bottom: 5px;">
-            {% for marca, info_marca in node.modelos_por_marca.items %}
-            <div class="brand-node" style="margin-left: 1.5rem;">
-                <div class="tree-row brand-row" onclick="toggleBrand(this)" style="padding-left: 1.8rem; border-bottom: 1px solid #f1f5f9;">
-                    <span class="tree-icon">
-                        <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #94a3b8;">
-                            <path d="M9 18l6-6-6-6" />
-                        </svg>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6a6d70" stroke-width="2">
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                        </svg>
-                    </span>
-                    <span style="font-size: 0.85rem; font-weight: 600; color: #475569;">{{ marca }}</span>
-                    <span style="font-size: 0.7rem; color: var(--text-muted); margin-left: 6px;">({{ info_marca.modelos|length }})</span>
-                    {% if info_marca.total > 0 %}
-                    <span style="font-size: 0.7rem; font-weight: 700; color: var(--sap-primary); margin-left: 4px; background: #eff6ff; padding: 0 6px; border-radius: 6px;">{{ info_marca.total }}</span>
-                    {% endif %}
-                </div>
-                <div class="brand-models" style="display: {% if search %}block{% else %}none{% endif %}; margin-left: 1rem;">
-                    {% for item in info_marca.modelos|slice:":20" %}
-                    {% with modelo=item.0 modelo_id=item.1 count=item.2 %}
-                    <div class="tree-row model-row" style="padding-left: 2.8rem; border-bottom: 1px solid #f8fafc; cursor: pointer;" onclick="event.stopPropagation(); openModelDetailModal({{ modelo_id|unlocalize }})">
-                        <span class="tree-icon">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <path d="M14 2v6h6" />
-                            </svg>
+            <div class="sap-children">
+                {% for item in info_marca.modelos %}
+                {% with modelo_name=item.0 modelo_id=item.1 count=item.2 %}
+                <div class="sap-node">
+                    <div class="sap-row" onclick="event.stopPropagation(); openModelDetail({{ modelo_id|unlocalize }})">
+                        <span class="sap-toggle empty"></span>
+                        <span class="sap-icon model">◆</span>
+                        <span class="sap-label">
+                            <span class="sap-label-name">{{ modelo_name }}</span>
+                            {% if count > 0 %}
+                            <span class="sap-label-count">{{ count }}</span>
+                            {% endif %}
                         </span>
-                        <span style="font-size: 0.8rem; color: #64748b;">{{ modelo }}</span>
-                        {% if count > 0 %}
-                        <span style="font-size: 0.7rem; font-weight: 600; color: var(--sap-primary); margin-left: 6px; background: #eff6ff; padding: 0 5px; border-radius: 6px;">{{ count }}</span>
-                        {% endif %}
                     </div>
-                    {% endwith %}
-                    {% endfor %}
-                    {% if info_marca.modelos|length > 20 %}
-                    <div style="padding: 4px 0 4px 3.5rem; font-size: 0.7rem; color: var(--text-muted); font-style: italic;">
-                        ... y {{ info_marca.modelos|length|add:"-20" }} modelo{{ info_marca.modelos|length|add:"-20"|pluralize:"s" }} más
-                    </div>
-                    {% endif %}
                 </div>
+                {% endwith %}
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
-        {% endif %}
+        {% endfor %}
     </div>
 </div>

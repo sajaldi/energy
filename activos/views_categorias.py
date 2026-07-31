@@ -213,19 +213,24 @@ def categorias_dashboard(request):
     total_categorias = Categoria.objects.count()
     total_activos = Activo.objects.count()
     
+    # Códigos de exoneración para el select
+    from presupuestos.models import CodigoExoneracion
+    codigos_exoneracion = CodigoExoneracion.objects.filter(activo=True).order_by('codigo')
+    
     return render(request, 'activos/categorias_dashboard.html', {
         'tree': tree,
         'todas_categorias': todas_categorias,
         'total_categorias': total_categorias,
         'total_activos': total_activos,
-        'search': search
+        'search': search,
+        'codigos_exoneracion': codigos_exoneracion,
     })
 
 @staff_member_required
 def categoria_detail_api(request, pk):
     """API para obtener detalles de una categoría"""
     try:
-        cat = Categoria.objects.get(pk=pk)
+        cat = Categoria.objects.select_related('codigo_exoneracion').get(pk=pk)
         return JsonResponse({
             'status': 'success',
             'categoria': {
@@ -233,7 +238,9 @@ def categoria_detail_api(request, pk):
                 'nombre': cat.nombre,
                 'padre_id': cat.padre_id or "",
                 'icono': cat.icono or "location",
-                'descripcion': cat.descripcion or ""
+                'descripcion': cat.descripcion or "",
+                'codigo_exoneracion_id': cat.codigo_exoneracion_id or "",
+                'codigo_exoneracion_str': str(cat.codigo_exoneracion) if cat.codigo_exoneracion else ""
             }
         })
     except Categoria.DoesNotExist:
@@ -261,6 +268,12 @@ def categoria_save_api(request):
         cat.nombre = nombre
         cat.icono = data.get('icono') or "location"
         cat.descripcion = data.get('descripcion') or ""
+        
+        codigo_exo_id = data.get('codigo_exoneracion_id')
+        if codigo_exo_id:
+            cat.codigo_exoneracion_id = int(codigo_exo_id)
+        else:
+            cat.codigo_exoneracion_id = None
         
         padre_id = data.get('padre_id')
         if padre_id:

@@ -1,9 +1,12 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 
 app_name = 'servicios'
 
 urlpatterns = [
+    # Riesgos de Negocio
+    path('riesgos/', include('servicios.urls_riesgos')),
+
     path('kpi/', views.kpi_form_view, name='kpi_form'),
     path('kpi/<int:pk>/', views.kpi_form_view, name='kpi_form_edit'),
     # Auditorías

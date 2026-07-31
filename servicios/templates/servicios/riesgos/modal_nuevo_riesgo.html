@@ -1,0 +1,433 @@
+<!-- Modal Wizard: Nuevo Riesgo (SAP Fiori Style) -->
+<div id="modalNuevoRiesgo" class="fiori-modal-overlay" style="display:none;">
+  <div class="fiori-modal">
+    <!-- Modal Header -->
+    <div class="fiori-modal-header">
+      <h2><i class="fas fa-shield-halved"></i> Nuevo Riesgo de Negocio</h2>
+      <button class="fiori-modal-close" onclick="cerrarModal()">&times;</button>
+    </div>
+
+    <!-- Progress Steps -->
+    <div class="wizard-steps">
+      <div class="wizard-step active" data-step="1"><span>1</span> Identificacion</div>
+      <div class="wizard-step" data-step="2"><span>2</span> Clasificacion</div>
+      <div class="wizard-step" data-step="3"><span>3</span> Evaluacion</div>
+      <div class="wizard-step" data-step="4"><span>4</span> Confirmacion</div>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="fiori-modal-body">
+      <!-- PASO 1: Identificacion -->
+      <div class="wizard-panel" id="paso1">
+        <div class="step-info">
+          <i class="fas fa-info-circle"></i>
+          <p>Identifique el riesgo: &iquest;Que puede salir mal? Describa el evento potencial que podria afectar los objetivos del servicio.</p>
+        </div>
+        <div class="form-group">
+          <label for="wz_servicio">Servicio <span class="req">*</span></label>
+          <select id="wz_servicio" required>
+            <option value="">- Seleccionar Servicio -</option>
+            {% for s in servicios %}
+            <option value="{{ s.pk }}">{{ s.nombre }}</option>
+            {% endfor %}
+          </select>
+          <small class="helper">&iquest;A que servicio pertenece este riesgo?</small>
+        </div>
+        <div class="form-group">
+          <label for="wz_titulo">Titulo del Riesgo <span class="req">*</span></label>
+          <input type="text" id="wz_titulo" maxlength="200" placeholder="Ej: Falla en suministro electrico principal">
+          <small class="helper">Nombre corto y descriptivo (max. 200 caracteres)</small>
+        </div>
+        <div class="form-group">
+          <label for="wz_descripcion">Descripcion <span class="req">*</span></label>
+          <textarea id="wz_descripcion" rows="3" maxlength="2000" placeholder="Describa el riesgo en detalle: que es, como se manifiesta..."></textarea>
+          <small class="helper">Detalle del escenario de riesgo (max. 2000 caracteres)</small>
+        </div>
+      </div>
+
+      <!-- PASO 2: Clasificacion -->
+      <div class="wizard-panel" id="paso2" style="display:none;">
+        <div class="step-info">
+          <i class="fas fa-tags"></i>
+          <p>Clasifique el riesgo segun su naturaleza y documente su origen y efectos potenciales.</p>
+        </div>
+        <div class="form-group">
+          <label for="wz_categoria">Categoria <span class="req">*</span></label>
+          <div class="radio-cards">
+            <label class="radio-card"><input type="radio" name="wz_categoria" value="OPERACIONAL"><i class="fas fa-cogs"></i><span>Operacional</span><small>Procesos, sistemas, personas</small></label>
+            <label class="radio-card"><input type="radio" name="wz_categoria" value="FINANCIERO"><i class="fas fa-coins"></i><span>Financiero</span><small>Liquidez, credito, mercado</small></label>
+            <label class="radio-card"><input type="radio" name="wz_categoria" value="ESTRATEGICO"><i class="fas fa-chess"></i><span>Estrategico</span><small>Competencia, mercado, reputacion</small></label>
+            <label class="radio-card"><input type="radio" name="wz_categoria" value="CUMPLIMIENTO"><i class="fas fa-gavel"></i><span>Cumplimiento</span><small>Legal, regulatorio, normativo</small></label>
+            <label class="radio-card"><input type="radio" name="wz_categoria" value="REPUTACIONAL"><i class="fas fa-bullhorn"></i><span>Reputacional</span><small>Imagen, confianza, marca</small></label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="wz_fuente">Fuente del Riesgo <span class="req">*</span></label>
+          <textarea id="wz_fuente" rows="2" maxlength="500" placeholder="&iquest;De donde proviene este riesgo? Ej: Antiguedad de equipos, dependencia de proveedor unico..."></textarea>
+          <small class="helper">Origen o causa raiz (max. 500 caracteres)</small>
+        </div>
+        <div class="form-group">
+          <label for="wz_consecuencias">Consecuencias Potenciales <span class="req">*</span></label>
+          <textarea id="wz_consecuencias" rows="2" maxlength="1000" placeholder="&iquest;Que pasaria si se materializa? Ej: Interrupcion del servicio por 4+ horas..."></textarea>
+          <small class="helper">Impacto si el riesgo se materializa (max. 1000 caracteres)</small>
+        </div>
+        <div class="form-group">
+          <label for="wz_control">Control Existente <span class="opt">(opcional)</span></label>
+          <textarea id="wz_control" rows="2" maxlength="1000" placeholder="&iquest;Ya existe alguna medida que mitigue este riesgo?"></textarea>
+        </div>
+      </div>
+
+      <!-- PASO 3: Evaluacion -->
+      <div class="wizard-panel" id="paso3" style="display:none;">
+        <div class="step-info">
+          <i class="fas fa-calculator"></i>
+          <p>Evalue la probabilidad e impacto del riesgo. El nivel se calcula automaticamente (P x I).</p>
+        </div>
+        <div class="eval-section">
+          <h4><i class="fas fa-circle" style="color:#1565c0;"></i> Riesgo Inherente (sin controles)</h4>
+          <div class="eval-row">
+            <div class="form-group">
+              <label>Probabilidad</label>
+              <select id="wz_prob_inh">
+                <option value="">-</option>
+                <option value="1">1 - Muy Baja</option>
+                <option value="2">2 - Baja</option>
+                <option value="3">3 - Media</option>
+                <option value="4">4 - Alta</option>
+                <option value="5">5 - Muy Alta</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Impacto</label>
+              <select id="wz_imp_inh">
+                <option value="">-</option>
+                <option value="1">1 - Insignificante</option>
+                <option value="2">2 - Menor</option>
+                <option value="3">3 - Moderado</option>
+                <option value="4">4 - Mayor</option>
+                <option value="5">5 - Catastrofico</option>
+              </select>
+            </div>
+            <div class="eval-result" id="result_inh">-</div>
+          </div>
+        </div>
+        <div class="eval-section">
+          <h4><i class="fas fa-circle" style="color:#c62828;"></i> Riesgo Residual (con controles actuales)</h4>
+          <div class="eval-row">
+            <div class="form-group">
+              <label>Probabilidad</label>
+              <select id="wz_prob_res">
+                <option value="">-</option>
+                <option value="1">1 - Muy Baja</option>
+                <option value="2">2 - Baja</option>
+                <option value="3">3 - Media</option>
+                <option value="4">4 - Alta</option>
+                <option value="5">5 - Muy Alta</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Impacto</label>
+              <select id="wz_imp_res">
+                <option value="">-</option>
+                <option value="1">1 - Insignificante</option>
+                <option value="2">2 - Menor</option>
+                <option value="3">3 - Moderado</option>
+                <option value="4">4 - Mayor</option>
+                <option value="5">5 - Catastrofico</option>
+              </select>
+            </div>
+            <div class="eval-result" id="result_res">-</div>
+          </div>
+        </div>
+        <small class="helper" style="display:block;margin-top:8px;">La evaluacion es opcional en este paso. Puede completarla despues desde el detalle del riesgo.</small>
+      </div>
+
+      <!-- PASO 4: Confirmacion -->
+      <div class="wizard-panel" id="paso4" style="display:none;">
+        <div class="step-info" style="background:#e5f5ea; border-color:#107e3e;">
+          <i class="fas fa-check-circle" style="color:#107e3e;"></i>
+          <p style="color:#107e3e;">Revise los datos antes de crear el riesgo. Podra editarlo despues.</p>
+        </div>
+        <div class="confirm-card" id="confirmResumen">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Error display -->
+      <div id="wizardErrores" class="wizard-errores" style="display:none;"></div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="fiori-modal-footer">
+      <button class="btn-secondary" id="btnAnterior" onclick="anteriorPaso()" style="display:none;">
+        <i class="fas fa-arrow-left"></i> Anterior
+      </button>
+      <div style="flex:1;"></div>
+      <button class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primary" id="btnSiguiente" onclick="siguientePaso()">
+        Siguiente <i class="fas fa-arrow-right"></i>
+      </button>
+      <button class="btn-success" id="btnCrear" onclick="crearRiesgo()" style="display:none;">
+        <i class="fas fa-check"></i> Crear Riesgo
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.fiori-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
+.fiori-modal{background:#fff;border-radius:0;width:100%;max-width:720px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;}
+.fiori-modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:#354a5f;color:#fff;}
+.fiori-modal-header h2{font-size:1.1rem;font-weight:600;margin:0;display:flex;align-items:center;gap:8px;}
+.fiori-modal-close{background:none;border:none;color:rgba(255,255,255,0.7);font-size:1.5rem;cursor:pointer;padding:4px 8px;border-radius:0;}
+.fiori-modal-close:hover{color:#fff;background:rgba(255,255,255,0.1);}
+.wizard-steps{display:flex;padding:12px 24px;background:#f5f6f7;border-bottom:1px solid #d9d9d9;gap:4px;}
+.wizard-step{flex:1;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:0;font-size:0.78rem;color:#6a6d70;font-weight:500;}
+.wizard-step span{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#d9d9d9;color:#6a6d70;font-weight:700;font-size:0.72rem;}
+.wizard-step.active{background:#e8f4fd;color:#0a6ed1;}
+.wizard-step.active span{background:#0a6ed1;color:#fff;}
+.wizard-step.done{color:#107e3e;}
+.wizard-step.done span{background:#107e3e;color:#fff;}
+.fiori-modal-body{flex:1;overflow-y:auto;padding:24px;}
+.fiori-modal-footer{display:flex;align-items:center;gap:8px;padding:16px 24px;border-top:1px solid #d9d9d9;background:#fafbfc;}
+.btn-primary{padding:8px 20px;background:#0a6ed1;color:#fff;border:none;border-radius:0;font-size:0.85rem;font-weight:600;cursor:pointer;}
+.btn-primary:hover{background:#085cad;}
+.btn-secondary{padding:8px 20px;background:#fff;color:#32363a;border:1px solid #d9d9d9;border-radius:0;font-size:0.85rem;font-weight:500;cursor:pointer;}
+.btn-secondary:hover{background:#f5f6f7;}
+.btn-success{padding:8px 20px;background:#107e3e;color:#fff;border:none;border-radius:0;font-size:0.85rem;font-weight:600;cursor:pointer;}
+.btn-success:hover{background:#0b6631;}
+.step-info{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:#e8f4fd;border-left:4px solid #0a6ed1;border-radius:0;margin-bottom:20px;font-size:0.82rem;color:#32363a;}
+.step-info i{color:#0a6ed1;margin-top:2px;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:0.8rem;font-weight:600;color:#32363a;margin-bottom:4px;}
+.form-group .req{color:#bb0000;}
+.form-group .opt{color:#6a6d70;font-weight:400;font-size:0.72rem;}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 12px;border:1px solid #d9d9d9;border-radius:0;font-size:0.85rem;font-family:'Source Sans 3','Segoe UI',system-ui,sans-serif;color:#32363a;transition:border-color 0.2s;}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{outline:none;border-color:#0a6ed1;box-shadow:0 0 0 2px rgba(10,110,209,0.12);}
+.form-group .helper{font-size:0.72rem;color:#6a6d70;margin-top:3px;display:block;}
+.form-group.has-error input,.form-group.has-error textarea,.form-group.has-error select{border-color:#bb0000;}
+.form-group .error-msg{font-size:0.72rem;color:#bb0000;margin-top:2px;}
+.radio-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;}
+.radio-card{display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 8px;border:2px solid #d9d9d9;border-radius:0;cursor:pointer;transition:all 0.2s;gap:4px;}
+.radio-card:hover{border-color:#0a6ed1;background:#f8fbff;}
+.radio-card input{display:none;}
+.radio-card input:checked + i,.radio-card:has(input:checked) i{color:#0a6ed1;}
+.radio-card:has(input:checked){border-color:#0a6ed1;background:#e8f4fd;}
+.radio-card i{font-size:1.3rem;color:#6a6d70;}
+.radio-card span{font-size:0.78rem;font-weight:600;color:#32363a;}
+.radio-card small{font-size:0.65rem;color:#6a6d70;}
+.eval-section{background:#fafbfc;border:1px solid #d9d9d9;border-radius:0;padding:16px;margin-bottom:16px;}
+.eval-section h4{font-size:0.82rem;font-weight:600;margin:0 0 12px;display:flex;align-items:center;gap:6px;}
+.eval-row{display:flex;gap:12px;align-items:flex-end;}
+.eval-row .form-group{flex:1;margin-bottom:0;}
+.eval-result{min-width:80px;text-align:center;padding:8px;border-radius:0;font-weight:700;font-size:1rem;background:#f0f0f0;color:#6a6d70;}
+.eval-result.bajo{background:#e8f5e9;color:#2e7d32;}
+.eval-result.medio{background:#fffde7;color:#f9a825;}
+.eval-result.alto{background:#fff3e0;color:#e65100;}
+.eval-result.critico{background:#ffebee;color:#c62828;}
+.confirm-card{background:#fafbfc;border:1px solid #d9d9d9;border-radius:0;padding:16px;}
+.confirm-card table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+.confirm-card table tr{border-bottom:1px solid #eee;}
+.confirm-card table td{padding:8px 4px;vertical-align:top;}
+.confirm-card table td:first-child{font-weight:600;color:#6a6d70;width:140px;}
+.wizard-errores{background:#ffebeb;border:1px solid #bb0000;border-radius:0;padding:12px 16px;margin-top:12px;font-size:0.8rem;color:#bb0000;}
+</style>
+
+<script>
+let pasoActual = 1;
+const totalPasos = 4;
+
+function abrirModal() {
+    document.getElementById('modalNuevoRiesgo').style.display = 'flex';
+    pasoActual = 1;
+    mostrarPaso(1);
+}
+
+function cerrarModal() {
+    document.getElementById('modalNuevoRiesgo').style.display = 'none';
+    limpiarFormulario();
+}
+
+function mostrarPaso(n) {
+    for (let i = 1; i <= totalPasos; i++) {
+        document.getElementById('paso' + i).style.display = (i === n) ? 'block' : 'none';
+    }
+    document.querySelectorAll('.wizard-step').forEach((el, idx) => {
+        el.classList.remove('active', 'done');
+        if (idx + 1 < n) el.classList.add('done');
+        if (idx + 1 === n) el.classList.add('active');
+    });
+    document.getElementById('btnAnterior').style.display = (n > 1) ? 'inline-flex' : 'none';
+    document.getElementById('btnSiguiente').style.display = (n < totalPasos) ? 'inline-flex' : 'none';
+    document.getElementById('btnCrear').style.display = (n === totalPasos) ? 'inline-flex' : 'none';
+    document.getElementById('wizardErrores').style.display = 'none';
+
+    if (n === 4) generarResumen();
+}
+
+function siguientePaso() {
+    if (!validarPaso(pasoActual)) return;
+    pasoActual++;
+    mostrarPaso(pasoActual);
+}
+
+function anteriorPaso() {
+    pasoActual--;
+    mostrarPaso(pasoActual);
+}
+
+function validarPaso(paso) {
+    const errores = [];
+    if (paso === 1) {
+        if (!document.getElementById('wz_servicio').value) errores.push('Seleccione un servicio.');
+        if (!document.getElementById('wz_titulo').value.trim()) errores.push('Ingrese el titulo del riesgo.');
+        if (!document.getElementById('wz_descripcion').value.trim()) errores.push('Ingrese la descripcion.');
+    } else if (paso === 2) {
+        if (!document.querySelector('input[name="wz_categoria"]:checked')) errores.push('Seleccione una categoria.');
+        if (!document.getElementById('wz_fuente').value.trim()) errores.push('Ingrese la fuente del riesgo.');
+        if (!document.getElementById('wz_consecuencias').value.trim()) errores.push('Ingrese las consecuencias.');
+    }
+    if (errores.length > 0) {
+        const el = document.getElementById('wizardErrores');
+        el.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + errores.join('<br>');
+        el.style.display = 'block';
+        return false;
+    }
+    return true;
+}
+
+function calcularNivel(probId, impId, resultId) {
+    const p = parseInt(document.getElementById(probId).value) || 0;
+    const i = parseInt(document.getElementById(impId).value) || 0;
+    const el = document.getElementById(resultId);
+    if (p && i) {
+        const nivel = p * i;
+        let zona = 'bajo', label = 'Bajo';
+        if (nivel >= 17) { zona = 'critico'; label = 'Critico'; }
+        else if (nivel >= 10) { zona = 'alto'; label = 'Alto'; }
+        else if (nivel >= 5) { zona = 'medio'; label = 'Medio'; }
+        el.textContent = nivel + ' (' + label + ')';
+        el.className = 'eval-result ' + zona;
+    } else {
+        el.textContent = '-';
+        el.className = 'eval-result';
+    }
+}
+
+// Bind calculation events
+['wz_prob_inh', 'wz_imp_inh'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => calcularNivel('wz_prob_inh', 'wz_imp_inh', 'result_inh'));
+});
+['wz_prob_res', 'wz_imp_res'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => calcularNivel('wz_prob_res', 'wz_imp_res', 'result_res'));
+});
+
+function generarResumen() {
+    const servText = document.getElementById('wz_servicio').selectedOptions[0].text;
+    const titulo = document.getElementById('wz_titulo').value;
+    const cat = document.querySelector('input[name="wz_categoria"]:checked');
+    const catLabel = cat ? cat.parentElement.querySelector('span').textContent : '';
+    const pi = document.getElementById('wz_prob_inh').value;
+    const ii = document.getElementById('wz_imp_inh').value;
+    const pr = document.getElementById('wz_prob_res').value;
+    const ir = document.getElementById('wz_imp_res').value;
+
+    let evalHtml = '<em>Sin evaluar (se completara despues)</em>';
+    if (pi && ii) {
+        const ni = pi * ii;
+        evalHtml = `Inherente: P${pi} x I${ii} = <strong>${ni}</strong>`;
+        if (pr && ir) {
+            const nr = pr * ir;
+            evalHtml += ` | Residual: P${pr} x I${ir} = <strong>${nr}</strong>`;
+        }
+    }
+
+    document.getElementById('confirmResumen').innerHTML = `
+        <table>
+            <tr><td>Servicio</td><td>${servText}</td></tr>
+            <tr><td>Titulo</td><td><strong>${titulo}</strong></td></tr>
+            <tr><td>Categoria</td><td>${catLabel}</td></tr>
+            <tr><td>Fuente</td><td>${document.getElementById('wz_fuente').value}</td></tr>
+            <tr><td>Consecuencias</td><td>${document.getElementById('wz_consecuencias').value}</td></tr>
+            <tr><td>Control Existente</td><td>${document.getElementById('wz_control').value || '-'}</td></tr>
+            <tr><td>Evaluacion</td><td>${evalHtml}</td></tr>
+        </table>
+    `;
+}
+
+function crearRiesgo() {
+    const btn = document.getElementById('btnCrear');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando...';
+
+    const data = {
+        servicio_id: document.getElementById('wz_servicio').value,
+        titulo: document.getElementById('wz_titulo').value,
+        descripcion: document.getElementById('wz_descripcion').value,
+        categoria: document.querySelector('input[name="wz_categoria"]:checked').value,
+        fuente_riesgo: document.getElementById('wz_fuente').value,
+        consecuencias: document.getElementById('wz_consecuencias').value,
+        control_existente: document.getElementById('wz_control').value,
+        probabilidad_inherente: document.getElementById('wz_prob_inh').value || null,
+        impacto_inherente: document.getElementById('wz_imp_inh').value || null,
+        probabilidad_residual: document.getElementById('wz_prob_res').value || null,
+        impacto_residual: document.getElementById('wz_imp_res').value || null,
+        justificacion_prob_inherente: 'Evaluacion inicial en wizard',
+        justificacion_imp_inherente: 'Evaluacion inicial en wizard',
+        justificacion_prob_residual: 'Evaluacion inicial en wizard',
+        justificacion_imp_residual: 'Evaluacion inicial en wizard',
+    };
+
+    fetch('{% url "servicios:api_crear_riesgo" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify(data),
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp.success) {
+            cerrarModal();
+            // Show success toast
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#107e3e;color:#fff;padding:16px 24px;border-radius:0;font-size:0.9rem;font-weight:500;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;align-items:center;gap:10px;';
+            toast.innerHTML = '<i class="fas fa-check-circle"></i> ' + resp.message;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.remove(); location.reload(); }, 2500);
+        } else {
+            const el = document.getElementById('wizardErrores');
+            const msgs = Object.values(resp.errores || {}).flat().join('<br>');
+            el.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + msgs;
+            el.style.display = 'block';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Crear Riesgo';
+        }
+    })
+    .catch(err => {
+        const el = document.getElementById('wizardErrores');
+        el.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error de conexion.';
+        el.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Crear Riesgo';
+    });
+}
+
+function limpiarFormulario() {
+    ['wz_titulo','wz_descripcion','wz_fuente','wz_consecuencias','wz_control'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('wz_servicio').selectedIndex = 0;
+    document.querySelectorAll('input[name="wz_categoria"]').forEach(r => r.checked = false);
+    ['wz_prob_inh','wz_imp_inh','wz_prob_res','wz_imp_res'].forEach(id => document.getElementById(id).selectedIndex = 0);
+    ['result_inh','result_res'].forEach(id => { const e = document.getElementById(id); e.textContent = '-'; e.className = 'eval-result'; });
+}
+
+function getCookie(name) {
+    let v = null;
+    document.cookie.split(';').forEach(c => {
+        c = c.trim();
+        if (c.startsWith(name + '=')) v = decodeURIComponent(c.substring(name.length + 1));
+    });
+    return v;
+}
+</script>

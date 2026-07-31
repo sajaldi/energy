@@ -188,3 +188,15 @@ def auto_vectorize_kpi(sender, instance, **kwargs):
         generate_kpi_embedding.delay(instance.id)
     except Exception:
         pass  # Silenciar si Celery/Redis no está disponible
+
+
+# --- Importar modelos de riesgos para que Django los descubra ---
+from .models_riesgos import (  # noqa: E402, F401
+    Riesgo,
+    EvaluacionRiesgo,
+    ConfiguracionRiesgoServicio,
+    PlanTratamiento,
+    AccionTratamiento,
+    RevisionRiesgo,
+    RiesgoHistorial,
+)

@@ -3517,7 +3517,7 @@ def partida_admin_fiori(request):
 
     presupuestos = PresupuestoAnual.objects.select_related('departamento').annotate(
         num_partidas=Count('partidas')
-    ).filter(num_partidas__gt=0).order_by('-anio', 'nombre')
+    ).order_by('-anio', 'nombre')
 
     presupuestos_data = []
     anios_set = set()
@@ -3667,6 +3667,21 @@ def partida_admin_api(request):
                 partida = get_object_or_404(PartidaPresupuestaria, pk=data['id'])
                 partida.delete()
                 return JsonResponse({'status': 'ok', 'message': 'Partida eliminada'})
+
+            elif action == 'create_presupuesto':
+                from .models import Moneda
+                # Usar primera moneda disponible como default
+                moneda_default = Moneda.objects.first()
+                if not moneda_default:
+                    return JsonResponse({'status': 'error', 'message': 'No hay monedas configuradas. Cree una primero en Admin.'})
+                pres = PresupuestoAnual.objects.create(
+                    nombre=data['nombre'],
+                    anio=data['anio'],
+                    departamento_id=data.get('departamento_id'),
+                    descripcion=data.get('descripcion', ''),
+                    moneda=moneda_default,
+                )
+                return JsonResponse({'status': 'ok', 'message': 'Presupuesto creado', 'id': pres.id})
 
             return JsonResponse({'status': 'error', 'message': 'Acción no reconocida'}, status=400)
 

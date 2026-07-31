@@ -447,6 +447,44 @@ class PresupuestoAgrupado(models.Model):
         verbose_name_plural = "Presupuestos Agrupados"
         ordering = ['-anio', 'nombre']
 
+class GrupoRequisicion(models.Model):
+    """
+    Agrupación de requisiciones para organización y seguimiento conjunto.
+    Permite agrupar por proyecto, campaña de compra, exoneración, etc.
+    """
+    nombre = models.CharField(max_length=200, verbose_name="Nombre del Grupo")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    COLOR_CHOICES = [
+        ('#0a6ed1', 'Azul'),
+        ('#107e3e', 'Verde'),
+        ('#e9730c', 'Naranja'),
+        ('#bb0000', 'Rojo'),
+        ('#354a5f', 'Gris Oscuro'),
+        ('#6a6d70', 'Gris'),
+    ]
+    color = models.CharField(max_length=10, choices=COLOR_CHOICES, default='#0a6ed1', verbose_name="Color")
+    activo = models.BooleanField(default=True)
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='grupos_requisicion_creados')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Grupo de Requisiciones"
+        verbose_name_plural = "Grupos de Requisiciones"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+    @property
+    def total_requisiciones(self):
+        return self.requisiciones.count()
+
+    @property
+    def monto_total(self):
+        from django.db.models import Sum
+        return self.requisiciones.aggregate(t=Sum('cr8ca_totalenarticulos'))['t'] or 0
+
+
 class Requisicion(models.Model):
     """
     Modelo para sincronización de Requisiciones desde Dynamics 365.
@@ -576,6 +614,15 @@ class Requisicion(models.Model):
         verbose_name="Proyecto"
     )
 
+    grupo = models.ForeignKey(
+        GrupoRequisicion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisiciones',
+        verbose_name="Grupo"
+    )
+
     TIPO_REQUISICION_CHOICES = (
         ('BIEN', 'Bien'),
         ('SERVICIO', 'Servicio'),
@@ -686,7 +733,7 @@ class Requisicion(models.Model):
         
         for p_id in provider_ids:
             provider = Empresa.objects.get(pk=p_id) if p_id else None
-            articles = self.articulos.filter(proveedor=p_id)
+            articles = self.articulos.filter(proveedor=p_id).select_related('material__codigo_exoneracion')
             subtotal = sum(a.subtotal for a in articles)
             resumen.append({
                 'proveedor': provider,
