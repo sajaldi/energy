@@ -1972,21 +1972,34 @@ def exportar_tiempo_acordado_pdf_view(request, pk):
     from django.shortcuts import get_object_or_404
     from django.http import HttpResponse
     import logging
+    import traceback
     logger = logging.getLogger(__name__)
 
     acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
     
-    # Si se pide formato manual, forzar firmas vacÃ­as
+    # Si se pide formato manual, forzar firmas vacias
     force_empty = request.GET.get('manual') == '1'
     
     try:
         data, filename, content_type = _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=force_empty)
     except Exception as e:
-        logger.exception(f"Error generando PDF para acuerdo {pk}: {e}")
-        return HttpResponse(f"Error generando documento: {e}", status=500, content_type='text/plain')
+        tb = traceback.format_exc()
+        logger.exception(f"Error generando PDF para acuerdo {pk}: {e}\n{tb}")
+        # Retornar error detallado para debug
+        error_msg = (
+            f"Error generando documento para acuerdo #{pk}.\n\n"
+            f"Tipo de error: {type(e).__name__}\n"
+            f"Detalle: {str(e)}\n\n"
+            f"Traceback:\n{tb}"
+        )
+        return HttpResponse(error_msg, status=500, content_type='text/plain; charset=utf-8')
     
     if not data:
-        return HttpResponse("No se pudo generar el documento. Contacte al administrador.", status=500, content_type='text/plain')
+        return HttpResponse(
+            "No se pudo generar el documento. Ninguno de los motores de conversion "
+            "(LibreOffice, docx2pdf, Playwright) esta disponible en el servidor.",
+            status=500, content_type='text/plain; charset=utf-8'
+        )
     
     if force_empty and content_type == 'application/pdf':
         filename = f"Plantilla_Manual_Acuerdo_{acuerdo.id}.pdf"
