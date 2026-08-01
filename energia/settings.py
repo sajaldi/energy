@@ -758,6 +758,14 @@ JAZZMIN_SETTINGS = {
                 "permissions": ["seguridad.view_tipopermiso"],
             },
         ],
+        "core": [
+            {
+                "name": "⚡ Dashboard Energetico",
+                "url": "/dashboard-energia/",
+                "icon": "fas fa-bolt",
+                "permissions": ["core.view_consumo"],
+            },
+        ],
     },
     "changeform_format": "horizontal_tabs",
 }

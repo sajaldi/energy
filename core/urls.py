@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import views_energia
 from .views_coolify import coolify_dashboard, coolify_redeploy, coolify_logs, coolify_stream_logs, coolify_build_logs, celery_logs, celery_stream_logs
 from .views_impersonate import impersonate_start, impersonate_stop
 
@@ -40,4 +41,7 @@ urlpatterns = [
     # Impersonation (solo superusuarios)
     path('impersonate/<int:user_id>/', impersonate_start, name='impersonate_start'),
     path('impersonate/stop/', impersonate_stop, name='impersonate_stop'),
+
+    # Dashboard Energetico
+    path('dashboard-energia/', views_energia.dashboard_energia, name='dashboard_energia'),
 ]

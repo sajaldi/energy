@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Energetico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Source Sans 3', sans-serif;
+            background: #f5f6f7;
+            color: #32363a;
+            min-height: 100vh;
+        }
+        .header {
+            background: #354a5f;
+            color: #fff;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header h1 i {
+            color: #d4e157;
+        }
+        .filters {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .filters select,
+        .filters input[type="date"] {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 13px;
+            padding: 6px 10px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border-radius: 0;
+            outline: none;
+        }
+        .filters select option {
+            background: #354a5f;
+            color: #fff;
+        }
+        .filters input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+        .filters .btn-filter {
+            font-family: 'Source Sans 3', sans-serif;
+            font-size: 13px;
+            padding: 6px 14px;
+            background: #0a6ed1;
+            color: #fff;
+            border: none;
+            border-radius: 0;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .filters .btn-filter:hover {
+            background: #0854a0;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .kpi-card {
+            background: #fff;
+            border-radius: 0;
+            padding: 20px 24px;
+            border-left: 4px solid #0a6ed1;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .kpi-card .kpi-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6a6d70;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .kpi-card .kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #354a5f;
+        }
+        .kpi-card .kpi-sub {
+            font-size: 12px;
+            color: #6a6d70;
+            margin-top: 4px;
+        }
+        .kpi-card.positive .kpi-value { color: #107e3e; }
+        .kpi-card.negative .kpi-value { color: #bb0000; }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .chart-card {
+            background: #fff;
+            border-radius: 0;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .chart-card.full-width {
+            grid-column: 1 / -1;
+        }
+        .chart-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #354a5f;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chart-card h3 i {
+            color: #0a6ed1;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 280px;
+        }
+        .table-section {
+            background: #fff;
+            border-radius: 0;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+        }
+        .table-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #354a5f;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .table-section h3 i {
+            color: #0a6ed1;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .data-table th {
+            text-align: left;
+            padding: 10px 12px;
+            background: #f5f6f7;
+            color: #6a6d70;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e5e5e5;
+        }
+        .data-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #32363a;
+        }
+        .data-table tr:hover td {
+            background: #f5f6f7;
+        }
+        .trend-up { color: #bb0000; }
+        .trend-down { color: #107e3e; }
+        .trend-neutral { color: #6a6d70; }
+        .badge-tipo {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #e8f4fd;
+            color: #0a6ed1;
+            border-radius: 0;
+        }
+        .badge-tipo.acumulativo {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6a6d70;
+        }
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 12px;
+            color: #d0d0d0;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .back-link:hover {
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 12px 16px;
+            }
+            .header h1 {
+                font-size: 16px;
+            }
+            .container {
+                padding: 12px;
+            }
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            .kpi-row {
+                grid-template-columns: 1fr;
+            }
+            .filters {
+                width: 100%;
+            }
+            .filters select,
+            .filters input[type="date"] {
+                flex: 1;
+                min-width: 0;
+            }
+            .data-table {
+                font-size: 12px;
+            }
+            .data-table th,
+            .data-table td {
+                padding: 8px 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="display:flex;align-items:center;gap:16px;">
+            <a href="/admin/" class="back-link"><i class="fas fa-arrow-left"></i> Admin</a>
+            <h1><i class="fas fa-bolt"></i> Dashboard Energetico</h1>
+        </div>
+        <form class="filters" method="get">
+            <select name="medidor_id">
+                <option value="">Todos los medidores</option>
+                {% for m in todos_medidores %}
+                <option value="{{ m.id }}" {% if medidor_id_selected == m.id|stringformat:"d" %}selected{% endif %}>{{ m.nombre }}</option>
+                {% endfor %}
+            </select>
+            <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
+            <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+            <button type="submit" class="btn-filter"><i class="fas fa-filter"></i> Filtrar</button>
+        </form>
+    </div>
+
+    <div class="container">
+        <!-- KPI Cards -->
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-label">Consumo Total Mes</div>
+                <div class="kpi-value">{{ consumo_total_mes|floatformat:1 }}</div>
+                <div class="kpi-sub">Periodo seleccionado</div>
+            </div>
+            <div class="kpi-card {% if variacion_pct > 0 %}negative{% elif variacion_pct < 0 %}positive{% endif %}">
+                <div class="kpi-label">Variacion vs Mes Anterior</div>
+                <div class="kpi-value">
+                    {% if variacion_pct > 0 %}<i class="fas fa-arrow-up"></i>{% elif variacion_pct < 0 %}<i class="fas fa-arrow-down"></i>{% else %}<i class="fas fa-minus"></i>{% endif %}
+                    {{ variacion_pct }}%
+                </div>
+                <div class="kpi-sub">{% if variacion_pct > 0 %}Aumento{% elif variacion_pct < 0 %}Reduccion{% else %}Sin cambio{% endif %} respecto al periodo anterior</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Total Medidores Activos</div>
+                <div class="kpi-value">{{ total_medidores }}</div>
+                <div class="kpi-sub">Medidores configurados</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card full-width">
+                <h3><i class="fas fa-chart-line"></i> Tendencia Mensual (12 meses)</h3>
+                <div class="chart-container">
+                    <canvas id="chartTendencia"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-chart-bar"></i> Consumo Diario del Mes</h3>
+                <div class="chart-container">
+                    <canvas id="chartDiario"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-chart-pie"></i> Distribucion por Medidor</h3>
+                <div class="chart-container">
+                    <canvas id="chartDistribucion"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-section">
+            <h3><i class="fas fa-list"></i> Detalle por Medidor</h3>
+            {% if tabla_medidores %}
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Medidor</th>
+                            <th>Consumo</th>
+                            <th>Unidad</th>
+                            <th>Tipo</th>
+                            <th>Tendencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in tabla_medidores %}
+                        <tr>
+                            <td><strong>{{ item.nombre }}</strong></td>
+                            <td>{{ item.consumo|floatformat:2 }}</td>
+                            <td>{{ item.unidad }}</td>
+                            <td>
+                                <span class="badge-tipo {% if item.tipo == 'ACUMULATIVO' or item.tipo == 'ACUMULADO' %}acumulativo{% endif %}">
+                                    {{ item.tipo }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if item.tendencia == 'up' %}
+                                <span class="trend-up"><i class="fas fa-arrow-up"></i> Subiendo</span>
+                                {% elif item.tendencia == 'down' %}
+                                <span class="trend-down"><i class="fas fa-arrow-down"></i> Bajando</span>
+                                {% else %}
+                                <span class="trend-neutral"><i class="fas fa-minus"></i> Estable</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-database"></i>
+                <p>No hay datos de consumo para el periodo seleccionado.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        const chartColors = {
+            primary: '#0a6ed1',
+            primaryLight: 'rgba(10, 110, 209, 0.1)',
+            secondary: '#354a5f',
+            success: '#107e3e',
+            warning: '#e9730c',
+            danger: '#bb0000',
+            palette: [
+                '#0a6ed1', '#107e3e', '#e9730c', '#bb0000', '#945fcf',
+                '#1b90ff', '#13a4b4', '#525df4', '#bf399e', '#6c8893'
+            ]
+        };
+
+        // Tendencia Mensual
+        const ctxTendencia = document.getElementById('chartTendencia').getContext('2d');
+        new Chart(ctxTendencia, {
+            type: 'line',
+            data: {
+                labels: {{ tendencia_labels_json|safe }},
+                datasets: [{
+                    label: 'Consumo',
+                    data: {{ tendencia_data_json|safe }},
+                    borderColor: chartColors.primary,
+                    backgroundColor: chartColors.primaryLight,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: chartColors.primary,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'Source Sans 3', size: 11 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f0f0f0' },
+                        ticks: { font: { family: 'Source Sans 3', size: 11 } }
+                    }
+                }
+            }
+        });
+
+        // Consumo Diario
+        const ctxDiario = document.getElementById('chartDiario').getContext('2d');
+        new Chart(ctxDiario, {
+            type: 'bar',
+            data: {
+                labels: {{ diario_labels_json|safe }},
+                datasets: [{
+                    label: 'Consumo Diario',
+                    data: {{ diario_data_json|safe }},
+                    backgroundColor: chartColors.primary,
+                    borderColor: chartColors.primary,
+                    borderWidth: 0,
+                    borderRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'Source Sans 3', size: 11 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f0f0f0' },
+                        ticks: { font: { family: 'Source Sans 3', size: 11 } }
+                    }
+                }
+            }
+        });
+
+        // Distribucion por Medidor
+        const ctxDist = document.getElementById('chartDistribucion').getContext('2d');
+        new Chart(ctxDist, {
+            type: 'doughnut',
+            data: {
+                labels: {{ dist_labels_json|safe }},
+                datasets: [{
+                    data: {{ dist_data_json|safe }},
+                    backgroundColor: chartColors.palette,
+                    borderWidth: 1,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            font: { family: 'Source Sans 3', size: 11 },
+                            padding: 12,
+                            usePointStyle: true,
+                            pointStyle: 'rect'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
