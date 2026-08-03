@@ -573,7 +573,7 @@
             
             <div class="evidence-grid" id="evidence-container">
                 {% for ev in evidences %}
-                <div class="evidence-box" data-id="{{ ev.id }}" style="border-radius: var(--sap-radius);">
+                <div class="evidence-box" data-id="{{ ev.id|unlocalize }}" style="border-radius: var(--sap-radius);">
                     <div class="evidence-img-container" style="border-radius: var(--sap-radius);">
                         {% if ev.archivo %}
                             {% if ev.archivo.url|lower|slice:"-4:" == ".mp4" or ev.archivo.url|lower|slice:"-5:" == ".webm" %}
@@ -581,14 +581,14 @@
                             {% else %}
                                 <img src="{{ ev.archivo.url }}" alt="{{ ev.descripcion }}">
                             {% endif %}
-                            <button type="button" class="btn-delete-ev" data-id="{{ ev.id }}" onclick="deleteEvidence(this.dataset.id)"><i class="ph ph-trash"></i></button>
+                            <button type="button" class="btn-delete-ev" data-id="{{ ev.id|unlocalize }}" onclick="deleteEvidence(this.dataset.id)"><i class="ph ph-trash"></i></button>
                         {% endif %}
                     </div>
                     <input type="text" class="visual-input ev-desc-input" 
                            style="font-size: 12px; padding: 6px 10px; height: auto;" 
                            placeholder="¿Qué muestra esta evidencia?" 
                            value="{{ ev.descripcion|default:'' }}"
-                           onblur="updateDescription('{{ ev.id }}', this.value)">
+                           onblur="updateDescription('{{ ev.id|unlocalize }}', this.value)">
                     
                     {% if ev.analizada %}
                     <div style="background: rgba(10, 110, 209, 0.05); padding: 8px; border-radius: 6px; margin-top: 5px; border: 1px solid rgba(10, 110, 209, 0.1);">
@@ -600,10 +600,10 @@
                         </div>
                     </div>
                     {% elif not ev.archivo.url|lower|slice:"-4:" == ".mp4" and not ev.archivo.url|lower|slice:"-5:" == ".webm" %}
-                    <div id="ai-status-{{ ev.id }}" style="margin-top: 8px;">
+                    <div id="ai-status-{{ ev.id|unlocalize }}" style="margin-top: 8px;">
                         <button type="button" class="btn-fiori secondary" 
                                 style="font-size: 10px; padding: 4px 8px; width: 100%; justify-content: center;"
-                                onclick="analyzeIA('{{ ev.id }}')">
+                                onclick="analyzeIA('{{ ev.id|unlocalize }}')">
                             <i class="ph ph-sparkle"></i> Analizar con IA
                         </button>
                     </div>
