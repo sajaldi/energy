@@ -264,8 +264,10 @@ class FrecuenciaAdmin(admin.ModelAdmin):
 
 @admin.register(PuestoTrabajo)
 class PuestoTrabajoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'descripcion', 'ver_dashboard_link')
-    search_fields = ('nombre',)
+    list_display = ('nombre', 'descripcion', 'departamento', 'ver_dashboard_link')
+    list_filter = ('departamento',)
+    search_fields = ('nombre', 'departamento__nombre')
+    autocomplete_fields = ('departamento',)
 
     def ver_dashboard_link(self, obj):
         url = reverse('mantenimiento:dashboard_cargas')

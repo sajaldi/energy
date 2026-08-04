@@ -21,6 +21,7 @@ from .models import (
     Servicio, KPI, PerfilUsuario, ConfiguracionUI, Departamento, ElementoApp,
     AdminNavMenu, AdminNavColumn, AdminNavItem,
 )
+from mantenimiento.models import PuestoTrabajo
 
 @admin.register(ConfiguracionUI)
 class ConfiguracionUIAdmin(admin.ModelAdmin):
@@ -48,16 +49,17 @@ class PerfilUsuarioInline(admin.StackedInline):
     fk_name = 'usuario'
     can_delete = False
     verbose_name_plural = 'Perfil de Usuario / Configuración'
+    fields = ('telefono', 'puesto', 'departamento', 'responsable', 'ubicacion_defecto', 'visto_tutorial', 'invitation_status', 'nav_config')
     raw_id_fields = ('ubicacion_defecto',)
-    autocomplete_fields = ('responsable', 'departamento')
+    autocomplete_fields = ('responsable', 'departamento', 'puesto')
 
 @admin.register(PerfilUsuario)
 class PerfilUsuarioAdmin(admin.ModelAdmin):
-    list_display = ('usuario', 'departamento', 'telefono', 'visto_tutorial', 'ubicacion_defecto')
-    list_filter = ('departamento', 'visto_tutorial', 'ubicacion_defecto')
-    search_fields = ('usuario__username', 'usuario__email', 'departamento__nombre')
+    list_display = ('usuario', 'puesto', 'departamento', 'telefono', 'visto_tutorial', 'ubicacion_defecto')
+    list_filter = ('departamento', 'puesto', 'visto_tutorial', 'ubicacion_defecto')
+    search_fields = ('usuario__username', 'usuario__email', 'departamento__nombre', 'puesto__nombre')
     raw_id_fields = ('ubicacion_defecto',)
-    autocomplete_fields = ('departamento',)
+    autocomplete_fields = ('departamento', 'puesto')
 
 # Unregister standard User and Register with Profile Inline
 admin.site.unregister(User)
@@ -382,12 +384,20 @@ class MiembroDepartamentoInline(admin.TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
+class PuestoTrabajoInline(admin.TabularInline):
+    model = PuestoTrabajo
+    extra = 0
+    can_delete = True
+    fields = ('nombre', 'descripcion')
+    verbose_name = "Puesto de Trabajo"
+    verbose_name_plural = "Puestos de Trabajo del Departamento"
+
 @admin.register(Departamento)
 class DepartamentoAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'codigo', 'correo', 'responsable', 'aprobador', 'descripcion')
     search_fields = ('nombre', 'codigo', 'correo', 'responsable__username', 'responsable__first_name', 'responsable__last_name', 'aprobador__username', 'aprobador__first_name', 'aprobador__last_name')
     autocomplete_fields = ('responsable', 'aprobador')
-    inlines = [MiembroDepartamentoInline]
+    inlines = [MiembroDepartamentoInline, PuestoTrabajoInline]
     change_form_template = "admin/core/departamento/change_form.html"
 class ServicioResource(resources.ModelResource):
     class Meta:

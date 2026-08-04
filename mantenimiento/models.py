@@ -133,6 +133,7 @@ class Frecuencia(models.Model):
 class PuestoTrabajo(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
     descripcion = models.TextField(blank=True, null=True)
+    departamento = models.ForeignKey('core.Departamento', on_delete=models.SET_NULL, null=True, blank=True, related_name='puestos_trabajo', verbose_name="Departamento")
 
     def __str__(self):
         return self.nombre
