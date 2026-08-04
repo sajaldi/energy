@@ -1187,22 +1187,50 @@ def import_tipos_task(self, file_path, file_format, user_id=None, verification_m
     resource.cache_key = cache_key
     resource.total_rows = 0 # Se actualizará al cargar dataset
 
-    # Leer archivo
-    try:
-        with default_storage.open(file_path, 'rb') as f:
-            file_content = f.read()
-            if file_format == 'csv':
-                dataset = Dataset().load(try_decode(file_content), format='csv')
-            elif file_format in ['xls', 'xlsx']:
-                dataset = Dataset().load(file_content, format=file_format)
-            else:
-                raise ValueError(f"Formato no soportado: {file_format}")
-    except Exception as e:
+    # Leer archivo (con reintentos por caídas transitorias de conexión a MinIO/túnel)
+    from botocore.exceptions import BotoCoreError, ClientError
+    max_intentos = 4
+    dataset = None
+    ultimo_error = None
+    for intento in range(1, max_intentos + 1):
+        try:
+            with default_storage.open(file_path, 'rb') as f:
+                file_content = f.read()
+                if file_format == 'csv':
+                    dataset = Dataset().load(try_decode(file_content), format='csv')
+                elif file_format in ['xls', 'xlsx']:
+                    dataset = Dataset().load(file_content, format=file_format)
+                else:
+                    raise ValueError(f"Formato no soportado: {file_format}")
+            break
+        except ValueError:
+            # Error de formato: no tiene sentido reintentar
+            ultimo_error = sys.exc_info()[1]
+            break
+        except ClientError as e:
+            status = (e.response or {}).get('ResponseMetadata', {}).get('HTTPStatusCode')
+            ultimo_error = e
+            if status == 404:
+                # El objeto no existe: no reintentar
+                break
+            if intento < max_intentos:
+                print(f"[DEBUG] [Task] Intento {intento} falló al leer archivo (conexión): {e}. Reintentando...")
+                time.sleep(intento * 2)
+        except (BotoCoreError, ConnectionError, OSError) as e:
+            ultimo_error = e
+            if intento < max_intentos:
+                print(f"[DEBUG] [Task] Intento {intento} falló al leer archivo (conexión): {e}. Reintentando...")
+                time.sleep(intento * 2)
+        except Exception as e:
+            ultimo_error = e
+            break
+
+    if dataset is None:
         if registro:
             registro.estado = 'ERROR'
-            registro.detalles_error = f'Error al leer archivo: {str(e)}'
+            registro.detalles_error = str(ultimo_error)
             registro.save()
-        error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+        error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(ultimo_error)}'}
         cache.set(cache_key, error_res, 3600)
         return error_res
 
