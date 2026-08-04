@@ -5,421 +5,205 @@
 
 {% block extrastyle %}
 {{ block.super }}
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-    :root {
-        --primary: #3b82f6;
-        --primary-glow: rgba(59, 130, 246, 0.2);
-        --secondary: #6366f1;
-        --bg: #f8fafc;
-        --card-bg: #ffffff;
-        --border: #e2e8f0;
-        --text-main: #0f172a;
-        --text-muted: #64748b;
-        --positive: #10b981;
-        --negative: #ef4444;
-    }
+:root {
+    --primary: #0a6ed1;
+    --primary-dark: #085aaf;
+    --positive: #107e3e;
+    --warning: #e9730c;
+    --danger: #bb0000;
+    --purple: #6a0dad;
+    --bg: #f5f6f7;
+    --card: #ffffff;
+    --border: #e0e2e5;
+    --text: #1d2d3e;
+    --muted: #6a6d70;
+    --radius: 0px;
+}
+* { box-sizing: border-box; }
+body { font-family: 'Inter', 'SAP72', Arial, sans-serif !important; background: var(--bg) !important; }
+#content { padding: 16px 20px !important; background: var(--bg); }
 
-    #content {
-        padding: 20px !important;
-        background-color: #f1f5f9;
-        font-family: 'Outfit', sans-serif;
-    }
+/* ── Layout ────────────────────────────────── */
+.cg-layout { max-width: 100%; }
 
-    .layout-constraint {
-        max-width: 98%;
-        margin: 0 auto;
-        width: 100%;
-    }
+/* ── Header ────────────────────────────────── */
+.cg-header {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--primary);
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.cg-header-title { flex: 1; min-width: 180px; }
+.cg-header-title h1 { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text); }
+.cg-badge { display: inline-block; background: var(--primary); color: #fff; font-size: .68rem;
+    font-weight: 700; padding: 2px 8px; margin-bottom: 5px; letter-spacing: .05em; text-transform: uppercase; }
+.cg-sub { font-size: .78rem; color: var(--muted); margin-top: 3px; }
 
-    .dashboard-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: var(--card-bg);
-        padding: 24px 32px;
-        border-radius: 6px;
-        border: 1px solid var(--border);
-        margin-bottom: 24px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        flex-wrap: wrap;
-        gap: 20px;
-    }
+/* ── KPI Cards ─────────────────────────────── */
+.cg-kpis { display: flex; gap: 1px; flex-wrap: wrap; flex: 2; justify-content: center;
+    background: var(--border); border: 1px solid var(--border); }
+.kpi-card {
+    background: var(--card);
+    padding: 12px 22px;
+    min-width: 130px;
+    text-align: center;
+    flex: 1;
+}
+.kpi-label { font-size: .68rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--muted); margin-bottom: 4px; }
+.kpi-value { font-size: 1.1rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.kpi-value.primary { color: var(--primary); }
+.kpi-value.positive { color: var(--positive); }
+.kpi-value.warning  { color: var(--warning); }
+.kpi-value.purple   { color: var(--purple); }
 
-    .header-identity {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        min-width: 200px;
-    }
+/* ── Actions ───────────────────────────────── */
+.cg-actions { display: flex; gap: 6px; }
+.btn-fi {
+    padding: 7px 14px; font-weight: 600;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+    font-size: .8rem; cursor: pointer; transition: all .12s; border: 1px solid transparent;
+    border-radius: 0;
+}
+.btn-fi-primary   { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-fi-primary:hover { background: var(--primary-dark); }
+.btn-fi-success   { background: var(--positive); color: #fff; border-color: var(--positive); }
+.btn-fi-danger    { background: #d93025; color: #fff; border-color: #d93025; }
+.btn-fi-outline   { background: #fff; color: var(--text); border-color: var(--border); }
+.btn-fi-outline:hover { background: var(--bg); border-color: #aaadaf; }
+.btn-fi-sm { padding: 3px 8px; font-size: .72rem; }
 
-    .header-identity h1 {
-        margin: 0;
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--text-main);
-        letter-spacing: -0.5px;
-    }
+/* ── Table ─────────────────────────────────── */
+.cg-table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+.cg-table-scroll { overflow-x: auto; }
+.cg-table { width: 100%; border-collapse: collapse; font-size: .81rem; white-space: nowrap; }
+.cg-table th {
+    background: #e8eaed;
+    color: #32363a;
+    padding: 9px 12px;
+    text-align: center;
+    font-weight: 600;
+    font-size: .7rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    border-bottom: 2px solid #c8cacf;
+    border-right: 1px solid #d4d5d8;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+.cg-table th.year-header {
+    background: #d0d4da;
+    color: #1d2d3e;
+    font-size: .72rem;
+    border-bottom: 1px solid #b8bcc2;
+}
+.cg-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #ebedef;
+    border-right: 1px solid #f0f1f3;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    vertical-align: middle;
+}
 
-    .badge-year {
-        background: var(--primary);
-        color: white;
-        font-size: 0.75rem;
-        font-weight: 700;
-        padding: 4px 10px;
-        border-radius: 4px;
-        width: fit-content;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
+/* Sticky first col */
+.col-concept {
+    position: sticky; left: 0; background: #fff; z-index: 5;
+    min-width: 280px; text-align: left !important;
+    border-right: 2px solid #d4d5d8 !important;
+    padding-left: 14px !important;
+}
+th.col-concept {
+    background: #e8eaed; z-index: 15;
+    border-right: 2px solid #b8bcc2 !important;
+    text-align: left !important;
+}
 
-    .header-stats {
-        display: flex;
-        align-items: center;
-        gap: 40px;
-        padding: 0 40px;
-        border-left: 1px solid var(--border);
-        border-right: 1px solid var(--border);
-        flex-grow: 1;
-        justify-content: center;
-    }
+/* Row types */
+.row-partition { background: #f0f2f4; cursor: pointer; transition: background .1s; }
+.row-partition:hover { background: #e6e8eb; }
+.row-partition td { font-weight: 700; color: var(--text); border-bottom: 1px solid #d4d5d8; }
+.row-item td { color: var(--text); background: #fff; }
+.row-item:hover td { background: #f7f9fc !important; }
+.row-item { display: none; }
+.row-item.visible { display: table-row; }
+.row-paid td     { background: #eaf4ff !important; color: #0a6ed1; font-size: .77rem; }
+.row-solicitado td { background: #fff5e6 !important; color: #c05700; font-size: .77rem; }
+.row-total-proyectado td { background: #d6e8f7; color: #0a3d6b; font-weight: 700; border-bottom: 2px solid #a8c8e8; }
+.row-total-solicitado td { background: #ede0f7; color: #4a1272; font-weight: 700; border-bottom: 2px solid #c9a8e8; }
 
-    .stat-item {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        align-items: flex-start;
-    }
+.val-proj { font-weight: 600; color: var(--primary); }
+.val-none { color: #bfc2c5; }
+.editable-cell { cursor: text; }
+.editable-cell:hover { background: #eaf4ff !important; }
+.editable-cell:focus { outline: 2px solid var(--primary); outline-offset: -1px; background: #fff !important; }
 
-    .stat-label {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: var(--text-muted);
-        font-weight: 600;
-    }
+/* Status badge for sub-rows */
+.sub-label {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: .7rem; font-weight: 600; padding: 1px 7px;
+    letter-spacing: .03em;
+}
+.sub-label.paid      { background: #d6ecff; color: #0a6ed1; }
+.sub-label.solicited { background: #ffe8cc; color: #c05700; }
+.sub-label.direct    { border: 1px dashed; }
 
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--text-main);
-        font-variant-numeric: tabular-nums;
-    }
+/* ── Modal ─────────────────────────────────── */
+.fi-modal { display: none; position: fixed; z-index: 1000; inset: 0;
+    background: rgba(29,45,62,.45); backdrop-filter: blur(2px);
+    align-items: center; justify-content: center; }
+.fi-modal.show { display: flex; }
+.fi-modal-box {
+    background: #fff; width: 90%; max-width: 480px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.15); animation: modalIn .18s ease-out;
+    padding: 24px 28px; border-top: 3px solid var(--primary);
+}
+@keyframes modalIn { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.fi-modal-title { font-size: 1rem; font-weight: 700; color: var(--text); margin: 0 0 16px; }
+.fi-form-group { margin-bottom: 14px; }
+.fi-form-group label { display: block; font-size: .75rem; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+.fi-form-group input, .fi-form-group select {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--border);
+    border-radius: 0; font-family: inherit; font-size: .88rem;
+    background: #fff; color: var(--text); transition: border .12s;
+}
+.fi-form-group input:focus, .fi-form-group select:focus {
+    outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(10,110,209,.1); }
+.fi-modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.fi-modal-close { position: absolute; top: 14px; right: 18px; background: none; border: none;
+    font-size: 1.3rem; color: var(--muted); cursor: pointer; }
 
-    .header-actions {
-        display: flex;
-        gap: 12px;
-    }
+/* ── Context Menu ──────────────────────────── */
+.fi-ctx { display: none; position: fixed; background: #fff; border: 1px solid var(--border);
+    box-shadow: 0 4px 16px rgba(0,0,0,.1); z-index: 9999; min-width: 160px; padding: 4px 0; }
+.fi-ctx-item { padding: 8px 14px; font-size: .82rem; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; color: var(--text); }
+.fi-ctx-item:hover { background: var(--bg); }
+.fi-ctx-item.danger { color: var(--danger); }
+.fi-ctx-item.danger:hover { background: #fff0f0; }
 
-    .matrix-container {
-        background: var(--card-bg);
-        border-radius: 8px;
-        border: 1px solid var(--border);
-        overflow: hidden;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-    }
-
-    .table-responsive {
-        overflow-x: auto;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-    }
-
-    th {
-        background: #1e293b;
-        color: #ffffff;
-        padding: 14px 10px;
-        text-align: center;
-        font-weight: 600;
-        border-bottom: 1px solid #334155;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-size: 0.75rem;
-        white-space: nowrap;
-    }
-
-    .sticky-col {
-        position: sticky;
-        left: 0;
-        background: #ffffff;
-        z-index: 20;
-        min-width: 320px;
-        text-align: left !important;
-        padding-left: 24px !important;
-        border-right: 1px solid #cbd5e1;
-        box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.05);
-    }
-
-    th.sticky-col {
-        background: #1e293b;
-        color: #ffffff;
-        z-index: 30;
-        border-right: 1px solid #334155;
-    }
-
-    .row-partition .sticky-col,
-    .row-item .sticky-col {
-        background-color: inherit !important;
-        color: inherit !important;
-    }
-
-    td {
-        padding: 12px 16px;
-        border-bottom: 1px solid var(--border);
-        text-align: center;
-        font-feature-settings: "tnum";
-        font-variant-numeric: tabular-nums;
-    }
-
-    .row-partition {
-        background-color: #f1f5f9;
-        font-weight: 700;
-        color: #1e293b;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-
-    .row-partition:hover {
-        background-color: #e2e8f0;
-    }
-
-    .row-item {
-        background-color: #ffffff;
-        display: none;
-    }
-
-    .row-item.visible {
-        display: table-row;
-    }
-
-    .row-item:hover td {
-        background-color: #f8fafc;
-    }
-
-    .btn {
-        background: var(--primary);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 4px;
-        text-decoration: none;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.2s;
-        border: none;
-        cursor: pointer;
-        font-size: 0.85rem;
-    }
-
-    .btn:hover {
-        opacity: 0.9;
-        transform: translateY(-1px);
-    }
-
-    .btn-outline {
-        background: white;
-        border: 1px solid #cbd5e1;
-        color: var(--text-main);
-    }
-
-    .btn-outline:hover {
-        background: #f8fafc;
-        border-color: #94a3b8;
-    }
-
-    /* Modal Styles */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(15, 23, 42, 0.6);
-        backdrop-filter: blur(4px);
-        align-items: center;
-        justify-content: center;
-    }
-
-    .modal.show {
-        display: flex;
-    }
-
-    .modal-content {
-        background-color: #ffffff;
-        padding: 32px;
-        width: 90%;
-        max-width: 450px;
-        border-radius: 8px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        animation: modalSlideIn 0.3s ease-out;
-    }
-
-    @keyframes modalSlideIn {
-        from {
-            transform: translateY(20px);
-            opacity: 0;
-        }
-
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-
-    .close-button {
-        color: #94a3b8;
-        float: right;
-        font-size: 24px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: color 0.2s;
-    }
-
-    .close-button:hover {
-        color: #0f172a;
-    }
-
-    .form-group {
-        margin-bottom: 20px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 500;
-        color: var(--text-muted);
-        font-size: 0.9rem;
-    }
-
-    .form-group input {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        font-family: inherit;
-        font-size: 1rem;
-        transition: border-color 0.2s;
-    }
-
-    .form-group input:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px var(--primary-glow);
-    }
-
-    .total-row {
-        background: #0f172a;
-        color: white;
-        font-weight: 700;
-    }
-
-    .total-row td {
-        border-top: none;
-    }
-
-    .editable-cell {
-        cursor: text;
-        transition: background-color 0.2s;
-    }
-
-    .editable-cell:hover {
-        background-color: #f1f5f9;
-    }
-
-    .editable-cell:focus {
-        background-color: #ffffff;
-        outline: 2px solid var(--primary);
-        outline-offset: -2px;
-    }
-
-    .val-positive {
-        font-weight: bold;
-        color: var(--primary);
-    }
-
-    .val-none {
-        color: #cbd5e1;
-    }
-
-    .editable-text {
-        cursor: text;
-        padding: 2px 4px;
-        border-radius: 4px;
-        transition: background-color 0.2s;
-        min-width: 50px;
-        display: inline-block;
-    }
-
-    .editable-text:hover {
-        background-color: #f1f5f9;
-        color: var(--primary);
-    }
-
-    .editable-text:focus {
-        background-color: #ffffff;
-        outline: 2px solid var(--primary);
-        outline-offset: -1px;
-        color: var(--text-main);
-    }
-
-    /* Context Menu Styles */
-    .custom-context-menu {
-        display: none;
-        position: fixed;
-        background: white;
-        border: 1px solid var(--border);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        z-index: 10000;
-        min-width: 150px;
-        border-radius: 6px;
-        overflow: hidden;
-        padding: 4px 0;
-    }
-
-    .context-menu-item {
-        padding: 8px 16px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.85rem;
-        color: var(--text-main);
-        transition: background 0.2s;
-    }
-
-    .context-menu-item:hover {
-        background: #f1f5f9;
-        color: var(--primary);
-    }
-
-    .context-menu-item.danger {
-        color: #ef4444;
-    }
-
-    .context-menu-item.danger:hover {
-        background: #fee2e2;
-    }
-
-    /* Excluded Cell Styles */
-    .excluded-cell {
-        background-color: #fee2e2 !important;
-        color: #b91c1c !important;
-        text-decoration: line-through;
-        opacity: 0.6;
-    }
+/* ── Toast ─────────────────────────────────── */
+#cg-toast { position: fixed; bottom: 20px; right: 20px; background: var(--positive);
+    color: #fff; padding: 10px 20px;
+    transform: translateY(70px); transition: transform .25s; z-index: 9999;
+    font-weight: 600; font-size: .85rem; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
 </style>
 {% endblock %}
 
-{% block extrahead %}
-{{ block.super }}
+{% block extrahead %}{{ block.super }}
 <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" type="module"></script>
 <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" nomodule></script>
 {% endblock %}
@@ -434,631 +218,556 @@
 {% endblock %}
 
 {% block content %}
-<div class="layout-constraint">
-    <div class="dashboard-header">
-        <div class="header-identity">
-            <div class="badge-year">Año {{ presupuesto.anio }}</div>
-            <h1>{{ presupuesto.nombre }}</h1>
-            <div style="font-size: 0.85rem; color: var(--text-muted);">
-                Moneda: <strong>{{ presupuesto.moneda }}</strong>
-            </div>
-        </div>
+<div class="cg-layout">
 
-        <div class="header-stats">
-            <div class="stat-item">
-                <span class="stat-label">Proyectado</span>
-                <span class="stat-value val-money">{{ total_general_proyectado|stringformat:".2f" }}</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Ejecutado</span>
-                <span class="stat-value val-money">{{ total_general_ejecutado|stringformat:".2f" }}</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Ejecución</span>
-                <span class="stat-value"
-                    style="color: {% if total_general_ejecutado > total_general_proyectado %}#ef4444{% else %}#10b981{% endif %};">
-                    {% if total_general_proyectado > 0 %}
-                    {{ total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%
-                    {% else %}0%{% endif %}
-                </span>
-            </div>
-        </div>
+<!-- ── HEADER ────────────────────────────────────────────── -->
+<div class="cg-header">
+    <div class="cg-header-title">
+        <span class="cg-badge">Año {{ presupuesto.anio }}</span>
+        <h1>{{ presupuesto.nombre }}</h1>
+        <div class="cg-sub">Moneda: <strong>{{ presupuesto.moneda }}</strong></div>
+    </div>
 
-        <div class="header-actions">
-            <a href="{% url 'presupuestos:exportar_pdf' presupuesto.id %}" class="btn" style="background: #ef4444;">
-                <ion-icon name="document-text-outline"></ion-icon> PDF
-            </a>
-            <a href="{% url 'presupuestos:exportar_excel' presupuesto.id %}" class="btn" style="background: #10b981;">
-                <ion-icon name="document-text-outline"></ion-icon> Excel
-            </a>
-            <button onclick="window.print()" class="btn btn-outline">
-                <ion-icon name="print-outline"></ion-icon> Imprimir
-            </button>
+    <div class="cg-kpis">
+        <div class="kpi-card">
+            <div class="kpi-label">Proyectado</div>
+            <div class="kpi-value primary val-money">{{ total_general_proyectado|stringformat:".2f" }}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Ejecutado</div>
+            <div class="kpi-value positive val-money">{{ total_general_ejecutado|stringformat:".2f" }}</div>
+        </div>
+        {% if total_general_solicitado > 0 %}
+        <div class="kpi-card">
+            <div class="kpi-label">Solicitado</div>
+            <div class="kpi-value warning val-money">{{ total_general_solicitado|stringformat:".2f" }}</div>
+        </div>
+        {% endif %}
+        <div class="kpi-card">
+            <div class="kpi-label">Ejecución %</div>
+            <div class="kpi-value" style="color:{% if total_general_ejecutado > total_general_proyectado %}var(--danger){% else %}var(--positive){% endif %};">
+                {% if total_general_proyectado > 0 %}{{ total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%{% else %}0%{% endif %}
+            </div>
         </div>
     </div>
 
-    <div class="matrix-container">
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th class="sticky-col">
-                            <div
-                                style="display: flex; justify-content: space-between; align-items: center; padding-right: 8px;">
-                                <span>Disciplina / Item</span>
-                                <button onclick="openPartidaModal()" class="btn"
-                                    style="padding: 6px 12px; font-size: 0.7rem; background: #3b82f6; border: none; color: white; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
-                                    <ion-icon name="add-circle-outline"></ion-icon> Nueva Partida
-                                </button>
-                            </div>
-                        </th>
-                        {% for mes in meses_nombres %}
-                        <th>{{ mes|truncatechars:3 }}</th>
-                        {% endfor %}
-                        <th>TOTAL</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for pd in partidas_data %}
-                    <tr class="row-partition" onclick="toggleRows('items-{{ forloop.counter }}', this)">
-                        <td class="sticky-col">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="toggle-icon"
-                                    style="font-size: 0.7rem; transition: transform 0.2s;">▶</span>
-                                <ion-icon name="folder-outline"></ion-icon>
-                                {{ pd.disciplina }}
-                                <div style="display: flex; gap: 4px; margin-left: 8px;">
-                                    <button
-                                        onclick="event.stopPropagation(); openModal('{{ pd.partida.id }}', '{{ pd.disciplina }}')"
-                                        style="background: #e2e8f0; border: none; border-radius: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b;"
-                                        title="Agregar Item Nuevo">
-                                        <ion-icon name="add-outline"></ion-icon>
-                                    </button>
-                                    <button
-                                        onclick="event.stopPropagation(); deletePartida('{{ pd.partida.id }}', '{{ pd.disciplina|escapejs }}')"
-                                        style="background: #fee2e2; border: none; border-radius: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #ef4444;"
-                                        title="Eliminar Partida">
-                                        <ion-icon name="trash-outline" style="font-size: 0.8rem;"></ion-icon>
-                                    </button>
-                                </div>
-                            </div>
-                        </td>
-                        {% for val in pd.proyeccion_total_mensual %}
-                        <td class="val-month-pd" data-month="{{ forloop.counter }}">
-                            {% if val > 0 %}
-                            <span class="val-positive val-money">{{val|stringformat:".2f"}}</span>
-                            {% else %}
-                            <span class="val-none">-</span>
-                            {% endif %}
-                        </td>
-                        {% endfor %}
-                        <td class="val-money total-annual-pd">{{ pd.total_proyectado|stringformat:".2f" }}</td>
-                    </tr>
+    <div class="cg-actions">
+        <a href="{% url 'presupuestos:exportar_pdf' presupuesto.id %}" class="btn-fi btn-fi-danger">
+            <ion-icon name="document-text-outline"></ion-icon> PDF
+        </a>
+        <a href="{% url 'presupuestos:exportar_excel' presupuesto.id %}" class="btn-fi btn-fi-success">
+            <ion-icon name="document-text-outline"></ion-icon> Excel
+        </a>
+        <button onclick="openPartidaModal()" class="btn-fi btn-fi-primary">
+            <ion-icon name="add-circle-outline"></ion-icon> Nueva Partida
+        </button>
+        <button onclick="window.print()" class="btn-fi btn-fi-outline">
+            <ion-icon name="print-outline"></ion-icon>
+        </button>
+    </div>
+</div>
 
-                    {% for item in pd.items %}
-                    <tr class="row-item group-items-{{ forloop.parentloop.counter }}">
-                        <td class="sticky-col"
-                            style="padding-left: 48px !important; color: var(--text-main); font-size: 0.85rem; font-weight: 500;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span>{{ item.concepto }}</span>
-                                {% if item.id %}
-                                <div style="display: flex; gap: 4px;">
-                                    <button onclick="openEditItemModal('{{ item.id }}', '{{ item.concepto|escapejs }}')"
-                                        style="background: transparent; border: none; cursor: pointer; color: #cbd5e1; padding: 4px;"
-                                        onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#cbd5e1'"
-                                        title="Editar Nombre">
-                                        <ion-icon name="create-outline"></ion-icon>
-                                    </button>
-                                    <button onclick="deleteItem('{{ item.id }}')"
-                                        style="background: transparent; border: none; cursor: pointer; color: #cbd5e1; padding: 4px;"
-                                        onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'"
-                                        title="Eliminar Item">
-                                        <ion-icon name="trash-bin-outline"></ion-icon>
-                                    </button>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </td>
-                        {% for val in item.proyeccion %}
-                        <td class="editable-cell" data-item-id="{{ item.id }}" data-month="{{ forloop.counter }}"
-                            contenteditable="true" onblur="saveMonto(this)" onkeydown="handleEnter(event, this)">
-                            {{val|stringformat:".2f"}}
-                        </td>
-                        {% endfor %}
-                        <td id="total-item-{{ item.id }}" class="val-money" style="font-weight: 600;">
-                            {{ item.total_anual|stringformat:".2f" }}
-                        </td>
-                    </tr>
-                    <!-- Fila de Ejecución (Trazabilidad de Pagos) -->
-                    <tr class="row-item row-paid group-items-{{ forloop.parentloop.counter }}" 
-                        style="background-color: #f0f7ff; font-size: 0.75rem; color: #3b82f6; border-bottom: 2px solid #e0f0ff;">
-                        <td class="sticky-col" style="padding-left: 64px !important; background-color: #f0f7ff !important;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <ion-icon name="card-outline" style="font-size: 0.9rem;"></ion-icon>
-                                <span>Pagado</span>
-                            </div>
-                        </td>
-                        {% for pval in item.ejecucion %}
-                        <td style="background-color: #f0f7ff; font-weight: 500;">
-                            {% if pval > 0 %}
-                            <span class="val-money">{{ pval|stringformat:".2f" }}</span>
-                            {% else %}
-                            <span style="color: #cbd5e1;">-</span>
-                            {% endif %}
-                        </td>
-                        {% endfor %}
-                        <td style="background-color: #f0f7ff; font-weight: 700;" class="val-money">
-                            {{ item.total_ejecutado_anual|stringformat:".2f" }}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% endfor %}
-
-                    <tr class="total-row">
-                        <td class="sticky-col" style="background: #0f172a; color: white;">TOTAL MENSUAL</td>
-                        {% for proj in global_proyectado_mes %}
-                        <td id="total-col-{{ forloop.counter }}" class="val-money">
-                            {{ proj|stringformat:".2f" }}
-                        </td>
-                        {% endfor %}
-                        <td id="total-grand" class="val-money">{{ total_general_proyectado|stringformat:".2f" }}</td>
-                    </tr>
-                </tbody>
-            </table>
+<!-- ── TABLE ─────────────────────────────────────────────── -->
+<div class="cg-table-wrap">
+<div class="cg-table-scroll">
+<table class="cg-table">
+<thead>
+    <!-- Row 1: Year groups -->
+    <tr>
+        <th class="col-concept" rowspan="2">
+            Disciplina / Item
+        </th>
+        {% for anio, meses_grupo in periodo_cols|group_by_year %}
+        <th class="year-header" colspan="{{ meses_grupo|length }}">{{ anio }}</th>
+        {% endfor %}
+        <th rowspan="2">TOTAL</th>
+    </tr>
+    <!-- Row 2: Month labels -->
+    <tr>
+        {% for anio, mes, label in periodo_cols %}
+        <th>{{ label|slice:":3" }}</th>
+        {% endfor %}
+    </tr>
+</thead>
+<tbody>
+{% for pd in partidas_data %}
+<!-- ── PARTITION ROW ── -->
+<tr class="row-partition" onclick="toggleRows('grp-{{ forloop.counter }}', this)">
+    <td class="col-concept">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span class="toggle-icon" style="font-size:.7rem;transition:transform .2s;color:var(--muted);">▶</span>
+            <ion-icon name="folder-outline" style="color:var(--muted);flex-shrink:0;"></ion-icon>
+            <span>{{ pd.disciplina }}</span>
+            <div style="display:flex;gap:4px;margin-left:8px;">
+                <button onclick="event.stopPropagation();openEditPartidaModal('{{ pd.partida.id }}','{{ pd.disciplina|escapejs }}','{{ pd.partida.descripcion|escapejs }}','{{ pd.partida.monto_proyectado }}','{{ pd.partida.disciplina.id|default:'' }}')"
+                    class="btn-fi btn-fi-outline btn-fi-sm" title="Editar Partida">
+                    <ion-icon name="create-outline"></ion-icon>
+                </button>
+                <button onclick="event.stopPropagation();openModal('{{ pd.partida.id }}','{{ pd.disciplina }}')"
+                    class="btn-fi btn-fi-primary btn-fi-sm" title="Agregar Ítem">
+                    <ion-icon name="add-outline"></ion-icon>
+                </button>
+                <button onclick="event.stopPropagation();deletePartida('{{ pd.partida.id }}','{{ pd.disciplina|escapejs }}')"
+                    class="btn-fi btn-fi-danger btn-fi-sm" title="Eliminar Partida">
+                    <ion-icon name="trash-outline"></ion-icon>
+                </button>
+            </div>
         </div>
-    </div>
-</div>
+    </td>
+    {% for val in pd.proyeccion_total_mensual %}
+    <td class="val-month-pd" data-month="{{ forloop.counter }}">
+        {% if val > 0 %}<span class="val-proj val-money">{{ val|stringformat:".2f" }}</span>
+        {% else %}<span class="val-none">—</span>{% endif %}
+    </td>
+    {% endfor %}
+    <td class="val-money total-annual-pd" style="font-weight:700;">{{ pd.total_proyectado|stringformat:".2f" }}</td>
+</tr>
 
-<div id="toast"
-    style="position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 12px 24px; border-radius: 4px; transform: translateY(100px); transition: transform 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100;">
-    Guardado correctamente
-</div>
-
-<div id="addItemModal" class="modal">
-    <div class="modal-content">
-        <span class="close-button" onclick="closeModal()">&times;</span>
-        <h2 style="margin-top: 0; margin-bottom: 16px;">Nuevo Item</h2>
-        <div style="margin-bottom: 20px; color: var(--text-muted);">
-            Agregando a: <strong id="modalPartidaName" style="color: var(--text-main);"></strong>
+{% for item in pd.items %}
+<!-- item row -->
+<tr class="row-item group-grp-{{ forloop.parentloop.counter }}">
+    <td class="col-concept" style="padding-left:40px !important;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span>{{ item.concepto }}</span>
+            {% if item.id %}
+            <div style="display:flex;gap:3px;">
+                <button onclick="openEditItemModal('{{ item.id }}','{{ item.concepto|escapejs }}')"
+                    style="background:none;border:none;cursor:pointer;color:#a0aec0;padding:2px;"
+                    onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='#a0aec0'" title="Editar">
+                    <ion-icon name="create-outline"></ion-icon>
+                </button>
+                <button onclick="deleteItem('{{ item.id }}')"
+                    style="background:none;border:none;cursor:pointer;color:#a0aec0;padding:2px;"
+                    onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='#a0aec0'" title="Eliminar">
+                    <ion-icon name="trash-bin-outline"></ion-icon>
+                </button>
+            </div>
+            {% endif %}
         </div>
-        <form id="addItemForm" onsubmit="submitNewItem(event)">
-            <input type="hidden" id="modalPartidaId" name="partida_id">
-            <div class="form-group">
-                <label for="concepto">Concepto / Nombre del Item</label>
-                <input type="text" id="concepto" name="concepto" required placeholder="Ej. Gastos de Logística"
-                    autocomplete="off">
-            </div>
-            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
-                <button type="button" class="btn btn-outline" onclick="closeModal()"
-                    style="color: var(--text-main);">Cancelar</button>
-                <button type="submit" class="btn">Crear Item</button>
-            </div>
-        </form>
+    </td>
+    {% for val in item.proyeccion %}
+    <td class="editable-cell" data-item-id="{{ item.id }}"
+        data-month="{{ forloop.counter }}"
+        data-anio="{{ periodo_cols|col_anio:forloop.counter }}"
+        contenteditable="true" onblur="saveMonto(this)" onkeydown="handleEnter(event,this)">
+        {{ val|stringformat:".2f" }}
+    </td>
+    {% endfor %}
+    <td id="total-item-{{ item.id }}" style="font-weight:600;" class="val-money">{{ item.total_anual|stringformat:".2f" }}</td>
+</tr>
+<!-- paid row -->
+<tr class="row-item row-paid group-grp-{{ forloop.parentloop.counter }}">
+    <td class="col-concept" style="padding-left:56px !important;">
+        <span class="sub-label paid"><ion-icon name="checkmark-circle-outline"></ion-icon> Pagado</span>
+    </td>
+    {% for pval in item.ejecucion %}
+    <td>{% if pval > 0 %}<span class="val-money">{{ pval|stringformat:".2f" }}</span>{% else %}<span style="color:#d1d5db;">—</span>{% endif %}</td>
+    {% endfor %}
+    <td class="val-money" style="font-weight:700;">{{ item.total_ejecutado_anual|stringformat:".2f" }}</td>
+</tr>
+<!-- solicited row -->
+{% if item.total_solicitado_anual > 0 %}
+<tr class="row-item row-solicitado group-grp-{{ forloop.parentloop.counter }}">
+    <td class="col-concept" style="padding-left:56px !important;">
+        <span class="sub-label solicited"><ion-icon name="time-outline"></ion-icon> Solicitado</span>
+    </td>
+    {% for sval in item.ejecucion_solicitado %}
+    <td>{% if sval > 0 %}<span class="val-money">{{ sval|stringformat:".2f" }}</span>{% else %}<span style="color:#f3d9a8;">—</span>{% endif %}</td>
+    {% endfor %}
+    <td class="val-money" style="font-weight:700;">{{ item.total_solicitado_anual|stringformat:".2f" }}</td>
+</tr>
+{% endif %}
+{% endfor %}
+
+<!-- direct partition payments -->
+{% if pd.total_partida_pagado > 0 %}
+<tr class="row-item row-paid group-grp-{{ forloop.counter }}">
+    <td class="col-concept" style="padding-left:40px !important;">
+        <span class="sub-label paid direct"><ion-icon name="checkmark-circle-outline"></ion-icon> Pagado (directo)</span>
+    </td>
+    {% for pval in pd.partida_pagado %}
+    <td>{% if pval > 0 %}<span class="val-money">{{ pval|stringformat:".2f" }}</span>{% else %}<span style="color:#d1d5db;">—</span>{% endif %}</td>
+    {% endfor %}
+    <td class="val-money" style="font-weight:700;">{{ pd.total_partida_pagado|stringformat:".2f" }}</td>
+</tr>
+{% endif %}
+{% if pd.total_partida_solicitado > 0 %}
+<tr class="row-item row-solicitado group-grp-{{ forloop.counter }}">
+    <td class="col-concept" style="padding-left:40px !important;">
+        <span class="sub-label solicited direct"><ion-icon name="time-outline"></ion-icon> Solicitado (directo)</span>
+    </td>
+    {% for sval in pd.partida_solicitado %}
+    <td>{% if sval > 0 %}<span class="val-money">{{ sval|stringformat:".2f" }}</span>{% else %}<span style="color:#f3d9a8;">—</span>{% endif %}</td>
+    {% endfor %}
+    <td class="val-money" style="font-weight:700;">{{ pd.total_partida_solicitado|stringformat:".2f" }}</td>
+</tr>
+{% endif %}
+{% endfor %}
+
+<!-- ── TOTAL PROYECTADO ── -->
+<tr class="row-total-proyectado">
+    <td class="col-concept" style="background:#1e2d3d;color:#fff;font-size:.8rem;letter-spacing:.04em;">
+        TOTAL PROYECTADO
+    </td>
+    {% for val in global_proyectado_mes %}
+    <td id="total-col-{{ forloop.counter }}" class="val-money">
+        {% if val > 0 %}{{ val|stringformat:".2f" }}{% else %}—{% endif %}
+    </td>
+    {% endfor %}
+    <td id="total-grand" class="val-money">{{ total_general_proyectado|stringformat:".2f" }}</td>
+</tr>
+
+{% if total_general_solicitado > 0 %}
+<tr class="row-total-solicitado">
+    <td class="col-concept" style="background:#5a1e8a;color:#f3e8ff;font-size:.8rem;letter-spacing:.04em;">
+        <div style="display:flex;align-items:center;gap:6px;">
+            <ion-icon name="time-outline"></ion-icon> TOTAL SOLICITADO
+        </div>
+    </td>
+    {% for sval in global_solicitado_mes %}
+    <td class="val-money">{% if sval > 0 %}{{ sval|stringformat:".2f" }}{% else %}—{% endif %}</td>
+    {% endfor %}
+    <td class="val-money">{{ total_general_solicitado|stringformat:".2f" }}</td>
+</tr>
+{% endif %}
+
+</tbody>
+</table>
+</div>
+</div><!-- /cg-table-wrap -->
+</div><!-- /cg-layout -->
+
+<div id="cg-toast"></div>
+
+<!-- ══ MODALS ══════════════════════════════════════════════ -->
+<div id="addItemModal" class="fi-modal">
+  <div class="fi-modal-box" style="position:relative;">
+    <button class="fi-modal-close" onclick="closeModal()">×</button>
+    <p class="fi-modal-title">Nuevo Ítem</p>
+    <div style="margin-bottom:16px;font-size:.85rem;color:var(--muted);">
+        Partida: <strong id="modalPartidaName" style="color:var(--text);"></strong>
     </div>
+    <form onsubmit="submitNewItem(event)">
+        <input type="hidden" id="modalPartidaId">
+        <div class="fi-form-group">
+            <label>Concepto / Nombre</label>
+            <input type="text" id="concepto" required placeholder="Ej. Gastos de Logística" autocomplete="off">
+        </div>
+        <div class="fi-modal-footer">
+            <button type="button" class="btn-fi btn-fi-outline" onclick="closeModal()">Cancelar</button>
+            <button type="submit" class="btn-fi btn-fi-primary">Crear Ítem</button>
+        </div>
+    </form>
+  </div>
 </div>
 
-<div id="editItemModal" class="modal">
-    <div class="modal-content">
-        <span class="close-button" onclick="closeEditItemModal()">&times;</span>
-        <h2 style="margin-top: 0; margin-bottom: 16px;">Editar Item</h2>
-        <form id="editItemForm" onsubmit="submitEditItem(event)">
-            <input type="hidden" id="editItemId" name="item_id">
-            <div class="form-group">
-                <label for="editConcepto">Nombre del Item</label>
-                <input type="text" id="editConcepto" name="concepto" required autocomplete="off">
-            </div>
-            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
-                <button type="button" class="btn btn-outline" onclick="closeEditItemModal()"
-                    style="color: var(--text-main);">Cancelar</button>
-                <button type="submit" class="btn">Guardar Cambios</button>
-            </div>
-        </form>
-    </div>
+<div id="editItemModal" class="fi-modal">
+  <div class="fi-modal-box" style="position:relative;">
+    <button class="fi-modal-close" onclick="closeEditItemModal()">×</button>
+    <p class="fi-modal-title">Editar Ítem</p>
+    <form onsubmit="submitEditItem(event)">
+        <input type="hidden" id="editItemId">
+        <div class="fi-form-group">
+            <label>Nombre del Ítem</label>
+            <input type="text" id="editConcepto" required autocomplete="off">
+        </div>
+        <div class="fi-modal-footer">
+            <button type="button" class="btn-fi btn-fi-outline" onclick="closeEditItemModal()">Cancelar</button>
+            <button type="submit" class="btn-fi btn-fi-primary">Guardar</button>
+        </div>
+    </form>
+  </div>
 </div>
 
-<div id="addPartidaModal" class="modal">
-    <div class="modal-content">
-        <span class="close-button" onclick="closePartidaModal()">&times;</span>
-        <h2 style="margin-top: 0; margin-bottom: 16px;">Nueva Partida / Categoría</h2>
-        <p style="margin-bottom: 20px; color: var(--text-muted);">Crear un nuevo agrupador para presupuesto.</p>
-        <form id="addPartidaForm" onsubmit="submitNewPartida(event)">
-            <div class="form-group">
-                <label for="partidaNombre">Nombre de la Partida</label>
-                <input type="text" id="partidaNombre" name="nombre" required placeholder="Ej. Imprevistos, Logística..."
-                    autocomplete="off">
-            </div>
-            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
-                <button type="button" class="btn btn-outline" onclick="closePartidaModal()"
-                    style="color: var(--text-main);">Cancelar</button>
-                <button type="submit" class="btn">Crear Partida</button>
-            </div>
-        </form>
-    </div>
+<div id="addPartidaModal" class="fi-modal">
+  <div class="fi-modal-box" style="position:relative;">
+    <button class="fi-modal-close" onclick="closePartidaModal()">×</button>
+    <p class="fi-modal-title">Nueva Partida</p>
+    <form onsubmit="submitNewPartida(event)">
+        <div class="fi-form-group">
+            <label>Nombre de la Partida</label>
+            <input type="text" id="partidaNombre" required placeholder="Ej. Imprevistos" autocomplete="off">
+        </div>
+        <div class="fi-modal-footer">
+            <button type="button" class="btn-fi btn-fi-outline" onclick="closePartidaModal()">Cancelar</button>
+            <button type="submit" class="btn-fi btn-fi-primary">Crear</button>
+        </div>
+    </form>
+  </div>
 </div>
 
-<div id="customContextMenu" class="custom-context-menu">
-    <div class="context-menu-item danger" onclick="toggleExclusion()">
+<div id="editPartidaModal" class="fi-modal">
+  <div class="fi-modal-box" style="position:relative;">
+    <button class="fi-modal-close" onclick="closeEditPartidaModal()">×</button>
+    <p class="fi-modal-title">Editar Partida</p>
+    <form onsubmit="submitEditPartida(event)">
+        <input type="hidden" id="editPartidaId">
+        <div class="fi-form-group">
+            <label>Disciplina</label>
+            <select id="editPartidaDisciplina">
+                <option value="">— Sin disciplina —</option>
+            </select>
+        </div>
+        <div class="fi-form-group">
+            <label>Descripción / Referencia</label>
+            <input type="text" id="editPartidaDescripcion" placeholder="Referencia o nota" autocomplete="off">
+        </div>
+        <div class="fi-form-group">
+            <label>Monto Proyectado</label>
+            <input type="number" id="editPartidaMonto" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="fi-modal-footer">
+            <button type="button" class="btn-fi btn-fi-outline" onclick="closeEditPartidaModal()">Cancelar</button>
+            <button type="submit" class="btn-fi btn-fi-primary">Guardar Cambios</button>
+        </div>
+    </form>
+  </div>
+</div>
+
+<div id="fi-ctx" class="fi-ctx">
+    <div class="fi-ctx-item danger" onclick="toggleExclusion()">
         <ion-icon name="close-circle-outline"></ion-icon>
         <span id="labelExcluir">EXCLUIR</span>
     </div>
 </div>
 
 <script>
-    const modalItem = document.getElementById("addItemModal");
-    const modalEditItem = document.getElementById("editItemModal");
+// ── Helpers ─────────────────────────────────────────────
+function pf(s){if(!s||String(s).trim()==='-'||String(s).trim()==='—'||String(s).trim()==='')return 0;return parseFloat(String(s).replace(/,/g,'').trim())||0;}
+function fmt(n){return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function showToast(msg,type='success'){
+    const t=document.getElementById('cg-toast');
+    t.innerText=msg;
+    t.style.background=type==='success'?'#107e3e':'#bb0000';
+    t.style.transform='translateY(0)';
+    setTimeout(()=>t.style.transform='translateY(80px)',3000);
+}
 
-    function openModal(partidaId, partidaName) {
-        document.getElementById('modalPartidaId').value = partidaId;
-        document.getElementById('modalPartidaName').innerText = partidaName;
-        document.getElementById('concepto').value = '';
-        modalItem.classList.add('show');
-        setTimeout(() => document.getElementById('concepto').focus(), 100);
-    }
-
-    function closeModal() {
-        modalItem.classList.remove('show');
-    }
-
-    function openEditItemModal(itemId, currentName) {
-        document.getElementById('editItemId').value = itemId;
-        document.getElementById('editConcepto').value = currentName;
-        modalEditItem.classList.add('show');
-        setTimeout(() => document.getElementById('editConcepto').focus(), 100);
-    }
-
-    function closeEditItemModal() {
-        modalEditItem.classList.remove('show');
-    }
-
-    function submitEditItem(e) {
-        e.preventDefault();
-        const itemId = document.getElementById('editItemId').value;
-        const concepto = document.getElementById('editConcepto').value;
-        const csrfToken = '{{ csrf_token }}';
-
-        if (!itemId || !concepto) return;
-
-        fetch('{% url "presupuestos:api_update_item" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({ item_id: itemId, concepto: concepto })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    showToast('Item actualizado');
-                    window.location.reload();
-                } else {
-                    showToast('Error al actualizar', 'error');
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                showToast('Error de conexión', 'error');
-            });
-    }
-
-    const modalPartida = document.getElementById("addPartidaModal");
-
-    function openPartidaModal() {
-        document.getElementById('partidaNombre').value = '';
-        modalPartida.classList.add('show');
-        setTimeout(() => document.getElementById('partidaNombre').focus(), 100);
-    }
-
-    function closePartidaModal() {
-        modalPartida.classList.remove('show');
-    }
-
-    window.onclick = function (event) {
-        if (event.target == modalItem) closeModal();
-        if (event.target == modalPartida) closePartidaModal();
-        if (event.target == modalEditItem) closeEditItemModal();
-    }
-
-    function submitNewItem(e) {
-        e.preventDefault();
-        const partidaId = document.getElementById('modalPartidaId').value;
-        const concepto = document.getElementById('concepto').value;
-        const csrfToken = '{{ csrf_token }}';
-
-        if (!concepto) return;
-
-        fetch('{% url "presupuestos:api_create_item" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({ partida_id: partidaId, concepto: concepto })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Error de conexión');
-            });
-    }
-
-    function submitNewPartida(e) {
-        e.preventDefault();
-        const nombre = document.getElementById('partidaNombre').value;
-        const presupuestoId = '{{ presupuesto.id }}';
-        const csrfToken = '{{ csrf_token }}';
-
-        if (!nombre) return;
-
-        fetch('{% url "presupuestos:api_create_partida" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({ presupuesto_id: presupuestoId, nombre: nombre })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Error de conexión');
-            });
-    }
-
-    function parseLocalFloat(str) {
-        if (!str || str.trim() === '-' || str.trim() === '') return 0;
-        let clean = str.toString().replace(/,/g, '').trim();
-        return parseFloat(clean) || 0;
-    }
-
-    function formatLocal(num) {
-        return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    let activeCell = null;
-    const contextMenu = document.getElementById('customContextMenu');
-
-    document.addEventListener('contextmenu', function (e) {
-        const cell = e.target.closest('td');
-        if (cell && (cell.classList.contains('editable-cell') || cell.classList.contains('val-month-pd'))) {
-            e.preventDefault();
-            activeCell = cell;
-            contextMenu.style.display = 'block';
-            contextMenu.style.left = e.pageX + 'px';
-            contextMenu.style.top = e.pageY + 'px';
-
-            const label = document.getElementById('labelExcluir');
-            if (cell.classList.contains('excluded-cell')) {
-                label.innerText = 'REINCLUIR';
-            } else {
-                label.innerText = 'EXCLUIR';
-            }
-        } else {
-            contextMenu.style.display = 'none';
-        }
+// ── Toggle rows ─────────────────────────────────────────
+function toggleRows(gid,el){
+    const rows=document.querySelectorAll('.group-'+gid);
+    const icon=el.querySelector('.toggle-icon');
+    const show=rows.length>0&&!rows[0].classList.contains('visible');
+    rows.forEach(r=>{
+        r.style.display=show?'table-row':'none';
+        r.classList.toggle('visible',show);
     });
+    if(icon){icon.style.transform=show?'rotate(90deg)':'rotate(0deg)';icon.innerHTML=show?'▼':'▶';}
+}
 
-    document.addEventListener('click', function () {
-        contextMenu.style.display = 'none';
-    });
+// ── Save monto ───────────────────────────────────────────
+function saveMonto(el){
+    const itemId=el.getAttribute('data-item-id');
+    const month=el.getAttribute('data-month');
+    const anio=el.getAttribute('data-anio');
+    let val=pf(el.innerText);
+    el.innerText=fmt(val);
+    fetch('{% url "presupuestos:api_update_monto" %}',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+        body:JSON.stringify({item_id:itemId,mes:month,monto:val,anio:anio||null})
+    }).then(r=>r.json()).then(d=>{
+        if(d.status==='ok'){
+            showToast('Guardado');
+            const te=document.getElementById('total-item-'+itemId);
+            if(te)te.innerText=fmt(parseFloat(d.new_total));
+            recalculateTotals();
+        }else showToast('Error: '+d.message,'error');
+    }).catch(()=>showToast('Error de conexión','error'));
+}
+function handleEnter(e,el){if(e.key==='Enter'){e.preventDefault();el.blur();}}
 
-    function toggleExclusion() {
-        if (!activeCell) return;
-        activeCell.classList.toggle('excluded-cell');
-        recalculateTotals();
-        contextMenu.style.display = 'none';
-    }
-
-    function recalculateTotals() {
-        let globalMonthly = new Array(12).fill(0);
-        let grandTotal = 0;
-
-        const partitions = document.querySelectorAll('.row-partition');
-        partitions.forEach(part => {
-            let partMonthly = new Array(12).fill(0);
-            let partAnnual = 0;
-            const onclickText = part.getAttribute('onclick');
-            const groupId = onclickText.match(/'([^']+)'/)[1];
-            const items = document.querySelectorAll('.group-' + groupId);
-
-            items.forEach(itemRow => {
-                let itemAnnual = 0;
-                const cells = itemRow.querySelectorAll('.editable-cell');
-                cells.forEach(cell => {
-                    const val = parseLocalFloat(cell.innerText);
-                    if (!cell.classList.contains('excluded-cell')) {
-                        const m = parseInt(cell.getAttribute('data-month')) - 1;
-                        partMonthly[m] += val;
-                        itemAnnual += val;
-                    }
-                });
-                const totalItemCell = itemRow.querySelector('[id^="total-item-"]');
-                if (totalItemCell) totalItemCell.innerText = formatLocal(itemAnnual);
-            });
-
-            const partCells = part.querySelectorAll('.val-month-pd');
-            partCells.forEach((cell, i) => {
-                const valSpan = cell.querySelector('.val-positive, .val-none');
-                if (valSpan) {
-                    if (partMonthly[i] > 0) {
-                        valSpan.className = 'val-positive val-money';
-                        valSpan.innerText = formatLocal(partMonthly[i]);
-                    } else {
-                        valSpan.className = 'val-none';
-                        valSpan.innerText = '-';
-                    }
-                }
-                if (!cell.classList.contains('excluded-cell')) {
-                    partAnnual += partMonthly[i];
-                    globalMonthly[i] += partMonthly[i];
+// ── Recalculate totals ───────────────────────────────────
+function recalculateTotals(){
+    const nCols=document.querySelectorAll('.cg-table thead tr:last-child th').length;
+    let globalMonthly=new Array(nCols).fill(0);
+    let grandTotal=0;
+    document.querySelectorAll('.row-partition').forEach(part=>{
+        let partMonthly=new Array(nCols).fill(0);
+        let partAnnual=0;
+        const onclickAttr=part.getAttribute('onclick')||'';
+        const m=onclickAttr.match(/'([^']+)'/);
+        if(!m)return;
+        const gid=m[1];
+        document.querySelectorAll('.group-'+gid).forEach(row=>{
+            row.querySelectorAll('.editable-cell').forEach(cell=>{
+                const val=pf(cell.innerText);
+                const mi=parseInt(cell.getAttribute('data-month'))-1;
+                if(!cell.classList.contains('excluded-cell')){
+                    partMonthly[mi]+=val;
                 }
             });
-            const partTotalCell = part.querySelector('.total-annual-pd');
-            if (partTotalCell) partTotalCell.innerText = formatLocal(partAnnual);
         });
-
-        for (let m = 1; m <= 12; m++) {
-            const totalCol = document.getElementById('total-col-' + m);
-            if (totalCol) totalCol.innerText = formatLocal(globalMonthly[m - 1]);
-            grandTotal += globalMonthly[m - 1];
-        }
-        const grandTotalCell = document.getElementById('total-grand');
-        if (grandTotalCell) grandTotalCell.innerText = formatLocal(grandTotal);
-
-        const dashProyectado = document.querySelector('.header-stats .stat-item:nth-child(1) .stat-value');
-        if (dashProyectado) dashProyectado.innerText = formatLocal(grandTotal);
-    }
-
-    function toggleRows(groupId, el) {
-        const rows = document.querySelectorAll('.group-' + groupId);
-        const icon = el.querySelector('.toggle-icon');
-
-        let isVisible = false;
-        if (rows.length > 0) {
-            isVisible = rows[0].classList.contains('visible');
-        }
-
-        rows.forEach(r => {
-            if (!isVisible) {
-                r.style.display = 'table-row';
-                r.classList.add('visible');
-            } else {
-                r.style.display = 'none';
-                r.classList.remove('visible');
+        const partCells=part.querySelectorAll('.val-month-pd');
+        partCells.forEach((cell,i)=>{
+            const sp=cell.querySelector('.val-proj,.val-none');
+            if(sp){
+                if(partMonthly[i]>0){sp.className='val-proj val-money';sp.innerText=fmt(partMonthly[i]);}
+                else{sp.className='val-none';sp.innerText='—';}
+            }
+            if(!cell.classList.contains('excluded-cell')){
+                partAnnual+=partMonthly[i];
+                globalMonthly[i]+=partMonthly[i];
             }
         });
-
-        if (icon) {
-            icon.style.transform = !isVisible ? 'rotate(90deg)' : 'rotate(0deg)';
-            icon.innerHTML = !isVisible ? '▼' : '▶';
-        }
-    }
-
-    function handleEnter(e, el) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            el.blur();
-        }
-    }
-
-    function showToast(msg, type = 'success') {
-        const toast = document.getElementById('toast');
-        toast.innerText = msg;
-        toast.style.backgroundColor = type === 'success' ? '#10b981' : '#ef4444';
-        toast.style.transform = 'translateY(0)';
-        setTimeout(() => {
-            toast.style.transform = 'translateY(100px)';
-        }, 3000);
-    }
-
-    function saveMonto(el) {
-        const itemId = el.getAttribute('data-item-id');
-        const month = el.getAttribute('data-month');
-        let val = parseLocalFloat(el.innerText);
-        el.innerText = formatLocal(val);
-
-        fetch('{% url "presupuestos:api_update_monto" %}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-            body: JSON.stringify({ item_id: itemId, mes: month, monto: val })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    showToast('Guardado');
-                    const totalEl = document.getElementById('total-item-' + itemId);
-                    if (totalEl) totalEl.innerText = formatLocal(parseFloat(data.new_total));
-                    recalculateTotals();
-                } else {
-                    showToast('Error al guardar', 'error');
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                showToast('Error de conexión', 'error');
-            });
-    }
-
-    function deleteItem(itemId) {
-        if (!itemId || itemId === '' || itemId === 'None') {
-            alert('Error: ID inválido.');
-            return;
-        }
-        if (!confirm('¿Eliminar este item?')) return;
-
-        fetch('{% url "presupuestos:api_delete_item" %}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-            body: JSON.stringify({ item_id: parseInt(itemId) })
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    showToast('Item eliminado');
-                    setTimeout(() => window.location.reload(), 500);
-                } else {
-                    alert('Error:' + data.message);
-                }
-            })
-            .catch(err => alert('Error al eliminar'));
-    }
-
-    function deletePartida(partidaId, nombre) {
-        if (!confirm(`¿Eliminar partida "${nombre}"?`)) return;
-
-        fetch('{% url "presupuestos:api_delete_partida" %}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-            body: JSON.stringify({ partida_id: partidaId })
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    showToast('Partida eliminada');
-                    setTimeout(() => window.location.reload(), 500);
-                } else {
-                    alert('Error:' + data.message);
-                }
-            })
-            .catch(err => console.error(err));
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.editable-cell').forEach(el => {
-            let raw = parseFloat(el.innerText);
-            if (!isNaN(raw)) el.innerText = formatLocal(raw);
-        });
-
-        document.querySelectorAll('.val-money').forEach(el => {
-            if (el.innerText.includes('%')) return;
-            let raw = parseFloat(el.innerText.replace(/,/g, ''));
-            if (!isNaN(raw)) el.innerText = formatLocal(raw);
-        });
-
-        document.querySelectorAll('.val-positive').forEach(el => {
-            let raw = parseFloat(el.innerText.replace(/,/g, ''));
-            if (!isNaN(raw)) el.innerText = formatLocal(raw);
-        });
-
-        document.querySelectorAll('[id^="total-col-"], [id^="total-item-"], #total-grand, .stat-value').forEach(el => {
-            if (el.innerText.includes('%')) return;
-            let raw = parseFloat(el.innerText.replace(/,/g, ''));
-            if (!isNaN(raw)) el.innerText = formatLocal(raw);
-        });
+        const ptc=part.querySelector('.total-annual-pd');
+        if(ptc)ptc.innerText=fmt(partAnnual);
     });
+    for(let m=1;m<=nCols;m++){
+        const tc=document.getElementById('total-col-'+m);
+        if(tc)tc.innerText=globalMonthly[m-1]>0?fmt(globalMonthly[m-1]):'—';
+        grandTotal+=globalMonthly[m-1];
+    }
+    const gc=document.getElementById('total-grand');
+    if(gc)gc.innerText=fmt(grandTotal);
+    document.querySelectorAll('.kpi-value.primary').forEach(el=>{
+        if(!el.innerText.includes('%'))el.innerText=fmt(grandTotal);
+    });
+}
+
+// ── Delete Item ──────────────────────────────────────────
+function deleteItem(itemId){
+    if(!itemId||itemId==='None')return;
+    if(!confirm('¿Eliminar este ítem?'))return;
+    fetch('{% url "presupuestos:api_delete_item" %}',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+        body:JSON.stringify({item_id:itemId})
+    }).then(r=>r.json()).then(d=>{
+        if(d.status==='ok'){showToast('Ítem eliminado');setTimeout(()=>location.reload(),500);}
+        else alert('Error: '+d.message);
+    });
+}
+
+// ── Delete Partida ───────────────────────────────────────
+function deletePartida(id,nombre){
+    if(!confirm('¿Eliminar partida "'+nombre+'"?'))return;
+    fetch('{% url "presupuestos:api_delete_partida" %}',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+        body:JSON.stringify({partida_id:id})
+    }).then(r=>r.json()).then(d=>{
+        if(d.status==='ok'){showToast('Partida eliminada');setTimeout(()=>location.reload(),500);}
+        else alert('Error: '+d.message);
+    });
+}
+
+// ── Context menu ─────────────────────────────────────────
+let activeCell=null;
+const ctx=document.getElementById('fi-ctx');
+document.addEventListener('contextmenu',e=>{
+    const cell=e.target.closest('td');
+    if(cell&&(cell.classList.contains('editable-cell')||cell.classList.contains('val-month-pd'))){
+        e.preventDefault();activeCell=cell;
+        ctx.style.display='block';ctx.style.left=e.pageX+'px';ctx.style.top=e.pageY+'px';
+        document.getElementById('labelExcluir').innerText=cell.classList.contains('excluded-cell')?'REINCLUIR':'EXCLUIR';
+    }else ctx.style.display='none';
+});
+document.addEventListener('click',()=>ctx.style.display='none');
+function toggleExclusion(){if(!activeCell)return;activeCell.classList.toggle('excluded-cell');recalculateTotals();ctx.style.display='none';}
+</script>
+
+<script>
+// ── Modal helpers ────────────────────────────────────────
+const M={
+    addItem:document.getElementById('addItemModal'),
+    editItem:document.getElementById('editItemModal'),
+    addPartida:document.getElementById('addPartidaModal'),
+    editPartida:document.getElementById('editPartidaModal'),
+};
+function openModal(id,name){document.getElementById('modalPartidaId').value=id;document.getElementById('modalPartidaName').innerText=name;document.getElementById('concepto').value='';M.addItem.classList.add('show');setTimeout(()=>document.getElementById('concepto').focus(),100);}
+function closeModal(){M.addItem.classList.remove('show');}
+function openEditItemModal(id,name){document.getElementById('editItemId').value=id;document.getElementById('editConcepto').value=name;M.editItem.classList.add('show');setTimeout(()=>document.getElementById('editConcepto').focus(),100);}
+function closeEditItemModal(){M.editItem.classList.remove('show');}
+function openPartidaModal(){document.getElementById('partidaNombre').value='';M.addPartida.classList.add('show');setTimeout(()=>document.getElementById('partidaNombre').focus(),100);}
+function closePartidaModal(){M.addPartida.classList.remove('show');}
+function closeEditPartidaModal(){M.editPartida.classList.remove('show');}
+
+// click outside closes
+window.addEventListener('click',e=>{
+    Object.values(M).forEach(m=>{if(e.target===m)m.classList.remove('show');});
+});
+
+// ── Submit helpers ───────────────────────────────────────
+function submitNewItem(e){
+    e.preventDefault();
+    const id=document.getElementById('modalPartidaId').value;
+    const concepto=document.getElementById('concepto').value;
+    fetch('{% url "presupuestos:api_create_item" %}',{
+        method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+        body:JSON.stringify({partida_id:id,concepto})
+    }).then(r=>r.json()).then(d=>{
+        if(d.status==='ok')location.reload();else alert('Error: '+d.message);
+    });
+}
+
+function submitEditItem(e){
+    e.preventDefault();
+    const id=document.getElementById('editItemId').value;
+    const concepto=document.getElementById('editConcepto').value;
+    fetch('{% url "presupuestos:api_update_item" %}',{
+        method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+        body:JSON.stringify({item_id:id,concepto})
+    }).then(r=>r.json()).then(d=>{
+        if(d.status==='ok'){showToast('Ítem actualizado');location.reload();}
+        else showToast('Error: '+d.message,'error');
+    });
+}
+
+function submitNewPartida(e){
+    e.preventDefault();
+    const nombre=document.getElementById('partidaNombre').value;
+    fetch('{% url "presupuestos:api_create_partida" %}',{
+        method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+        body:JSON.stringify({presupuesto_id:'{{ presupuesto.id }}',nombre})
+    }).then(r=>r.json()).then(d=>{
+        if(d.status==='ok')location.reload();else alert('Error: '+d.message);
+    });
+}
+
+// ── Edit Partida ─────────────────────────────────────────
+let _discCache=null;
+function openEditPartidaModal(id,discNombre,desc,monto,discId){
+    document.getElementById('editPartidaId').value=id;
+    document.getElementById('editPartidaDescripcion').value=desc||'';
+    document.getElementById('editPartidaMonto').value=monto||'';
+    M.editPartida.classList.add('show');
+    const sel=document.getElementById('editPartidaDisciplina');
+    const poblar=()=>{
+        while(sel.options.length>1)sel.remove(1);
+        (_discCache||[]).forEach(d=>{
+            const o=new Option(d.nombre,d.id);
+            if(String(d.id)===String(discId))o.selected=true;
+            sel.add(o);
+        });
+    };
+    if(_discCache){poblar();}
+    else fetch('{% url "presupuestos:api_get_disciplinas" %}').then(r=>r.json()).then(d=>{_discCache=d.disciplinas;poblar();});
+    setTimeout(()=>document.getElementById('editPartidaDescripcion').focus(),150);
+}
+function submitEditPartida(e){
+    e.preventDefault();
+    fetch('{% url "presupuestos:api_update_partida" %}',{
+        method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+        body:JSON.stringify({
+            partida_id:document.getElementById('editPartidaId').value,
+            descripcion:document.getElementById('editPartidaDescripcion').value,
+            monto_proyectado:document.getElementById('editPartidaMonto').value,
+            disciplina_id:document.getElementById('editPartidaDisciplina').value||null
+        })
+    }).then(r=>r.json()).then(d=>{
+        if(d.status==='ok'){showToast('Partida actualizada');closeEditPartidaModal();location.reload();}
+        else showToast('Error: '+d.message,'error');
+    });
+}
+
+// ── DOMContentLoaded formatting ──────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+    document.querySelectorAll('.editable-cell,.val-money,.val-proj').forEach(el=>{
+        if(el.innerText.includes('%'))return;
+        const raw=parseFloat(el.innerText.replace(/,/g,''));
+        if(!isNaN(raw)&&raw!==0)el.innerText=fmt(raw);
+    });
+});
 </script>
 {% endblock %}

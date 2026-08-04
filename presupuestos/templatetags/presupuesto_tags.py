@@ -52,3 +52,29 @@ def percentage(value):
         return "{:,.2f}%".format(float(value))
     except (ValueError, TypeError):
         return value
+
+from itertools import groupby as _groupby
+
+@register.filter
+def group_by_year(periodo_cols):
+    """
+    Agrupa una lista de (anio, mes, label) por año.
+    Retorna [(anio, [col, ...]), ...]
+    """
+    result = []
+    for anio, group in _groupby(periodo_cols, key=lambda x: x[0]):
+        result.append((anio, list(group)))
+    return result
+
+
+@register.filter
+def col_anio(periodo_cols, col_num):
+    """
+    Dado el número de columna (1-based), retorna el año correspondiente.
+    periodo_cols es una lista de (anio, mes, label).
+    """
+    try:
+        idx = int(col_num) - 1
+        return periodo_cols[idx][0]
+    except (IndexError, TypeError, ValueError):
+        return ''

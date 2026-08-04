@@ -383,7 +383,9 @@ class ItemPresupuesto(models.Model):
 
 class DetallePeriodico(models.Model):
     """
-    Hijo de ItemPresupuesto. Guarda el monto específico para un mes.
+    Hijo de ItemPresupuesto. Guarda el monto específico para un mes/año.
+    El campo 'anio' permite presupuestos multi-año (hasta 2 años adelante).
+    Si anio=None se asume el año del presupuesto padre (retrocompatibilidad).
     """
     MESES = (
         (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
@@ -393,16 +395,18 @@ class DetallePeriodico(models.Model):
     
     item = models.ForeignKey(ItemPresupuesto, related_name='detalles', on_delete=models.CASCADE)
     mes = models.PositiveIntegerField(choices=MESES)
+    anio = models.PositiveIntegerField(null=True, blank=True, verbose_name="Año", help_text="Año del período. Si vacío usa el año del presupuesto padre.")
     monto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     class Meta:
         verbose_name = "Detalle Periódico"
         verbose_name_plural = "Detalles Periódicos"
-        ordering = ['mes']
-        unique_together = ('item', 'mes')
+        ordering = ['anio', 'mes']
+        unique_together = ('item', 'mes', 'anio')
 
     def __str__(self):
-        return f"{self.get_mes_display()} - {self.monto}"
+        anio_str = f" {self.anio}" if self.anio else ""
+        return f"{self.get_mes_display()}{anio_str} - {self.monto}"
 
 
 class PresupuestoAgrupado(models.Model):

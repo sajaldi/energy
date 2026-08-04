@@ -27,10 +27,13 @@ def cronograma_presupuesto(request, pk=None):
         'presupuesto': presupuesto,
         'partidas_data': data['presupuestos_data'][0]['partidas'] if data['presupuestos_data'] else [],
         'meses_nombres': data['meses_nombres'],
+        'periodo_cols': data['periodo_cols'],
         'global_proyectado_mes': data['global_proyectado_mes'],
         'global_ejecutado_mes': data['global_ejecutado_mes'],
+        'global_solicitado_mes': data['global_solicitado_mes'],
         'total_general_proyectado': data['total_general_proyectado'],
         'total_general_ejecutado': data['total_general_ejecutado'],
+        'total_general_solicitado': data['total_general_solicitado'],
     }
 
     return render(request, 'presupuestos/cronograma.html', context)
@@ -61,79 +64,128 @@ def cronograma_grupal(request, pk):
     return render(request, 'presupuestos/cronograma_grupal.html', context)
 
 
-def _get_cronograma_data(presupuestos_list):
+def _build_periodo_cols(presupuestos_list):
+    """
+    Construye la lista de columnas (anio, mes) para el cronograma.
+    Toma el año mínimo de los presupuestos y genera hasta 2 años adelante del máximo.
+    Retorna: [(anio, mes, label), ...]  ej: [(2026,1,'Ene 2026'), (2026,2,...), ..., (2027,12,'Dic 2027')]
+    """
+    meses_abrev = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+    anios = [p.anio for p in presupuestos_list]
+    anio_min = min(anios)
+    anio_max = max(anios) + 1  # hasta 1 año adicional por defecto
+    cols = []
+    for anio in range(anio_min, anio_max + 1):
+        for mes in range(1, 13):
+            cols.append((anio, mes, f"{meses_abrev[mes-1]} {anio}"))
+    return cols
+
+
+def _get_cronograma_data(presupuestos_list, extra_years=1):
     """
     Agrega datos de uno o varios presupuestos.
-    Retorna datos estructurados por presupuesto.
-    Incluye soporte para sub-ítems.
+    Soporta multi-año: columnas (anio, mes) desde el año del presupuesto hasta +extra_years.
     """
-    meses_nombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-    global_proyectado_mes = [0.0] * 12
-    global_ejecutado_mes = [0.0] * 12
+    # ── Columnas dinámicas ──────────────────────────────────────────────────
+    periodo_cols = _build_periodo_cols(presupuestos_list)
+    n_cols = len(periodo_cols)
+    col_index = {(anio, mes): idx for idx, (anio, mes, _) in enumerate(periodo_cols)}
+
+    global_proyectado_mes = [0.0] * n_cols
+    global_ejecutado_mes  = [0.0] * n_cols
+    global_solicitado_mes = [0.0] * n_cols
     presupuestos_data = []
 
     from .models import ItemSolicitudPago
-    
-    # Pre-cargar todos los pagos de los presupuestos involucrados con estatus PAGADO
-    pagos_mapeo = {}
+
+    # ── Pre-cargar pagos ────────────────────────────────────────────────────
+    pagos_mapeo         = {}   # item_id   → estatus → [n_cols]
+    pagos_partida_mapeo = {}   # partida_id → estatus → [n_cols]
+
     pagos_qs = ItemSolicitudPago.objects.filter(
-        estatus='PAGADO'
-    ).filter(
         Q(requisicion__partida__presupuesto_anual__in=presupuestos_list) |
         Q(requisicion__item_presupuesto__partida__presupuesto_anual__in=presupuestos_list)
     ).select_related('requisicion', 'solicitud').distinct()
-    
+
     for p_item in pagos_qs:
+        fecha = p_item.solicitud.fecha_solicitud
+        if not fecha:
+            continue
+        clave = (fecha.year, fecha.month)
+        if clave not in col_index:
+            continue
+        idx = col_index[clave]
+        estatus = p_item.estatus
+        monto   = float(p_item.monto_solicitado or 0)
+
         it_id = p_item.requisicion.item_presupuesto_id
         if it_id:
             if it_id not in pagos_mapeo:
-                pagos_mapeo[it_id] = [0.0] * 12
-            if p_item.solicitud.fecha_solicitud:
-                mes = p_item.solicitud.fecha_solicitud.month
-                pagos_mapeo[it_id][mes-1] += float(p_item.monto_solicitado)
+                pagos_mapeo[it_id] = {}
+            if estatus not in pagos_mapeo[it_id]:
+                pagos_mapeo[it_id][estatus] = [0.0] * n_cols
+            pagos_mapeo[it_id][estatus][idx] += monto
+        else:
+            pa_id = p_item.requisicion.partida_id
+            if pa_id:
+                if pa_id not in pagos_partida_mapeo:
+                    pagos_partida_mapeo[pa_id] = {}
+                if estatus not in pagos_partida_mapeo[pa_id]:
+                    pagos_partida_mapeo[pa_id][estatus] = [0.0] * n_cols
+                pagos_partida_mapeo[pa_id][estatus][idx] += monto
 
+    # ── Por presupuesto ─────────────────────────────────────────────────────
     for presupuesto in presupuestos_list:
         partidas = presupuesto.partidas.select_related('disciplina').prefetch_related(
-            'items', 
-            'items__detalles', 
-            'items__subitems',
-            'gastos'
+            'items', 'items__detalles', 'items__subitems', 'gastos'
         ).all()
 
         partidas_desglose = []
-        p_total_proyectado_mensual = [0.0] * 12
-        p_total_ejecutado_mensual = [0.0] * 12
+        p_total_proyectado = [0.0] * n_cols
+        p_total_ejecutado  = [0.0] * n_cols
 
         for p in partidas:
             p_disc_nombre = p.disciplina.nombre if p.disciplina else (p.descripcion or "Otros")
-            
-            # Ejecución de la partida
-            ejecucion_partida = [0.0] * 12
-            for gasto in p.gastos.all():
-                m_idx = gasto.fecha.month - 1
-                ejecucion_partida[m_idx] += float(gasto.monto)
-                p_total_ejecutado_mensual[m_idx] += float(gasto.monto)
-                global_ejecutado_mes[m_idx] += float(gasto.monto)
 
-            # Ítems (solo nivel superior)
+            # Ejecución (GastoEjecutado)
+            ejecucion_partida = [0.0] * n_cols
+            for gasto in p.gastos.all():
+                clave = (gasto.fecha.year, gasto.fecha.month)
+                if clave in col_index:
+                    idx = col_index[clave]
+                    ejecucion_partida[idx] += float(gasto.monto)
+                    p_total_ejecutado[idx] += float(gasto.monto)
+                    global_ejecutado_mes[idx] += float(gasto.monto)
+
+            # Ítems
             items_tree = []
-            proyeccion_partida = [0.0] * 12
-            
-            # Objetos de items de esta partida
+            proyeccion_partida = [0.0] * n_cols
             partida_items = list(p.items.all())
             top_items = [i for i in partida_items if not i.parent_id]
-            
+
             for item in top_items:
-                item_data = _get_item_recursive_data(item, partida_items, pagos_mapeo)
+                item_data = _get_item_recursive_data(item, partida_items, pagos_mapeo, col_index, n_cols, presupuesto.anio)
                 items_tree.append(item_data)
-                
-                for i in range(12):
+                for i in range(n_cols):
                     proyeccion_partida[i] += item_data['proyeccion'][i]
-                    p_total_proyectado_mensual[i] += item_data['proyeccion'][i]
+                    p_total_proyectado[i]  += item_data['proyeccion'][i]
                     global_proyectado_mes[i] += item_data['proyeccion'][i]
-                    # La ejecución global ya se suma desde gastos (GastoEjecutado)
-                    # Pero aquí podríamos agregar la ejecución por ítem si fuera necesario.
-                    # Por ahora el usuario pidió una línea debajo del ítem para trazabilidad.
+
+            # Pagos directos a la partida
+            partida_pagos = pagos_partida_mapeo.get(p.id, {})
+            partida_pagado    = list(partida_pagos.get('PAGADO',    [0.0] * n_cols))
+            partida_solicitado = list(partida_pagos.get('SOLICITADO', [0.0] * n_cols))
+            for estatus, lista in partida_pagos.items():
+                if estatus not in ('PAGADO', 'SOLICITADO'):
+                    for i in range(n_cols):
+                        partida_solicitado[i] += lista[i]
+
+            for i in range(n_cols):
+                global_solicitado_mes[i] += partida_solicitado[i]
+
+            for item_data in items_tree:
+                for i in range(n_cols):
+                    global_solicitado_mes[i] += item_data['ejecucion_solicitado'][i]
 
             partidas_desglose.append({
                 'partida': p,
@@ -143,63 +195,78 @@ def _get_cronograma_data(presupuestos_list):
                 'proyeccion_total_mensual': proyeccion_partida,
                 'total_proyectado': sum(proyeccion_partida),
                 'total_ejecutado': sum(ejecucion_partida),
+                'partida_pagado': partida_pagado,
+                'partida_solicitado': partida_solicitado,
+                'total_partida_pagado': sum(partida_pagado),
+                'total_partida_solicitado': sum(partida_solicitado),
                 'gid': f"disc-{len(presupuestos_data) + 1}-{len(partidas_desglose) + 1}"
             })
 
-        # Ordenar partidas por disciplina
         partidas_desglose.sort(key=lambda x: x['disciplina'])
 
         presupuestos_data.append({
             'presupuesto': presupuesto,
             'partidas': partidas_desglose,
-            'total_mensual_proyectado': p_total_proyectado_mensual,
-            'total_mensual_ejecutado': p_total_ejecutado_mensual,
-            'total_anual_proyectado': sum(p_total_proyectado_mensual),
-            'total_anual_ejecutado': sum(p_total_ejecutado_mensual),
+            'total_mensual_proyectado': p_total_proyectado,
+            'total_mensual_ejecutado':  p_total_ejecutado,
+            'total_anual_proyectado': sum(p_total_proyectado),
+            'total_anual_ejecutado':  sum(p_total_ejecutado),
             'gid': f"budget-{len(presupuestos_data) + 1}"
         })
 
     return {
         'presupuestos_data': presupuestos_data,
-        'meses_nombres': meses_nombres,
+        'periodo_cols': periodo_cols,          # [(anio,mes,label), ...]
+        'meses_nombres': [c[2] for c in periodo_cols],  # compat labels
         'global_proyectado_mes': global_proyectado_mes,
-        'global_ejecutado_mes': global_ejecutado_mes,
+        'global_ejecutado_mes':  global_ejecutado_mes,
+        'global_solicitado_mes': global_solicitado_mes,
         'total_general_proyectado': sum(global_proyectado_mes),
-        'total_general_ejecutado': sum(global_ejecutado_mes),
+        'total_general_ejecutado':  sum(global_ejecutado_mes),
+        'total_general_solicitado': sum(global_solicitado_mes),
     }
 
-def _get_item_recursive_data(item, all_items, pagos_mapeo):
+
+def _get_item_recursive_data(item, all_items, pagos_mapeo, col_index, n_cols, presupuesto_anio):
     """
-    Obtiene datos de un ítem y sus sub-ítems recursivamente del cache 'all_items'.
+    Obtiene datos de un ítem y sus sub-ítems recursivamente.
+    DetallePeriodico.anio=None → usa presupuesto_anio como año base.
     """
-    proyeccion = [0.0] * 12
+    proyeccion = [0.0] * n_cols
     for detalle in item.detalles.all():
-        if 1 <= detalle.mes <= 12:
-            proyeccion[detalle.mes - 1] += float(detalle.monto)
-    
-    # Obtener ejecución (pagos) para este ítem
-    ejecucion = list(pagos_mapeo.get(item.id, [0.0] * 12))
-    
+        anio_det = detalle.anio if detalle.anio else presupuesto_anio
+        clave = (anio_det, detalle.mes)
+        if clave in col_index:
+            proyeccion[col_index[clave]] += float(detalle.monto)
+
+    item_pagos = pagos_mapeo.get(item.id, {})
+    ejecucion_pagado     = list(item_pagos.get('PAGADO',    [0.0] * n_cols))
+    ejecucion_solicitado = list(item_pagos.get('SOLICITADO', [0.0] * n_cols))
+    for i in range(n_cols):
+        ejecucion_solicitado[i] += item_pagos.get('APROBADO', [0.0] * n_cols)[i]
+
     subitems_data = []
-    # Buscar subitems en la lista precargada
-    item_subitems = [i for i in all_items if i.parent_id == item.id]
-    
-    for subitem in item_subitems:
-        sub_data = _get_item_recursive_data(subitem, all_items, pagos_mapeo)
-        subitems_data.append(sub_data)
-        for i in range(12):
-            proyeccion[i] += sub_data['proyeccion'][i]
-            ejecucion[i] += sub_data['ejecucion'][i]
+    for subitem in [i for i in all_items if i.parent_id == item.id]:
+        sub = _get_item_recursive_data(subitem, all_items, pagos_mapeo, col_index, n_cols, presupuesto_anio)
+        subitems_data.append(sub)
+        for i in range(n_cols):
+            proyeccion[i]          += sub['proyeccion'][i]
+            ejecucion_pagado[i]    += sub['ejecucion_pagado'][i]
+            ejecucion_solicitado[i] += sub['ejecucion_solicitado'][i]
 
     return {
         'id': item.id,
         'concepto': item.concepto,
         'proyeccion': proyeccion,
-        'ejecucion': ejecucion,
+        'ejecucion': ejecucion_pagado,
+        'ejecucion_pagado': ejecucion_pagado,
+        'ejecucion_solicitado': ejecucion_solicitado,
         'total_anual': sum(proyeccion),
-        'total_ejecutado_anual': sum(ejecucion),
+        'total_ejecutado_anual': sum(ejecucion_pagado),
+        'total_solicitado_anual': sum(ejecucion_solicitado),
         'subitems': subitems_data
     }
+
 
 @login_required
 def exportar_cronograma_excel(request, pk):
@@ -818,25 +885,22 @@ def api_update_monto_mensual(request):
             data = json.loads(request.body)
             item_id = data.get('item_id')
             mes = int(data.get('mes'))
-            monto = float(data.get('monto')) # Permitir float
+            monto = float(data.get('monto'))
+            anio = data.get('anio')  # None → retrocompatibilidad (año del presupuesto)
+            anio = int(anio) if anio else None
             
-            # Buscar Item Padre
             item = ItemPresupuesto.objects.get(pk=item_id)
             
-            # Buscar o Crear detalle 
-            # (Aunque usualmente ya existe, si el usuario pone monto > 0 en un mes donde no habia, lo creamos)
             detalle, created = DetallePeriodico.objects.get_or_create(
                 item=item,
                 mes=mes,
+                anio=anio,
                 defaults={'monto': monto}
             )
             
             if not created:
                 detalle.monto = monto
                 detalle.save()
-            
-            # Si el monto es 0, podríamos optar por borrar el detalle para limpiar la BD, 
-            # pero por ahora mantenerlo es más seguro para la integridad histórica.
             
             return JsonResponse({'status': 'ok', 'new_total': float(item.total_anual)})
             
@@ -976,6 +1040,58 @@ def api_delete_partida(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+
+@login_required
+def api_update_partida(request):
+    """Actualiza nombre/descripción, monto_proyectado y disciplina de una PartidaPresupuestaria."""
+    if request.method == "POST":
+        import json
+        from .models import PartidaPresupuestaria
+        from documentos.models import Disciplina
+        from django.http import JsonResponse
+
+        try:
+            data = json.loads(request.body)
+            partida_id = data.get('partida_id')
+            partida = get_object_or_404(PartidaPresupuestaria, pk=partida_id)
+
+            if 'descripcion' in data:
+                partida.descripcion = data['descripcion']
+
+            if 'monto_proyectado' in data:
+                val = data['monto_proyectado']
+                if val is not None and str(val).strip() != '':
+                    partida.monto_proyectado = float(str(val).replace(',', ''))
+
+            if 'disciplina_id' in data:
+                disc_id = data['disciplina_id']
+                if disc_id:
+                    partida.disciplina = get_object_or_404(Disciplina, pk=disc_id)
+                else:
+                    partida.disciplina = None
+
+            partida.save()
+
+            disc_nombre = partida.disciplina.nombre if partida.disciplina else (partida.descripcion or 'Partida General')
+            return JsonResponse({
+                'status': 'ok',
+                'disciplina': disc_nombre,
+                'descripcion': partida.descripcion,
+                'monto_proyectado': float(partida.monto_proyectado),
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+
+@login_required
+def api_get_disciplinas(request):
+    """Retorna todas las disciplinas disponibles para el selector del modal."""
+    from documentos.models import Disciplina
+    from django.http import JsonResponse
+    disciplinas = list(Disciplina.objects.values('id', 'nombre').order_by('nombre'))
+    return JsonResponse({'disciplinas': disciplinas})
 
 
 @login_required
