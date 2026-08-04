@@ -1,4 +1,5 @@
 from decimal import Decimal
+from datetime import datetime as _datetime
 from collections import defaultdict
 from django.http import JsonResponse
 from django.db.models import Q
@@ -213,20 +214,108 @@ def api_master_sync(request):
     })
 
 
+def _normalizar_texto(texto):
+    """Minúsculas y sin acentos para comparar descripciones y nombres."""
+    import unicodedata
+    if not texto:
+        return ''
+    texto = unicodedata.normalize('NFKD', str(texto))
+    texto = ''.join(c for c in texto if not unicodedata.combining(c))
+    return texto.lower().strip()
+
+
+_STOPWORDS = {
+    'de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas',
+    'para', 'por', 'con', 'sin', 'sobre', 'en', 'y', 'o', 'a', 'al', 'e',
+    'material', 'nuevo', 'servicio', 'instalacion', 'instalación', 'se', 'su',
+}
+
+
+def _tokens_significativos(texto):
+    return {t for t in texto.split() if len(t) >= 3 and t not in _STOPWORDS}
+
+
+def _material_es_placeholder(material):
+    if not material:
+        return False
+    nombre_norm = _normalizar_texto(material.nombre)
+    return (
+        'fuera de cat' in nombre_norm
+        or 'sin cat' in nombre_norm
+    )
+
+
+def _articulo_coincide_con_material(descripcion, material):
+    """Determina si un artículo 'huérfano' corresponde al material dado."""
+    desc_norm = _normalizar_texto(descripcion)
+    if not desc_norm:
+        return False
+
+    sku_norm = _normalizar_texto(material.sku)
+    if sku_norm and sku_norm in desc_norm:
+        return True
+
+    nombre_norm = _normalizar_texto(material.nombre)
+    if nombre_norm and nombre_norm in desc_norm:
+        return True
+
+    tokens_material = _tokens_significativos(nombre_norm)
+    if not tokens_material:
+        return False
+    tokens_desc = _tokens_significativos(desc_norm)
+    coinciden = tokens_material & tokens_desc
+    return len(coinciden) / len(tokens_material) >= 0.5
+
+
 @login_required
 def api_precios_historicos(request, material_id):
     material = get_object_or_404(Material, pk=material_id)
-    articulos = ArticuloRequisicion.objects.filter(
-        material=material,
+
+    base = ArticuloRequisicion.objects.filter(
         cr8ca_costoaproximado__isnull=False
     ).exclude(
         cr8ca_costoaproximado=0
-    ).select_related(
-        'requisicion', 'proveedor'
-    ).order_by('-createdon')[:50]
+    )
+
+    articulos_vinculados = base.filter(material=material)
+
+    # Artículos 'huérfanos' (material NULL o vinculado a un placeholder) que
+    # corresponden a este material por nombre/SKU.
+    ids_placeholder = [
+        m.id for m in Material.objects.filter(
+            Q(nombre__icontains='fuera de cat') | Q(nombre__icontains='sin cat')
+        ) if _material_es_placeholder(m)
+    ]
+    huérfanos_qs = base.filter(
+        Q(material__isnull=True) | Q(material_id__in=ids_placeholder)
+    ).select_related('requisicion', 'proveedor')
+
+    articulos = articulos_vinculados.select_related('requisicion', 'proveedor')
+    por_requisicion = []
+    for a in huérfanos_qs:
+        if _articulo_coincide_con_material(a.cr8ca_articulo, material):
+            por_requisicion.append(a)
+
+    por_requisicion.sort(
+        key=lambda a: (a.createdon or getattr(a.requisicion, 'fecha', None)) or _datetime.min,
+        reverse=True,
+    )
+    articulos = list(articulos) + por_requisicion
+
+    # Deduplicar por PK y limitar a 50
+    vistos = set()
+    articulos_unicos = []
+    for a in articulos:
+        pk = str(a.pk)
+        if pk in vistos:
+            continue
+        vistos.add(pk)
+        articulos_unicos.append(a)
+        if len(articulos_unicos) >= 50:
+            break
 
     data = []
-    for a in articulos:
+    for a in articulos_unicos:
         req = a.requisicion
         data.append({
             'req_num': req.cr8ca_requisicion if req else '—',
