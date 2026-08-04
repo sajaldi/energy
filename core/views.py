@@ -1215,17 +1215,89 @@ def global_search(request):
 @login_required
 def system_portal(request):
     """
-    Menú general del sistema interactivo y visual (Portal).
+    Portal principal con menus dinamicos basados en AdminNavMenu,
+    respetando permisos y personalizacion por usuario.
     """
-    from django.contrib import admin
+    import json
+    from .models import AdminNavMenu, PerfilUsuario
+
+    user = request.user
+    perfil, _ = PerfilUsuario.objects.get_or_create(usuario=user)
+    nav_config = perfil.nav_config or {}
+    hidden_menus = set(nav_config.get("hidden_menus", []) or [])
+    custom_menus = nav_config.get("custom_menus", []) or []
+    customized = nav_config.get("customized_menus", {}) or {}
+
+    # Cargar menus del sistema
+    system_menus = AdminNavMenu.objects.filter(active=True).prefetch_related(
+        'items', 'columns', 'columns__items'
+    ).order_by("order")
+
+    menus = []
+    for m in system_menus:
+        if m.superuser_only and not user.is_superuser:
+            continue
+        if m.name in hidden_menus:
+            continue
+
+        # Verificar permisos de items
+        items_visible = []
+        for item in m.items.filter(column__isnull=True).order_by("order"):
+            if item.permission:
+                if not user.has_perm(item.permission):
+                    continue
+            items_visible.append({"name": item.name, "url": item.url, "icon": ""})
+
+        # Usar customized si existe, o la estructura base
+        override = customized.get(m.name, {})
+        menus.append({
+            "id": m.id,
+            "name": override.get("name", m.name),
+            "icon": override.get("icon", m.icon),
+            "color": override.get("color", m.color),
+            "items": items_visible,
+            "original_name": m.name,
+        })
+
+    # Agregar menus personalizados del usuario
+    for cm in custom_menus:
+        if cm.get("name"):
+            menus.append({
+                "id": f"custom_{cm['name']}",
+                "name": cm.get("name", ""),
+                "icon": cm.get("icon", "fas fa-star"),
+                "color": cm.get("color", "#f59e0b"),
+                "items": [
+                    {"name": it.get("name", ""), "url": it.get("url", ""), "icon": ""}
+                    for col in cm.get("columns", [])
+                    for it in col.get("items", [])
+                ],
+                "original_name": cm.get("name", ""),
+                "is_custom": True,
+            })
+
+    # Todos los menus del sistema para el editor (sin filtrar)
+    all_system_menus = []
+    for m in AdminNavMenu.objects.filter(active=True).order_by("order"):
+        if m.superuser_only and not user.is_superuser:
+            continue
+        all_system_menus.append({
+            "id": m.id,
+            "name": m.name,
+            "icon": m.icon,
+            "color": m.color,
+            "hidden": m.name in hidden_menus,
+        })
+
     context = {
         'title': 'Portal del Sistema',
+        'user': user,
+        'menus': menus,
+        'menus_json': json.dumps(menus, ensure_ascii=False),
+        'all_system_menus_json': json.dumps(all_system_menus, ensure_ascii=False),
+        'hidden_menus_json': json.dumps(list(hidden_menus), ensure_ascii=False),
+        'custom_menus_json': json.dumps(custom_menus, ensure_ascii=False),
     }
-    try:
-        context.update(admin.site.each_context(request))
-    except Exception:
-        pass
-        
     return render(request, 'core/system_portal.html', context)
 
 
