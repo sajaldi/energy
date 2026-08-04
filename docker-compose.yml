@@ -7,6 +7,7 @@ x-django-common: &django-common
     dockerfile: Dockerfile
   environment:
     DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+    DJANGO_ENV: ${DJANGO_ENV:-production}
     SECRET_KEY: ${SECRET_KEY}
     DATABASE_URL: ${DATABASE_URL}
     CELERY_BROKER_URL: redis://redis:6379/0
@@ -15,6 +16,12 @@ x-django-common: &django-common
     BASE_REGISTRATION_URL: ${BASE_REGISTRATION_URL:-}
     POWER_AUTOMATE_INVITATION: ${POWER_AUTOMATE_INVITATION:-}
     POWER_AUTOMATE_WEBHOOK_URL: ${POWER_AUTOMATE_WEBHOOK_URL:-}
+    COOLIFY_FQDN: ${COOLIFY_FQDN:-}
+    AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-rootminio}
+    AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-PasswordRoot07}
+    AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-energia-media}
+    AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-}
+    AWS_S3_INTERNAL_ENDPOINT: ${AWS_S3_INTERNAL_ENDPOINT:-http://minio:9000}
   depends_on:
     redis:
       condition: service_healthy

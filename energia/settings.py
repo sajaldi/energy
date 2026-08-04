@@ -35,8 +35,13 @@ SECRET_KEY = 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj
 # Por defecto False para seguridad. Solo True si se especifica explícitamente.
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
 
-# Detección de entorno: Si hay COOLIFY_FQDN, definitivamente NO es local.
-IS_LOCAL = DEBUG and not os.environ.get('COOLIFY_FQDN')
+# Detección de entorno: Si hay COOLIFY_FQDN o DJANGO_ENV=production,
+# definitivamente NO es local (aunque DEBUG esté en true por error).
+IS_LOCAL = (
+    DEBUG
+    and not os.environ.get('COOLIFY_FQDN')
+    and os.environ.get('DJANGO_ENV', '').lower() != 'production'
+)
 
 
 # ALLOWED_HOSTS
@@ -433,8 +438,19 @@ else:
     # Apuntamos al proxy de Django para evitar problemas de SSL/CORS.
     AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/media-proxy'
     AWS_S3_URL_PROTOCOL = 'https:' 
-    # Usamos el nombre del servicio interno de Coolify (minio) para UPLOADS
-    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio-cksckkgkcoogow4o4kg0gsog:9000')
+    # Nombre del servicio interno de MinIO dentro de la red de Coolify.
+    # Configurable por env (AWS_S3_INTERNAL_ENDPOINT) para que Coolify apunte
+    # al servicio correcto sin tocar código.
+    AWS_S3_INTERNAL_ENDPOINT = os.environ.get(
+        'AWS_S3_INTERNAL_ENDPOINT',
+        'http://minio:9000'
+    )
+    # En producción NUNCA usar localhost/127.0.0.1 como endpoint de MinIO:
+    # dentro del contenedor apuntarían al propio contenedor y no a MinIO.
+    _s3_endpoint = os.environ.get('AWS_S3_ENDPOINT_URL', '')
+    if not _s3_endpoint or 'localhost' in _s3_endpoint or '127.0.0.1' in _s3_endpoint:
+        _s3_endpoint = AWS_S3_INTERNAL_ENDPOINT
+    AWS_S3_ENDPOINT_URL = _s3_endpoint
     AWS_S3_USE_SSL = False
     AWS_QUERYSTRING_AUTH = False
 

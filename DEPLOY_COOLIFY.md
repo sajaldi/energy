@@ -21,13 +21,21 @@ git push
    En la sección de Environment Variables de Coolify, agrega:
    ```
    DJANGO_DEBUG=False
+   DJANGO_ENV=production
    SECRET_KEY=<genera-una-clave-segura-aquí>
    DATABASE_URL=postgresql://user:pass@host:5432/dbname
    CELERY_BROKER_URL=redis://redis:6379/0
    CELERY_RESULT_BACKEND=django-db
    ALLOWED_HOSTS=tu-dominio.com,*.coolify.io
    CSRF_TRUSTED_ORIGINS=https://tu-dominio.com
-   AWS_S3_ENDPOINT_URL=https://tu-minio-endpoint.com  # O la IP/DNS interna si usas MinIO en Coolify
+   # IMPORTANTE: el endpoint DEBE ser la URL interna de MinIO dentro de la red de Coolify,
+   # NUNCA localhost/127.0.0.1 (dentro del contenedor apuntaría al propio contenedor).
+   # Usa el nombre del servicio de tu MinIO, p. ej. http://minio:9000
+   AWS_S3_ENDPOINT_URL=http://minio:9000
+   AWS_ACCESS_KEY_ID=<tu-access-key>
+   AWS_SECRET_ACCESS_KEY=<tu-secret-key>
+   AWS_STORAGE_BUCKET_NAME=energia-media
+   COOLIFY_FQDN=tu-dominio.com
    ```
 
 3. **Configurar Base de Datos**
