@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
+from datetime import timedelta
 import json
 from ..models import Aviso, OrdenTrabajo, TecnicoPuesto
 from core.models import Departamento
@@ -137,7 +138,9 @@ def api_aviso_create_ot(request, pk):
             
         fecha_inicio_str = payload.get('fecha_inicio')
         if fecha_inicio_str:
-            fecha_inicio = timezone.make_aware(timezone.datetime.fromisoformat(fecha_inicio_str))
+            fecha_inicio = timezone.datetime.fromisoformat(fecha_inicio_str)
+            if timezone.is_naive(fecha_inicio):
+                fecha_inicio = timezone.make_aware(fecha_inicio)
         else:
             fecha_inicio = timezone.now()
             
@@ -152,6 +155,7 @@ def api_aviso_create_ot(request, pk):
             ubicacion=aviso.ubicacion,
             tecnico=tecnico_user,
             inicio_programado=fecha_inicio,
+            fin_programado=fecha_inicio + timedelta(hours=2),
             descripcion_corta=f"Corr.: {aviso.descripcion[:50]}...",
         )
         

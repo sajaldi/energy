@@ -924,7 +924,7 @@ DEFAULT_FROM_EMAIL = 'notificaciones@energia.com'
 
 # Configuración de autenticación
 LOGIN_URL = '/admin/login/'
-LOGIN_REDIRECT_URL = '/app/'
+LOGIN_REDIRECT_URL = '/inicio/'
 
 # AI / NLP Settings
 OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://localhost:11434')

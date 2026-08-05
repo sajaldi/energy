@@ -1095,6 +1095,68 @@ def api_get_disciplinas(request):
 
 
 @login_required
+def api_cronograma_detalle_celda(request):
+    """
+    Dado partida_id/item_id + anio + mes, retorna los ItemSolicitudPago
+    que aportan monto en esa celda del cronograma.
+    Soporta tanto celdas de partida directa como celdas de ítem de presupuesto.
+    """
+    from django.http import JsonResponse
+    from .models import ItemSolicitudPago, PartidaPresupuestaria, ItemPresupuesto
+
+    partida_id = request.GET.get('partida_id')
+    item_id    = request.GET.get('item_id')
+    anio       = request.GET.get('anio')
+    mes        = request.GET.get('mes')
+
+    try:
+        anio = int(anio)
+        mes  = int(mes)
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'Parámetros inválidos'}, status=400)
+
+    qs = ItemSolicitudPago.objects.select_related(
+        'requisicion', 'requisicion__proveedor', 'solicitud'
+    ).filter(
+        solicitud__fecha_solicitud__year=anio,
+        solicitud__fecha_solicitud__month=mes,
+    )
+
+    if item_id:
+        qs = qs.filter(requisicion__item_presupuesto_id=item_id)
+    elif partida_id:
+        qs = qs.filter(
+            requisicion__partida_id=partida_id,
+            requisicion__item_presupuesto__isnull=True
+        )
+    else:
+        return JsonResponse({'error': 'Se requiere partida_id o item_id'}, status=400)
+
+    items = []
+    for p in qs:
+        req = p.requisicion
+        items.append({
+            'item_pago_id': p.pk,
+            'solicitud_id': p.solicitud.pk,
+            'solicitud_desc': p.solicitud.descripcion,
+            'req_codigo': req.cr8ca_requisicion,
+            'req_asunto': req.cr8ca_asunto,
+            'req_pk': str(req.pk),
+            'proveedor': req.proveedor.nombre if req.proveedor else 'Sin proveedor',
+            'monto': float(p.monto_solicitado or 0),
+            'estatus': p.estatus,
+            'descripcion': p.descripcion,
+        })
+
+    return JsonResponse({
+        'anio': anio,
+        'mes': mes,
+        'items': items,
+        'total': sum(i['monto'] for i in items),
+    })
+
+
+@login_required
 def exportar_cronograma_grupal_pdf(request, pk):
     from django.template.loader import get_template
     from xhtml2pdf import pisa

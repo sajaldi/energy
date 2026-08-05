@@ -466,7 +466,7 @@ class AdminNavItemInline(admin.TabularInline):
     model = AdminNavItem
     extra = 1
     fk_name = "menu"
-    fields = ("name", "url", "group", "permission", "order")
+    fields = ("name", "url", "icon", "group", "permission", "order")
     ordering = ("group", "order")
     verbose_name = "Elemento"
     verbose_name_plural = "Elementos del menú"
@@ -476,7 +476,7 @@ class ColumnAdminNavItemInline(admin.TabularInline):
     model = AdminNavItem
     extra = 1
     fk_name = "column"
-    fields = ("name", "url", "permission", "order")
+    fields = ("name", "url", "icon", "permission", "order")
     ordering = ("order",)
     verbose_name = "Elemento"
     verbose_name_plural = "Elementos de la columna"
@@ -495,12 +495,21 @@ class AdminNavColumnInline(admin.TabularInline):
 
 @admin.register(AdminNavMenu)
 class AdminNavMenuAdmin(admin.ModelAdmin):
-    list_display = ("name", "icon", "color", "order", "superuser_only", "active")
+    list_display = ("name", "get_grupos", "order", "superuser_only", "active")
     list_editable = ("order", "superuser_only", "active")
-    list_filter = ("active", "superuser_only")
+    list_filter = ("active", "superuser_only", "grupos")
     search_fields = ("name",)
     ordering = ("order",)
+    filter_horizontal = ("grupos",)
+    fields = ("name", "icon", "color", "descripcion", "url", "grupos", "superuser_only", "order", "active")
     inlines = [AdminNavItemInline, AdminNavColumnInline]
+
+    def get_grupos(self, obj):
+        grupos = obj.grupos.all()
+        if not grupos:
+            return format_html('<span style="color:#10b981; font-weight:600;">✅ Todos</span>')
+        return ', '.join(g.name for g in grupos)
+    get_grupos.short_description = 'Visible para (rol)'
 
 
 @admin.register(AdminNavColumn)

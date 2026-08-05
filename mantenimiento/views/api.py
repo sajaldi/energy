@@ -652,7 +652,7 @@ def api_ordenes_hoy(request):
             'tipo': ot.tipo,
         })
 
-    return JsonResponse({'ots': resultados, 'total': len(resultados)})
+    return JsonResponse({'ots': resultados, 'total': len(resultados), 'can_delete': request.user.is_superuser})
 
 @staff_member_required
 @require_POST

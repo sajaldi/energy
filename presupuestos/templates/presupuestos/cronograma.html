@@ -397,7 +397,9 @@ th.col-concept {
         <span class="sub-label solicited direct"><ion-icon name="time-outline"></ion-icon> Solicitado (directo)</span>
     </td>
     {% for sval in pd.partida_solicitado %}
-    <td>{% if sval > 0 %}<span class="val-money">{{ sval|stringformat:".2f" }}</span>{% else %}<span style="color:#f3d9a8;">—</span>{% endif %}</td>
+    <td {% if sval > 0 %}style="cursor:pointer;" onclick="openCeldaModal('{{ pd.partida.id }}','','{{ periodo_cols|col_anio:forloop.counter }}','{{ periodo_cols|col_mes:forloop.counter }}')" title="Ver detalle"{% endif %}>
+        {% if sval > 0 %}<span class="val-money" style="text-decoration:underline dotted;">{{ sval|stringformat:".2f" }}</span>{% else %}<span style="color:#f3d9a8;">—</span>{% endif %}
+    </td>
     {% endfor %}
     <td class="val-money" style="font-weight:700;">{{ pd.total_partida_solicitado|stringformat:".2f" }}</td>
 </tr>
@@ -529,6 +531,17 @@ th.col-concept {
         <ion-icon name="close-circle-outline"></ion-icon>
         <span id="labelExcluir">EXCLUIR</span>
     </div>
+</div>
+
+<!-- Modal detalle celda solicitado -->
+<div id="celdaModal" class="fi-modal">
+  <div class="fi-modal-box" style="position:relative;max-width:640px;">
+    <button class="fi-modal-close" onclick="closeCeldaModal()">×</button>
+    <p class="fi-modal-title" id="celdaModalTitle">Detalle Solicitado</p>
+    <div id="celdaModalBody" style="min-height:80px;font-size:.85rem;">
+        <div style="text-align:center;padding:24px;color:var(--muted);">Cargando...</div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -686,6 +699,8 @@ function closeEditPartidaModal(){M.editPartida.classList.remove('show');}
 // click outside closes
 window.addEventListener('click',e=>{
     Object.values(M).forEach(m=>{if(e.target===m)m.classList.remove('show');});
+    const cm=document.getElementById('celdaModal');
+    if(e.target===cm)cm.classList.remove('show');
 });
 
 // ── Submit helpers ───────────────────────────────────────
@@ -769,5 +784,83 @@ document.addEventListener('DOMContentLoaded',()=>{
         if(!isNaN(raw)&&raw!==0)el.innerText=fmt(raw);
     });
 });
+
+// ── Modal detalle celda ──────────────────────────────────
+const MESES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const ESTATUS_COLOR = {PAGADO:'#107e3e',SOLICITADO:'#c05700',APROBADO:'#0a6ed1',RECHAZADO:'#bb0000',POSPUESTO:'#6a6d70'};
+const API_CELDA = '{% url "presupuestos:api_cronograma_celda" %}';
+
+function openCeldaModal(partidaId, itemId, anio, mes) {
+    const modal = document.getElementById('celdaModal');
+    const body  = document.getElementById('celdaModalBody');
+    const title = document.getElementById('celdaModalTitle');
+    const anioInt = parseInt(String(anio).replace(/,/g,''));
+    const mesInt  = parseInt(mes);
+    title.innerText = `Solicitado — ${MESES_NOMBRES[mesInt] || mes} ${anioInt}`;
+    body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Cargando...</div>';
+    modal.classList.add('show');
+
+    const params = new URLSearchParams({anio: anioInt, mes: mesInt});
+    if (itemId) params.set('item_id', itemId);
+    else params.set('partida_id', partidaId);
+
+    fetch(`${API_CELDA}?${params}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.items || data.items.length === 0) {
+                body.innerHTML = '<p style="color:var(--muted);text-align:center;padding:16px;">Sin registros para este período.</p>';
+                return;
+            }
+            let rows = data.items.map(i => {
+                const color = ESTATUS_COLOR[i.estatus] || '#6a6d70';
+                return `<tr>
+                    <td style="padding:8px 10px;border-bottom:1px solid #eee;">
+                        <a href="/presupuestos/pagos/solicitud/${i.solicitud_id}/" target="_blank"
+                           style="color:var(--primary);font-weight:600;text-decoration:none;">
+                           ${i.req_codigo}
+                        </a>
+                        <div style="font-size:.75rem;color:var(--muted);margin-top:2px;">${i.req_asunto.substring(0,60)}${i.req_asunto.length>60?'…':''}</div>
+                    </td>
+                    <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:.8rem;color:var(--muted);">${i.proveedor}</td>
+                    <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${fmt(i.monto)}</td>
+                    <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;">
+                        <span style="background:${color}22;color:${color};padding:2px 8px;font-size:.72rem;font-weight:700;">${i.estatus}</span>
+                    </td>
+                    <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:.78rem;color:var(--muted);">
+                        <a href="/presupuestos/pagos/solicitud/${i.solicitud_id}/" target="_blank" style="color:var(--muted);">
+                            SP-${i.solicitud_id}
+                        </a>
+                    </td>
+                </tr>`;
+            }).join('');
+            body.innerHTML = `
+                <table style="width:100%;border-collapse:collapse;font-size:.83rem;">
+                    <thead>
+                        <tr style="background:#f0f2f4;">
+                            <th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--border);">Requisición</th>
+                            <th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--border);">Proveedor</th>
+                            <th style="padding:8px 10px;text-align:right;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--border);">Monto</th>
+                            <th style="padding:8px 10px;text-align:center;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--border);">Estatus</th>
+                            <th style="padding:8px 10px;text-align:center;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--border);">Solicitud</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot>
+                        <tr style="background:#f0f2f4;">
+                            <td colspan="2" style="padding:8px 10px;font-weight:700;">Total</td>
+                            <td style="padding:8px 10px;text-align:right;font-weight:700;">${fmt(data.total)}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>`;
+        })
+        .catch(() => {
+            body.innerHTML = '<p style="color:var(--danger);padding:16px;">Error al cargar los datos.</p>';
+        });
+}
+
+function closeCeldaModal() {
+    document.getElementById('celdaModal').classList.remove('show');
+}
 </script>
 {% endblock %}

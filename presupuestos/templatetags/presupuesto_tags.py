@@ -78,3 +78,16 @@ def col_anio(periodo_cols, col_num):
         return periodo_cols[idx][0]
     except (IndexError, TypeError, ValueError):
         return ''
+
+
+@register.filter
+def col_mes(periodo_cols, col_num):
+    """
+    Dado el número de columna (1-based), retorna el mes correspondiente.
+    periodo_cols es una lista de (anio, mes, label).
+    """
+    try:
+        idx = int(col_num) - 1
+        return periodo_cols[idx][1]
+    except (IndexError, TypeError, ValueError):
+        return ''

@@ -14,6 +14,7 @@ urlpatterns = [
     path('api/delete_partida/', views.api_delete_partida, name='api_delete_partida'),
     path('api/update_partida/', views.api_update_partida, name='api_update_partida'),
     path('api/get_disciplinas/', views.api_get_disciplinas, name='api_get_disciplinas'),
+    path('api/cronograma_celda/', views.api_cronograma_detalle_celda, name='api_cronograma_celda'),
     path('exportar_excel/<int:pk>/', views.exportar_cronograma_excel, name='exportar_excel'),
     path('exportar_pdf/<int:pk>/', views.exportar_cronograma_pdf, name='exportar_pdf'),
     path('exportar_grupo_pdf/<int:pk>/', views.exportar_cronograma_grupal_pdf, name='exportar_cronograma_grupal_pdf'),

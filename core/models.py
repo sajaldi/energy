@@ -377,6 +377,19 @@ class AdminNavMenu(models.Model):
     name = models.CharField(max_length=100, verbose_name="Nombre")
     icon = models.CharField(max_length=100, default="fas fa-circle", verbose_name="Icono (FontAwesome)")
     color = models.CharField(max_length=20, default="#0064d2", verbose_name="Color (hex)")
+    descripcion = models.CharField(
+        max_length=255, blank=True, default='', verbose_name="Descripción",
+        help_text="Texto corto mostrado en la tarjeta de la página de inicio.",
+    )
+    url = models.CharField(
+        max_length=500, blank=True, default='', verbose_name="URL directa (opcional)",
+        help_text="Enlace directo de la tarjeta. Si se define, la tarjeta enlaza directo (sin sub-accesos).",
+    )
+    grupos = models.ManyToManyField(
+        'auth.Group', blank=True,
+        help_text="Grupos (roles) que pueden ver este módulo. Si está vacío, es visible para TODOS.",
+        verbose_name="Grupos (rol)",
+    )
     superuser_only = models.BooleanField(default=False, verbose_name="Solo superusuarios")
     order = models.IntegerField(default=0, verbose_name="Orden")
     active = models.BooleanField(default=True, verbose_name="Activo")
@@ -390,6 +403,56 @@ class AdminNavMenu(models.Model):
 
     def __str__(self):
         return self.name
+
+    @staticmethod
+    def menus_base(user):
+        """
+        Menús visibles para el usuario según su rol (grupos), superuser_only
+        y los permisos de cada elemento. NO aplica la personalización por usuario
+        (nav_config); se usa como base para la home y el editor.
+        """
+        user_groups = None if user.is_superuser else user.groups.all()
+        result = []
+        for m in AdminNavMenu.objects.filter(active=True).prefetch_related('items').order_by('order'):
+            if m.superuser_only and not user.is_superuser:
+                continue
+            if user_groups is not None and m.grupos.exists() and not m.grupos.filter(pk__in=user_groups).exists():
+                continue
+
+            cols = {}
+            for item in m.items.order_by('group', 'order'):
+                if item.permission:
+                    try:
+                        if not user.has_perm(item.permission):
+                            continue
+                    except Exception:
+                        continue
+                heading = item.group or 'General'
+                cols.setdefault(heading, []).append({'name': item.name, 'url': item.url, 'icon': item.icon})
+            col_list = [{'heading': h, 'items': it} for h, it in cols.items()]
+            if not col_list and not m.url:
+                continue
+            result.append({
+                'name': m.name,
+                'icon': m.icon,
+                'color': m.color,
+                'descripcion': m.descripcion,
+                'url': m.url,
+                'columns': col_list,
+            })
+        return result
+
+    @staticmethod
+    def get_menus_usuario(user):
+        """
+        Menús finales de la página de inicio para el usuario:
+        filtro por rol (grupos) + superuser_only + permisos de items,
+        y luego la personalización individual (PerfilUsuario.nav_config).
+        """
+        base = AdminNavMenu.menus_base(user)
+        perfil = getattr(user, 'perfil', None)
+        config = (perfil.nav_config or {}) if perfil else {}
+        return _apply_nav_config(base, config)
 
     def save(self, *args, **kwargs):
         cache.delete("admin_nav_groups")
@@ -429,6 +492,7 @@ class AdminNavItem(models.Model):
     menu = models.ForeignKey(AdminNavMenu, on_delete=models.CASCADE, related_name="items", verbose_name="Menú", blank=True, null=True)
     name = models.CharField(max_length=200, verbose_name="Nombre")
     url = models.CharField(max_length=500, verbose_name="URL")
+    icon = models.CharField(max_length=100, default="fas fa-angle-right", verbose_name="Icono (FontAwesome)")
     permission = models.CharField(max_length=200, blank=True, null=True, verbose_name="Permiso requerido")
     group = models.CharField(max_length=100, blank=True, null=True, verbose_name="Encabezado de columna", help_text="Agrupa items bajo un mismo encabezado en el mega menú")
     order = models.IntegerField(default=0, verbose_name="Orden")
@@ -457,5 +521,39 @@ class AdminNavItem(models.Model):
     def delete(self, *args, **kwargs):
         cache.delete("admin_nav_groups")
         super().delete(*args, **kwargs)
+
+
+def _apply_nav_config(menus, config):
+    """
+    Aplica la personalización por usuario (PerfilUsuario.nav_config) sobre la
+    lista de menús base: oculta los indicados en 'hidden_menus', sobrescribe
+    columnas/icono/color según 'customized_menus' y agrega 'custom_menus'.
+    """
+    if not config:
+        return menus
+    hidden = set(config.get("hidden_menus", []) or [])
+    custom = config.get("custom_menus", []) or []
+    customized = config.get("customized_menus", {}) or {}
+
+    result = []
+    for menu in menus:
+        if menu["name"] in hidden:
+            continue
+        override = customized.get(menu["name"])
+        if override:
+            merged = dict(menu)
+            for key in ("name", "icon", "color"):
+                if override.get(key):
+                    merged[key] = override[key]
+            if "columns" in override:
+                merged["columns"] = override["columns"]
+            result.append(merged)
+        else:
+            result.append(menu)
+
+    for c in custom:
+        if isinstance(c, dict) and c.get("name") and c["name"] not in hidden:
+            result.append(c)
+    return result
 
 

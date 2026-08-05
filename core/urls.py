@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from . import views_energia
+from .views_home import home, guardar_home_config
 from .views_coolify import coolify_dashboard, coolify_redeploy, coolify_logs, coolify_stream_logs, coolify_build_logs, celery_logs, celery_stream_logs
 from .views_impersonate import impersonate_start, impersonate_stop
 
@@ -23,6 +24,8 @@ urlpatterns = [
     path('app/qr/', views.qr_resolver, name='qr_resolver'),
     path('admin/global-search/', views.global_search, name='global_search'),
     path('portal/', views.system_portal, name='system_portal'),
+    path('inicio/', home, name='home'),
+    path('inicio/guardar/', guardar_home_config, name='guardar_home_config'),
     path('vistas/guardar/', views.guardar_vista_personalizada, name='guardar_vista'),
     path('vistas/eliminar/<int:vista_id>/', views.eliminar_vista_personalizada, name='eliminar_vista'),
     

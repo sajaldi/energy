@@ -777,6 +777,11 @@
                                     <button onclick="openOtFioriEditModal({{ ot.id|unlocalize }})" style="border:none;background:none;cursor:pointer;color:var(--sapBlue);font-size:1.1rem;">
                                         <ion-icon name="open-outline"></ion-icon>
                                     </button>
+                                    {% if user.is_superuser %}
+                                    <button onclick="eliminarOrden({{ ot.id|unlocalize }}, '{{ ot.codigo_de_orden|default:""|escapejs }}')" style="border:none;background:none;cursor:pointer;color:var(--sapNegative);font-size:1.1rem;" title="Eliminar orden">
+                                        <ion-icon name="trash-outline"></ion-icon>
+                                    </button>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -1232,7 +1237,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         + '<td><span class="badge-status bg-' + ot.estado_class + '">' + escapeHtml(ot.estado) + '</span></td>'
                         + '<td style="width:40px;text-align:right;">'
                         + '<button onclick="openOtFioriEditModal(' + ot.id + ')" style="border:none;background:none;cursor:pointer;color:var(--sapBlue);font-size:1.1rem;">'
-                        + '<ion-icon name="open-outline"></ion-icon></button></td>'
+                        + '<ion-icon name="open-outline"></ion-icon></button>'
+                        + (data.can_delete ? '<button onclick="eliminarOrden(' + ot.id + ', ' + JSON.stringify(ot.codigo) + ')" style="border:none;background:none;cursor:pointer;color:var(--sapNegative);font-size:1.1rem;" title="Eliminar orden"><ion-icon name="trash-outline"></ion-icon></button>' : '')
+                        + '</td>'
                         + '</tr>';
                 });
                 html += '</tbody></table>';
@@ -1305,6 +1312,38 @@ function openFioriCierreModal(otId) {
 
 function closeFioriCierreModal() {
     document.getElementById('fiori-cierre-overlay').classList.remove('active');
+}
+
+function eliminarOrden(otId, codigo) {
+    Swal.fire({
+        title: '¿Eliminar orden?',
+        html: 'Se eliminará la orden <b>' + (codigo || '#' + otId) + '</b> permanentemente. Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#bb0000',
+        cancelButtonColor: '#6a6d70',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+        const csrf = document.querySelector('#otnp-form input[name="csrfmiddlewaretoken"]');
+        fetch(`/mantenimiento/app/ot/${otId}/eliminar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrf ? csrf.value : ''
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({ title: 'Eliminada', text: data.message, icon: 'success', confirmButtonColor: '#0070b2' });
+                if (typeof cargarOrdenesHoy === 'function') cargarOrdenesHoy();
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        })
+        .catch(() => Swal.fire('Error', 'Conexión fallida', 'error'));
+    });
 }
 
 function openTicketsModal() {

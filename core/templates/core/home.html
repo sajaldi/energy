@@ -1,0 +1,330 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio - SoftCom CCG</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        :root {
+            --primary: #005dbd; --primary-dark: #004a99;
+            --dark: #32363a; --muted: #6a6d70; --body-bg: #f4f6f9;
+            --shadow: 0 1px 3px rgba(16,24,40,.08), 0 1px 2px rgba(16,24,40,.04);
+            --hover: 0 14px 30px rgba(16,24,40,.14);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--body-bg); color: var(--dark); min-height: 100vh; display: flex; flex-direction: column; }
+        header { position: sticky; top: 0; z-index: 100; background: #fff; border-bottom: 2px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--primary); font-weight: 800; font-size: 1.25rem; }
+        .brand ion-icon { font-size: 1.6rem; }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .hlink { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--muted); font-size: .9rem; font-weight: 600; padding: 8px 12px; border-radius: 8px; transition: all .15s; }
+        .hlink:hover { background: #eef4fc; color: var(--primary); }
+        .hlink.primary { background: var(--primary); color: #fff; }
+        .hlink.primary:hover { background: var(--primary-dark); }
+        .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .95rem; text-transform: uppercase; }
+        .user-chip { display: flex; align-items: center; gap: 10px; }
+        .user-chip .uname { font-weight: 600; font-size: .9rem; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        main { flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: 34px 24px 60px; }
+        .hero { margin-bottom: 24px; }
+        .hero h1 { font-size: 1.7rem; font-weight: 800; }
+        .hero h1 span { color: var(--primary); }
+        .hero p { color: var(--muted); margin-top: 6px; font-size: .98rem; }
+        .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; border: 1px solid #d0d7e2; background: #fff; color: var(--dark); padding: 9px 14px; border-radius: 9px; font-weight: 600; font-size: .88rem; font-family: inherit; transition: all .15s; }
+        .btn:hover { border-color: var(--primary); color: var(--primary); }
+        .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .btn.primary:hover { background: var(--primary-dark); }
+        .btn.danger:hover { border-color: #bb0000; color: #bb0000; }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn.d-none { display: none; }
+        .hint { color: var(--muted); font-size: .85rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+        .flip-card { position: relative; min-height: 200px; perspective: 1000px; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+        .flip-card:hover { transform: translateY(-3px); box-shadow: var(--hover); }
+        .flip-inner { position: relative; width: 100%; height: 100%; min-height: 200px; transform-style: preserve-3d; transition: transform .45s ease; }
+        .flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+        .face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 14px; background: #fff; box-shadow: var(--shadow); overflow: hidden; }
+        .face.front { display: flex; flex-direction: column; }
+        .face.back { transform: rotateY(180deg); display: flex; flex-direction: column; }
+        .colorbar { height: 6px; width: 100%; }
+        .front-body { flex: 1; padding: 20px; display: flex; flex-direction: column; }
+        .card-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #fff; margin-bottom: 14px; }
+        .card-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 6px; }
+        .card-desc { color: var(--muted); font-size: .85rem; line-height: 1.5; flex: 1; }
+        .card-hint { margin-top: 12px; font-size: .75rem; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 5px; }
+        .back-body { flex: 1; padding: 16px 18px; display: flex; flex-direction: column; overflow: auto; }
+        .back-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .back-head .btitle { font-weight: 700; font-size: .95rem; }
+        .close-flip { border: none; background: transparent; cursor: pointer; color: var(--muted); font-size: 1.1rem; }
+        .close-flip:hover { color: var(--dark); }
+        .col-heading { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 12px 0 6px; }
+        .col-heading:first-child { margin-top: 0; }
+        .sublink { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--dark); font-size: .88rem; font-weight: 500; padding: 8px 10px; border-radius: 8px; transition: all .12s; }
+        .sublink:hover { background: #eef4fc; color: var(--primary); }
+        .sublink i { width: 18px; text-align: center; color: var(--primary); font-size: .85rem; }
+        .direct-btn { margin-top: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--primary); color: #fff; text-decoration: none; font-weight: 600; padding: 10px 14px; border-radius: 9px; font-size: .9rem; }
+        .direct-btn:hover { background: var(--primary-dark); }
+        .empty-msg { color: var(--muted); font-size: .85rem; text-align: center; padding: 10px 0; }
+        .edit-badge { position: absolute; top: 10px; right: 10px; z-index: 20; width: 30px; height: 30px; border-radius: 8px; border: none; cursor: pointer; background: rgba(0,0,0,.05); color: var(--muted); font-size: .9rem; display: none; align-items: center; justify-content: center; }
+        body.editing .edit-badge { display: flex; }
+        .edit-badge:hover { background: rgba(0,0,0,.1); }
+        .flip-card.hidden-card { opacity: .45; filter: grayscale(.4); }
+        .flip-card.hidden-card .edit-badge { background: #bb0000; color: #fff; }
+        body.editing .face { pointer-events: none; }
+        body.editing .flip-card { cursor: default; }
+        body.editing .flip-card .edit-badge { pointer-events: auto; }
+        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--dark); color: #fff; padding: 12px 22px; border-radius: 10px; font-size: .9rem; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.25); opacity: 0; transition: all .25s; z-index: 500; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: none; align-items: center; justify-content: center; z-index: 400; padding: 20px; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 420px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+        .modal h3 { font-size: 1.1rem; margin-bottom: 18px; }
+        .field { margin-bottom: 14px; }
+        .field label { display: block; font-size: .8rem; font-weight: 700; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
+        .field input, .field select { width: 100%; padding: 10px 12px; border: 1px solid #d0d7e2; border-radius: 9px; font-size: .9rem; font-family: inherit; outline: none; }
+        .field input:focus, .field select:focus { border-color: var(--primary); }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-actions .btn { flex: 1; justify-content: center; }
+        .icon-options { display: flex; flex-wrap: wrap; gap: 8px; }
+        .icon-options button { width: 40px; height: 40px; border: 1px solid #d0d7e2; border-radius: 9px; background: #fff; cursor: pointer; color: var(--dark); font-size: 1rem; }
+        .icon-options button.active { border-color: var(--primary); color: var(--primary); background: #eef4fc; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-inner">
+            <a href="{% url 'core:home' %}" class="brand"><ion-icon name="layers"></ion-icon> SoftCom CCG</a>
+            <div class="header-actions">
+                <a class="hlink" href="{% url 'core:mobile_dashboard' %}"><ion-icon name="phone-portrait-outline"></ion-icon> App Móvil</a>
+                {% if user.is_staff %}
+                <a class="hlink" href="{% url 'admin:index' %}"><ion-icon name="options-outline"></ion-icon> Panel Clásico</a>
+                {% endif %}
+                <div class="user-chip">
+                    <div class="avatar">{{ user.username|first|upper }}</div>
+                    <span class="uname">{{ user.get_full_name|default:user.username }}</span>
+                </div>
+                <form id="logout-form" action="{% url 'admin:logout' %}" method="POST" style="display:none;">{% csrf_token %}</form>
+                <a class="hlink" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" title="Cerrar sesión"><ion-icon name="log-out-outline"></ion-icon></a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="hero">
+            <h1>Hola, <span>{{ user.get_full_name|default:user.username }}</span> 👋</h1>
+            <p>¿Qué deseas gestionar hoy? Estos son tus accesos según tu perfil.</p>
+        </div>
+
+        <div class="toolbar">
+            <button class="btn primary" id="btn-edit"><i class="fas fa-sliders-h"></i> Personalizar</button>
+            <button class="btn danger d-none" id="btn-cancel-edit"><i class="fas fa-times"></i> Cancelar</button>
+            <button class="btn primary d-none" id="btn-add"><i class="fas fa-plus"></i> Agregar acceso</button>
+            <button class="btn d-none" id="btn-save"><i class="fas fa-save"></i> Guardar cambios</button>
+            <span class="hint d-none" id="edit-hint">Haz clic en el icono de cada tarjeta para mostrar u ocultar. Tus cambios solo te afectan a ti.</span>
+        </div>
+
+        <div id="board" class="grid"></div>
+
+        <div class="modal-overlay" id="modal-add">
+            <div class="modal">
+                <h3>Nuevo acceso directo</h3>
+                <div class="field"><label>Nombre</label><input type="text" id="m-name" placeholder="Ej: Dashboard de Tickets"></div>
+                <div class="field"><label>URL</label><input type="text" id="m-url" placeholder="/callcenter/dashboard/"></div>
+                <div class="field"><label>Icono</label><div class="icon-options" id="m-icons"></div></div>
+                <div class="field"><label>Color</label><input type="color" id="m-color" value="#005dbd"></div>
+                <div class="modal-actions">
+                    <button class="btn" id="m-cancel">Cancelar</button>
+                    <button class="btn primary" id="m-ok">Agregar</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="toast" id="toast"></div>
+    </main>
+
+    <script>
+        window.__HOME_DATA__ = {
+            menus: {{ menus_json|safe }},
+            allMenus: {{ all_menus_json|safe }},
+            hidden: {{ hidden_menus_json|safe }},
+            custom: {{ custom_menus_json|safe }}
+        };
+        (function () {
+            const D = window.__HOME_DATA__;
+            const board = document.getElementById('board');
+            const btnEdit = document.getElementById('btn-edit');
+            const btnCancel = document.getElementById('btn-cancel-edit');
+            const btnAdd = document.getElementById('btn-add');
+            const btnSave = document.getElementById('btn-save');
+            const editHint = document.getElementById('edit-hint');
+            const toast = document.getElementById('toast');
+            let editing = false;
+
+            const ICONS = ['fas fa-link', 'fas fa-star', 'fas fa-tachometer-alt', 'fas fa-chart-bar', 'fas fa-calendar-check', 'fas fa-clipboard-list', 'fas fa-bell', 'fas fa-file-alt', 'fas fa-boxes', 'fas fa-cog'];
+
+            D.allMenus = (D.allMenus || []).concat(D.custom || []);
+
+            function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+            function toastMsg(msg) {
+                toast.textContent = msg;
+                toast.classList.add('show');
+                setTimeout(function () { toast.classList.remove('show'); }, 2200);
+            }
+
+            function getCookie(name) {
+                const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+                return m ? decodeURIComponent(m[1]) : '';
+            }
+
+            function cardHTML(m) {
+                const color = m.color || '#005dbd';
+                const icon = m.icon || 'fas fa-circle';
+                const hasSub = Array.isArray(m.columns) && m.columns.length && m.columns.some(function (c) { return c.items && c.items.length; });
+                const hasUrl = !!m.url;
+                const hint = (hasSub || hasUrl) ? '<div class="card-hint"><ion-icon name="reload-outline"></ion-icon> Ver accesos</div>' : '<div class="card-hint"></div>';
+                const front = '<div class="face front"><div class="colorbar" style="background:' + color + '"></div>' +
+                    '<div class="front-body">' +
+                    '<div class="card-icon" style="background:' + color + '"><i class="' + esc(icon) + '"></i></div>' +
+                    '<div class="card-title">' + esc(m.name) + '</div>' +
+                    '<div class="card-desc">' + esc(m.descripcion || '') + '</div>' + hint +
+                    '</div></div>';
+
+                let sub = '';
+                if (hasSub) {
+                    sub = '<div class="back-body">';
+                    m.columns.forEach(function (col) {
+                        if (!col.items || !col.items.length) return;
+                        sub += '<div class="col-heading">' + esc(col.heading || 'General') + '</div>';
+                        col.items.forEach(function (it) {
+                            sub += '<a class="sublink" href="' + esc(it.url) + '"><i class="' + esc(it.icon || 'fas fa-angle-right') + '"></i>' + esc(it.name) + '</a>';
+                        });
+                    });
+                    sub += '</div>';
+                } else if (hasUrl) {
+                    sub = '<div class="back-body"><a class="direct-btn" href="' + esc(m.url) + '"><i class="fas fa-external-link-alt"></i> Abrir ' + esc(m.name) + '</a></div>';
+                } else {
+                    sub = '<div class="back-body"><div class="empty-msg">Sin accesos configurados.</div></div>';
+                }
+
+                const back = '<div class="face back">' +
+                    '<div class="back-head" style="padding:16px 18px 0;"><span class="btitle">' + esc(m.name) + '</span>' +
+                    '<button class="close-flip" data-close title="Cerrar"><i class="fas fa-times"></i></button></div>' + sub + '</div>';
+
+                const hiddenCls = editing && D.hidden.indexOf(m.name) >= 0 ? ' hidden-card' : '';
+                return '<div class="flip-card' + hiddenCls + '" data-name="' + esc(m.name) + '">' +
+                    '<button class="edit-badge" data-toggle title="Mostrar / Ocultar"><i class="fas fa-eye-slash"></i></button>' +
+                    '<div class="flip-inner">' + front + back + '</div></div>';
+            }
+
+            function render() {
+                const source = editing ? D.allMenus : D.menus;
+                board.innerHTML = source.map(cardHTML).join('');
+            }
+
+            function toggleHidden(name) {
+                const idx = D.hidden.indexOf(name);
+                if (idx >= 0) { D.hidden.splice(idx, 1); } else { D.hidden.push(name); }
+                render();
+            }
+
+            board.addEventListener('click', function (e) {
+                const toggle = e.target.closest('[data-toggle]');
+                const close = e.target.closest('[data-close]');
+                if (editing && toggle) {
+                    const card = toggle.closest('.flip-card');
+                    if (card) toggleHidden(card.dataset.name);
+                    return;
+                }
+                if (close) {
+                    const card = close.closest('.flip-card');
+                    if (card) card.classList.remove('flipped');
+                    return;
+                }
+                if (!editing && !e.target.closest('a')) {
+                    const card = e.target.closest('.flip-card');
+                    if (card) card.classList.toggle('flipped');
+                }
+            });
+
+            function setEditing(on) {
+                editing = on;
+                document.body.classList.toggle('editing', on);
+                btnEdit.classList.toggle('d-none', on);
+                btnCancel.classList.toggle('d-none', !on);
+                btnAdd.classList.toggle('d-none', !on);
+                btnSave.classList.toggle('d-none', !on);
+                editHint.classList.toggle('d-none', !on);
+                render();
+            }
+
+            async function save() {
+                try {
+                    const res = await fetch('{% url "core:guardar_home_config" %}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                        body: JSON.stringify({ hidden_menus: D.hidden, custom_menus: D.custom })
+                    });
+                    const data = await res.json();
+                    if (data.ok) { toastMsg('Configuración guardada'); setTimeout(function () { location.reload(); }, 600); }
+                    else { toastMsg('Error al guardar'); }
+                } catch (err) { toastMsg('Error de red al guardar'); }
+            }
+            const modal = document.getElementById('modal-add');
+            const mName = document.getElementById('m-name');
+            const mUrl = document.getElementById('m-url');
+            const mColor = document.getElementById('m-color');
+            const mIcons = document.getElementById('m-icons');
+            const mOk = document.getElementById('m-ok');
+            const mCancel = document.getElementById('m-cancel');
+            let selectedIcon = ICONS[0];
+
+            function buildIconOptions() {
+                mIcons.innerHTML = '';
+                ICONS.forEach(function (ic) {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.innerHTML = '<i class="' + ic + '"></i>';
+                    b.className = ic === selectedIcon ? 'active' : '';
+                    b.addEventListener('click', function () {
+                        selectedIcon = ic;
+                        mIcons.querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
+                        b.classList.add('active');
+                    });
+                    mIcons.appendChild(b);
+                });
+            }
+
+            function openModal() {
+                mName.value = ''; mUrl.value = ''; mColor.value = '#005dbd';
+                selectedIcon = ICONS[0]; buildIconOptions();
+                modal.classList.add('show');
+                mName.focus();
+            }
+            function closeModal() { modal.classList.remove('show'); }
+
+            mOk.addEventListener('click', function () {
+                const name = mName.value.trim(), url = mUrl.value.trim();
+                if (!name || !url) { toastMsg('Nombre y URL son obligatorios'); return; }
+                D.custom.push({ name: name, url: url, icon: selectedIcon, color: mColor.value, descripcion: 'Acceso directo personal', columns: [] });
+                closeModal(); render();
+            });
+            mCancel.addEventListener('click', closeModal);
+            modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+
+            btnEdit.addEventListener('click', function () { setEditing(true); });
+            btnCancel.addEventListener('click', function () { location.reload(); });
+            btnAdd.addEventListener('click', openModal);
+            btnSave.addEventListener('click', save);
+
+            render();
+        })();
+    </script>
+</body>
+</html>
