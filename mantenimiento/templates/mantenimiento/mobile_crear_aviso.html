@@ -935,7 +935,7 @@
         window.addEventListener('load', () => {
             {% if activo %}selectAsset({
                 id: "{{ activo.id }}", text: "{{ activo.nombre }} [{{ activo.codigo_interno }}]",
-                ubicacion_id: "{{ activo.ubicacion.id|default:aviso.ubicacion_id|default:'' }}",
+                ubicacion_id: "{% if activo.ubicacion_id %}{{ activo.ubicacion_id }}{% elif aviso and aviso.ubicacion_id %}{{ aviso.ubicacion_id }}{% endif %}",
                 marca: "{{ activo.modelo.marca.nombre|default:activo.marca_legacy|default:'S/M' }}",
                 modelo: "{{ activo.modelo.nombre|default:activo.modelo_legacy|default:'S/M' }}",
                 categoria: "{{ activo.modelo.categoria.nombre|default:'S/C' }}",
