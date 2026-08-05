@@ -276,7 +276,11 @@ def mobile_crear_aviso(request, pk=None):
         ubicacion = Ubicacion.objects.filter(id=ubi_id).first() if ubi_id else None
         
         if not ubicacion:
-            ubicacion = activo.ubicacion if activo else ubi_defecto
+            ubicacion = (
+                activo.ubicacion if activo and activo.ubicacion else
+                instance.ubicacion if instance and instance.ubicacion else
+                ubi_defecto
+            )
         
         if not ubicacion:
             # Recargar contexto para el error
