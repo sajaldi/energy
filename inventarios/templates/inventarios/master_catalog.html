@@ -131,7 +131,7 @@
     .modal-overlay.active { display: flex; opacity: 1; align-items: center; justify-content: center; }
     .modal-window {
         background: #fff; width: 95%; max-width: 1200px; height: 90vh;
-        border-radius: var(--radius-lg); overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,0.5);
+        border-radius: 0; overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,0.5);
         display: flex; flex-direction: column; transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     .modal-overlay.active .modal-window { transform: scale(1); }
@@ -680,23 +680,38 @@
                     <table style="width:100%; border-collapse:collapse;">
                         <thead>
                             <tr style="border-bottom:2px solid #ddd; text-align:left;">
-                                <th style="padding:12px;">Fecha</th>
-                                <th style="padding:12px;">Tipo</th>
-                                <th style="padding:12px; text-align:right;">Cantidad</th>
-                                <th style="padding:12px;">Usuario</th>
+                                <th style="padding:10px 12px; font-size:0.72rem; text-transform:uppercase; color:#6a6d70; font-weight:600;">Fecha</th>
+                                <th style="padding:10px 12px; font-size:0.72rem; text-transform:uppercase; color:#6a6d70; font-weight:600;">Tipo</th>
+                                <th style="padding:10px 12px; font-size:0.72rem; text-transform:uppercase; color:#6a6d70; font-weight:600;">Estado</th>
+                                <th style="padding:10px 12px; text-align:right; font-size:0.72rem; text-transform:uppercase; color:#6a6d70; font-weight:600;">Cantidad</th>
+                                <th style="padding:10px 12px; font-size:0.72rem; text-transform:uppercase; color:#6a6d70; font-weight:600;">Usuario</th>
+                                <th style="padding:10px 12px; font-size:0.72rem; text-transform:uppercase; color:#6a6d70; font-weight:600;"></th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${data.movimientos.map(m => `
+                            ${data.movimientos.map(m => {
+                                const estadoColors = {
+                                    'APROBADO': 'background:#e6f4ea; color:#137333;',
+                                    'PENDIENTE': 'background:#fef7e0; color:#8a6d3b;',
+                                    'RECHAZADO': 'background:#fdeded; color:#d32f2f;',
+                                };
+                                const estadoStyle = estadoColors[m.estado_raw] || 'background:#f1f3f4; color:#5f6368;';
+                                return `
                                 <tr style="border-bottom:1px solid #eee;">
-                                    <td style="padding:12px; font-size:0.85rem;">${m.fecha}</td>
-                                    <td style="padding:12px;">
-                                        <span style="background:${m.tipo === 'ENTRADA' ? '#e6f4ea' : '#fdeded'}; color:${m.tipo === 'ENTRADA' ? '#1e7e34' : '#d32f2f'}; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700;">${m.tipo}</span>
+                                    <td style="padding:10px 12px; font-size:0.85rem;">${m.fecha}</td>
+                                    <td style="padding:10px 12px;">
+                                        <span style="background:${m.es_salida ? '#fdeded' : '#e6f4ea'}; color:${m.es_salida ? '#d32f2f' : '#1e7e34'}; padding:3px 8px; font-size:0.72rem; font-weight:700;">${m.tipo}</span>
                                     </td>
-                                    <td style="padding:12px; text-align:right; font-weight:700;">${m.cantidad}</td>
-                                    <td style="padding:12px; font-size:0.85rem;">${m.usuario}</td>
+                                    <td style="padding:10px 12px;">
+                                        <span style="${estadoStyle} padding:3px 8px; font-size:0.72rem; font-weight:700;">${m.estado}</span>
+                                    </td>
+                                    <td style="padding:10px 12px; text-align:right; font-weight:700;">${m.cantidad}</td>
+                                    <td style="padding:10px 12px; font-size:0.85rem;">${m.usuario}</td>
+                                    <td style="padding:10px 12px;">
+                                        <a href="/admin/inventarios/movimientoinventario/${m.id}/change/" target="_blank" style="color:#0a6ed1; font-size:0.75rem; font-weight:600; text-decoration:none; border:1px solid #0a6ed1; padding:3px 8px;">Abrir</a>
+                                    </td>
                                 </tr>
-                            `).join('')}
+                            `}).join('')}
                         </tbody>
                     </table>
                     `}
