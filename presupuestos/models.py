@@ -1580,3 +1580,41 @@ class MaterialExoneracion(models.Model):
     @property
     def subtotal(self):
         return self.cantidad * (self.material.precio_estimado or 0)
+
+
+class DashboardView(models.Model):
+    """Vista personalizada del dashboard de requisiciones."""
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE,
+        related_name='dashboard_views'
+    )
+    name = models.CharField(max_length=100, verbose_name="Nombre de la vista")
+    columns = models.JSONField(
+        default=list,
+        verbose_name="Columnas visibles",
+        help_text="Lista ordenada de IDs de columnas visibles"
+    )
+    sort_column = models.CharField(
+        max_length=50, null=True, blank=True,
+        verbose_name="Columna de ordenamiento"
+    )
+    sort_direction = models.CharField(
+        max_length=4, null=True, blank=True,
+        choices=[('asc', 'Ascendente'), ('desc', 'Descendente')],
+        verbose_name="Dirección de ordenamiento"
+    )
+    is_last_used = models.BooleanField(
+        default=False,
+        verbose_name="Es la última vista utilizada"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['user', 'name']
+        ordering = ['name']
+        verbose_name = "Vista del Dashboard"
+        verbose_name_plural = "Vistas del Dashboard"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.name}"

@@ -6,6 +6,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>if(typeof Swal==='undefined'){document.write('<script src="https://unpkg.com/sweetalert2@11"><\\/script>')}</script>
+<script src="{% static 'presupuestos/js/dashboard_customizer.js' %}"></script>
 <style>
     /* Context Menu */
     #req-context-menu {
@@ -267,8 +268,8 @@
     .dept-card {
         background: white;
         padding: 16px;
-        border-radius: var(--radius);
-        border: 1px solid var(--border);
+        border-radius: 0;
+        border: 1px solid #3b82f6;
         display: flex;
         flex-direction: column;
         gap: 4px;
@@ -277,7 +278,7 @@
 
     .dept-card:hover {
         transform: scale(1.02);
-        border-color: var(--primary);
+        border-color: #1d4ed8;
     }
 
     .dept-name {
@@ -372,6 +373,9 @@
         </div>
     </div>
 
+    <!-- Dashboard Content Wrapper (for DashboardCustomizer views bar) -->
+    <div class="dashboard-content">
+
     <!-- Tabs Navigation -->
     <div class="tabs-nav" style="margin-top: 30px;">
         <button class="tab-btn active" onclick="switchTab(event, 'general')">📊 Resumen General</button>
@@ -389,7 +393,7 @@
             </div>
             <div class="dept-stats-grid">
                 {% for d in stats_departamento %}
-                <div class="dept-card">
+                <div class="dept-card" data-dept-filter="{{ d.usuario_solicitante__perfil__departamento__nombre|default:'Sin Clasificar' }}" style="cursor: pointer;" onclick="filterByDepartment(this)">
                     <span class="dept-name">{{ d.usuario_solicitante__perfil__departamento__nombre|default:"Sin Clasificar" }}</span>
                     <span class="dept-value">L.{{ d.total|floatformat:2 }}</span>
                     <span class="dept-meta">{{ d.count }} requisiciones</span>
@@ -404,45 +408,54 @@
 
         <!-- Listado General -->
         <div class="main-surface">
-            <div class="surface-header">
+            <div class="surface-header" id="table-header-general">
                 <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">
                     📄 {% if search_query %}Resultados de búsqueda{% else %}Últimas Requisiciones{% endif %}
                     <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400;">
                         (ordenadas por fecha de solicitud: más nuevas primero)
                     </span>
                 </h3>
-                <a href="{% url 'admin:presupuestos_requisicion_changelist' %}"
-                    style="font-size: 0.85rem; color: var(--secondary); font-weight: 600;">Ver todo</a>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <a href="{% url 'admin:presupuestos_requisicion_changelist' %}"
+                        style="font-size: 0.85rem; color: var(--secondary); font-weight: 600;">Ver todo</a>
+                    <span id="column-selector-container-general"></span>
+                </div>
             </div>
             <div style="overflow-x: auto;">
                 <table class="table-modern">
                     <thead>
                         <tr>
-                            <th>N° Requisición</th>
-                            <th>Fecha</th>
-                            <th>Asunto</th>
-                            <th>Prioridad</th>
-                            <th>Estado</th>
-                            <th>Total</th>
-                            <th>O/C</th>
-                            <th style="text-align: right;">Acciones</th>
+                            <th data-column-id="requisicion">N° Requisición</th>
+                            <th data-column-id="fecha">Fecha</th>
+                            <th data-column-id="asunto">Asunto</th>
+                            <th data-column-id="prioridad">Prioridad</th>
+                            <th data-column-id="estado">Estado</th>
+                            <th data-column-id="total">Total</th>
+                            <th data-column-id="oc">O/C</th>
+                            <th data-column-id="tipo" style="display:none;">Tipo</th>
+                            <th data-column-id="solicitante" style="display:none;">Solicitante</th>
+                            <th data-column-id="aprobador" style="display:none;">Aprobador</th>
+                            <th data-column-id="motivo" style="display:none;">Motivo</th>
+                            <th data-column-id="partida" style="display:none;">Partida Presup.</th>
+                            <th data-column-id="proveedor" style="display:none;">Proveedor</th>
+                            <th data-column-id="acciones" style="text-align: right;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for req in ultimas_requisiciones %}
-                        <tr>
-                            <td style="font-weight: 600; color: var(--secondary);">
+                        <tr data-department="{{ req.usuario_solicitante.perfil.departamento.nombre|default:'Sin Clasificar' }}">
+                            <td data-column-id="requisicion" style="font-weight: 600; color: var(--secondary);">
                                 <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
                                     style="color: inherit;">{{req.cr8ca_requisicion}}</a>
                             </td>
-                            <td>{{req.fecha|default:req.createdon|date:"d/m/Y"}}</td>
-                            <td>{{req.cr8ca_asunto|truncatechars:40}}</td>
-                            <td>
+                            <td data-column-id="fecha" data-sort-value="{{ req.fecha|default:req.createdon|date:'Y-m-d' }}">{{req.fecha|default:req.createdon|date:"d/m/Y"}}</td>
+                            <td data-column-id="asunto">{{req.cr8ca_asunto|truncatechars:40}}</td>
+                            <td data-column-id="prioridad" data-sort-value="{{req.get_cr8ca_prioridad_display}}">
                                 <span class="priority-badge priority-{{req.cr8ca_prioridad}}">
                                     {{req.get_cr8ca_prioridad_display}}
                                 </span>
                             </td>
-                            <td>
+                            <td data-column-id="estado">
                                 <span class="priority-badge" style="
                                     {% if req.estado_requisicion == 'AUTORIZADO' %}background:#dcfce7; color:#166534;{% endif %}
                                     {% if req.estado_requisicion == 'PENDIENTE' %}background:#fef9c3; color:#854d0e;{% endif %}
@@ -454,14 +467,20 @@
                                     {{req.get_estado_requisicion_display}}
                                 </span>
                             </td>
-                            <td style="font-family: monospace; font-weight: 600;">
+                            <td data-column-id="total" data-sort-value="{{ req.cr8ca_totalenarticulos }}" style="font-family: monospace; font-weight: 600;">
                                 L.{{req.cr8ca_totalenarticulos|floatformat:2}}</td>
-                            <td style="font-size:0.8rem;">
+                            <td data-column-id="oc" style="font-size:0.8rem;">
                                 {% for oc in req.ordenes_compra.all %}
                                 <div style="white-space:nowrap;">{% if es_procura %}<a href="#" onclick="abrirModalOC({{ oc.pk }}); return false;" style="color:#2563eb;text-decoration:underline;">{{ oc.numero_oc }}</a>{% else %}{{ oc.numero_oc }}{% endif %}</div>
                                 {% endfor %}
                             </td>
-                            <td style="text-align: right; white-space: nowrap;">
+                            <td data-column-id="tipo" style="display:none;">{{ req.get_tipo_display|default:"-" }}</td>
+                            <td data-column-id="solicitante" style="display:none;">{{ req.usuario_solicitante.get_full_name|default:req.usuario_solicitante.username|default:"-" }}</td>
+                            <td data-column-id="aprobador" style="display:none;">{{ req.aprobador.get_full_name|default:req.aprobador.username|default:"-" }}</td>
+                            <td data-column-id="motivo" style="display:none;">{{ req.cr8ca_motivo|default:"-"|truncatechars:30 }}</td>
+                            <td data-column-id="partida" style="display:none;">{{ req.partida|default:"-" }}</td>
+                            <td data-column-id="proveedor" style="display:none;">{{ req.proveedor|default:"-" }}</td>
+                            <td data-column-id="acciones" style="text-align: right; white-space: nowrap;">
                                 <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
                                     class="btn-custom btn-outline-custom" style="padding: 6px 12px; font-size: 0.75rem;">
                                     Editar
@@ -500,7 +519,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <td colspan="14" style="text-align: center; padding: 40px; color: var(--text-muted);">
                                 No hay requisiciones registradas.
                             </td>
                         </tr>
@@ -526,31 +545,37 @@
                 <table class="table-modern">
                     <thead>
                         <tr>
-                            <th>N° Requisición</th>
-                            <th>Fecha</th>
-                            <th>Asunto</th>
-                            <th>Prioridad</th>
-                            <th>Estado</th>
-                            <th>Total</th>
-                            <th>O/C</th>
-                            <th style="text-align: right;">Acciones</th>
+                            <th data-column-id="requisicion">N° Requisición</th>
+                            <th data-column-id="fecha">Fecha</th>
+                            <th data-column-id="asunto">Asunto</th>
+                            <th data-column-id="prioridad">Prioridad</th>
+                            <th data-column-id="estado">Estado</th>
+                            <th data-column-id="total">Total</th>
+                            <th data-column-id="oc">O/C</th>
+                            <th data-column-id="tipo" style="display:none;">Tipo</th>
+                            <th data-column-id="solicitante" style="display:none;">Solicitante</th>
+                            <th data-column-id="aprobador" style="display:none;">Aprobador</th>
+                            <th data-column-id="motivo" style="display:none;">Motivo</th>
+                            <th data-column-id="partida" style="display:none;">Partida Presup.</th>
+                            <th data-column-id="proveedor" style="display:none;">Proveedor</th>
+                            <th data-column-id="acciones" style="text-align: right;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for req in mis_requisiciones %}
                         <tr>
-                            <td style="font-weight: 600; color: var(--secondary);">
+                            <td data-column-id="requisicion" style="font-weight: 600; color: var(--secondary);">
                                 <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
                                     style="color: inherit;">{{req.cr8ca_requisicion}}</a>
                             </td>
-                            <td>{{req.fecha|default:req.createdon|date:"d/m/Y"}}</td>
-                            <td>{{req.cr8ca_asunto|truncatechars:40}}</td>
-                            <td>
+                            <td data-column-id="fecha" data-sort-value="{{ req.fecha|default:req.createdon|date:'Y-m-d' }}">{{req.fecha|default:req.createdon|date:"d/m/Y"}}</td>
+                            <td data-column-id="asunto">{{req.cr8ca_asunto|truncatechars:40}}</td>
+                            <td data-column-id="prioridad" data-sort-value="{{req.get_cr8ca_prioridad_display}}">
                                 <span class="priority-badge priority-{{req.cr8ca_prioridad}}">
                                     {{req.get_cr8ca_prioridad_display}}
                                 </span>
                             </td>
-                            <td>
+                            <td data-column-id="estado">
                                 <span class="priority-badge" style="
                                     {% if req.estado_requisicion == 'AUTORIZADO' %}background:#dcfce7; color:#166534;{% endif %}
                                     {% if req.estado_requisicion == 'PENDIENTE' %}background:#fef9c3; color:#854d0e;{% endif %}
@@ -563,14 +588,20 @@
                                     {{req.get_estado_requisicion_display}}
                                 </span>
                             </td>
-                            <td style="font-family: monospace; font-weight: 600;">
+                            <td data-column-id="total" data-sort-value="{{ req.cr8ca_totalenarticulos }}" style="font-family: monospace; font-weight: 600;">
                                 L.{{req.cr8ca_totalenarticulos|floatformat:2}}</td>
-                            <td style="font-size:0.8rem;">
+                            <td data-column-id="oc" style="font-size:0.8rem;">
                                 {% for oc in req.ordenes_compra.all %}
                                 <div style="white-space:nowrap;">{% if es_procura %}<a href="#" onclick="abrirModalOC({{ oc.pk }}); return false;" style="color:#2563eb;text-decoration:underline;">{{ oc.numero_oc }}</a>{% else %}{{ oc.numero_oc }}{% endif %}</div>
                                 {% endfor %}
                             </td>
-                            <td style="text-align: right; white-space: nowrap;">
+                            <td data-column-id="tipo" style="display:none;">{{ req.get_tipo_display|default:"-" }}</td>
+                            <td data-column-id="solicitante" style="display:none;">{{ req.usuario_solicitante.get_full_name|default:req.usuario_solicitante.username|default:"-" }}</td>
+                            <td data-column-id="aprobador" style="display:none;">{{ req.aprobador.get_full_name|default:req.aprobador.username|default:"-" }}</td>
+                            <td data-column-id="motivo" style="display:none;">{{ req.cr8ca_motivo|default:"-"|truncatechars:30 }}</td>
+                            <td data-column-id="partida" style="display:none;">{{ req.partida|default:"-" }}</td>
+                            <td data-column-id="proveedor" style="display:none;">{{ req.proveedor|default:"-" }}</td>
+                            <td data-column-id="acciones" style="text-align: right; white-space: nowrap;">
                                 <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
                                     class="btn-custom btn-outline-custom" style="padding: 6px 12px; font-size: 0.75rem;">
                                     Editar
@@ -609,7 +640,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            <td colspan="14" style="text-align: center; padding: 40px; color: var(--text-muted);">
                                 No has creado o no tienes requisiciones asignadas recientemente.
                             </td>
                         </tr>
@@ -619,6 +650,8 @@
             </div>
         </div>
     </div>
+
+    </div><!-- /.dashboard-content -->
  </div>
 
 <!-- Modal Notificar Recepción -->
@@ -1623,4 +1656,514 @@
         });
     })();
     </script>
+
+<!-- Modal Detalle de Requisición (SAP Fiori Style) -->
+<div id="modal-req-detail" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; align-items:flex-start; justify-content:center; padding-top:20px; overflow-y:auto;">
+    <div style="background:white; max-width:960px; width:95%; margin-bottom:30px; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.3); border-top:4px solid #0a6ed1;">
+        <button type="button" onclick="cerrarModalReqDetail()" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#94a3b8; z-index:1;">&times;</button>
+        <div id="modal-req-detail-content" style="padding:0;">
+            <div style="text-align:center; padding:3rem; color:#999;">Cargando...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+function abrirModalReqDetail(pk) {
+    var modal = document.getElementById('modal-req-detail');
+    var content = document.getElementById('modal-req-detail-content');
+    modal.style.display = 'flex';
+    content.innerHTML = '<div style="text-align:center; padding:3rem; color:#64748b;">⏳ Cargando requisición...</div>';
+
+    fetch('/presupuestos/requisiciones/dashboard/api/detail/' + pk + '/', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(r) {
+        if (!r.ok) {
+            throw new Error('HTTP ' + r.status);
+        }
+        var contentType = r.headers.get('content-type') || '';
+        if (contentType.indexOf('application/json') === -1) {
+            throw new Error('La respuesta no es JSON. Puede que la sesión haya expirado.');
+        }
+        return r.json();
+    })
+    .then(function(data) {
+        if (data.status === 'error') {
+            content.innerHTML = '<div style="text-align:center; padding:3rem; color:#ef4444;">' + data.message + '</div>';
+            return;
+        }
+        content.innerHTML = renderReqDetail(data);
+    })
+    .catch(function(err) {
+        content.innerHTML = '<div style="text-align:center; padding:3rem; color:#ef4444;">Error al cargar: ' + err.message + '</div>';
+    });
+}
+
+function cerrarModalReqDetail() {
+    document.getElementById('modal-req-detail').style.display = 'none';
+}
+
+// Cerrar con Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') cerrarModalReqDetail();
+});
+
+function renderReqDetail(d) {
+    var estadoColor = getEstadoColor(d.estado_raw);
+    var prioridadColor = getPrioridadColor(d.prioridad_valor);
+
+    var html = '';
+
+    // Header
+    html += '<div style="padding:24px 32px; border-bottom:1px solid #e2e8f0; background:#fafbfc;">';
+    html += '<div style="display:flex; justify-content:space-between; align-items:flex-start;">';
+    html += '<div>';
+    html += '<h2 style="margin:0; font-size:1.4rem; font-weight:700; color:#1e293b;">' + d.requisicion + '</h2>';
+    html += '<p style="margin:4px 0 0; color:#64748b; font-size:0.9rem;">' + d.asunto + '</p>';
+    html += '</div>';
+    html += '<div style="display:flex; gap:8px; align-items:center;">';
+    html += '<span style="padding:4px 12px; font-size:0.75rem; font-weight:600; border-radius:3px; background:' + estadoColor.bg + '; color:' + estadoColor.text + ';">' + d.estado + '</span>';
+    html += '<span style="padding:4px 12px; font-size:0.75rem; font-weight:600; border-radius:3px; background:' + prioridadColor.bg + '; color:' + prioridadColor.text + ';">' + d.prioridad + '</span>';
+    html += '</div></div>';
+    html += '<div style="margin-top:12px;"><a href="' + d.edit_url + '" style="font-size:0.8rem; color:#0a6ed1; font-weight:500;">✎ Abrir en modo edición</a></div>';
+    html += '</div>';
+
+    // Info grid
+    html += '<div style="padding:20px 32px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; border-bottom:1px solid #e2e8f0;">';
+    html += infoCell('Fecha', d.fecha);
+    html += infoCell('Tipo', d.tipo);
+    html += infoCell('Total', 'L.' + d.total.toLocaleString('es-HN', {minimumFractionDigits:2}));
+    html += infoCell('Solicitante', d.solicitante);
+    html += infoCell('Aprobador', d.aprobador);
+    html += infoCell('Departamento', d.departamento);
+    html += infoCell('Proveedor', d.proveedor);
+    html += infoCell('Partida', d.partida);
+    html += '</div>';
+
+    // Motivo
+    if (d.motivo && d.motivo !== '-') {
+        html += '<div style="padding:16px 32px; border-bottom:1px solid #e2e8f0;">';
+        html += '<div style="font-size:0.75rem; font-weight:600; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Motivo</div>';
+        html += '<div style="font-size:0.85rem; color:#1e293b;">' + d.motivo + '</div>';
+        html += '</div>';
+    }
+
+    // Timeline horizontal (SAP Fiori style)
+    if (d.historial && d.historial.length > 0) {
+        html += '<div style="padding:20px 32px; border-bottom:1px solid #e2e8f0;">';
+        html += '<div style="font-size:0.75rem; font-weight:600; color:#64748b; text-transform:uppercase; margin-bottom:12px;">Historial de Estados</div>';
+        html += '<div style="overflow-x:auto; padding-bottom:8px;">';
+        html += '<div style="display:flex; align-items:flex-start; min-width:max-content; position:relative;">';
+
+        for (var i = 0; i < d.historial.length; i++) {
+            var h = d.historial[i];
+            var nodeColor = getTimelineColor(h.estado_nuevo_raw);
+            var isLast = (i === d.historial.length - 1);
+
+            html += '<div style="display:flex; flex-direction:column; align-items:center; min-width:120px; position:relative;">';
+
+            // Connector line (except for last)
+            if (!isLast) {
+                html += '<div style="position:absolute; top:10px; left:50%; width:100%; height:2px; background:' + nodeColor + '; z-index:0;"></div>';
+            }
+
+            // Node circle
+            html += '<div style="width:22px; height:22px; border-radius:50%; background:' + nodeColor + '; border:3px solid white; box-shadow:0 1px 4px rgba(0,0,0,0.2); z-index:1; display:flex; align-items:center; justify-content:center;">';
+            if (isLast) {
+                html += '<div style="width:8px; height:8px; border-radius:50%; background:white;"></div>';
+            }
+            html += '</div>';
+
+            // Label
+            html += '<div style="margin-top:8px; text-align:center; max-width:110px;">';
+            html += '<div style="font-size:0.7rem; font-weight:600; color:#1e293b;">' + h.estado_nuevo + '</div>';
+            html += '<div style="font-size:0.65rem; color:#94a3b8; margin-top:2px;">' + h.fecha + '</div>';
+            if (h.usuario) {
+                html += '<div style="font-size:0.6rem; color:#94a3b8;">' + h.usuario + '</div>';
+            }
+            html += '</div></div>';
+        }
+
+        html += '</div></div></div>';
+    }
+
+    // Artículos
+    if (d.articulos && d.articulos.length > 0) {
+        html += '<div style="padding:20px 32px;">';
+        html += '<div style="font-size:0.75rem; font-weight:600; color:#64748b; text-transform:uppercase; margin-bottom:8px;">Artículos (' + d.articulos.length + ')</div>';
+        html += '<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">';
+        html += '<thead><tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">';
+        html += '<th style="padding:8px 10px; text-align:left; font-weight:600; color:#64748b;">Descripción</th>';
+        html += '<th style="padding:8px 10px; text-align:right; font-weight:600; color:#64748b;">Cant.</th>';
+        html += '<th style="padding:8px 10px; text-align:right; font-weight:600; color:#64748b;">P. Unit.</th>';
+        html += '<th style="padding:8px 10px; text-align:right; font-weight:600; color:#64748b;">Subtotal</th>';
+        html += '</tr></thead><tbody>';
+
+        var totalArts = 0;
+        d.articulos.forEach(function(art) {
+            totalArts += art.subtotal;
+            html += '<tr style="border-bottom:1px solid #f1f5f9;">';
+            html += '<td style="padding:8px 10px;">' + art.descripcion + '</td>';
+            html += '<td style="padding:8px 10px; text-align:right;">' + art.cantidad + '</td>';
+            html += '<td style="padding:8px 10px; text-align:right;">L.' + art.costo_unitario.toLocaleString('es-HN', {minimumFractionDigits:2}) + '</td>';
+            html += '<td style="padding:8px 10px; text-align:right; font-weight:600;">L.' + art.subtotal.toLocaleString('es-HN', {minimumFractionDigits:2}) + '</td>';
+            html += '</tr>';
+        });
+
+        html += '<tr style="background:#f8fafc; font-weight:700;">';
+        html += '<td colspan="3" style="padding:8px 10px; text-align:right;">Total:</td>';
+        html += '<td style="padding:8px 10px; text-align:right;">L.' + totalArts.toLocaleString('es-HN', {minimumFractionDigits:2}) + '</td>';
+        html += '</tr></tbody></table></div>';
+    }
+
+    return html;
+}
+
+function infoCell(label, value) {
+    return '<div><div style="font-size:0.7rem; font-weight:600; color:#94a3b8; text-transform:uppercase;">' + label + '</div><div style="font-size:0.85rem; color:#1e293b; margin-top:2px;">' + (value || '-') + '</div></div>';
+}
+
+function getEstadoColor(raw) {
+    var map = {
+        'AUTORIZADO': {bg:'#dcfce7', text:'#166534'},
+        'PENDIENTE': {bg:'#fef9c3', text:'#854d0e'},
+        'BORRADOR': {bg:'#f1f5f9', text:'#475569'},
+        'VISTO_PROCURA': {bg:'#e0e7ff', text:'#3730a3'},
+        'PROCURA_PROCESANDO': {bg:'#fff7ed', text:'#9a3412'},
+        'EN_ORDEN_COMPRA': {bg:'#dbeafe', text:'#1e40af'},
+        'RECHAZADO': {bg:'#fee2e2', text:'#991b1b'},
+        'CANCELADO': {bg:'#fee2e2', text:'#991b1b'},
+    };
+    return map[raw] || {bg:'#f1f5f9', text:'#475569'};
+}
+
+function getPrioridadColor(val) {
+    var map = {
+        1: {bg:'#f1f5f9', text:'#475569'},
+        2: {bg:'#eff6ff', text:'#1d4ed8'},
+        3: {bg:'#fffbeb', text:'#b45309'},
+        4: {bg:'#fef2f2', text:'#b91c1c'},
+        5: {bg:'#7f1d1d', text:'#ffffff'},
+    };
+    return map[val] || {bg:'#f1f5f9', text:'#475569'};
+}
+
+function getTimelineColor(raw) {
+    var map = {
+        'AUTORIZADO': '#22c55e',
+        'PENDIENTE': '#eab308',
+        'BORRADOR': '#94a3b8',
+        'VISTO_PROCURA': '#6366f1',
+        'PROCURA_PROCESANDO': '#f97316',
+        'EN_ORDEN_COMPRA': '#3b82f6',
+        'RECHAZADO': '#ef4444',
+        'CANCELADO': '#ef4444',
+    };
+    return map[raw] || '#64748b';
+}
+
+// Interceptar clics en links de requisición para abrir modal
+document.addEventListener('click', function(e) {
+    var link = e.target.closest('td[data-column-id="requisicion"] a');
+    if (link) {
+        e.preventDefault();
+        // Extraer el UUID del href
+        var href = link.getAttribute('href');
+        var match = href.match(/editar\/([a-f0-9\-]+)\//);
+        if (match) {
+            abrirModalReqDetail(match[1]);
+        }
+    }
+});
+</script>
+
+<!-- Department Filter -->
+<script>
+var activeDeptFilter = null;
+
+function filterByDepartment(cardEl) {
+    var dept = cardEl.getAttribute('data-dept-filter');
+    var table = document.querySelector('#tab-general .table-modern');
+    if (!table) return;
+
+    var rows = table.querySelectorAll('tbody tr[data-department]');
+    var cards = document.querySelectorAll('.dept-card[data-dept-filter]');
+
+    if (activeDeptFilter === dept) {
+        activeDeptFilter = null;
+        rows.forEach(function(row) { row.style.display = ''; });
+        cards.forEach(function(c) { c.style.outline = ''; c.style.outlineOffset = ''; });
+        return;
+    }
+
+    activeDeptFilter = dept;
+    rows.forEach(function(row) {
+        var rowDept = row.getAttribute('data-department');
+        row.style.display = (rowDept === dept) ? '' : 'none';
+    });
+
+    cards.forEach(function(c) {
+        if (c.getAttribute('data-dept-filter') === dept) {
+            c.style.outline = '2px solid var(--primary)';
+            c.style.outlineOffset = '2px';
+        } else {
+            c.style.outline = '';
+            c.style.outlineOffset = '';
+        }
+    });
+}
+
+// Función global para limpiar filtro de departamento desde DashboardCustomizer
+window.clearDepartmentFilter = function() {
+    activeDeptFilter = null;
+    var table = document.querySelector('#tab-general .table-modern');
+    if (table) {
+        var rows = table.querySelectorAll('tbody tr[data-department]');
+        rows.forEach(function(row) { row.style.display = ''; });
+    }
+    var cards = document.querySelectorAll('.dept-card[data-dept-filter]');
+    cards.forEach(function(c) { c.style.outline = ''; c.style.outlineOffset = ''; });
+};
+</script>
+
+<!-- Column Value Filter Dropdown -->
+<script>
+(function() {
+    var FILTERABLE_COLUMNS = ['solicitante', 'proveedor', 'estado', 'prioridad', 'tipo'];
+    var activeColumnFilters = {}; // { columnId: selectedValue }
+    var openFilterPanel = null;
+
+    // Función global para limpiar todos los filtros de columna desde DashboardCustomizer
+    window.clearAllColumnFilters = function() {
+        activeColumnFilters = {};
+        var tables = document.querySelectorAll('.table-modern');
+        tables.forEach(function(table) {
+            var rows = table.querySelectorAll('tbody tr');
+            rows.forEach(function(row) {
+                if (!row.querySelector('td[colspan]')) {
+                    row.style.display = '';
+                }
+            });
+            updateFilterIndicators(table);
+        });
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Añadir icono de filtro a las columnas filtrables después de un breve delay
+        setTimeout(initColumnFilters, 500);
+    });
+
+    function initColumnFilters() {
+        var tables = document.querySelectorAll('.table-modern');
+        tables.forEach(function(table) {
+            var headers = table.querySelectorAll('thead th[data-column-id]');
+            headers.forEach(function(th) {
+                var colId = th.getAttribute('data-column-id');
+                if (FILTERABLE_COLUMNS.indexOf(colId) === -1) return;
+
+                // Agregar icono de filtro al header
+                var filterBtn = document.createElement('span');
+                filterBtn.className = 'col-filter-btn';
+                filterBtn.innerHTML = ' ▾';
+                filterBtn.style.cssText = 'cursor:pointer; font-size:0.7rem; color:#6366f1; margin-left:4px; opacity:0.7;';
+                filterBtn.title = 'Filtrar por ' + th.textContent.trim();
+                filterBtn.addEventListener('click', function(e) {
+                    e.stopPropagation(); // No disparar sort
+                    toggleFilterPanel(th, colId, table);
+                });
+                th.appendChild(filterBtn);
+
+                // Cambiar estilo del header para indicar filtrable
+                th.style.position = 'relative';
+            });
+        });
+    }
+
+    function toggleFilterPanel(thEl, colId, table) {
+        // Si ya hay un panel abierto para esta columna, cerrarlo
+        if (openFilterPanel && openFilterPanel.colId === colId) {
+            closeFilterPanel();
+            return;
+        }
+        closeFilterPanel();
+
+        // Recoger valores únicos de la columna desde las filas visibles
+        var values = getUniqueValues(table, colId);
+
+        // Crear panel
+        var panel = document.createElement('div');
+        panel.className = 'col-filter-panel';
+        panel.style.cssText = [
+            'position:absolute; top:100%; left:0; z-index:1000;',
+            'background:white; border:1px solid #e2e8f0; border-radius:6px;',
+            'box-shadow:0 10px 40px rgba(0,0,0,0.15); padding:8px;',
+            'min-width:200px; max-height:300px; margin-top:4px;'
+        ].join('');
+
+        // Input de búsqueda
+        var searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Buscar...';
+        searchInput.style.cssText = 'width:100%; padding:6px 10px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.8rem; margin-bottom:6px; box-sizing:border-box;';
+        searchInput.addEventListener('input', function() {
+            filterListItems(listContainer, searchInput.value);
+        });
+        panel.appendChild(searchInput);
+
+        // Opción "Todos"
+        var allOption = document.createElement('div');
+        allOption.className = 'filter-option';
+        allOption.style.cssText = 'padding:6px 8px; cursor:pointer; font-size:0.8rem; color:#6366f1; font-weight:600; border-radius:4px;';
+        allOption.textContent = '✕ Quitar filtro';
+        allOption.addEventListener('click', function() {
+            clearColumnFilter(colId, table);
+            closeFilterPanel();
+        });
+        if (activeColumnFilters[colId]) {
+            panel.appendChild(allOption);
+        }
+
+        // Lista de valores
+        var listContainer = document.createElement('div');
+        listContainer.style.cssText = 'max-height:220px; overflow-y:auto;';
+
+        values.forEach(function(val) {
+            var item = document.createElement('div');
+            item.className = 'filter-option-item';
+            item.setAttribute('data-value', val.toLowerCase());
+            item.style.cssText = 'padding:6px 8px; cursor:pointer; font-size:0.82rem; color:#1e293b; border-radius:4px; transition:background 0.1s;';
+            item.textContent = val;
+
+            if (activeColumnFilters[colId] === val) {
+                item.style.background = '#eef2ff';
+                item.style.fontWeight = '600';
+                item.style.color = '#4f46e5';
+            }
+
+            item.addEventListener('mouseenter', function() { item.style.background = '#f8fafc'; });
+            item.addEventListener('mouseleave', function() {
+                item.style.background = (activeColumnFilters[colId] === val) ? '#eef2ff' : '';
+            });
+            item.addEventListener('click', function() {
+                applyColumnFilter(colId, val, table);
+                closeFilterPanel();
+            });
+            listContainer.appendChild(item);
+        });
+
+        panel.appendChild(listContainer);
+        thEl.appendChild(panel);
+
+        openFilterPanel = { el: panel, colId: colId };
+        searchInput.focus();
+
+        // Cerrar al hacer clic fuera
+        setTimeout(function() {
+            document.addEventListener('click', closeOnOutsideClick);
+        }, 10);
+    }
+
+    function closeOnOutsideClick(e) {
+        if (openFilterPanel && !openFilterPanel.el.contains(e.target)) {
+            closeFilterPanel();
+        }
+    }
+
+    function closeFilterPanel() {
+        if (openFilterPanel) {
+            openFilterPanel.el.remove();
+            openFilterPanel = null;
+        }
+        document.removeEventListener('click', closeOnOutsideClick);
+    }
+
+    function getUniqueValues(table, colId) {
+        var cells = table.querySelectorAll('tbody td[data-column-id="' + colId + '"]');
+        var seen = {};
+        var values = [];
+        cells.forEach(function(td) {
+            var text = (td.textContent || '').trim();
+            if (text && text !== '-' && !seen[text]) {
+                seen[text] = true;
+                values.push(text);
+            }
+        });
+        values.sort(function(a, b) { return a.localeCompare(b, 'es'); });
+        return values;
+    }
+
+    function filterListItems(container, query) {
+        var items = container.querySelectorAll('.filter-option-item');
+        var q = query.toLowerCase();
+        items.forEach(function(item) {
+            var val = item.getAttribute('data-value');
+            item.style.display = val.indexOf(q) !== -1 ? '' : 'none';
+        });
+    }
+
+    function applyColumnFilter(colId, value, table) {
+        activeColumnFilters[colId] = value;
+        applyAllFilters(table);
+        updateFilterIndicators(table);
+    }
+
+    function clearColumnFilter(colId, table) {
+        delete activeColumnFilters[colId];
+        applyAllFilters(table);
+        updateFilterIndicators(table);
+    }
+
+    function applyAllFilters(table) {
+        var rows = table.querySelectorAll('tbody tr');
+        rows.forEach(function(row) {
+            if (row.querySelector('td[colspan]')) return; // Skip empty row
+            var visible = true;
+
+            for (var colId in activeColumnFilters) {
+                var cell = row.querySelector('td[data-column-id="' + colId + '"]');
+                if (cell) {
+                    var cellText = (cell.textContent || '').trim();
+                    if (cellText !== activeColumnFilters[colId]) {
+                        visible = false;
+                        break;
+                    }
+                }
+            }
+            row.style.display = visible ? '' : 'none';
+        });
+    }
+
+    function updateFilterIndicators(table) {
+        var headers = table.querySelectorAll('thead th[data-column-id]');
+        headers.forEach(function(th) {
+            var colId = th.getAttribute('data-column-id');
+            var btn = th.querySelector('.col-filter-btn');
+            if (!btn) return;
+            if (activeColumnFilters[colId]) {
+                btn.innerHTML = ' ▾✓';
+                btn.style.color = '#059669';
+                btn.style.opacity = '1';
+                btn.style.fontWeight = '700';
+            } else {
+                btn.innerHTML = ' ▾';
+                btn.style.color = '#6366f1';
+                btn.style.opacity = '0.7';
+                btn.style.fontWeight = '';
+            }
+        });
+    }
+})();
+</script>
+
+<!-- DashboardCustomizer Initialization -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof DashboardCustomizer !== 'undefined') {
+        DashboardCustomizer.init({
+            lastView: {{ last_view_json|default:"null" }},
+            viewsBarContainer: document.querySelector('.dashboard-content')
+        });
+    }
+});
+</script>
 {% endblock %}

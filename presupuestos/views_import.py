@@ -1,3 +1,4 @@
+import json
 import time
 import os
 from django.contrib.admin.views.decorators import staff_member_required
@@ -528,6 +529,24 @@ def requisicion_dashboard(request):
         Q(usuario_solicitante=request.user) | Q(usuario_en_nombre_de=request.user)
     ).order_by('-fecha', '-createdon')[:15]
 
+    # Última vista personalizada del usuario
+    from .models import DashboardView
+    last_view = None
+    try:
+        last_view_obj = DashboardView.objects.filter(
+            user=request.user, is_last_used=True
+        ).first()
+        if last_view_obj:
+            last_view = {
+                'id': last_view_obj.id,
+                'name': last_view_obj.name,
+                'columns': last_view_obj.columns,
+                'sort_column': last_view_obj.sort_column,
+                'sort_direction': last_view_obj.sort_direction,
+            }
+    except Exception:
+        last_view = None
+
     context = {
         'total_reqs': total_reqs,
         'total_monto': total_monto,
@@ -540,6 +559,7 @@ def requisicion_dashboard(request):
         'title': 'Dashboard de Requisiciones',
         'dept': dept,
         'es_procura': es_procura,
+        'last_view_json': json.dumps(last_view),
     }
     return render(request, 'admin/presupuestos/requisicion/dashboard.html', context)
 

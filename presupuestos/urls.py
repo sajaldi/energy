@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, views_import, views_autorizar, views_webhook, views_pagos
+from . import views, views_import, views_autorizar, views_webhook, views_pagos, views_dashboard_api
 
 app_name = 'presupuestos'
 
@@ -24,6 +24,13 @@ urlpatterns = [
     
     # Requisiciones Dashboard & Import
     path('requisiciones/dashboard/', views_import.requisicion_dashboard, name='requisicion_dashboard'),
+    
+    # Dashboard Views API (vistas personalizadas)
+    path('requisiciones/dashboard/api/views/', views_dashboard_api.dashboard_views_list_create, name='dashboard_views_list_create'),
+    path('requisiciones/dashboard/api/views/<int:pk>/delete/', views_dashboard_api.dashboard_view_delete, name='dashboard_view_delete'),
+    path('requisiciones/dashboard/api/views/<int:pk>/apply/', views_dashboard_api.dashboard_view_apply, name='dashboard_view_apply'),
+    path('requisiciones/dashboard/api/views/reset/', views_dashboard_api.dashboard_views_reset, name='dashboard_views_reset'),
+    path('requisiciones/dashboard/api/detail/<uuid:pk>/', views_dashboard_api.requisicion_detail_api, name='requisicion_detail_api'),
     path('requisiciones/nuevo/', views_import.requisicion_upsert, name='requisicion_nuevo'),
     path('requisiciones/editar/<uuid:pk>/', views_import.requisicion_upsert, name='requisicion_editar'),
     path('requisiciones/<uuid:pk>/qr/', views_import.requisicion_qr, name='requisicion_qr'),
