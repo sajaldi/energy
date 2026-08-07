@@ -718,6 +718,14 @@ JAZZMIN_SETTINGS = {
                 "permissions": ["documentos.add_documento"],
             },
         ],
+        "callcenter": [
+            {
+                "name": "🏢 Dashboard Instituciones",
+                "url": "/callcenter/instituciones/dashboard/",
+                "icon": "fas fa-building",
+                "permissions": ["callcenter.view_solicitudticket"],
+            },
+        ],
         "presupuestos": [
             {
                 "name": "📊 Dashboard de Pagos",

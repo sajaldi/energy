@@ -1,0 +1,311 @@
+{% load i18n static humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Órdenes de Trabajo | Energy</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --fiori-blue: #0a6ed1;
+        --fiori-blue-dark: #0854a0;
+        --fiori-shell: #354a5f;
+        --fiori-success: #107e3e;
+        --fiori-warning: #e9730c;
+        --fiori-error: #bb0000;
+        --fiori-bg: #f7f7f7;
+        --fiori-card: #ffffff;
+        --fiori-text: #32363a;
+        --fiori-text-muted: #6a6d70;
+        --fiori-border: #d9d9d9;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', '72', sans-serif; background: var(--fiori-bg); color: var(--fiori-text); }
+
+    .fiori-shell-bar {
+        background: var(--fiori-shell); padding: 0 1.5rem; height: 44px;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .fiori-shell-title { color: white; font-size: 0.85rem; font-weight: 600; }
+    .fiori-shell-nav a { color: rgba(255,255,255,0.8); font-size: 0.8rem; text-decoration: none; margin-left: 16px; }
+    .fiori-shell-nav a:hover { color: white; }
+
+    .fiori-page { padding: 1.25rem 1.5rem; width: 100%; }
+
+    .fiori-page-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--fiori-border);
+    }
+    .fiori-page-title { font-size: 1.4rem; font-weight: 700; color: var(--fiori-text); }
+    .fiori-page-subtitle { font-size: 0.78rem; color: var(--fiori-text-muted); margin-top: 2px; }
+
+    .fiori-btn {
+        padding: 8px 16px; font-size: 0.8rem; font-weight: 600;
+        border: 1px solid var(--fiori-border); background: var(--fiori-card);
+        color: var(--fiori-text); cursor: pointer; text-decoration: none;
+        display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s;
+    }
+    .fiori-btn:hover { border-color: var(--fiori-blue); color: var(--fiori-blue); }
+
+    .fiori-toolbar {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.75rem 1rem; margin-bottom: 1rem; background: var(--fiori-card);
+        border: 1px solid var(--fiori-border); gap: 10px; flex-wrap: wrap;
+    }
+    .fiori-search {
+        flex: 1; max-width: 300px; padding: 8px 12px; font-size: 0.85rem;
+        border: 1px solid var(--fiori-border); background: var(--fiori-bg); font-family: inherit;
+    }
+    .fiori-search:focus { outline: none; border-color: var(--fiori-blue); }
+
+    .fiori-filter-select {
+        padding: 7px 10px; font-size: 0.8rem; border: 1px solid var(--fiori-border);
+        background: white; font-family: inherit;
+    }
+    .fiori-filter-select:focus { outline: none; border-color: var(--fiori-blue); }
+
+    .fiori-date-input {
+        padding: 7px 10px; font-size: 0.8rem; border: 1px solid var(--fiori-border);
+        background: white; font-family: inherit;
+    }
+    .fiori-date-input:focus { outline: none; border-color: var(--fiori-blue); }
+
+    .fiori-table-container {
+        background: var(--fiori-card); border: 1px solid var(--fiori-border); overflow-x: auto;
+    }
+    .fiori-table-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.75rem 1rem; border-bottom: 1px solid var(--fiori-border);
+    }
+    .fiori-table-title { font-size: 0.85rem; font-weight: 600; color: var(--fiori-text); }
+    .fiori-table-count { font-size: 0.75rem; color: var(--fiori-text-muted); font-weight: 400; }
+
+    .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .fiori-table th {
+        text-align: left; padding: 10px 16px; background: #fafafa;
+        font-weight: 600; color: var(--fiori-text-muted); font-size: 0.72rem;
+        text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--fiori-border);
+    }
+    .fiori-table th.sortable { cursor: pointer; user-select: none; }
+    .fiori-table th.sortable:hover { color: var(--fiori-blue); }
+    .fiori-table td {
+        padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: var(--fiori-text); vertical-align: middle;
+    }
+    .fiori-table tr:hover td { background: #fafbfc; }
+    .fiori-table tr:last-child td { border-bottom: none; }
+
+    .fiori-link { color: var(--fiori-blue); text-decoration: none; font-weight: 600; }
+    .fiori-link:hover { text-decoration: underline; }
+
+    .fiori-status { display: inline-block; padding: 3px 10px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+    .fiori-status-espera { background: #fef7e0; color: #8a6d3b; }
+    .fiori-status-programada { background: #e8f0fe; color: #1a56db; }
+    .fiori-status-ejecucion { background: #fff3cd; color: #856404; }
+    .fiori-status-realizada { background: #e6f4ea; color: #137333; }
+    .fiori-status-cancelada { background: #f1f3f4; color: #5f6368; }
+
+    .fiori-prio { display: inline-block; padding: 2px 8px; font-size: 0.68rem; font-weight: 700; }
+    .fiori-prio-baja { background: #f1f5f9; color: #475569; }
+    .fiori-prio-media { background: #eff6ff; color: #1d4ed8; }
+    .fiori-prio-alta { background: #fef2f2; color: #b91c1c; }
+    .fiori-prio-critica { background: #7f1d1d; color: white; }
+
+    .col-selector-panel {
+        display: none; position: fixed; z-index: 10000; background: white;
+        border: 1px solid var(--fiori-border); padding: 12px 16px; min-width: 200px;
+        max-height: 350px; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+    .col-selector-panel label {
+        display: flex; align-items: center; gap: 8px; padding: 5px 4px;
+        font-size: 0.8rem; cursor: pointer; color: var(--fiori-text);
+    }
+    .col-selector-panel label:hover { background: #f8fafc; }
+    .col-selector-panel input[type="checkbox"] { accent-color: var(--fiori-blue); }
+
+    .fiori-empty { text-align: center; padding: 3rem; color: var(--fiori-text-muted); }
+</style>
+</head>
+<body>
+
+<!-- Shell Bar -->
+<div class="fiori-shell-bar">
+    <span class="fiori-shell-title">Energy · Órdenes de Trabajo</span>
+    <nav class="fiori-shell-nav">
+        <a href="/mantenimiento/">Dashboard</a>
+        <a href="/admin/">Admin</a>
+    </nav>
+</div>
+
+<div class="fiori-page">
+
+    <div class="fiori-page-header">
+        <div>
+            <h1 class="fiori-page-title">Órdenes de Trabajo</h1>
+            <div class="fiori-page-subtitle">{{ total }} órdenes encontradas</div>
+        </div>
+        <a href="/mantenimiento/" class="fiori-btn">← Dashboard</a>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="fiori-toolbar">
+        <form method="get" id="filter-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; flex:1;">
+            <input type="text" name="q" class="fiori-search" placeholder="🔍 Código, descripción, rutina, ubicación..." value="{{ q }}">
+            <select name="estado" class="fiori-filter-select" onchange="this.form.submit()">
+                <option value="">— Estado —</option>
+                <option value="ESPERA" {% if estado_filter == 'ESPERA' %}selected{% endif %}>En Espera</option>
+                <option value="PROGRAMADA" {% if estado_filter == 'PROGRAMADA' %}selected{% endif %}>Programada</option>
+                <option value="EJECUCION" {% if estado_filter == 'EJECUCION' %}selected{% endif %}>En Ejecución</option>
+                <option value="REALIZADA" {% if estado_filter == 'REALIZADA' %}selected{% endif %}>Realizada</option>
+                <option value="CANCELADA" {% if estado_filter == 'CANCELADA' %}selected{% endif %}>Cancelada</option>
+            </select>
+            <select name="tipo" class="fiori-filter-select" onchange="this.form.submit()">
+                <option value="">— Tipo —</option>
+                <option value="PREVENTIVA" {% if tipo_filter == 'PREVENTIVA' %}selected{% endif %}>Preventiva</option>
+                <option value="CORRECTIVA" {% if tipo_filter == 'CORRECTIVA' %}selected{% endif %}>Correctiva</option>
+                <option value="NO_PROGRAMADA" {% if tipo_filter == 'NO_PROGRAMADA' %}selected{% endif %}>No Programada</option>
+            </select>
+            <select name="prioridad" class="fiori-filter-select" onchange="this.form.submit()">
+                <option value="">— Prioridad —</option>
+                <option value="BAJA" {% if prioridad_filter == 'BAJA' %}selected{% endif %}>Baja</option>
+                <option value="MEDIA" {% if prioridad_filter == 'MEDIA' %}selected{% endif %}>Media</option>
+                <option value="ALTA" {% if prioridad_filter == 'ALTA' %}selected{% endif %}>Alta</option>
+                <option value="CRITICA" {% if prioridad_filter == 'CRITICA' %}selected{% endif %}>Crítica</option>
+            </select>
+            <span style="font-size:0.72rem; color:var(--fiori-text-muted); margin-left:4px;">Desde:</span>
+            <input type="date" name="fecha_desde" class="fiori-date-input" value="{{ fecha_desde }}" onchange="this.form.submit()">
+            <span style="font-size:0.72rem; color:var(--fiori-text-muted);">Hasta:</span>
+            <input type="date" name="fecha_hasta" class="fiori-date-input" value="{{ fecha_hasta }}" onchange="this.form.submit()">
+            {% if q or estado_filter or tipo_filter or prioridad_filter or fecha_desde or fecha_hasta %}
+            <a href="/mantenimiento/ordenes/" class="fiori-btn" style="font-size:0.75rem;">✕ Limpiar</a>
+            {% endif %}
+        </form>
+        <button type="button" id="btn-col-selector" class="fiori-btn" onclick="toggleColPanel(event)">⚙️ Columnas</button>
+    </div>
+
+    <!-- Column Selector Panel -->
+    <div id="col-panel" class="col-selector-panel"></div>
+
+    <!-- Table -->
+    <div class="fiori-table-container">
+        <div class="fiori-table-header">
+            <span class="fiori-table-title">Resultados <span class="fiori-table-count">({{ total }})</span></span>
+        </div>
+        <table class="fiori-table" id="ordenes-table">
+            <thead>
+                <tr>
+                    <th data-col="codigo">Código</th>
+                    <th data-col="tipo">Tipo</th>
+                    <th data-col="prioridad">Prioridad</th>
+                    <th data-col="estado">Estado</th>
+                    <th data-col="descripcion">Descripción</th>
+                    <th data-col="rutina">Rutina</th>
+                    <th data-col="ubicacion">Ubicación</th>
+                    <th data-col="tecnico">Técnico</th>
+                    <th data-col="empresa" style="display:none;">Empresa</th>
+                    <th data-col="inicio" class="sortable" id="th-inicio" title="Clic para ordenar">Inicio Prog. <span id="sort-ind">▾</span></th>
+                    <th data-col="fin" style="display:none;">Fin Prog.</th>
+                    <th data-col="creado" style="display:none;">Creado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ot in ordenes %}
+                <tr>
+                    <td data-col="codigo"><a href="{% url 'mantenimiento:mobile_ot_detalle' ot.pk %}" class="fiori-link">{{ ot.codigo_de_orden|default:"-" }}</a></td>
+                    <td data-col="tipo">{{ ot.get_tipo_display }}</td>
+                    <td data-col="prioridad"><span class="fiori-prio fiori-prio-{{ ot.prioridad|lower }}">{{ ot.get_prioridad_display }}</span></td>
+                    <td data-col="estado"><span class="fiori-status fiori-status-{{ ot.estado|lower }}">{{ ot.get_estado_display }}</span></td>
+                    <td data-col="descripcion">{{ ot.descripcion_corta|default:"-"|truncatechars:40 }}</td>
+                    <td data-col="rutina" style="font-size:0.78rem;">{{ ot.rutina.nombre|default:"-"|truncatechars:30 }}</td>
+                    <td data-col="ubicacion" style="font-size:0.78rem;">{{ ot.ubicacion|default:"-"|truncatechars:25 }}</td>
+                    <td data-col="tecnico" style="font-size:0.78rem;">{{ ot.tecnico_puesto|default:ot.tecnico|default:"-" }}</td>
+                    <td data-col="empresa" style="display:none; font-size:0.78rem;">{{ ot.empresa_responsable|default:"-" }}</td>
+                    <td data-col="inicio" style="font-size:0.78rem;" data-sort-date="{{ ot.inicio_programado|date:'Y-m-d' }}">{{ ot.inicio_programado|date:"d/m/Y" }}</td>
+                    <td data-col="fin" style="display:none; font-size:0.78rem;">{{ ot.fin_programado|date:"d/m/Y" }}</td>
+                    <td data-col="creado" style="display:none; font-size:0.78rem;">{{ ot.creado_en|date:"d/m/Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="12"><div class="fiori-empty">No se encontraron órdenes de trabajo.</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Column selector
+var COLUMNS = [
+    {id:'codigo', label:'Código', visible:true},
+    {id:'tipo', label:'Tipo', visible:true},
+    {id:'prioridad', label:'Prioridad', visible:true},
+    {id:'estado', label:'Estado', visible:true},
+    {id:'descripcion', label:'Descripción', visible:true},
+    {id:'rutina', label:'Rutina', visible:true},
+    {id:'ubicacion', label:'Ubicación', visible:true},
+    {id:'tecnico', label:'Técnico', visible:true},
+    {id:'empresa', label:'Empresa', visible:false},
+    {id:'inicio', label:'Inicio Prog.', visible:true},
+    {id:'fin', label:'Fin Prog.', visible:false},
+    {id:'creado', label:'Creado', visible:false},
+];
+var panelOpen = false;
+
+function toggleColPanel(e) {
+    e.stopPropagation();
+    var panel = document.getElementById('col-panel');
+    if (panelOpen) { panel.style.display = 'none'; panelOpen = false; return; }
+    var btn = document.getElementById('btn-col-selector');
+    var rect = btn.getBoundingClientRect();
+    panel.style.top = (rect.bottom + 4) + 'px';
+    panel.style.right = (window.innerWidth - rect.right) + 'px';
+    panel.innerHTML = '<div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; color:#6a6d70; padding-bottom:6px; border-bottom:1px solid #f0f0f0; margin-bottom:6px;">Columnas visibles</div>';
+    COLUMNS.forEach(function(col) {
+        var lbl = document.createElement('label');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = col.visible;
+        cb.addEventListener('change', function() { col.visible = cb.checked; applyColumns(); });
+        lbl.appendChild(cb); lbl.appendChild(document.createTextNode(' ' + col.label));
+        panel.appendChild(lbl);
+    });
+    panel.style.display = 'block'; panelOpen = true;
+}
+document.addEventListener('click', function(e) {
+    var panel = document.getElementById('col-panel');
+    if (panelOpen && !panel.contains(e.target) && e.target.id !== 'btn-col-selector') { panel.style.display = 'none'; panelOpen = false; }
+});
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && panelOpen) { document.getElementById('col-panel').style.display = 'none'; panelOpen = false; } });
+
+function applyColumns() {
+    COLUMNS.forEach(function(col) {
+        var cells = document.querySelectorAll('[data-col="' + col.id + '"]');
+        cells.forEach(function(cell) { cell.style.display = col.visible ? '' : 'none'; });
+    });
+}
+
+// Date sort
+var sortDir = 'desc';
+document.getElementById('th-inicio').addEventListener('click', function() {
+    sortDir = (sortDir === 'desc') ? 'asc' : 'desc';
+    document.getElementById('sort-ind').textContent = (sortDir === 'asc') ? '▴' : '▾';
+    var table = document.getElementById('ordenes-table');
+    var tbody = table.querySelector('tbody');
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+    var dataRows = rows.filter(function(r) { return !r.querySelector('td[colspan]'); });
+    var emptyRows = rows.filter(function(r) { return r.querySelector('td[colspan]'); });
+    dataRows.sort(function(a, b) {
+        var da = a.querySelector('td[data-sort-date]'); var db = b.querySelector('td[data-sort-date]');
+        var va = da ? da.getAttribute('data-sort-date') || '' : '';
+        var vb = db ? db.getAttribute('data-sort-date') || '' : '';
+        return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+    dataRows.forEach(function(r) { tbody.appendChild(r); });
+    emptyRows.forEach(function(r) { tbody.appendChild(r); });
+});
+
+// Search on Enter
+document.querySelector('.fiori-search').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('filter-form').submit();
+});
+</script>
+</body>
+</html>

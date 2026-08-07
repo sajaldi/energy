@@ -15,6 +15,7 @@ app_name = 'mantenimiento'
 
 urlpatterns = [
     path('', views.mantenimiento_dashboard, name='dashboard'),
+    path('ordenes/', views.ordenes_lista_view, name='ordenes_lista'),
     path('calendario/', views.calendario_mantenimiento, name='calendario'),
     path('calendario/detallado/', views.calendario_detallado, name='detallado'),
     path('cronograma/', views.cronograma_mantenimiento_visual, name='cronograma'),

@@ -71,5 +71,10 @@ urlpatterns = [
     path('app/ticket/new-cierre/<int:pk>/', views.mobile_ticket_cierre_view, name='mobile_ticket_cierre'),
     path('cluster/create-manual-ajax/', views.create_cluster_manual_ajax, name='create_cluster_manual_ajax'),
     path('sync-sig/', views.trigger_sync_dashboard, name='trigger_sync_dashboard'),
+    
+    # Dashboard Instituciones
+    path('instituciones/dashboard/', views.instituciones_dashboard_view, name='instituciones_dashboard'),
+    path('instituciones/api/<int:pk>/', views.institucion_detail_api, name='institucion_detail_api'),
+    path('instituciones/api/<int:pk>/fallas/', views.institucion_fallas_por_servicio_api, name='institucion_fallas_api'),
 ]
 

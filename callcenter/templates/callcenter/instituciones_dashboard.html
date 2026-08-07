@@ -1,0 +1,422 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static humanize %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --fiori-blue: #0a6ed1;
+        --fiori-blue-dark: #0854a0;
+        --fiori-success: #107e3e;
+        --fiori-warning: #e9730c;
+        --fiori-error: #bb0000;
+        --fiori-bg: #f7f7f7;
+        --fiori-card: #ffffff;
+        --fiori-text: #32363a;
+        --fiori-text-muted: #6a6d70;
+        --fiori-border: #d9d9d9;
+    }
+    body { font-family: 'Inter', '72', sans-serif !important; background: var(--fiori-bg) !important; }
+    .fiori-page { padding: 1rem 1.5rem; width: 100%; max-width: 100%; }
+
+    .fiori-page-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1rem 0; margin-bottom: 1rem; border-bottom: 1px solid var(--fiori-border);
+    }
+    .fiori-page-title { font-size: 1.5rem; font-weight: 700; color: var(--fiori-text); margin: 0; }
+    .fiori-page-subtitle { font-size: 0.8rem; color: var(--fiori-text-muted); margin-top: 2px; }
+
+    .fiori-kpi-strip {
+        display: grid; grid-template-columns: repeat(2, 1fr); gap: 0;
+        margin-bottom: 1.25rem; border: 1px solid var(--fiori-border); background: var(--fiori-card);
+    }
+    .fiori-kpi-tile {
+        padding: 1.25rem 1.5rem; border-left: 1px solid var(--fiori-border);
+        display: flex; flex-direction: column; gap: 4px;
+    }
+    .fiori-kpi-tile:first-child { border-left: none; }
+    .fiori-kpi-tile.highlight { border-top: 3px solid var(--fiori-blue); }
+    .fiori-kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fiori-text-muted); }
+    .fiori-kpi-value { font-size: 1.6rem; font-weight: 700; color: var(--fiori-text); }
+    .fiori-kpi-value.info { color: var(--fiori-blue); }
+    .fiori-kpi-sub { font-size: 0.72rem; color: var(--fiori-text-muted); }
+
+    .fiori-toolbar {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.75rem 1rem; margin-bottom: 1rem; background: var(--fiori-card);
+        border: 1px solid var(--fiori-border); gap: 12px;
+    }
+    .fiori-search {
+        flex: 1; max-width: 400px; padding: 8px 12px; font-size: 0.85rem;
+        border: 1px solid var(--fiori-border); background: var(--fiori-bg);
+        font-family: inherit; transition: border-color 0.15s;
+    }
+    .fiori-search:focus { outline: none; border-color: var(--fiori-blue); }
+
+    .fiori-table-container {
+        background: var(--fiori-card); border: 1px solid var(--fiori-border); overflow-x: auto;
+    }
+    .fiori-table-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.75rem 1rem; border-bottom: 1px solid var(--fiori-border);
+    }
+    .fiori-table-title { font-size: 0.85rem; font-weight: 600; color: var(--fiori-text); }
+    .fiori-table-count { font-size: 0.75rem; color: var(--fiori-text-muted); font-weight: 400; }
+
+    .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .fiori-table th {
+        text-align: left; padding: 10px 16px; background: #fafafa;
+        font-weight: 600; color: var(--fiori-text-muted); font-size: 0.72rem;
+        text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--fiori-border);
+    }
+    .fiori-table td {
+        padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: var(--fiori-text); vertical-align: middle;
+    }
+    .fiori-table tr:hover td { background: #fafbfc; }
+    .fiori-table tr:last-child td { border-bottom: none; }
+
+    .fiori-link { color: var(--fiori-blue); text-decoration: none; font-weight: 600; }
+    .fiori-link:hover { text-decoration: underline; }
+    .fiori-badge {
+        display: inline-block; padding: 2px 10px; font-size: 0.72rem; font-weight: 700;
+        background: #e8f0fe; color: var(--fiori-blue);
+    }
+    .fiori-empty { text-align: center; padding: 3rem; color: var(--fiori-text-muted); }
+
+    #th-tickets { cursor: pointer; user-select: none; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='callcenter' %}">Call Center</a>
+    &rsaquo; Instituciones
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="fiori-page">
+
+    <!-- Page Header -->
+    <div class="fiori-page-header">
+        <div>
+            <h1 class="fiori-page-title">Instituciones</h1>
+            <div class="fiori-page-subtitle">Tickets registrados por institución</div>
+        </div>
+    </div>
+
+    <!-- KPI Strip -->
+    <div class="fiori-kpi-strip">
+        <div class="fiori-kpi-tile highlight">
+            <span class="fiori-kpi-label">Total Instituciones</span>
+            <span class="fiori-kpi-value">{{ total_instituciones }}</span>
+            <span class="fiori-kpi-sub">Con al menos un enlace registrado</span>
+        </div>
+        <div class="fiori-kpi-tile">
+            <span class="fiori-kpi-label">Total Tickets</span>
+            <span class="fiori-kpi-value info">{{ total_tickets_global|intcomma }}</span>
+            <span class="fiori-kpi-sub">Asociados a instituciones</span>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="fiori-toolbar">
+        <form method="get" style="flex:1; max-width:400px;">
+            <input type="text" name="q" class="fiori-search"
+                placeholder="🔍 Buscar institución..." value="{{ search_query|default:'' }}">
+        </form>
+        <span style="font-size:0.78rem; color:var(--fiori-text-muted);">{{ total_instituciones }} instituciones</span>
+    </div>
+
+    <!-- Table -->
+    <div class="fiori-table-container">
+        <div class="fiori-table-header">
+            <span class="fiori-table-title">Listado de Instituciones <span class="fiori-table-count">({{ total_instituciones }})</span></span>
+        </div>
+        <table class="fiori-table">
+            <thead>
+                <tr>
+                    <th>Institución</th>
+                    <th>Acrónimo</th>
+                    <th id="th-tickets" title="Clic para ordenar" style="text-align:center;">Tickets <span id="sort-indicator">▾</span></th>
+                    <th>Último Ticket</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inst in instituciones %}
+                <tr>
+                    <td><a href="#" class="fiori-link" onclick="abrirModalInstitucion({{ inst.pk }}); return false;">{{ inst.nombre }}</a></td>
+                    <td style="font-size:0.78rem; color:var(--fiori-text-muted);">{{ inst.acronimo|default:"-" }}</td>
+                    <td style="text-align:center;" data-sort-val="{{ inst.total_tickets }}">
+                        <span class="fiori-badge">{{ inst.total_tickets }}</span>
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--fiori-text-muted);" data-sort-date="{{ inst.ultimo_ticket_fecha|date:'Y-m-d'|default:'' }}">
+                        {{ inst.ultimo_ticket_fecha|date:"d/m/Y"|default:"-" }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">
+                        <div class="fiori-empty">
+                            No se encontraron instituciones.
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+<!-- Modal Detalle Institución -->
+<div id="modal-inst" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; align-items:flex-start; justify-content:center; padding-top:20px; overflow-y:auto;">
+    <div style="background:white; max-width:900px; width:95%; margin-bottom:30px; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.3); border-top:4px solid #0a6ed1;">
+        <button type="button" onclick="cerrarModalInst()" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#94a3b8;">&times;</button>
+        <div id="modal-inst-content" style="padding:0;"><div style="text-align:center; padding:3rem; color:#999;">Cargando...</div></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var sortDir = 'desc';
+    var thTickets = document.getElementById('th-tickets');
+    var indicator = document.getElementById('sort-indicator');
+
+    if (thTickets) {
+        thTickets.addEventListener('click', function() {
+            sortDir = (sortDir === 'desc') ? 'asc' : 'desc';
+            indicator.textContent = (sortDir === 'asc') ? '▴' : '▾';
+            sortTable();
+        });
+    }
+
+    function sortTable() {
+        var table = document.querySelector('.fiori-table');
+        if (!table) return;
+        var tbody = table.querySelector('tbody');
+        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+        var dataRows = rows.filter(function(r) { return !r.querySelector('td[colspan]'); });
+        var emptyRows = rows.filter(function(r) { return r.querySelector('td[colspan]'); });
+
+        dataRows.sort(function(a, b) {
+            var valA = parseInt(a.querySelector('td[data-sort-val]').getAttribute('data-sort-val')) || 0;
+            var valB = parseInt(b.querySelector('td[data-sort-val]').getAttribute('data-sort-val')) || 0;
+            return sortDir === 'asc' ? valA - valB : valB - valA;
+        });
+
+        dataRows.forEach(function(r) { tbody.appendChild(r); });
+        emptyRows.forEach(function(r) { tbody.appendChild(r); });
+    }
+})();
+
+var chartInstances = [];
+
+function abrirModalInstitucion(pk) {
+    var modal = document.getElementById('modal-inst');
+    var content = document.getElementById('modal-inst-content');
+    modal.style.display = 'flex';
+    content.innerHTML = '<div style="text-align:center; padding:3rem; color:#64748b;">⏳ Cargando...</div>';
+
+    // Destroy previous charts
+    chartInstances.forEach(function(c) { c.destroy(); });
+    chartInstances = [];
+
+    fetch('/callcenter/instituciones/api/' + pk + '/', { headers: {'X-Requested-With': 'XMLHttpRequest'} })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(d) { content.innerHTML = renderInstModal(d); renderEnlacesPaginated(d.enlaces); renderCharts(d); })
+    .catch(function(e) { content.innerHTML = '<div style="text-align:center;padding:3rem;color:#ef4444;">Error: ' + e.message + '</div>'; });
+}
+
+function cerrarModalInst() { document.getElementById('modal-inst').style.display = 'none'; }
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cerrarModalInst(); });
+
+function renderInstModal(d) {
+    var html = '';
+    // Header
+    html += '<div style="padding:24px 32px; border-bottom:1px solid #e2e8f0; background:#fafbfc;">';
+    html += '<h2 style="margin:0; font-size:1.3rem; font-weight:700; color:#32363a;">' + d.nombre + '</h2>';
+    if (d.acronimo) html += '<span style="font-size:0.8rem; color:#6a6d70; margin-left:8px;">(' + d.acronimo + ')</span>';
+    html += '<div style="margin-top:6px; font-size:0.8rem; color:#6a6d70;">' + d.total_tickets + ' tickets totales · ' + d.enlaces.length + ' enlaces</div>';
+    html += '</div>';
+
+    // Enlaces table (paginated)
+    html += '<div style="padding:20px 32px; border-bottom:1px solid #e2e8f0;">';
+    html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">';
+    html += '<div style="font-size:0.75rem; font-weight:600; color:#6a6d70; text-transform:uppercase;">Enlaces / Contactos (' + d.enlaces.length + ')</div>';
+    html += '<div id="enlaces-pagination" style="display:flex; gap:4px; align-items:center; font-size:0.75rem;"></div>';
+    html += '</div>';
+    if (d.enlaces.length > 0) {
+        html += '<div id="enlaces-table-container"></div>';
+    } else {
+        html += '<div style="color:#6a6d70; font-size:0.82rem;">Sin enlaces registrados.</div>';
+    }
+    html += '</div>';
+
+    // Charts area
+    html += '<div style="padding:20px 32px; display:grid; grid-template-columns:1fr 1fr; gap:24px;">';
+    html += '<div><div style="font-size:0.75rem; font-weight:600; color:#6a6d70; text-transform:uppercase; margin-bottom:8px;">Tickets por Servicio</div>';
+    html += '<canvas id="chart-servicio" height="200"></canvas></div>';
+    html += '<div><div style="font-size:0.75rem; font-weight:600; color:#6a6d70; text-transform:uppercase; margin-bottom:8px;">Tickets por Área</div>';
+    html += '<canvas id="chart-area" height="200"></canvas></div>';
+    html += '</div>';
+
+    // Falla del Catálogo section (dynamic - loaded on service click)
+    html += '<div style="padding:20px 32px; border-top:1px solid #e2e8f0;">';
+    html += '<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">';
+    html += '<div style="font-size:0.75rem; font-weight:600; color:#6a6d70; text-transform:uppercase;">Falla del Catálogo</div>';
+    html += '<span id="falla-servicio-label" style="font-size:0.72rem; color:#0a6ed1; font-weight:500;"></span>';
+    html += '</div>';
+    html += '<div id="falla-hint" style="font-size:0.78rem; color:#6a6d70;">👆 Haz clic en un segmento del gráfico de Servicios para ver las fallas asociadas.</div>';
+    html += '<canvas id="chart-falla" height="160" style="display:none;"></canvas>';
+    html += '</div>';
+
+    return html;
+}
+
+var enlacesData = [];
+var enlacesPage = 1;
+var enlacesPerPage = 5;
+
+function renderEnlacesPaginated(enlaces) {
+    enlacesData = enlaces.slice().sort(function(a, b) { return b.total_tickets - a.total_tickets; });
+    enlacesPage = 1;
+    renderEnlacesPage();
+}
+
+function renderEnlacesPage() {
+    var container = document.getElementById('enlaces-table-container');
+    var pagination = document.getElementById('enlaces-pagination');
+    if (!container || enlacesData.length === 0) return;
+
+    var totalPages = Math.ceil(enlacesData.length / enlacesPerPage);
+    var start = (enlacesPage - 1) * enlacesPerPage;
+    var end = Math.min(start + enlacesPerPage, enlacesData.length);
+    var pageItems = enlacesData.slice(start, end);
+
+    var html = '<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">';
+    html += '<thead><tr style="background:#fafafa; border-bottom:1px solid #d9d9d9;">';
+    html += '<th style="padding:8px 10px; text-align:left; font-weight:600; color:#6a6d70;">Nombre</th>';
+    html += '<th style="padding:8px 10px; text-align:left; font-weight:600; color:#6a6d70;">Email</th>';
+    html += '<th style="padding:8px 10px; text-align:left; font-weight:600; color:#6a6d70;">Teléfono</th>';
+    html += '<th style="padding:8px 10px; text-align:left; font-weight:600; color:#6a6d70;">Ubicación</th>';
+    html += '<th style="padding:8px 10px; text-align:center; font-weight:600; color:#6a6d70;">Tickets</th>';
+    html += '</tr></thead><tbody>';
+    pageItems.forEach(function(e) {
+        html += '<tr style="border-bottom:1px solid #f0f0f0;">';
+        html += '<td style="padding:8px 10px; font-weight:500;">' + e.nombre + '</td>';
+        html += '<td style="padding:8px 10px; color:#6a6d70;">' + e.email + '</td>';
+        html += '<td style="padding:8px 10px; color:#6a6d70;">' + e.telefono + '</td>';
+        html += '<td style="padding:8px 10px; color:#6a6d70; font-size:0.75rem;">' + e.ubicacion + '</td>';
+        html += '<td style="padding:8px 10px; text-align:center;"><span style="background:#e8f0fe; color:#0a6ed1; padding:2px 8px; font-size:0.7rem; font-weight:700;">' + e.total_tickets + '</span></td>';
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    // Pagination controls
+    var pagHtml = '';
+    if (totalPages > 1) {
+        pagHtml += '<button onclick="enlacesPageNav(-1)" style="padding:4px 8px; border:1px solid #d9d9d9; background:white; cursor:pointer; font-size:0.72rem;" ' + (enlacesPage <= 1 ? 'disabled' : '') + '>‹</button>';
+        pagHtml += '<span style="color:#6a6d70;">' + enlacesPage + ' / ' + totalPages + '</span>';
+        pagHtml += '<button onclick="enlacesPageNav(1)" style="padding:4px 8px; border:1px solid #d9d9d9; background:white; cursor:pointer; font-size:0.72rem;" ' + (enlacesPage >= totalPages ? 'disabled' : '') + '>›</button>';
+    }
+    pagination.innerHTML = pagHtml;
+}
+
+function enlacesPageNav(dir) {
+    var totalPages = Math.ceil(enlacesData.length / enlacesPerPage);
+    enlacesPage += dir;
+    if (enlacesPage < 1) enlacesPage = 1;
+    if (enlacesPage > totalPages) enlacesPage = totalPages;
+    renderEnlacesPage();
+}
+
+function renderCharts(d) {
+    var colors = ['#0a6ed1','#107e3e','#e9730c','#bb0000','#6a6d70','#354a5f','#1d4ed8','#7c3aed','#059669','#d97706'];
+
+    // Servicio chart (donut - clickeable)
+    if (d.tickets_por_servicio && d.tickets_por_servicio.length > 0) {
+        var ctx1 = document.getElementById('chart-servicio');
+        if (ctx1) {
+            var c1 = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: d.tickets_por_servicio.map(function(x) { return x.servicio; }),
+                    datasets: [{ data: d.tickets_por_servicio.map(function(x) { return x.total; }), backgroundColor: colors }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
+                    onClick: function(evt, elements) {
+                        if (elements.length > 0) {
+                            var idx = elements[0].index;
+                            var servicio = d.tickets_por_servicio[idx].servicio;
+                            loadFallasByServicio(d.id, servicio);
+                        }
+                    }
+                }
+            });
+            chartInstances.push(c1);
+        }
+    }
+
+    // Area chart
+    if (d.tickets_por_area && d.tickets_por_area.length > 0) {
+        var ctx2 = document.getElementById('chart-area');
+        if (ctx2) {
+            var c2 = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: d.tickets_por_area.map(function(x) { return x.area; }),
+                    datasets: [{ label: 'Tickets', data: d.tickets_por_area.map(function(x) { return x.total; }), backgroundColor: '#0a6ed1' }]
+                },
+                options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+            });
+            chartInstances.push(c2);
+        }
+    }
+}
+
+var fallaChart = null;
+
+function loadFallasByServicio(instId, servicio) {
+    var canvas = document.getElementById('chart-falla');
+    var hint = document.getElementById('falla-hint');
+    var label = document.getElementById('falla-servicio-label');
+
+    if (label) label.textContent = '→ ' + servicio;
+    if (hint) hint.style.display = 'none';
+    if (canvas) canvas.style.display = 'block';
+
+    fetch('/callcenter/instituciones/api/' + instId + '/fallas/?servicio=' + encodeURIComponent(servicio), {
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (fallaChart) { fallaChart.destroy(); fallaChart = null; }
+
+        if (!data.fallas || data.fallas.length === 0) {
+            canvas.style.display = 'none';
+            if (hint) { hint.style.display = 'block'; hint.textContent = 'No hay fallas catalogadas para este servicio.'; }
+            return;
+        }
+
+        fallaChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: data.fallas.map(function(x) { return x.falla_reportada__nombre; }),
+                datasets: [{ label: 'Tickets', data: data.fallas.map(function(x) { return x.total; }), backgroundColor: '#bb0000' }]
+            },
+            options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+        });
+    })
+    .catch(function() {
+        if (hint) { hint.style.display = 'block'; hint.textContent = 'Error al cargar fallas.'; }
+    });
+}
+</script>
+{% endblock %}

@@ -119,3 +119,53 @@ def mantenimiento_dashboard(request):
     }
     
     return render(request, 'mantenimiento/dashboard.html', context)
+
+
+@staff_member_required
+def ordenes_lista_view(request):
+    """Vista de listado de órdenes de trabajo con búsqueda avanzada y selección de columnas."""
+    from django.db.models import Max
+
+    q = request.GET.get('q', '')
+    estado = request.GET.get('estado', '')
+    tipo = request.GET.get('tipo', '')
+    prioridad = request.GET.get('prioridad', '')
+
+    ordenes = OrdenTrabajo.objects.select_related(
+        'rutina', 'ubicacion', 'tecnico_puesto', 'empresa_responsable'
+    ).order_by('-inicio_programado')
+
+    if q:
+        ordenes = ordenes.filter(
+            Q(codigo_de_orden__icontains=q) |
+            Q(descripcion_corta__icontains=q) |
+            Q(descripcion_detallada__icontains=q) |
+            Q(rutina__nombre__icontains=q) |
+            Q(ubicacion__nombre__icontains=q)
+        )
+    if estado:
+        ordenes = ordenes.filter(estado=estado)
+    if tipo:
+        ordenes = ordenes.filter(tipo=tipo)
+    if prioridad:
+        ordenes = ordenes.filter(prioridad=prioridad)
+
+    # Filtro de rango de fechas
+    fecha_desde = request.GET.get('fecha_desde', '')
+    fecha_hasta = request.GET.get('fecha_hasta', '')
+    if fecha_desde:
+        ordenes = ordenes.filter(inicio_programado__date__gte=fecha_desde)
+    if fecha_hasta:
+        ordenes = ordenes.filter(inicio_programado__date__lte=fecha_hasta)
+
+    context = {
+        'ordenes': ordenes[:100],
+        'total': ordenes.count(),
+        'q': q,
+        'estado_filter': estado,
+        'tipo_filter': tipo,
+        'prioridad_filter': prioridad,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+    }
+    return render(request, 'mantenimiento/ordenes_lista.html', context)

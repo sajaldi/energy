@@ -3906,3 +3906,117 @@ def create_cluster_manual_ajax(request):
         'correlativo': cluster.correlativo,
         'redirect_url': reverse('callcenter:cluster_tickets', args=[cluster.id])
     })
+
+
+@login_required
+def instituciones_dashboard_view(request):
+    """Dashboard de Instituciones con tickets registrados por institución."""
+    from .models import Institucion, SolicitudTicket
+    from django.db.models import Count, Max, Q
+
+    search_query = request.GET.get('q', '')
+
+    instituciones = Institucion.objects.annotate(
+        total_tickets=Count('enlaces__tickets'),
+        ultimo_ticket_fecha=Max('enlaces__tickets__fecha_solicitud'),
+    ).order_by('-total_tickets')
+
+    if search_query:
+        instituciones = instituciones.filter(
+            Q(nombre__icontains=search_query) | Q(acronimo__icontains=search_query)
+        )
+
+    # KPIs
+    total_instituciones = instituciones.count()
+    total_tickets_global = sum(i.total_tickets for i in instituciones)
+
+    context = {
+        'instituciones': instituciones,
+        'search_query': search_query,
+        'total_instituciones': total_instituciones,
+        'total_tickets_global': total_tickets_global,
+    }
+    return render(request, 'callcenter/instituciones_dashboard.html', context)
+
+
+@login_required
+def institucion_detail_api(request, pk):
+    """API que retorna enlaces y tickets por categoría para el modal de institución."""
+    from .models import Institucion, SolicitudTicket
+    from django.db.models import Count
+
+    try:
+        inst = Institucion.objects.get(pk=pk)
+    except Institucion.DoesNotExist:
+        return JsonResponse({'error': 'Institución no encontrada'}, status=404)
+
+    # Enlaces
+    enlaces = []
+    for e in inst.enlaces.all():
+        enlaces.append({
+            'nombre': str(e),
+            'email': e.email or '-',
+            'telefono': e.telefono or '-',
+            'ubicacion': str(e.ubicacion) if e.ubicacion else '-',
+            'total_tickets': e.tickets.count(),
+        })
+
+    # Tickets por servicio (categoría)
+    tickets_por_servicio = SolicitudTicket.objects.filter(
+        enlace_solicitante__institucion=inst
+    ).exclude(servicio__isnull=True).exclude(servicio='').values('servicio').annotate(
+        total=Count('id')
+    ).order_by('-total')[:10]
+
+    # Tickets por área
+    tickets_por_area = SolicitudTicket.objects.filter(
+        enlace_solicitante__institucion=inst
+    ).exclude(area__isnull=True).exclude(area='').values('area').annotate(
+        total=Count('id')
+    ).order_by('-total')[:10]
+
+    # Tickets por falla del catálogo
+    tickets_por_falla = SolicitudTicket.objects.filter(
+        enlace_solicitante__institucion=inst,
+        falla_reportada__isnull=False
+    ).values('falla_reportada__nombre').annotate(
+        total=Count('id')
+    ).order_by('-total')[:10]
+
+    data = {
+        'nombre': inst.nombre,
+        'acronimo': inst.acronimo or '',
+        'enlaces': enlaces,
+        'tickets_por_servicio': list(tickets_por_servicio),
+        'tickets_por_area': list(tickets_por_area),
+        'tickets_por_falla': list(tickets_por_falla),
+        'total_tickets': sum(e['total_tickets'] for e in enlaces),
+        'id': inst.pk,
+    }
+    return JsonResponse(data)
+
+
+@login_required
+def institucion_fallas_por_servicio_api(request, pk):
+    """API que retorna fallas del catálogo filtradas por servicio para una institución."""
+    from .models import Institucion, SolicitudTicket
+    from django.db.models import Count
+
+    servicio = request.GET.get('servicio', '')
+    if not servicio:
+        return JsonResponse({'fallas': []})
+
+    try:
+        inst = Institucion.objects.get(pk=pk)
+    except Institucion.DoesNotExist:
+        return JsonResponse({'error': 'No encontrada'}, status=404)
+
+    fallas = SolicitudTicket.objects.filter(
+        enlace_solicitante__institucion=inst,
+        servicio=servicio,
+        falla_reportada__isnull=False
+    ).values('falla_reportada__nombre').annotate(
+        total=Count('id')
+    ).order_by('-total')[:15]
+
+    return JsonResponse({'servicio': servicio, 'fallas': list(fallas)})
