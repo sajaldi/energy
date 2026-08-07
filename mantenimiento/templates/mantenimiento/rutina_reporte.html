@@ -1,0 +1,296 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporte: {{ rutina.nombre }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Artifakt+Element:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --fiori-blue: #0a6ed1;
+        --fiori-shell: #354a5f;
+        --fiori-success: #107e3e;
+        --fiori-warning: #e9730c;
+        --fiori-error: #bb0000;
+        --fiori-bg: #f7f7f7;
+        --fiori-card: #ffffff;
+        --fiori-text: #32363a;
+        --fiori-text-muted: #6a6d70;
+        --fiori-border: #d9d9d9;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Artifakt Element', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--fiori-bg); color: var(--fiori-text); }
+
+    .fiori-shell-bar {
+        background: var(--fiori-shell); padding: 0 1.5rem; height: 44px;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .fiori-shell-title { color: white; font-size: 0.85rem; font-weight: 600; }
+    .fiori-shell-nav a { color: rgba(255,255,255,0.8); font-size: 0.8rem; text-decoration: none; margin-left: 16px; }
+    .fiori-shell-nav a:hover { color: white; }
+
+    .fiori-page { padding: 1.25rem 1.5rem; width: 100%; }
+
+    .fiori-page-header {
+        display: flex; justify-content: space-between; align-items: flex-start;
+        padding-bottom: 1rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--fiori-border);
+    }
+    .fiori-page-title { font-size: 1.3rem; font-weight: 700; color: var(--fiori-text); }
+    .fiori-page-subtitle { font-size: 0.78rem; color: var(--fiori-text-muted); margin-top: 4px; }
+
+    .fiori-btn {
+        padding: 8px 16px; font-size: 0.8rem; font-weight: 600;
+        border: 1px solid var(--fiori-border); background: var(--fiori-card);
+        color: var(--fiori-text); cursor: pointer; text-decoration: none;
+        display: inline-flex; align-items: center; gap: 6px;
+    }
+    .fiori-btn:hover { border-color: var(--fiori-blue); color: var(--fiori-blue); }
+
+    .info-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;
+        padding: 1rem; margin-bottom: 1.25rem; background: var(--fiori-card); border: 1px solid var(--fiori-border);
+    }
+    .info-item-label { font-size: 0.7rem; font-weight: 600; color: var(--fiori-text-muted); text-transform: uppercase; }
+    .info-item-value { font-size: 0.85rem; color: var(--fiori-text); margin-top: 2px; font-weight: 500; }
+
+    .section { margin-bottom: 1.5rem; }
+    .section-title {
+        font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+        color: var(--fiori-text-muted); padding: 0.5rem 1rem; background: #fafafa;
+        border: 1px solid var(--fiori-border); border-bottom: none;
+    }
+
+    .fiori-table-container { background: var(--fiori-card); border: 1px solid var(--fiori-border); overflow-x: auto; margin-bottom: 1.5rem; }
+    .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .fiori-table th {
+        text-align: left; padding: 8px 12px; background: #fafafa; font-weight: 600;
+        color: var(--fiori-text-muted); font-size: 0.7rem; text-transform: uppercase;
+        border-bottom: 1px solid var(--fiori-border);
+    }
+    .fiori-table td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    .fiori-table tr:last-child td { border-bottom: none; }
+
+    .ot-card {
+        background: var(--fiori-card); border: 1px solid var(--fiori-border); margin-bottom: 1.25rem;
+        page-break-inside: avoid;
+    }
+    .ot-card-header {
+        padding: 12px 16px; border-bottom: 1px solid var(--fiori-border); background: #fafafa;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .ot-card-header h3 { font-size: 0.9rem; font-weight: 700; color: var(--fiori-text); }
+    .ot-status { padding: 3px 10px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; }
+    .ot-status-realizada { background: #e6f4ea; color: #137333; }
+    .ot-status-programada { background: #e8f0fe; color: #1a56db; }
+    .ot-status-ejecucion { background: #fff3cd; color: #856404; }
+    .ot-status-espera { background: #fef7e0; color: #8a6d3b; }
+    .ot-status-cancelada { background: #f1f3f4; color: #5f6368; }
+
+    .ot-card-body { padding: 12px 16px; }
+    .ot-meta { display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.78rem; color: var(--fiori-text-muted); margin-bottom: 12px; }
+
+    .checklist-results { margin-top: 10px; }
+    .checklist-row { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 0.78rem; }
+    .checklist-row:last-child { border-bottom: none; }
+    .checklist-paso { flex: 1; color: var(--fiori-text); }
+    .checklist-valor { font-weight: 600; min-width: 80px; text-align: right; }
+    .checklist-ok { color: var(--fiori-success); }
+    .checklist-fail { color: var(--fiori-error); }
+    .checklist-na { color: var(--fiori-text-muted); font-style: italic; }
+
+    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+    .photo-grid img { width: 100%; height: 200px; object-fit: cover; border: 1px solid var(--fiori-border); }
+    .photo-grid a { display: block; }
+
+    .filter-bar {
+        display: flex; gap: 10px; align-items: center; padding: 0.75rem 1rem;
+        background: var(--fiori-card); border: 1px solid var(--fiori-border); margin-bottom: 1rem;
+    }
+    .filter-bar label { font-size: 0.75rem; font-weight: 600; color: var(--fiori-text-muted); }
+    .filter-bar input[type="date"] { padding: 6px 10px; font-size: 0.8rem; border: 1px solid var(--fiori-border); font-family: inherit; }
+
+    @media print {
+        .fiori-shell-bar, .filter-bar, .fiori-btn { display: none !important; }
+        .fiori-page { padding: 0; }
+        .ot-card { break-inside: avoid; }
+        body { background: white; }
+    }
+</style>
+</head>
+<body>
+
+<div class="fiori-shell-bar">
+    <span class="fiori-shell-title">Energy · Reporte de Rutina</span>
+    <nav class="fiori-shell-nav">
+        <a href="/mantenimiento/rutinas/dashboard/">Rutinas</a>
+        <a href="/mantenimiento/">Dashboard</a>
+        <a href="#" onclick="window.print(); return false;">🖨️ Imprimir</a>
+    </nav>
+</div>
+
+<div class="fiori-page">
+
+    <div class="fiori-page-header">
+        <div>
+            <h1 class="fiori-page-title">{{ rutina.nombre }}</h1>
+            <div class="fiori-page-subtitle">{{ rutina.codigo_rutina|default:"-" }} · {{ total_ordenes }} órdenes{% if fecha_desde %} desde {{ fecha_desde }}{% endif %}{% if fecha_hasta %} hasta {{ fecha_hasta }}{% endif %}</div>
+        </div>
+        <a href="/mantenimiento/rutinas/dashboard/" class="fiori-btn">← Volver</a>
+    </div>
+
+    <!-- Filtro de fechas -->
+    <form method="get" class="filter-bar">
+        <label>Desde:</label>
+        <input type="date" name="desde" value="{{ fecha_desde }}">
+        <label>Hasta:</label>
+        <input type="date" name="hasta" value="{{ fecha_hasta }}">
+        <button type="submit" class="fiori-btn" style="padding:6px 12px;">Filtrar</button>
+        {% if fecha_desde or fecha_hasta %}
+        <a href="{% url 'mantenimiento:rutina_reporte_html' rutina.pk %}" class="fiori-btn" style="padding:6px 12px; font-size:0.75rem;">✕ Limpiar</a>
+        {% endif %}
+    </form>
+
+    <!-- Info General -->
+    <div class="info-grid">
+        <div><div class="info-item-label">Frecuencia</div><div class="info-item-value">{{ rutina.frecuencia|default:"-" }}</div></div>
+        <div><div class="info-item-label">Puesto</div><div class="info-item-value">{{ rutina.puesto_trabajo|default:"-" }}</div></div>
+        <div><div class="info-item-label">Categoría</div><div class="info-item-value">{{ rutina.tipo|default:"-" }}</div></div>
+        <div><div class="info-item-label">Total Órdenes</div><div class="info-item-value">{{ total_ordenes }}</div></div>
+        <div><div class="info-item-label">Activos Relacionados</div><div class="info-item-value">{{ activos|length }}</div></div>
+    </div>
+
+    <!-- Activos Relacionados -->
+    {% if activos %}
+    <div class="section">
+        <div class="section-title">Activos Relacionados</div>
+        <div class="fiori-table-container">
+            <table class="fiori-table">
+                <thead><tr><th>Activo</th><th>Código</th><th>Ubicación</th></tr></thead>
+                <tbody>
+                    {% for activo in activos %}
+                    <tr>
+                        <td style="font-weight:500;">{{ activo.nombre }}</td>
+                        <td style="font-size:0.75rem; color:var(--fiori-text-muted);">{{ activo.codigo_interno|default:"-" }}</td>
+                        <td style="font-size:0.75rem;">{{ activo.ubicacion|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Órdenes de Trabajo -->
+    <div class="section">
+        <div class="section-title">Órdenes de Trabajo ({{ total_ordenes }})</div>
+
+        {% for ot in ordenes %}
+        <div class="ot-card">
+            <div class="ot-card-header">
+                <h3>{{ ot.codigo_de_orden|default:"OT sin código" }}</h3>
+                <span class="ot-status ot-status-{{ ot.estado|lower }}">{{ ot.get_estado_display }}</span>
+            </div>
+            <div class="ot-card-body">
+                <div class="ot-meta">
+                    <span>📅 {{ ot.inicio_programado|date:"d/m/Y" }}</span>
+                    <span>📍 {{ ot.ubicacion|default:"-" }}</span>
+                    <span>👤 {{ ot.tecnico_puesto|default:ot.tecnico|default:"-" }}</span>
+                    <span>🏢 {{ ot.empresa_responsable|default:"-" }}</span>
+                    {% if ot.cierre %}
+                    <span>⏱️ {{ ot.cierre.horas_hombre }} HH</span>
+                    {% endif %}
+                </div>
+
+                {% if ot.descripcion_corta %}
+                <div style="font-size:0.8rem; color:var(--fiori-text); margin-bottom:8px;">{{ ot.descripcion_corta }}</div>
+                {% endif %}
+
+                <!-- Personal que trabajó -->
+                <div style="margin-bottom:10px; padding:8px 10px; background:#f8fafc; border:1px solid #f0f0f0;">
+                    <div style="font-size:0.7rem; font-weight:600; color:var(--fiori-text-muted); text-transform:uppercase; margin-bottom:4px;">Personal Asignado</div>
+                    <div style="font-size:0.8rem; display:flex; flex-wrap:wrap; gap:8px;">
+                        {% if ot.tecnico_puesto %}
+                        <span style="background:#e8f0fe; color:#0a6ed1; padding:2px 8px; font-weight:600; font-size:0.75rem;">⭐ {{ ot.tecnico_puesto }}</span>
+                        {% elif ot.tecnico %}
+                        <span style="background:#e8f0fe; color:#0a6ed1; padding:2px 8px; font-weight:600; font-size:0.75rem;">⭐ {{ ot.tecnico.get_full_name|default:ot.tecnico.username }}</span>
+                        {% endif %}
+                        {% for col in ot.colaboradores_puesto.all %}
+                        <span style="background:#f1f5f9; color:#475569; padding:2px 8px; font-size:0.75rem;">{{ col }}</span>
+                        {% endfor %}
+                        {% if not ot.tecnico_puesto and not ot.tecnico and not ot.colaboradores_puesto.all %}
+                        <span style="color:var(--fiori-text-muted); font-size:0.75rem; font-style:italic;">Sin personal asignado</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Resultados del Checklist -->
+                {% with resultados=ot.resultados_checklist.all %}
+                {% if resultados %}
+                <div class="checklist-results">
+                    <div style="font-size:0.72rem; font-weight:600; color:var(--fiori-text-muted); text-transform:uppercase; margin-bottom:6px;">Resultados del Checklist ({{ resultados|length }} pasos)</div>
+                    <table style="width:100%; border-collapse:collapse; font-size:0.78rem;">
+                        <thead>
+                            <tr style="background:#fafafa; border-bottom:1px solid var(--fiori-border);">
+                                <th style="padding:6px 8px; text-align:left; font-weight:600; color:var(--fiori-text-muted); font-size:0.68rem; text-transform:uppercase;">#</th>
+                                <th style="padding:6px 8px; text-align:left; font-weight:600; color:var(--fiori-text-muted); font-size:0.68rem; text-transform:uppercase;">Paso</th>
+                                <th style="padding:6px 8px; text-align:center; font-weight:600; color:var(--fiori-text-muted); font-size:0.68rem; text-transform:uppercase;">Resultado</th>
+                                <th style="padding:6px 8px; text-align:left; font-weight:600; color:var(--fiori-text-muted); font-size:0.68rem; text-transform:uppercase;">Comentarios</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for r in resultados %}
+                        <tr style="border-bottom:1px solid #f5f5f5;">
+                            <td style="padding:6px 8px; color:var(--fiori-text-muted);">{{ r.paso.orden }}</td>
+                            <td style="padding:6px 8px;">{{ r.paso.descripcion|truncatechars:50 }}</td>
+                            <td style="padding:6px 8px; text-align:center; font-weight:600;">
+                                {% if r.no_aplica %}<span class="checklist-na">N/A</span>
+                                {% elif r.valor_bool == True %}<span class="checklist-ok">✓ OK</span>
+                                {% elif r.valor_bool == False %}<span class="checklist-fail">✗ Falla</span>
+                                {% elif r.valor_numerico != None %}<span>{{ r.valor_numerico }}</span>
+                                {% elif r.valor_texto %}<span>{{ r.valor_texto|truncatechars:25 }}</span>
+                                {% else %}<span style="color:var(--fiori-text-muted);">—</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding:6px 8px; font-size:0.72rem; color:var(--fiori-text-muted);">{{ r.comentarios|default:""|truncatechars:40 }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                <!-- Fotos/Archivos -->
+                {% with fotos=ot.archivos.all %}
+                {% if fotos %}
+                <div class="photo-grid">
+                    {% for foto in fotos %}
+                    {% if foto.tipo == 'IMAGEN' %}
+                    <a href="{{ foto.archivo.url }}" target="_blank">
+                        <img src="{{ foto.archivo.url }}" alt="{{ foto.nombre }}" title="{{ foto.nombre }} ({{ foto.get_momento_display }})">
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                <!-- Cierre -->
+                {% if ot.cierre and ot.cierre.comentarios %}
+                <div style="margin-top:10px; padding:8px 10px; background:#f8fafc; border-left:3px solid var(--fiori-blue); font-size:0.78rem;">
+                    <strong>Comentarios de cierre:</strong> {{ ot.cierre.comentarios }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center; padding:3rem; color:var(--fiori-text-muted); background:var(--fiori-card); border:1px solid var(--fiori-border);">
+            No se encontraron órdenes para esta rutina con los filtros seleccionados.
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+</body>
+</html>

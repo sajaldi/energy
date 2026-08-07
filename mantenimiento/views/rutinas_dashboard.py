@@ -1033,3 +1033,51 @@ def export_rutinas_excel(request):
     response['Content-Disposition'] = 'attachment; filename="rutinas_mantenimiento.xlsx"'
     return response
 
+
+
+@staff_member_required
+def rutina_reporte_html(request, pk):
+    """
+    Genera un reporte HTML consolidado de una rutina con:
+    - Información general de la rutina
+    - Activos relacionados (por ubicaciones de las OTs)
+    - Órdenes de trabajo con resultados del checklist
+    - Fotos adjuntas de cada orden
+    """
+    from ..models import OrdenTrabajo, ArchivoOrdenTrabajo, ValorPasoOrden
+
+    rutina = Rutina.objects.select_related('frecuencia', 'puesto_trabajo', 'tipo').get(pk=pk)
+    pasos = PasoRutina.objects.filter(rutina=rutina).order_by('orden')
+
+    # Órdenes de esta rutina
+    ordenes = OrdenTrabajo.objects.filter(rutina=rutina).select_related(
+        'ubicacion', 'tecnico_puesto', 'tecnico', 'cierre'
+    ).prefetch_related('activos', 'archivos', 'resultados_checklist__paso', 'colaboradores_puesto').order_by('-inicio_programado')
+
+    # Filtro de fechas opcional
+    fecha_desde = request.GET.get('desde', '')
+    fecha_hasta = request.GET.get('hasta', '')
+    if fecha_desde:
+        ordenes = ordenes.filter(inicio_programado__date__gte=fecha_desde)
+    if fecha_hasta:
+        ordenes = ordenes.filter(inicio_programado__date__lte=fecha_hasta)
+
+    # Limitar a 50 órdenes max para el reporte
+    ordenes = ordenes[:50]
+
+    # Recopilar activos únicos
+    activos_unicos = set()
+    for ot in ordenes:
+        for activo in ot.activos.all():
+            activos_unicos.add(activo)
+
+    context = {
+        'rutina': rutina,
+        'pasos': pasos,
+        'ordenes': ordenes,
+        'activos': activos_unicos,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'total_ordenes': len(ordenes),
+    }
+    return render(request, 'mantenimiento/rutina_reporte.html', context)

@@ -424,6 +424,9 @@
                     </div>
                     <div class="fiori-form-group">
                         <label>Empresa</label>
+                        <input type="text" id="empresa-search-input" placeholder="🔍 Buscar empresa..." 
+                            style="width:100%; padding:8px 10px; font-size:0.85rem; border:1px solid #d9d9d9; margin-bottom:6px; font-family:inherit;"
+                            oninput="filterEmpresaOptions(this.value)">
                         <select name="empresa_responsable" id="empresa_responsable_select" class="fiori-select" onchange="updateOT(); filterTecnicosByEmpresa();">
                             <option value="none">-- Seleccionar --</option>
                             {% for e in empresas %}
@@ -1182,6 +1185,16 @@
             const modal = document.getElementById('mediaModal');
             modal.classList.remove('active');
             document.body.style.overflow = '';
+        }
+
+        function filterEmpresaOptions(query) {
+            var select = document.getElementById('empresa_responsable_select');
+            var options = select.querySelectorAll('option');
+            var q = query.toLowerCase();
+            options.forEach(function(opt) {
+                if (opt.value === 'none') return;
+                opt.style.display = opt.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+            });
         }
 
         function filterTecnicosByEmpresa() {
