@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Q, Count, OuterRef, Subquery, DecimalField
+from django.db.models import Sum, Q, Count, OuterRef, Subquery, DecimalField, Max
 from django.db.models.functions import Coalesce
 from .models import SolicitudPago, Requisicion, ItemSolicitudPago
 from mantenimiento.models import Empresa
@@ -624,7 +624,8 @@ def dashboard_proveedores(request):
     # Proveedores con al menos una requisición
     proveedores = Empresa.objects.annotate(
         total_requisiciones=Count('requisiciones_asignadas'),
-        monto_total_solicitado=Sum('requisiciones_asignadas__cr8ca_totalenarticulos')
+        monto_total_solicitado=Sum('requisiciones_asignadas__cr8ca_totalenarticulos'),
+        ultima_fecha_requisicion=Max('requisiciones_asignadas__fecha')
     ).filter(total_requisiciones__gt=0).order_by('-monto_total_solicitado')
 
     if search_query:

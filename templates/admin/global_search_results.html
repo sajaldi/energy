@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load i18n static %}
+{% load i18n static humanize %}
 
 {% block extrastyle %}
 {{ block.super }}
@@ -106,6 +106,9 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" id="usuarios-tab" data-toggle="tab" href="#usuarios" role="tab"><i class="fas fa-users mr-1"></i> Usuarios ({{ results.usuarios|length }})</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="requisiciones-tab" data-toggle="tab" href="#requisiciones" role="tab"><i class="fas fa-file-invoice mr-1"></i> Requisiciones ({{ results.requisiciones|length }})</a>
                 </li>
             </ul>
 
@@ -437,6 +440,44 @@
                         {% empty %}
                         <div class="col-12 text-center py-4 text-muted">
                             <i class="fas fa-info-circle mr-1"></i> No se encontraron usuarios
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Pestaña Requisiciones -->
+                <div class="tab-pane fade" id="requisiciones" role="tabpanel">
+                    <div class="row">
+                        {% for req in results.requisiciones %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 search-result-card" style="border-left-color: #0a6ed1;">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <h5 class="mb-1 text-dark">
+                                            <a href="{% url 'presupuestos:requisicion_editar' req.pk %}" class="stretched-link">{{ req.cr8ca_requisicion }}</a>
+                                        </h5>
+                                        <span class="badge badge-primary">Requisición</span>
+                                    </div>
+                                    <p class="mb-1 small text-muted">{{ req.cr8ca_asunto|truncatechars:60 }}</p>
+                                    <div class="mt-2 small">
+                                        <span class="badge badge-light"><i class="fas fa-calendar mr-1"></i>{{ req.fecha|date:"d/m/Y"|default:"-" }}</span>
+                                        <span class="badge badge-light"><i class="fas fa-user mr-1"></i>{{ req.usuario_solicitante.get_full_name|default:"-" }}</span>
+                                        <span class="badge {% if req.estado_requisicion == 'AUTORIZADO' %}badge-success{% elif req.estado_requisicion == 'PENDIENTE' %}badge-warning{% elif req.estado_requisicion == 'EN_ORDEN_COMPRA' %}badge-info{% elif req.estado_requisicion == 'RECHAZADO' %}badge-danger{% else %}badge-secondary{% endif %}">
+                                            {{ req.get_estado_requisicion_display }}
+                                        </span>
+                                    </div>
+                                    {% if req.cr8ca_totalenarticulos %}
+                                    <div class="mt-1 small text-muted">
+                                        <i class="fas fa-money-bill-wave mr-1"></i> L.{{ req.cr8ca_totalenarticulos|floatformat:2|intcomma }}
+                                        {% if req.proveedor %} · <i class="fas fa-building mr-1"></i>{{ req.proveedor }}{% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center py-4 text-muted">
+                            <i class="fas fa-info-circle mr-1"></i> No se encontraron requisiciones
                         </div>
                         {% endfor %}
                     </div>

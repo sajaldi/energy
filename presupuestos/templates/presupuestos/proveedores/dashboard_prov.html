@@ -3,144 +3,225 @@
 
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Proveedores | Energy</title>
-    <link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
-        .prov-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 1.5rem;
-            margin-top: 1rem;
+        :root {
+            --fiori-blue: #0a6ed1;
+            --fiori-blue-dark: #0854a0;
+            --fiori-shell: #354a5f;
+            --fiori-success: #107e3e;
+            --fiori-bg: #f7f7f7;
+            --fiori-card: #ffffff;
+            --fiori-text: #32363a;
+            --fiori-text-muted: #6a6d70;
+            --fiori-border: #d9d9d9;
         }
-        .prov-card {
-            background: var(--bg-card);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            transition: all 0.2s ease;
-            cursor: pointer;
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', '72', sans-serif; background: var(--fiori-bg); color: var(--fiori-text); }
+
+        .fiori-shell-bar {
+            background: var(--fiori-shell); padding: 0 1.5rem; height: 44px;
+            display: flex; align-items: center; justify-content: space-between;
         }
-        .prov-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            border-color: var(--primary);
+        .fiori-shell-title { color: white; font-size: 0.85rem; font-weight: 600; }
+        .fiori-shell-nav a { color: rgba(255,255,255,0.8); font-size: 0.8rem; text-decoration: none; margin-left: 16px; }
+        .fiori-shell-nav a:hover { color: white; }
+
+        .fiori-page { padding: 1.25rem 1.5rem; width: 100%; }
+
+        .fiori-page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding-bottom: 1rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--fiori-border);
         }
-        .prov-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
+        .fiori-page-title { font-size: 1.4rem; font-weight: 700; color: var(--fiori-text); }
+        .fiori-page-subtitle { font-size: 0.78rem; color: var(--fiori-text-muted); margin-top: 2px; }
+
+        .fiori-btn {
+            padding: 8px 16px; font-size: 0.8rem; font-weight: 600;
+            border: 1px solid var(--fiori-border); background: var(--fiori-card);
+            color: var(--fiori-text); cursor: pointer; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s;
         }
-        .prov-icon {
-            width: 40px;
-            height: 40px;
-            background: #eff6ff;
-            color: var(--primary);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
+        .fiori-btn:hover { border-color: var(--fiori-blue); color: var(--fiori-blue); }
+
+        .fiori-toolbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.75rem 1rem; margin-bottom: 1rem; background: var(--fiori-card);
+            border: 1px solid var(--fiori-border); gap: 12px;
         }
-        .prov-name {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--text-main);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .fiori-search {
+            flex: 1; max-width: 400px; padding: 8px 12px; font-size: 0.85rem;
+            border: 1px solid var(--fiori-border); background: var(--fiori-bg);
+            font-family: inherit;
         }
-        .prov-stats {
-            display: grid;
-            grid-template-columns: 1fr 1.5fr;
-            gap: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid #f3f4f6;
+        .fiori-search:focus { outline: none; border-color: var(--fiori-blue); }
+
+        .fiori-table-container {
+            background: var(--fiori-card); border: 1px solid var(--fiori-border); overflow-x: auto;
         }
-        .stat-group {
-            display: flex;
-            flex-direction: column;
+        .fiori-table-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.75rem 1rem; border-bottom: 1px solid var(--fiori-border);
         }
-        .stat-label {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.025em;
+        .fiori-table-title { font-size: 0.85rem; font-weight: 600; color: var(--fiori-text); }
+        .fiori-table-count { font-size: 0.75rem; color: var(--fiori-text-muted); font-weight: 400; }
+
+        .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .fiori-table th {
+            text-align: left; padding: 10px 16px; background: #fafafa;
+            font-weight: 600; color: var(--fiori-text-muted); font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--fiori-border);
         }
-        .stat-value {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--text-main);
+        .fiori-table td {
+            padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: var(--fiori-text); vertical-align: middle;
         }
-        .stat-value.amount {
-            color: var(--primary);
+        .fiori-table tr { cursor: pointer; transition: background 0.1s; }
+        .fiori-table tr:hover td { background: #fafbfc; }
+        .fiori-table tr:last-child td { border-bottom: none; }
+
+        .fiori-link { color: var(--fiori-blue); text-decoration: none; font-weight: 600; }
+        .fiori-link:hover { text-decoration: underline; }
+
+        .fiori-amount { font-family: 'Inter', monospace; font-weight: 600; color: var(--fiori-blue); }
+
+        .fiori-badge {
+            display: inline-block; padding: 2px 8px; font-size: 0.7rem; font-weight: 700;
+            background: #e8f0fe; color: var(--fiori-blue);
+        }
+
+        .fiori-empty {
+            text-align: center; padding: 3rem; color: var(--fiori-text-muted);
+            border: 1px dashed var(--fiori-border); background: var(--fiori-card);
         }
     </style>
 </head>
-
 <body>
-    <div class="dashboard-container">
-        <!-- Header -->
-        <div class="header-section">
-            <div class="header-title">
-                <h1>Dashboard de Proveedores</h1>
-                <p>Análisis de requisiciones por empresa activa</p>
-            </div>
-            <div class="header-actions">
-                <a href="{% url 'presupuestos:dashboard_pagos' %}" class="btn">
-                    <i class="ph ph-calendar-check"></i> Ir a Pagos
-                </a>
-            </div>
-        </div>
 
-        <!-- Controls -->
-        <div class="controls-bar">
-            <div class="search-box">
-                <i class="ph ph-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-                <form method="get">
-                    <input type="text" name="q" class="search-input" placeholder="Buscar proveedor por nombre..." value="{{ search_query|default:'' }}">
-                </form>
-            </div>
-        </div>
+<!-- Shell Bar -->
+<div class="fiori-shell-bar">
+    <span class="fiori-shell-title">Energy · Proveedores</span>
+    <nav class="fiori-shell-nav">
+        <a href="{% url 'presupuestos:dashboard_pagos' %}">Pagos</a>
+        <a href="{% url 'presupuestos:requisicion_dashboard' %}">Requisiciones</a>
+        <a href="/admin/">Admin</a>
+    </nav>
+</div>
 
-        <!-- Grid -->
-        <div class="prov-grid">
-            {% for p in proveedores %}
-            <div class="prov-card" onclick="location.href='{% url 'presupuestos:detalle_proveedor' p.pk %}'">
-                <div class="prov-header">
-                    <div class="prov-icon">
-                        <i class="ph ph-buildings"></i>
-                    </div>
-                    <div class="prov-name" title="{{ p.nombre }}">{{ p.nombre }}</div>
-                </div>
-                <div class="prov-stats">
-                    <div class="stat-group">
-                        <span class="stat-label">Requisiciones</span>
-                        <span class="stat-value">{{ p.total_requisiciones }}</span>
-                    </div>
-                    <div class="stat-group" style="text-align: right;">
-                        <span class="stat-label">Total Solicitado</span>
-                        <span class="stat-value amount">L. {{ p.monto_total_solicitado|floatformat:2|intcomma }}</span>
-                    </div>
-                </div>
-            </div>
-            {% empty %}
-            <div style="grid-column: 1 / -1; text-align: center; padding: 5rem; background: white; border-radius: 1rem;">
-                <i class="ph ph-magnifying-glass" style="font-size: 3rem; color: var(--text-muted); opacity: 0.3;"></i>
-                <p style="margin-top: 1rem; color: var(--text-muted);">No se encontraron proveedores activos con requisiciones.</p>
-            </div>
-            {% endfor %}
+<div class="fiori-page">
+
+    <!-- Page Header -->
+    <div class="fiori-page-header">
+        <div>
+            <h1 class="fiori-page-title">Proveedores</h1>
+            <div class="fiori-page-subtitle">Empresas con requisiciones activas · Monto total solicitado</div>
         </div>
+        <a href="{% url 'presupuestos:dashboard_pagos' %}" class="fiori-btn">
+            <i class="ph ph-arrow-left"></i> Volver a Pagos
+        </a>
     </div>
-</body>
 
+    <!-- Toolbar -->
+    <div class="fiori-toolbar">
+        <form method="get" style="flex:1; max-width:400px;">
+            <input type="text" name="q" class="fiori-search"
+                placeholder="🔍 Buscar proveedor por nombre..." value="{{ search_query|default:'' }}">
+        </form>
+        <span style="font-size:0.78rem; color:var(--fiori-text-muted);">{{ proveedores.count }} proveedores</span>
+    </div>
+
+    <!-- Table -->
+    <div class="fiori-table-container">
+        <div class="fiori-table-header">
+            <span class="fiori-table-title">Listado de Proveedores <span class="fiori-table-count">({{ proveedores.count }})</span></span>
+        </div>
+        <table class="fiori-table">
+            <thead>
+                <tr>
+                    <th>Proveedor</th>
+                    <th style="text-align:center;">Requisiciones</th>
+                    <th id="th-fecha" style="cursor:pointer; user-select:none;" title="Clic para ordenar">Última Requisición <span id="sort-indicator">▾</span></th>
+                    <th style="text-align:right;">Monto Total Solicitado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in proveedores %}
+                <tr onclick="location.href='{% url 'presupuestos:detalle_proveedor' p.pk %}'">
+                    <td>
+                        <span class="fiori-link">{{ p.nombre }}</span>
+                    </td>
+                    <td style="text-align:center;">
+                        <span class="fiori-badge">{{ p.total_requisiciones }}</span>
+                    </td>
+                    <td style="font-size:0.78rem; color:var(--fiori-text-muted);" data-sort-date="{{ p.ultima_fecha_requisicion|date:'Y-m-d'|default:'' }}">
+                        {{ p.ultima_fecha_requisicion|date:"d/m/Y"|default:"-" }}
+                    </td>
+                    <td style="text-align:right;">
+                        <span class="fiori-amount">L.{{ p.monto_total_solicitado|floatformat:2|intcomma }}</span>
+                    </td>
+                    <td style="text-align:right;">
+                        <a href="{% url 'presupuestos:detalle_proveedor' p.pk %}" class="fiori-link" title="Ver detalle">
+                            <i class="ph ph-arrow-right"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">
+                        <div class="fiori-empty">
+                            <i class="ph ph-buildings" style="font-size:2.5rem; opacity:0.3; display:block; margin-bottom:0.5rem;"></i>
+                            No se encontraron proveedores activos con requisiciones.
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+(function() {
+    var sortDir = 'desc'; // default: más recientes primero
+    var thFecha = document.getElementById('th-fecha');
+    var indicator = document.getElementById('sort-indicator');
+
+    if (thFecha) {
+        thFecha.addEventListener('click', function() {
+            sortDir = (sortDir === 'desc') ? 'asc' : 'desc';
+            indicator.textContent = (sortDir === 'asc') ? '▴' : '▾';
+            sortTable();
+        });
+    }
+
+    function sortTable() {
+        var table = document.querySelector('.fiori-table');
+        if (!table) return;
+        var tbody = table.querySelector('tbody');
+        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+
+        var dataRows = rows.filter(function(r) { return !r.querySelector('td[colspan]'); });
+        var emptyRows = rows.filter(function(r) { return r.querySelector('td[colspan]'); });
+
+        dataRows.sort(function(a, b) {
+            var dateA = a.querySelector('td[data-sort-date]');
+            var dateB = b.querySelector('td[data-sort-date]');
+            var valA = dateA ? dateA.getAttribute('data-sort-date') || '' : '';
+            var valB = dateB ? dateB.getAttribute('data-sort-date') || '' : '';
+            var cmp = valA.localeCompare(valB);
+            return sortDir === 'asc' ? cmp : -cmp;
+        });
+
+        dataRows.forEach(function(r) { tbody.appendChild(r); });
+        emptyRows.forEach(function(r) { tbody.appendChild(r); });
+    }
+})();
+</script>
+</body>
 </html>

@@ -1126,6 +1126,7 @@ def global_search(request):
         'ordenes': [],
         'tiempos_acordados': [],
         'usuarios': [],
+        'requisiciones': [],
     }
     
     if query:
@@ -1134,7 +1135,7 @@ def global_search(request):
         from documentos.models import Documento
         from inventarios.models import Material
         from mantenimiento.models import Rutina, OrdenTrabajo
-        from presupuestos.models import PresupuestoAnual
+        from presupuestos.models import PresupuestoAnual, Requisicion
         
         # 0. Tiempos Acordados (NUEVO)
         results['tiempos_acordados'] = TiempoAcordado.objects.filter(
@@ -1198,6 +1199,13 @@ def global_search(request):
             Q(last_name__icontains=query) |
             Q(email__icontains=query)
         )[:20]
+
+        # 9. Requisiciones
+        results['requisiciones'] = Requisicion.objects.filter(
+            Q(cr8ca_requisicion__icontains=query) |
+            Q(cr8ca_asunto__icontains=query) |
+            Q(cr8ca_motivo__icontains=query)
+        ).select_related('usuario_solicitante', 'proveedor')[:20]
 
     from django.contrib import admin
     total_results = sum(len(v) for v in results.values())
