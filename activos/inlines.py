@@ -17,16 +17,41 @@ class SubFamiliaInline(admin.TabularInline):
         models.TextField: {'widget': widgets.AdminTextInputWidget(attrs={'style': 'width: 100%;'})},
     }
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).defer('descripcion').select_related('padre')
+
 class ActivoFamiliaInline(admin.TabularInline):
+    """Inline solo lectura: muestra los activos vinculados sin permitir edición."""
     model = Activo
     extra = 0
-    fields = ('nombre', 'codigo_interno', 'modelo', 'estado', 'ubicacion')
-    autocomplete_fields = ('modelo', 'ubicacion')
-    readonly_fields = ('nombre', 'codigo_interno', 'modelo', 'estado', 'ubicacion')
+    fields = ('nombre', 'codigo_interno', 'get_modelo', 'estado', 'get_ubicacion')
+    readonly_fields = ('nombre', 'codigo_interno', 'get_modelo', 'estado', 'get_ubicacion')
     can_delete = False
     show_change_link = True
     verbose_name = "Activo en esta Familia"
     verbose_name_plural = "Activos vinculados a esta Familia"
+
+    def get_formset(self, request, obj=None, **kwargs):
+        """No validar max porque es un inline de solo lectura."""
+        kwargs['validate_max'] = False
+        return super().get_formset(request, obj, **kwargs)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'modelo', 'modelo__marca', 'ubicacion'
+        ).only(
+            'id', 'nombre', 'codigo_interno', 'estado', 'familia_id',
+            'modelo__id', 'modelo__nombre', 'modelo__marca__id', 'modelo__marca__nombre',
+            'ubicacion__id', 'ubicacion__nombre',
+        ).order_by('-creado_en')
+
+    @admin.display(description="Modelo")
+    def get_modelo(self, obj):
+        return str(obj.modelo) if obj.modelo else "—"
+
+    @admin.display(description="Ubicación")
+    def get_ubicacion(self, obj):
+        return obj.ubicacion.nombre if obj.ubicacion else "—"
 
     def has_add_permission(self, request, obj=None):
         return False

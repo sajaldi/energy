@@ -407,7 +407,7 @@ class FamiliaAdmin(ImportExportModelAdmin):
     search_fields = ('nombre',)
     list_select_related = ('padre', 'padre__padre')
     autocomplete_fields = ('padre',)
-    inlines = [SubFamiliaInline, ActivoFamiliaInline]
+    inlines = [SubFamiliaInline]
 
     def nombre_con_indentacion(self, obj):
         # Usar lógica similar a Ubicacion si queremos niveles
