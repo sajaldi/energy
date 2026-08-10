@@ -114,6 +114,8 @@ def actualizar_actividad_api(request, actividad_id):
                 actividad.prioridad = data.get('prioridad')
             if 'porcentaje_avance' in data:
                 actividad.porcentaje_avance = int(data.get('porcentaje_avance'))
+            if 'orden' in data:
+                actividad.orden = int(data.get('orden')) if data.get('orden') is not None else 0
             if 'ordenes_trabajo_ids' in data:
                 from mantenimiento.models import OrdenTrabajo
                 ids = data.get('ordenes_trabajo_ids', [])
@@ -203,9 +205,10 @@ def gantt_proyecto(request, proyecto_id):
     
     tasks = []
     for act in actividades:
+        order_prefix = f"{act.orden}. " if act.orden else ""
         tasks.append({
             'id': str(act.id),
-            'name': act.nombre,
+            'name': f'{order_prefix}{act.nombre}',
             'start': act.fecha_inicio.isoformat() if act.fecha_inicio else (act.creado_en.date().isoformat()),
             'end': act.fecha_fin.isoformat() if act.fecha_fin else ((act.fecha_inicio or act.creado_en.date()) + timedelta(days=1)).isoformat(),
             'progress': 100 if act.estado == 'COMPLETADA' else 0,
@@ -314,6 +317,9 @@ def dashboard_proyectos_fiori(request):
     avances = [p.porcentaje_avance for p in proyectos]
     avance_promedio = sum(avances) / len(avances) if avances else 0
     
+    # Proyectos completados (100% avance)
+    proyectos_completados = sum(1 for a in avances if a == 100)
+    
     # Alertas de proyectos que exceden su fecha fin
     hoy = datetime.now().date()
     proyectos_atrasados = proyectos.filter(
@@ -328,6 +334,7 @@ def dashboard_proyectos_fiori(request):
             'ejecucion': proyectos_ejecucion,
             'avance_promedio': int(avance_promedio),
             'atrasados': proyectos_atrasados,
+            'completados': proyectos_completados,
         }
     }
     return render(request, 'proyectos/dashboard_fiori.html', context)
@@ -347,9 +354,10 @@ def proyecto_detalle_fiori(request, pk):
     # Formatear tareas para Gantt
     tasks = []
     for act in actividades:
+        order_prefix = f"{act.orden}. " if act.orden else ""
         tasks.append({
             'id': str(act.id),
-            'name': act.nombre,
+            'name': f'{order_prefix}{act.nombre}',
             'start': act.fecha_inicio.isoformat() if act.fecha_inicio else (act.creado_en.date().isoformat()),
             'end': act.fecha_fin.isoformat() if act.fecha_fin else ((act.fecha_inicio or act.creado_en.date()) + timedelta(days=1)).isoformat(),
             'progress': act.porcentaje_avance,
@@ -427,18 +435,19 @@ def update_actividades_bulk_api(request, pk):
                     if 'nombre' in item: actividad.nombre = item['nombre']
                     if 'estado' in item: actividad.estado = item['estado']
                     if 'prioridad' in item: actividad.prioridad = item['prioridad']
+                    if 'orden' in item: actividad.orden = int(item['orden'] or 0)
                     if 'fecha_inicio' in item: actividad.fecha_inicio = item['fecha_inicio'] or None
                     if 'fecha_fin' in item: actividad.fecha_fin = item['fecha_fin'] or None
                     if 'porcentaje_avance' in item: actividad.porcentaje_avance = int(item['porcentaje_avance'] or 0)
                     if 'predecesora_id' in item:
                         pid = item['predecesora_id']
-                        if pid and pid != str(actividad.id):
+                        if pid and int(pid) != actividad.id:
                             actividad.predecesora = Actividad.objects.filter(pk=pid).first()
                         else:
                             actividad.predecesora = None
-                    if 'asignado_id' in item:
+                    if 'asignado_id' in item or 'asignado_a_id' in item:
                         from django.contrib.auth.models import User
-                        aid = item['asignado_id']
+                        aid = item.get('asignado_a_id') or item.get('asignado_id')
                         actividad.asignado_a = User.objects.filter(pk=aid).first() if aid else None
                     actividad.save()
             
@@ -696,7 +705,9 @@ def reporte_proyecto(request, pk):
         Proyecto.objects.select_related('responsable', 'ubicacion'),
         pk=pk
     )
-    actividades = proyecto.actividades.all().order_by('orden', 'fecha_inicio')
+    actividades = proyecto.actividades.all().order_by('orden', 'fecha_inicio').prefetch_related(
+        'ordenes_trabajo__tecnico', 'ordenes_trabajo__archivos'
+    )
     ordenes = proyecto.ordenes_trabajo.all().select_related('tecnico').prefetch_related('archivos')
     requisiciones = proyecto.requisiciones.all()
 

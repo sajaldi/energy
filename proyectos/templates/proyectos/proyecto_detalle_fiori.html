@@ -5,8 +5,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ proyecto.nombre }} | Detalles</title>
-    <!-- Modern Typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Autodesk Artifakt Element Font (Fusion style) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Artifakt Element';
+            src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Element%20Medium.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Artifakt Element';
+            src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Legend%20Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+    </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Frappe Gantt -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css" />
@@ -31,7 +47,7 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Artifakt Element', 'Outfit', sans-serif;
             background-color: var(--fiori-bg);
             color: var(--fiori-text);
             padding-bottom: 5rem;
@@ -491,6 +507,75 @@
         .gantt-item-elemento .bar { fill: #0e7c86 !important; }
         .gantt-item-elemento .bar-progress { fill: #14b8a6 !important; }
         .gantt-item-elemento .bar-label { fill: #fff !important; }
+
+        /* Gantt Visual Improvements */
+        #gantt_chart .gantt .grid-header {
+            fill: #f8fafc;
+            stroke: #e2e8f0;
+        }
+        #gantt_chart .gantt .grid-row {
+            fill: #ffffff;
+        }
+        #gantt_chart .gantt .grid-row:nth-child(even) {
+            fill: #f8fafc;
+        }
+        #gantt_chart .gantt .row-line {
+            stroke: #f1f5f9;
+        }
+        #gantt_chart .gantt .today-highlight {
+            fill: rgba(0, 112, 242, 0.06);
+        }
+        #gantt_chart .gantt .bar {
+            fill: #4a90d9;
+            stroke: none;
+            rx: 4;
+            ry: 4;
+        }
+        #gantt_chart .gantt .bar-progress {
+            fill: #0070f2;
+            rx: 4;
+            ry: 4;
+        }
+        #gantt_chart .gantt .bar-label {
+            fill: #fff;
+            font-weight: 500;
+            font-size: 11px;
+            font-family: 'Artifakt Element', 'Outfit', sans-serif;
+        }
+        #gantt_chart .gantt .bar-wrapper:hover .bar {
+            fill: #3b7dd0;
+        }
+        #gantt_chart .gantt .arrow {
+            stroke: #94a3b8;
+            stroke-width: 1.5;
+        }
+        #gantt_chart .gantt .handle {
+            fill: #0070f2;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        #gantt_chart .gantt .bar-wrapper:hover .handle {
+            opacity: 1;
+        }
+        #gantt_chart .gantt .lower-text, #gantt_chart .gantt .upper-text {
+            font-family: 'Artifakt Element', 'Outfit', sans-serif;
+            font-size: 11px;
+            fill: #64748b;
+            font-weight: 500;
+        }
+        #gantt_chart .gantt .upper-text {
+            font-weight: 600;
+            fill: #334155;
+        }
+        /* Priority color coding for Gantt bars */
+        .gantt-item-alta .bar { fill: #f59e0b !important; }
+        .gantt-item-alta .bar-progress { fill: #d97706 !important; }
+        .gantt-item-critica .bar { fill: #ef4444 !important; }
+        .gantt-item-critica .bar-progress { fill: #dc2626 !important; }
+        .gantt-item-media .bar { fill: #4a90d9 !important; }
+        .gantt-item-media .bar-progress { fill: #0070f2 !important; }
+        .gantt-item-baja .bar { fill: #94a3b8 !important; }
+        .gantt-item-baja .bar-progress { fill: #64748b !important; }
     </style>
 </head>
 <body id="pageBody">
@@ -607,11 +692,24 @@
         <div class="sap-card">
             <div class="sap-card-title" style="display: flex; justify-content: space-between; align-items: center;">
                 <span>Lista de Actividades</span>
-                <button class="sap-btn" style="font-size: 0.75rem; background: var(--fiori-success); color: white; border: none;" onclick="addNewActivityRow()">+ Nueva Actividad</button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="sap-btn" id="btnEditActividades" style="font-size: 0.75rem;" onclick="toggleActividadesEdit()">
+                        <i class="fas fa-pencil-alt"></i> Editar
+                    </button>
+                    <button class="sap-btn" id="btnSaveActividades" style="font-size: 0.75rem; background: var(--fiori-primary); color: white; border: none; display: none;" onclick="saveActividadesInline()">
+                        <i class="fas fa-save"></i> Guardar
+                    </button>
+                    <button class="sap-btn" id="btnCancelActividades" style="font-size: 0.75rem; display: none;" onclick="cancelActividadesEdit()">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button class="sap-btn" style="font-size: 0.75rem; background: var(--fiori-success); color: white; border: none;" onclick="addNewActivityRow()">+ Nueva Actividad</button>
+                </div>
             </div>
             <table class="sap-table" id="actividadesTable">
                 <thead>
                     <tr>
+                        <th style="width:30px;" class="act-edit-col" hidden></th>
+                        <th style="width:50px;">Orden</th>
                         <th>Nombre</th>
                         <th>Estado</th>
                         <th>Avance %</th>
@@ -623,55 +721,54 @@
                         <th>Órdenes</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="actividadesTbody">
                     {% for act in actividades %}
-                    <tr class="actividad-row view-mode" data-id="{{ act.id|unlocalize }}" onclick="openActividadModal({{ act.id|unlocalize }})" style="cursor:pointer;">
-                        <td>
-                            <span class="view-mode"><strong>{{ act.nombre }}</strong></span>
-                            <div class="edit-mode" style="display: flex; gap: 0.5rem; align-items: center;">
-                                <button class="sap-btn" style="padding: 0.25rem 0.5rem; color: var(--fiori-error); border-color: var(--fiori-error);" onclick="removeActivityRow(this)" title="Eliminar">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                <input type="text" name="act_nombre" value="{{ act.nombre }}">
-                            </div>
+                    <tr class="actividad-row" data-id="{{ act.id|unlocalize }}" data-orden="{{ act.orden }}" onclick="openActividadModal({{ act.id|unlocalize }})" style="cursor:pointer;">
+                        <td class="act-edit-col" hidden style="cursor:grab;text-align:center;color:#94a3b8;">
+                            <i class="fas fa-grip-vertical"></i>
                         </td>
                         <td>
-                            <span class="view-mode">{{ act.get_estado_display }}</span>
-                            <select class="edit-mode" name="act_estado">
+                            <span class="act-view" style="font-weight:600; color: var(--fiori-primary);">{{ act.orden }}</span>
+                            <input type="number" class="act-edit form-control" name="act_orden" value="{{ act.orden }}" style="width:50px;display:none;" min="0">
+                        </td>
+                        <td>
+                            <span class="act-view"><strong>{{ act.nombre }}</strong></span>
+                            <input type="text" class="act-edit form-control" name="act_nombre" value="{{ act.nombre }}" style="display:none;">
+                        </td>
+                        <td>
+                            <span class="act-view">{{ act.get_estado_display }}</span>
+                            <select class="act-edit form-select" name="act_estado" style="display:none;font-size:0.8rem;">
                                 {% for code, label in estados_actividad %}
                                 <option value="{{ code }}" {% if act.estado == code %}selected{% endif %}>{{ label }}</option>
                                 {% endfor %}
                             </select>
                         </td>
                         <td>
-                            <span class="view-mode">{{ act.porcentaje_avance }}%</span>
-                            <div class="edit-mode" style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="number" name="act_porcentaje_avance" value="{{ act.porcentaje_avance }}" min="0" max="100" style="width: 60px;">
-                                <progress value="{{ act.porcentaje_avance }}" max="100" style="width: 40px;"></progress>
-                            </div>
+                            <span class="act-view">{{ act.porcentaje_avance }}%</span>
+                            <input type="number" class="act-edit form-control" name="act_porcentaje_avance" value="{{ act.porcentaje_avance }}" min="0" max="100" style="width:60px;display:none;">
                         </td>
                         <td>
-                            <span class="view-mode">{{ act.predecesora.nombre|default:"-" }}</span>
-                            <select class="edit-mode" name="act_predecesora_id">
+                            <span class="act-view">{{ act.predecesora.nombre|default:"-" }}</span>
+                            <select class="act-edit form-select" name="act_predecesora_id" style="display:none;font-size:0.8rem;">
                                 <option value="">(Ninguna)</option>
                                 {% for p_act in actividades %}
                                     {% if p_act.id != act.id %}
-                                    <option value="{{ p_act.id }}" {% if act.predecesora.id == p_act.id %}selected{% endif %}>{{ p_act.nombre }}</option>
+                                    <option value="{{ p_act.id }}" {% if act.predecesora_id == p_act.id %}selected{% endif %}>{{ p_act.nombre }}</option>
                                     {% endif %}
                                 {% endfor %}
                             </select>
                         </td>
                         <td>
-                            <span class="view-mode">{{ act.get_prioridad_display }}</span>
-                            <select class="edit-mode" name="act_prioridad">
+                            <span class="act-view">{{ act.get_prioridad_display }}</span>
+                            <select class="act-edit form-select" name="act_prioridad" style="display:none;font-size:0.8rem;">
                                 {% for code, label in prioridades %}
                                 <option value="{{ code }}" {% if act.prioridad == code %}selected{% endif %}>{{ label }}</option>
                                 {% endfor %}
                             </select>
                         </td>
                         <td>
-                            <span class="view-mode">{{ act.asignado_a|default:"-" }}</span>
-                            <select class="edit-mode" name="act_asignado">
+                            <span class="act-view">{% if act.asignado_a %}{{ act.asignado_a.get_full_name|default:act.asignado_a.username }}{% else %}-{% endif %}</span>
+                            <select class="act-edit form-select" name="act_asignado" style="display:none;font-size:0.8rem;">
                                 <option value="">Sin Asignar</option>
                                 {% for user in usuarios %}
                                 <option value="{{ user.id }}" {% if act.asignado_a_id == user.id %}selected{% endif %}>{{ user.username }}</option>
@@ -679,15 +776,15 @@
                             </select>
                         </td>
                         <td>
-                            <span class="view-mode">{{ act.fecha_inicio|default:"-" }}</span>
-                            <input type="date" class="edit-mode" name="act_fecha_inicio" value="{{ act.fecha_inicio|date:'Y-m-d' }}">
+                            <span class="act-view">{{ act.fecha_inicio|default:"-" }}</span>
+                            <input type="date" class="act-edit form-control" name="act_fecha_inicio" value="{{ act.fecha_inicio|date:'Y-m-d' }}" style="display:none;">
                         </td>
                         <td>
-                            <span class="view-mode">{{ act.fecha_fin|default:"-" }}</span>
-                            <input type="date" class="edit-mode" name="act_fecha_fin" value="{{ act.fecha_fin|date:'Y-m-d' }}">
+                            <span class="act-view">{{ act.fecha_fin|default:"-" }}</span>
+                            <input type="date" class="act-edit form-control" name="act_fecha_fin" value="{{ act.fecha_fin|date:'Y-m-d' }}" style="display:none;">
                         </td>
                         <td>
-                            <span class="view-mode">
+                            <span class="act-view">
                                 {% with ots=act.ordenes_trabajo.all %}
                                 {% if ots %}
                                 {% for ot in ots %}<span class="priority-badge" style="background:#eff6ff;color:#1d4ed8;font-size:0.75rem;margin-right:4px;">{{ ot.codigo_de_orden }}</span>{% endfor %}
@@ -697,7 +794,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr id="empty-row"><td colspan="9" style="text-align: center; color: var(--fiori-text-secondary);">No hay actividades registradas.</td></tr>
+                    <tr id="empty-row"><td colspan="11" style="text-align: center; color: var(--fiori-text-secondary);">No hay actividades registradas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -837,7 +934,7 @@
                     <button class="sap-btn" onclick="changeGanttView('Month')">Mes</button>
                 </div>
             </div>
-            <div id="gantt_chart" style="width: 100%; overflow: auto;"></div>
+            <div id="gantt_chart" style="width: 100%; overflow: auto; min-height: 400px; background: #fff;"></div>
         </div>
     </section>
 
@@ -1636,6 +1733,125 @@
 
         const tasks = JSON.parse(document.getElementById('tasks-data').textContent);
 
+        // ====== INLINE EDITABLE ACTIVIDADES ======
+        let actEditMode = false;
+        let dragSrcRow = null;
+
+        function toggleActividadesEdit() {
+            actEditMode = true;
+            document.querySelectorAll('#actividadesTable .act-view').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('#actividadesTable .act-edit').forEach(el => el.style.display = '');
+            document.querySelectorAll('#actividadesTable .act-edit-col').forEach(el => el.hidden = false);
+            document.querySelectorAll('#actividadesTable .actividad-row').forEach(row => {
+                row.removeAttribute('onclick');
+                row.style.cursor = 'default';
+                row.setAttribute('draggable', 'true');
+            });
+            document.getElementById('btnEditActividades').style.display = 'none';
+            document.getElementById('btnSaveActividades').style.display = '';
+            document.getElementById('btnCancelActividades').style.display = '';
+            initDragAndDrop();
+        }
+
+        function cancelActividadesEdit() {
+            // Reload staying on same tab
+            sessionStorage.setItem('activeTab', 'actividades');
+            location.reload();
+        }
+
+        function initDragAndDrop() {
+            const tbody = document.getElementById('actividadesTbody');
+            const rows = tbody.querySelectorAll('.actividad-row');
+            rows.forEach(row => {
+                row.addEventListener('dragstart', function(e) {
+                    dragSrcRow = this;
+                    this.style.opacity = '0.4';
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+                row.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    this.style.borderTop = '2px solid var(--fiori-primary)';
+                });
+                row.addEventListener('dragleave', function() {
+                    this.style.borderTop = '';
+                });
+                row.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.style.borderTop = '';
+                    if (dragSrcRow !== this) {
+                        tbody.insertBefore(dragSrcRow, this);
+                        updateOrdenFromDrag();
+                    }
+                });
+                row.addEventListener('dragend', function() {
+                    this.style.opacity = '1';
+                    tbody.querySelectorAll('.actividad-row').forEach(r => r.style.borderTop = '');
+                });
+            });
+        }
+
+        function updateOrdenFromDrag() {
+            const rows = document.querySelectorAll('#actividadesTbody .actividad-row');
+            rows.forEach((row, idx) => {
+                const input = row.querySelector('input[name="act_orden"]');
+                if (input) input.value = idx + 1;
+            });
+        }
+
+        async function saveActividadesInline() {
+            const rows = document.querySelectorAll('#actividadesTbody .actividad-row');
+            const actividades = [];
+            rows.forEach(row => {
+                const id = row.dataset.id;
+                if (!id) return;
+                const get = (name) => {
+                    const el = row.querySelector(`[name="${name}"]`);
+                    return el ? el.value : null;
+                };
+                actividades.push({
+                    id: parseInt(id),
+                    orden: parseInt(get('act_orden')) || 0,
+                    nombre: get('act_nombre'),
+                    estado: get('act_estado'),
+                    porcentaje_avance: parseInt(get('act_porcentaje_avance')) || 0,
+                    predecesora_id: get('act_predecesora_id') ? parseInt(get('act_predecesora_id')) : null,
+                    prioridad: get('act_prioridad'),
+                    asignado_a_id: get('act_asignado') ? parseInt(get('act_asignado')) : null,
+                    fecha_inicio: get('act_fecha_inicio') || null,
+                    fecha_fin: get('act_fecha_fin') || null,
+                });
+            });
+
+            try {
+                const resp = await fetch('{% url "proyectos:actividades_bulk_update" proyecto.id %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ actividades: actividades })
+                });
+                const result = await resp.json();
+                if (result.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Guardado', timer: 1200, showConfirmButton: false });
+                    sessionStorage.setItem('activeTab', 'actividades');
+                    setTimeout(() => location.reload(), 1200);
+                } else {
+                    Swal.fire('Error', result.message || 'Error al guardar', 'error');
+                }
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo guardar: ' + err.message, 'error');
+            }
+        }
+
+        // ====== RESTORE TAB ON LOAD ======
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTab = sessionStorage.getItem('activeTab');
+            if (savedTab) {
+                sessionStorage.removeItem('activeTab');
+                const tab = document.querySelector(`.sap-tab[data-target="${savedTab}"]`);
+                if (tab) tab.click();
+            }
+        });
+
         function initGantt() {
             if (!tasks.length) return;
             gantt = new Gantt("#gantt_chart", tasks, {
@@ -1648,8 +1864,23 @@
                     }
                 },
                 view_mode: 'Week',
-                language: 'es'
+                language: 'es',
+                bar_height: 26,
+                padding: 14,
+                bar_corner_radius: 4
             });
+        }
+
+        function changeGanttView(mode) {
+            if (gantt) {
+                gantt.change_view_mode(mode);
+            }
+            // Update active button style
+            const btns = document.querySelectorAll('#gantt-section .sap-btn[onclick^="changeGanttView"]');
+            btns.forEach(b => {
+                b.classList.remove('sap-btn-secondary');
+            });
+            event.target.classList.add('sap-btn-secondary');
         }
 
         function toggleLinkMode() {
@@ -2371,9 +2602,15 @@
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body" style="padding:1.5rem;">
-                                <div class="sap-field">
-                                    <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Nombre</label>
-                                    <input id="act-name" class="form-control" value="${es(a.nombre)}" style="border:1px solid #d9d9d9;border-radius:4px;">
+                                <div style="display:grid;grid-template-columns:80px 1fr;gap:12px;">
+                                    <div class="sap-field">
+                                        <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Orden</label>
+                                        <input id="act-orden" class="form-control" type="number" min="0" value="${a.orden || 0}" style="border:1px solid #d9d9d9;border-radius:4px;">
+                                    </div>
+                                    <div class="sap-field">
+                                        <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Nombre</label>
+                                        <input id="act-name" class="form-control" value="${es(a.nombre)}" style="border:1px solid #d9d9d9;border-radius:4px;">
+                                    </div>
                                 </div>
                                 <div class="sap-field" style="margin-top:12px;">
                                     <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Descripción</label>
@@ -2406,6 +2643,13 @@
                                         <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Fecha Fin</label>
                                         <input id="act-fecha-fin" class="form-control" type="date" value="${a.fecha_fin || ''}" style="border:1px solid #d9d9d9;border-radius:4px;">
                                     </div>
+                                </div>
+                                <div class="sap-field" style="margin-top:12px;">
+                                    <label style="font-weight:600;font-size:0.85rem;color:#32363a;">Predecesora</label>
+                                    <select id="act-predecesora" class="form-select" style="border:1px solid #d9d9d9;border-radius:4px;">
+                                        <option value="">(Ninguna)</option>
+                                        ${tasks.filter(t => t.id !== String(actId) && !t.id.startsWith('elem-')).map(t => `<option value="${t.id}" ${String(a.predecesora_id) === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+                                    </select>
                                 </div>
                                 <div style="margin-top:16px;padding-top:12px;border-top:1px solid #e0e0e0;">
                                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -2456,6 +2700,10 @@
         }
 
         async function addOTToActividad() {
+            // Temporarily disable Bootstrap modal focus trap so SweetAlert2 input works
+            const bsModal = bootstrap.Modal.getInstance(document.getElementById('actividadModal'));
+            if (bsModal && bsModal._focustrap) bsModal._focustrap.deactivate();
+
             const { value: searchTerm } = await Swal.fire({
                 title: 'Buscar OT',
                 input: 'text',
@@ -2464,7 +2712,16 @@
                 showCancelButton: true,
                 confirmButtonText: 'Buscar',
                 cancelButtonText: 'Cancelar',
-                inputValidator: v => v && v.length >= 2 ? null : 'Escriba al menos 2 caracteres'
+                inputValidator: v => v && v.length >= 2 ? null : 'Escriba al menos 2 caracteres',
+                didOpen: () => {
+                    // Ensure SweetAlert input gets focus
+                    const input = Swal.getInput();
+                    if (input) setTimeout(() => input.focus(), 100);
+                },
+                willClose: () => {
+                    // Re-enable focus trap
+                    if (bsModal && bsModal._focustrap) bsModal._focustrap.activate();
+                }
             });
             if (!searchTerm) return;
             try {
@@ -2507,6 +2764,7 @@
         }
 
         async function saveActividadModal(actId) {
+            const predVal = document.getElementById('act-predecesora').value;
             const formValues = {
                 nombre: document.getElementById('act-name').value,
                 descripcion: document.getElementById('act-desc').value,
@@ -2515,6 +2773,8 @@
                 fecha_inicio: document.getElementById('act-fecha-inicio').value || null,
                 fecha_fin: document.getElementById('act-fecha-fin').value || null,
                 porcentaje_avance: parseInt(document.getElementById('act-avance').value) || 0,
+                orden: parseInt(document.getElementById('act-orden').value) || 0,
+                predecesora_id: predVal ? parseInt(predVal) : null,
                 ordenes_trabajo_ids: actividadOTIds,
             };
             try {
@@ -2527,6 +2787,7 @@
                 if (saveResult.status === 'success') {
                     bootstrap.Modal.getInstance(document.getElementById('actividadModal')).hide();
                     Swal.fire({ icon: 'success', title: 'Guardado', timer: 1500, showConfirmButton: false });
+                    sessionStorage.setItem('activeTab', 'actividades');
                     setTimeout(() => location.reload(), 1500);
                 } else {
                     Swal.fire('Error', saveResult.message, 'error');
@@ -3242,7 +3503,10 @@
                                     }
                                 },
                                 view_mode: 'Week',
-                                language: 'es'
+                                language: 'es',
+                                bar_height: 26,
+                                padding: 14,
+                                bar_corner_radius: 4
                             });
                         }
                     }

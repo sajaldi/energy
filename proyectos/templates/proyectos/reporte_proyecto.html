@@ -146,10 +146,69 @@
     <p>No hay actividades registradas.</p>
     {% endif %}
 
-    <h2>Órdenes de Trabajo</h2>
+    <h2>Órdenes de Trabajo por Actividad</h2>
+    {% for act in actividades %}
+    {% with act_ots=act.ordenes_trabajo.all %}
+    {% if act_ots %}
+    <div style="margin-bottom: 16px; page-break-inside: avoid;">
+        <h3 style="background: #f0f4f8; padding: 6px 10px; border-left: 3px solid #0070f2; margin-bottom: 6px;">
+            {{ act.nombre }}
+            <span style="font-weight: 400; font-size: 10px; color: #555; margin-left: 8px;">
+                ({{ act.fecha_inicio|date:"d/m/Y"|default:"Sin fecha" }} — {{ act.fecha_fin|date:"d/m/Y"|default:"Sin fecha" }})
+            </span>
+        </h3>
+        {% for ot in act_ots %}
+        <div class="ot-card">
+            <h3 style="display: flex; justify-content: space-between; align-items: center;">
+                <span>{{ ot.codigo_de_orden }}</span>
+                <span style="font-size: 9px; font-weight: 400; color: #555;">{{ ot.inicio_programado|date:"d/m/Y"|default:"Sin fecha" }}</span>
+            </h3>
+            <table style="margin:0;">
+                <tr>
+                    <td><strong>Tipo:</strong> {{ ot.get_tipo_display }}</td>
+                    <td><strong>Estado:</strong> {{ ot.get_estado_display }}</td>
+                    <td><strong>Prioridad:</strong> {{ ot.get_prioridad_display }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Técnico:</strong> {% if ot.tecnico %}{{ ot.tecnico.get_full_name|default:ot.tecnico.username }}{% else %}-{% endif %}</td>
+                    <td><strong>Inicio:</strong> {{ ot.inicio_programado|date:"d/m/Y H:i"|default:"-" }}</td>
+                    <td><strong>Fin:</strong> {{ ot.fin_programado|date:"d/m/Y H:i"|default:"-" }}</td>
+                </tr>
+                <tr>
+                    <td colspan="3"><strong>Descripción:</strong> {{ ot.descripcion_corta|default:"Sin descripción" }}</td>
+                </tr>
+            </table>
+            <p style="margin-top:4px;"><strong>Notas:</strong> {{ ot.notas|default:"Sin notas" }}</p>
+            {% with archivos_imagen=ot.archivos.all %}
+            {% if archivos_imagen %}
+            <div class="ot-fotos">
+                {% for a in archivos_imagen %}
+                {% if a.tipo == 'IMAGEN' %}
+                <img src="{{ a.archivo.url }}" alt="{{ a.nombre }}" title="{{ a.nombre }}">
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% endfor %}
+
+    <!-- OTs vinculadas al proyecto pero sin actividad -->
+    {% if ordenes %}
+    <h3 style="margin-top: 16px; background: #fef3c7; padding: 6px 10px; border-left: 3px solid #f59e0b;">
+        Órdenes sin actividad asignada
+    </h3>
     {% for ot in ordenes %}
+    {% if not ot.actividades_proyecto.exists %}
     <div class="ot-card">
-        <h3>{{ ot.codigo_de_orden }}</h3>
+        <h3 style="display: flex; justify-content: space-between; align-items: center;">
+            <span>{{ ot.codigo_de_orden }}</span>
+            <span style="font-size: 9px; font-weight: 400; color: #555;">{{ ot.inicio_programado|date:"d/m/Y"|default:"Sin fecha" }}</span>
+        </h3>
         <table style="margin:0;">
             <tr>
                 <td><strong>Tipo:</strong> {{ ot.get_tipo_display }}</td>
@@ -161,8 +220,11 @@
                 <td><strong>Inicio:</strong> {{ ot.inicio_programado|date:"d/m/Y H:i"|default:"-" }}</td>
                 <td><strong>Fin:</strong> {{ ot.fin_programado|date:"d/m/Y H:i"|default:"-" }}</td>
             </tr>
+            <tr>
+                <td colspan="3"><strong>Descripción:</strong> {{ ot.descripcion_corta|default:"Sin descripción" }}</td>
+            </tr>
         </table>
-        <p style="margin-top:4px;"><strong>Notas:</strong> {{ ot.notas|default:ot.descripcion_corta|default:"Sin notas" }}</p>
+        <p style="margin-top:4px;"><strong>Notas:</strong> {{ ot.notas|default:"Sin notas" }}</p>
         {% with archivos_imagen=ot.archivos.all %}
         {% if archivos_imagen %}
         <div class="ot-fotos">
@@ -175,9 +237,9 @@
         {% endif %}
         {% endwith %}
     </div>
-    {% empty %}
-    <p>No hay órdenes de trabajo vinculadas.</p>
+    {% endif %}
     {% endfor %}
+    {% endif %}
 
     <h2>Requisiciones (Costos)</h2>
     {% if requisiciones %}

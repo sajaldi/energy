@@ -4,8 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Proyectos | SAP Fiori</title>
-    <!-- Modern Typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Autodesk Artifakt Element Font (Fusion style) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Artifakt Element';
+            src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Element%20Medium.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Artifakt Element';
+            src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Legend%20Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+    </style>
     <!-- FontAwesome for SAP Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -31,7 +47,7 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Artifakt Element', 'Outfit', sans-serif;
             background-color: var(--fiori-bg);
             color: var(--fiori-text);
             line-height: 1.5;
@@ -272,9 +288,15 @@
                 <h1>Gestión de Proyectos</h1>
                 <p style="color: var(--fiori-text-secondary); font-size: 0.875rem;">Visión general de ejecución y planificación</p>
             </div>
-            <div class="sap-header-actions">
-                <a href="{% url 'proyectos:crear' %}" style="padding: 0.5rem 1rem; background: var(--fiori-primary); color: white; border: none; border-radius: 0.25rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block;">
-                    + Nuevo Proyecto
+            <div class="sap-header-actions" style="display: flex; gap: 0.5rem; align-items: center;">
+                <a href="javascript:history.back()" style="padding: 0.5rem 1rem; background: #fff; color: var(--fiori-text); border: 1px solid var(--fiori-border); border-radius: 0.25rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+                <a href="/admin/" style="padding: 0.5rem 1rem; background: #fff; color: var(--fiori-text); border: 1px solid var(--fiori-border); border-radius: 0.25rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;">
+                    <i class="fas fa-cog"></i> Admin
+                </a>
+                <a href="{% url 'proyectos:crear' %}" style="padding: 0.5rem 1rem; background: var(--fiori-primary); color: white; border: none; border-radius: 0.25rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;">
+                    <i class="fas fa-plus"></i> Nuevo Proyecto
                 </a>
             </div>
         </div>
@@ -287,6 +309,10 @@
             <div class="sap-kpi-tile kpi-success">
                 <span class="sap-kpi-value">{{ stats.ejecucion }}</span>
                 <span class="sap-kpi-label">En Ejecución</span>
+            </div>
+            <div class="sap-kpi-tile kpi-success">
+                <span class="sap-kpi-value">{{ stats.completados }}</span>
+                <span class="sap-kpi-label">Completados (100%)</span>
             </div>
             <div class="sap-kpi-tile">
                 <span class="sap-kpi-value">{{ stats.avance_promedio }}%</span>

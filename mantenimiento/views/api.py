@@ -274,17 +274,16 @@ def api_search_ordenes(request):
         Q(ubicacion__nombre__icontains=query) |
         Q(activos__nombre__icontains=query) |
         Q(activos__codigo_interno__icontains=query)
-    ).filter(
-        estado__in=['PROGRAMADA', 'EJECUCION']
     ).select_related('ubicacion').distinct().only(
-        'id', 'codigo_de_orden', 'descripcion_corta', 'ubicacion__nombre'
+        'id', 'codigo_de_orden', 'descripcion_corta', 'ubicacion__nombre', 'estado'
     )[:30]
     
     results = []
     for ot in ots:
         lugar = ot.ubicacion.nombre if ot.ubicacion else "Sin Ubicación"
         desc = ot.descripcion_corta or ("Sin descripción" if not ot.id else f"OT #{ot.id}")
-        text = f"OT #{ot.id if not ot.codigo_de_orden else ot.codigo_de_orden} - {lugar} - {desc}"
+        estado = ot.get_estado_display() if hasattr(ot, 'get_estado_display') else ot.estado
+        text = f"OT #{ot.id if not ot.codigo_de_orden else ot.codigo_de_orden} - [{estado}] {lugar} - {desc}"
         results.append({
             'id': ot.id,
             'text': text
