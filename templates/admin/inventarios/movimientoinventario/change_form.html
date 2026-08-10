@@ -16,7 +16,7 @@
         --fiori-error: #bb0000;
         --fiori-text: #1e293b;
         --fiori-muted: #64748b;
-        --fiori-radius: 8px;
+        --fiori-radius: 0;
     }
 
     #content-main { display: none !important; }
@@ -304,28 +304,31 @@
                         <div class="fiori-card-header"><ion-icon name="link-outline"></ion-icon> Vínculos</div>
                         <div class="fiori-card-body">
                             ${m.orden_trabajo ? `
-                            <div class="fiori-timeline-item">
+                            <div class="fiori-timeline-item" style="cursor:pointer;" onclick="window.open('/mantenimiento/app/ot/${m.orden_trabajo.id}/', '_blank')">
                                 <div class="fiori-timeline-dot" style="background:#eff6ff; color:var(--fiori-blue);"><ion-icon name="construct"></ion-icon></div>
-                                <div>
-                                    <div style="font-weight:700; font-size:0.85rem;">${m.orden_trabajo.codigo}</div>
+                                <div style="flex:1;">
+                                    <div style="font-weight:700; font-size:0.85rem; color:var(--fiori-blue);">${m.orden_trabajo.codigo}</div>
                                     <div style="font-size:0.8rem; color:var(--fiori-muted);">${m.orden_trabajo.tipo}${m.orden_trabajo.descripcion ? ' — ' + m.orden_trabajo.descripcion : ''}</div>
                                 </div>
+                                <ion-icon name="open-outline" style="color:var(--fiori-blue); font-size:1rem;"></ion-icon>
                             </div>` : ''}
                             ${m.solicitud ? `
-                            <div class="fiori-timeline-item">
+                            <div class="fiori-timeline-item" style="cursor:pointer;" onclick="window.open('/inventarios/solicitud/${m.solicitud.id}/detalle/', '_blank')">
                                 <div class="fiori-timeline-dot" style="background:#f5f3ff; color:#7c3aed;"><ion-icon name="cart"></ion-icon></div>
-                                <div>
-                                    <div style="font-weight:700; font-size:0.85rem;">Solicitud #${m.solicitud.id}</div>
+                                <div style="flex:1;">
+                                    <div style="font-weight:700; font-size:0.85rem; color:#7c3aed;">Solicitud #${m.solicitud.id}</div>
                                     <div style="font-size:0.8rem; color:var(--fiori-muted);">Por ${m.solicitud.usuario} · ${m.solicitud.estado} · ${m.solicitud.fecha}</div>
                                 </div>
+                                <ion-icon name="open-outline" style="color:#7c3aed; font-size:1rem;"></ion-icon>
                             </div>` : ''}
                             ${m.ingreso ? `
-                            <div class="fiori-timeline-item">
+                            <div class="fiori-timeline-item" style="cursor:pointer;" onclick="window.open('/admin/inventarios/ingresoinventario/${m.ingreso.id}/change/', '_blank')">
                                 <div class="fiori-timeline-dot" style="background:#ecfdf5; color:var(--fiori-success);"><ion-icon name="arrow-down-circle"></ion-icon></div>
-                                <div>
-                                    <div style="font-weight:700; font-size:0.85rem;">Ingreso #${m.ingreso.id}</div>
+                                <div style="flex:1;">
+                                    <div style="font-weight:700; font-size:0.85rem; color:var(--fiori-success);">Ingreso #${m.ingreso.id}</div>
                                     <div style="font-size:0.8rem; color:var(--fiori-muted);">${m.ingreso.fecha} · ${m.ingreso.usuario}</div>
                                 </div>
+                                <ion-icon name="open-outline" style="color:var(--fiori-success); font-size:1rem;"></ion-icon>
                             </div>` : ''}
                         </div>
                     </div>` : ''}

@@ -7,6 +7,8 @@ app_name = 'inventarios'
 
 urlpatterns = [
     path('', views.inventario_dashboard, name='dashboard'),
+    path('solicitud/<int:pk>/detalle/', views.solicitud_detalle_rapido, name='solicitud_detalle_rapido'),
+    path('solicitud/<int:pk>/update/', views.solicitud_update_rapido, name='solicitud_update_rapido'),
     path('crear-solicitud/', views.crear_solicitud_dashboard, name='crear_solicitud'),
     path('api/stock/<int:material_id>/', views.api_get_material_stock, name='api_get_material_stock'),
     path('api/material/<int:material_id>/update/', views.api_update_material_mobile, name='api_update_material_mobile'),
@@ -98,4 +100,5 @@ urlpatterns = [
     path('api/activo/<int:activo_id>/historial-materiales/', views.api_historial_materiales_activo, name='api_historial_materiales_activo'),
     path('api/material/<int:material_id>/vincular-activo/', views.api_vincular_material_activo, name='api_vincular_material_activo'),
     path('api/activos/search/', views.api_search_activos, name='api_search_activos'),
+    path('api/marcas/search/', views.api_search_marcas, name='api_search_marcas'),
 ]

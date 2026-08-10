@@ -1886,6 +1886,7 @@ def api_create_material(request):
                 stock_inicial = Decimal('0')
 
             marca_id = request.POST.get('marca_id')
+            marca_nombre = request.POST.get('marca_nombre', '').strip()
             tipo_material = request.POST.get('tipo_material', 'INSUMO')
             descripcion = request.POST.get('descripcion', '')
             no_afecta_stock = request.POST.get('no_afecta_stock') == 'true'
@@ -1898,6 +1899,12 @@ def api_create_material(request):
             unidad_id = int(unidad_id) if unidad_id and str(unidad_id).isdigit() else None
             ubicacion_id = int(ubicacion_id) if ubicacion_id and str(ubicacion_id).isdigit() else None
             marca_id = int(marca_id) if marca_id and str(marca_id).isdigit() else None
+
+            # Si no hay marca_id pero sí marca_nombre, crear o buscar la marca
+            if not marca_id and marca_nombre:
+                from activos.models import Marca
+                marca_obj, _ = Marca.objects.get_or_create(nombre__iexact=marca_nombre, defaults={'nombre': marca_nombre})
+                marca_id = marca_obj.id
 
             force_update = request.POST.get('force_update') == 'true'
             
@@ -3870,3 +3877,80 @@ def categorias_visualizer(request):
         'title': 'Visualizador de Categorías',
     }
     return render(request, 'inventarios/categorias_visualizer.html', context)
+
+
+@login_required
+def solicitud_detalle_rapido(request, pk):
+    """Vista rápida de solicitud de material sin framework admin."""
+    from .models import SolicitudMaterial, MovimientoInventario
+
+    solicitud = get_object_or_404(
+        SolicitudMaterial.objects.select_related(
+            'usuario', 'ubicacion_origen', 'orden_trabajo', 'entregado_por',
+            'edificio_destino', 'nivel_destino', 'ticket'
+        ),
+        pk=pk
+    )
+
+    items = MovimientoInventario.objects.filter(solicitud=solicitud).select_related(
+        'material', 'material__unidad_medida', 'ubicacion_origen', 'ubicacion_destino', 'usuario'
+    ).order_by('fecha_movimiento')
+
+    context = {
+        'sol': solicitud,
+        'items': items,
+    }
+    return render(request, 'inventarios/solicitud_detalle_rapido.html', context)
+
+
+@login_required
+def solicitud_update_rapido(request, pk):
+    """API para actualizar estado y comentarios de una solicitud."""
+    import json
+    from .models import SolicitudMaterial
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    # Actualizar campos editables
+    if 'estado' in data:
+        solicitud.estado = data['estado']
+    if 'comentarios_almacen' in data:
+        solicitud.comentarios_almacen = data['comentarios_almacen']
+    if 'comentarios_solicitud' in data:
+        solicitud.comentarios_solicitud = data['comentarios_solicitud']
+
+    solicitud.save()
+    return JsonResponse({'status': 'ok', 'estado': solicitud.get_estado_display()})
+
+
+@login_required
+def api_search_marcas(request):
+    """
+    GET: Busca marcas por nombre para autocompletado.
+    Parámetro ?q= con mínimo 1 caracter.
+    Si ?q está vacío devuelve las primeras 20 marcas.
+    """
+    from activos.models import Marca
+    from django.db.models import Q
+
+    q = request.GET.get('q', '').strip()
+    
+    if q:
+        marcas = Marca.objects.filter(nombre__icontains=q).order_by('nombre')[:20]
+    else:
+        marcas = Marca.objects.all().order_by('nombre')[:20]
+
+    results = [{
+        'id': m.id,
+        'nombre': m.nombre,
+    } for m in marcas]
+
+    return JsonResponse({'results': results})

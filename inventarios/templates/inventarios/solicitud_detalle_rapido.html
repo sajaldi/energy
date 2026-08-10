@@ -1,0 +1,228 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solicitud #{{ sol.id }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --fiori-blue:#0a6ed1; --fiori-shell:#354a5f; --fiori-success:#107e3e; --fiori-warning:#e9730c; --fiori-error:#bb0000; --fiori-bg:#f7f7f7; --fiori-card:#fff; --fiori-text:#32363a; --fiori-muted:#6a6d70; --fiori-border:#d9d9d9; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter','72',sans-serif;background:var(--fiori-bg);color:var(--fiori-text)}
+.shell{background:var(--fiori-shell);padding:0 1.5rem;height:44px;display:flex;align-items:center;justify-content:space-between}
+.shell-title{color:white;font-size:0.85rem;font-weight:600}
+.shell-nav a{color:rgba(255,255,255,0.8);font-size:0.8rem;text-decoration:none;margin-left:16px}
+.shell-nav a:hover{color:white}
+.page{padding:1.25rem 1.5rem}
+.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:1rem;margin-bottom:1.25rem;border-bottom:1px solid var(--fiori-border)}
+.title{font-size:1.3rem;font-weight:700}
+.subtitle{font-size:0.78rem;color:var(--fiori-muted);margin-top:4px}
+.btn{padding:8px 16px;font-size:0.8rem;font-weight:600;border:1px solid var(--fiori-border);background:var(--fiori-card);color:var(--fiori-text);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--fiori-blue);color:var(--fiori-blue)}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding:1rem;margin-bottom:1.25rem;background:var(--fiori-card);border:1px solid var(--fiori-border)}
+.info-label{font-size:0.7rem;font-weight:600;color:var(--fiori-muted);text-transform:uppercase}
+.info-value{font-size:0.85rem;color:var(--fiori-text);margin-top:2px;font-weight:500}
+.status{display:inline-block;padding:3px 10px;font-size:0.7rem;font-weight:700;text-transform:uppercase}
+.status-pendiente{background:#fef7e0;color:#8a6d3b}
+.status-pendiente_autorizacion{background:#fff3cd;color:#856404}
+.status-entregado{background:#e6f4ea;color:#137333}
+.status-rechazado{background:#fdeded;color:#d32f2f}
+.table-container{background:var(--fiori-card);border:1px solid var(--fiori-border);overflow-x:auto}
+.table-header{display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;border-bottom:1px solid var(--fiori-border)}
+.table-title{font-size:0.85rem;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:0.82rem}
+th{text-align:left;padding:10px 14px;background:#fafafa;font-weight:600;color:var(--fiori-muted);font-size:0.72rem;text-transform:uppercase;border-bottom:1px solid var(--fiori-border)}
+td{padding:10px 14px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+tr:hover td{background:#fafbfc}
+tr:last-child td{border-bottom:none}
+.link{color:var(--fiori-blue);text-decoration:none;font-weight:600}
+.link:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="shell">
+    <span class="shell-title">Energy · Solicitud de Material #{{ sol.id }}</span>
+    <nav class="shell-nav">
+        <a href="/inventarios/">Inventarios</a>
+        <a href="/admin/">Admin</a>
+    </nav>
+</div>
+<div class="page">
+    <div class="header">
+        <div>
+            <h1 class="title">Solicitud #{{ sol.id }}</h1>
+            <div class="subtitle">
+                <span class="status status-{{ sol.estado|lower }}" id="status-badge">{{ sol.get_estado_display }}</span>
+                · {{ sol.fecha_solicitud|date:"d/m/Y H:i" }}
+            </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <button onclick="openEditModal()" class="btn">✎ Editar</button>
+            <a href="/inventarios/" class="btn">← Volver</a>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div><div class="info-label">Solicitante</div><div class="info-value">{{ sol.usuario.get_full_name|default:sol.usuario.username }}</div></div>
+        <div><div class="info-label">Estado</div><div class="info-value"><span class="status status-{{ sol.estado|lower }}" id="status-badge">{{ sol.get_estado_display }}</span></div></div>
+        <div><div class="info-label">Bodega Origen</div><div class="info-value">{{ sol.ubicacion_origen|default:"-" }}</div></div>
+        <div><div class="info-label">Edificio Destino</div><div class="info-value">{{ sol.edificio_destino|default:"-" }}</div></div>
+        <div><div class="info-label">Nivel Destino</div><div class="info-value">{{ sol.nivel_destino|default:"-" }}</div></div>
+        {% if sol.entregado_por %}
+        <div><div class="info-label">Entregado por</div><div class="info-value">{{ sol.entregado_por.get_full_name|default:sol.entregado_por.username }}</div></div>
+        <div><div class="info-label">Fecha Entrega</div><div class="info-value">{{ sol.fecha_entrega|date:"d/m/Y H:i"|default:"-" }}</div></div>
+        {% endif %}
+    </div>
+
+    <!-- Vínculos (OT y Ticket) -->
+    <div style="display:flex; gap:12px; margin-bottom:1.25rem; flex-wrap:wrap;">
+        {% if sol.orden_trabajo %}
+        <a href="/mantenimiento/app/ot/{{ sol.orden_trabajo.pk }}/" style="flex:1; min-width:250px; padding:14px 16px; background:var(--fiori-card); border:1px solid var(--fiori-border); border-left:4px solid var(--fiori-blue); text-decoration:none; display:flex; align-items:center; gap:12px;">
+            <div style="width:36px; height:36px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🔧</div>
+            <div>
+                <div style="font-size:0.7rem; font-weight:600; color:var(--fiori-muted); text-transform:uppercase;">Orden de Trabajo</div>
+                <div style="font-size:0.9rem; font-weight:700; color:var(--fiori-blue);">{{ sol.orden_trabajo.codigo_de_orden|default:"OT sin código" }}</div>
+                {% if sol.orden_trabajo.descripcion_corta %}<div style="font-size:0.75rem; color:var(--fiori-muted);">{{ sol.orden_trabajo.descripcion_corta|truncatechars:40 }}</div>{% endif %}
+            </div>
+        </a>
+        {% else %}
+        <div style="flex:1; min-width:250px; padding:14px 16px; background:var(--fiori-card); border:1px solid var(--fiori-border); border-left:4px solid #d9d9d9;">
+            <div style="font-size:0.7rem; font-weight:600; color:var(--fiori-muted); text-transform:uppercase;">Orden de Trabajo</div>
+            <div style="font-size:0.85rem; color:var(--fiori-muted); margin-top:2px;">Sin OT vinculada</div>
+        </div>
+        {% endif %}
+
+        {% if sol.ticket %}
+        <a href="/callcenter/ticket/{{ sol.ticket.pk }}/cierre-visual/" style="flex:1; min-width:250px; padding:14px 16px; background:var(--fiori-card); border:1px solid var(--fiori-border); border-left:4px solid #7c3aed; text-decoration:none; display:flex; align-items:center; gap:12px;">
+            <div style="width:36px; height:36px; background:#f5f3ff; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🎫</div>
+            <div>
+                <div style="font-size:0.7rem; font-weight:600; color:var(--fiori-muted); text-transform:uppercase;">Ticket</div>
+                <div style="font-size:0.9rem; font-weight:700; color:#7c3aed;">{{ sol.ticket.folio|default:"Ticket" }}</div>
+                {% if sol.ticket.solicitud_descripcion %}<div style="font-size:0.75rem; color:var(--fiori-muted);">{{ sol.ticket.solicitud_descripcion|truncatechars:40 }}</div>{% endif %}
+            </div>
+        </a>
+        {% else %}
+        <div style="flex:1; min-width:250px; padding:14px 16px; background:var(--fiori-card); border:1px solid var(--fiori-border); border-left:4px solid #d9d9d9;">
+            <div style="font-size:0.7rem; font-weight:600; color:var(--fiori-muted); text-transform:uppercase;">Ticket</div>
+            <div style="font-size:0.85rem; color:var(--fiori-muted); margin-top:2px;">Sin ticket vinculado</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if sol.comentarios_solicitud %}
+    <div style="padding:12px 1rem; margin-bottom:1rem; background:var(--fiori-card); border:1px solid var(--fiori-border); border-left:3px solid var(--fiori-blue);">
+        <div class="info-label">Comentarios del solicitante</div>
+        <div style="font-size:0.85rem; margin-top:4px;">{{ sol.comentarios_solicitud }}</div>
+    </div>
+    {% endif %}
+
+    {% if sol.comentarios_almacen %}
+    <div style="padding:12px 1rem; margin-bottom:1rem; background:var(--fiori-card); border:1px solid var(--fiori-border); border-left:3px solid var(--fiori-success);">
+        <div class="info-label">Comentarios del almacén</div>
+        <div style="font-size:0.85rem; margin-top:4px;">{{ sol.comentarios_almacen }}</div>
+    </div>
+    {% endif %}
+
+    <div class="table-container">
+        <div class="table-header">
+            <span class="table-title">Materiales Solicitados ({{ items.count }})</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Material</th>
+                    <th>Estado</th>
+                    <th style="text-align:right;">Solicitado</th>
+                    <th style="text-align:right;">Entregado</th>
+                    <th>Ubicación</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td style="font-weight:600;">{{ item.material.nombre|default:"-" }}</td>
+                    <td><span class="status status-{{ item.estado|lower }}">{{ item.get_estado_display }}</span></td>
+                    <td style="text-align:right;">{{ item.cantidad_solicitada }} {{ item.material.unidad_medida|default:"" }}</td>
+                    <td style="text-align:right; font-weight:700;">{{ item.cantidad }} {{ item.material.unidad_medida|default:"" }}</td>
+                    <td style="font-size:0.78rem;">{{ item.ubicacion_origen|default:"-" }}</td>
+                    <td style="font-size:0.78rem;">{{ item.fecha_movimiento|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--fiori-muted);">Sin items</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Editar -->
+<div id="edit-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; align-items:center; justify-content:center;">
+    <div style="background:white; max-width:500px; width:90%; position:relative; border-top:4px solid #0a6ed1; padding:24px;">
+        <button onclick="closeEditModal()" style="position:absolute; top:10px; right:14px; background:none; border:none; font-size:1.4rem; cursor:pointer; color:#94a3b8;">&times;</button>
+        <h2 style="margin:0 0 20px; font-size:1.1rem; font-weight:700; color:#32363a;">Editar Solicitud #{{ sol.id }}</h2>
+
+        <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:0.72rem; font-weight:600; color:#6a6d70; text-transform:uppercase; margin-bottom:4px;">Estado</label>
+            <select id="edit-estado" style="width:100%; padding:8px 10px; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit;">
+                <option value="PENDIENTE_AUTORIZACION" {% if sol.estado == 'PENDIENTE_AUTORIZACION' %}selected{% endif %}>Pendiente de Autorización</option>
+                <option value="PENDIENTE" {% if sol.estado == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                <option value="ENTREGADO" {% if sol.estado == 'ENTREGADO' %}selected{% endif %}>Entregado / Completado</option>
+                <option value="RECHAZADO" {% if sol.estado == 'RECHAZADO' %}selected{% endif %}>Rechazado</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:0.72rem; font-weight:600; color:#6a6d70; text-transform:uppercase; margin-bottom:4px;">Comentarios del solicitante</label>
+            <textarea id="edit-comentarios-sol" rows="3" style="width:100%; padding:8px 10px; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit; resize:vertical;">{{ sol.comentarios_solicitud|default:"" }}</textarea>
+        </div>
+
+        <div style="margin-bottom:20px;">
+            <label style="display:block; font-size:0.72rem; font-weight:600; color:#6a6d70; text-transform:uppercase; margin-bottom:4px;">Comentarios del almacén</label>
+            <textarea id="edit-comentarios-alm" rows="3" style="width:100%; padding:8px 10px; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit; resize:vertical;">{{ sol.comentarios_almacen|default:"" }}</textarea>
+        </div>
+
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button onclick="closeEditModal()" class="btn">Cancelar</button>
+            <button onclick="saveEdit()" class="btn" style="background:#0a6ed1; color:white; border-color:#0a6ed1;">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditModal() { document.getElementById('edit-modal').style.display = 'flex'; }
+function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeEditModal(); });
+
+function saveEdit() {
+    var body = {
+        estado: document.getElementById('edit-estado').value,
+        comentarios_solicitud: document.getElementById('edit-comentarios-sol').value,
+        comentarios_almacen: document.getElementById('edit-comentarios-alm').value,
+    };
+    fetch('/inventarios/solicitud/{{ sol.id }}/update/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.status === 'ok') {
+            closeEditModal();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo guardar'));
+        }
+    })
+    .catch(function(err) { alert('Error de red: ' + err.message); });
+}
+
+function getCookie(name) {
+    var v = null; if (document.cookie) { document.cookie.split(';').forEach(function(c) {
+        c = c.trim(); if (c.startsWith(name + '=')) v = decodeURIComponent(c.substring(name.length + 1));
+    }); } return v;
+}
+</script>
+</body>
+</html>

@@ -124,6 +124,53 @@
     .col-selector-panel input[type="checkbox"] { accent-color: var(--fiori-blue); }
 
     .fiori-empty { text-align: center; padding: 3rem; color: var(--fiori-text-muted); }
+
+    /* Bulk selection */
+    .bulk-bar {
+        display: none; align-items: center; gap: 12px;
+        padding: 10px 16px; margin-bottom: 1rem;
+        background: #e8f0fe; border: 1px solid #c2d7f2;
+    }
+    .bulk-bar.active { display: flex; }
+    .bulk-bar .bulk-count { font-size: 0.82rem; font-weight: 600; color: var(--fiori-blue-dark); }
+    .bulk-bar .bulk-btn-delete {
+        padding: 6px 14px; font-size: 0.78rem; font-weight: 600;
+        background: var(--fiori-error); color: white; border: none; cursor: pointer;
+    }
+    .bulk-bar .bulk-btn-delete:hover { background: #8b0000; }
+    .bulk-bar .bulk-btn-cancel {
+        padding: 6px 14px; font-size: 0.78rem; font-weight: 600;
+        background: white; color: var(--fiori-text); border: 1px solid var(--fiori-border); cursor: pointer;
+    }
+    .fiori-table .cb-col { width: 40px; text-align: center; }
+    .fiori-table input[type="checkbox"] { accent-color: var(--fiori-blue); width: 15px; height: 15px; cursor: pointer; }
+
+    /* Modal */
+    .modal-overlay {
+        display: none; position: fixed; inset: 0; z-index: 99999;
+        background: rgba(0,0,0,0.5); align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+        background: white; padding: 2rem; width: 100%; max-width: 400px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+    .modal-box h3 { font-size: 1rem; margin-bottom: 0.5rem; color: var(--fiori-text); }
+    .modal-box p { font-size: 0.82rem; color: var(--fiori-text-muted); margin-bottom: 1.25rem; }
+    .modal-box input[type="password"] {
+        width: 100%; padding: 10px 12px; font-size: 0.85rem; font-family: inherit;
+        border: 1px solid var(--fiori-border); margin-bottom: 1rem;
+    }
+    .modal-box input[type="password"]:focus { outline: none; border-color: var(--fiori-blue); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .modal-actions button {
+        padding: 8px 18px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none;
+    }
+    .modal-btn-cancel { background: #f1f3f4; color: var(--fiori-text); }
+    .modal-btn-cancel:hover { background: #e2e5e8; }
+    .modal-btn-confirm { background: var(--fiori-error); color: white; }
+    .modal-btn-confirm:hover { background: #8b0000; }
+    .modal-error { color: var(--fiori-error); font-size: 0.78rem; margin-bottom: 0.75rem; display: none; }
 </style>
 </head>
 <body>
@@ -150,6 +197,7 @@
     <!-- Toolbar -->
     <div class="fiori-toolbar">
         <form method="get" id="filter-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; flex:1;">
+            {% csrf_token %}
             <input type="text" name="q" class="fiori-search" placeholder="🔍 Código, descripción, rutina, ubicación..." value="{{ q }}">
             <select name="estado" class="fiori-filter-select" onchange="this.form.submit()">
                 <option value="">— Estado —</option>
@@ -186,6 +234,13 @@
     <!-- Column Selector Panel -->
     <div id="col-panel" class="col-selector-panel"></div>
 
+    <!-- Bulk Action Bar -->
+    <div class="bulk-bar" id="bulk-bar">
+        <span class="bulk-count"><span id="bulk-count-num">0</span> orden(es) seleccionada(s)</span>
+        <button type="button" class="bulk-btn-delete" onclick="openDeleteModal()">🗑 Eliminar seleccionadas</button>
+        <button type="button" class="bulk-btn-cancel" onclick="clearSelection()">Cancelar</button>
+    </div>
+
     <!-- Table -->
     <div class="fiori-table-container">
         <div class="fiori-table-header">
@@ -194,6 +249,7 @@
         <table class="fiori-table" id="ordenes-table">
             <thead>
                 <tr>
+                    <th class="cb-col"><input type="checkbox" id="select-all" title="Seleccionar todas"></th>
                     <th data-col="codigo">Código</th>
                     <th data-col="tipo">Tipo</th>
                     <th data-col="prioridad">Prioridad</th>
@@ -210,7 +266,8 @@
             </thead>
             <tbody>
                 {% for ot in ordenes %}
-                <tr>
+                <tr data-ot-id="{{ ot.pk }}">
+                    <td class="cb-col"><input type="checkbox" class="row-cb" value="{{ ot.pk }}"></td>
                     <td data-col="codigo"><a href="{% url 'mantenimiento:mobile_ot_detalle' ot.pk %}" class="fiori-link">{{ ot.codigo_de_orden|default:"-" }}</a></td>
                     <td data-col="tipo">{{ ot.get_tipo_display }}</td>
                     <td data-col="prioridad"><span class="fiori-prio fiori-prio-{{ ot.prioridad|lower }}">{{ ot.get_prioridad_display }}</span></td>
@@ -225,10 +282,24 @@
                     <td data-col="creado" style="display:none; font-size:0.78rem;">{{ ot.creado_en|date:"d/m/Y" }}</td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="12"><div class="fiori-empty">No se encontraron órdenes de trabajo.</div></td></tr>
+                <tr><td colspan="13"><div class="fiori-empty">No se encontraron órdenes de trabajo.</div></td></tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Password Confirmation Modal -->
+<div class="modal-overlay" id="delete-modal">
+    <div class="modal-box">
+        <h3>⚠️ Confirmar eliminación</h3>
+        <p>Se eliminarán <strong id="modal-count">0</strong> orden(es) de trabajo. Esta acción no se puede deshacer. Ingresa tu contraseña para confirmar.</p>
+        <div class="modal-error" id="modal-error">Contraseña incorrecta.</div>
+        <input type="password" id="modal-password" placeholder="Contraseña" autocomplete="current-password">
+        <div class="modal-actions">
+            <button type="button" class="modal-btn-cancel" onclick="closeDeleteModal()">Cancelar</button>
+            <button type="button" class="modal-btn-confirm" id="modal-confirm-btn" onclick="confirmDelete()">Eliminar</button>
+        </div>
     </div>
 </div>
 
@@ -306,6 +377,145 @@ document.getElementById('th-inicio').addEventListener('click', function() {
 document.querySelector('.fiori-search').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('filter-form').submit();
 });
+
+// ==================== BULK SELECTION ====================
+var selectAllCb = document.getElementById('select-all');
+var rowCbs = document.querySelectorAll('.row-cb');
+var bulkBar = document.getElementById('bulk-bar');
+var bulkCountEl = document.getElementById('bulk-count-num');
+
+function updateBulkBar() {
+    var checked = document.querySelectorAll('.row-cb:checked');
+    var count = checked.length;
+    bulkCountEl.textContent = count;
+    if (count > 0) {
+        bulkBar.classList.add('active');
+    } else {
+        bulkBar.classList.remove('active');
+    }
+    // Update select-all state
+    selectAllCb.checked = (count === rowCbs.length && count > 0);
+    selectAllCb.indeterminate = (count > 0 && count < rowCbs.length);
+}
+
+selectAllCb.addEventListener('change', function() {
+    rowCbs.forEach(function(cb) { cb.checked = selectAllCb.checked; });
+    updateBulkBar();
+});
+
+rowCbs.forEach(function(cb) {
+    cb.addEventListener('change', updateBulkBar);
+});
+
+function clearSelection() {
+    selectAllCb.checked = false;
+    rowCbs.forEach(function(cb) { cb.checked = false; });
+    updateBulkBar();
+}
+
+function getSelectedIds() {
+    var ids = [];
+    document.querySelectorAll('.row-cb:checked').forEach(function(cb) {
+        ids.push(parseInt(cb.value));
+    });
+    return ids;
+}
+
+// ==================== DELETE MODAL ====================
+function openDeleteModal() {
+    var ids = getSelectedIds();
+    if (ids.length === 0) return;
+    document.getElementById('modal-count').textContent = ids.length;
+    document.getElementById('modal-password').value = '';
+    document.getElementById('modal-error').style.display = 'none';
+    document.getElementById('modal-confirm-btn').disabled = false;
+    document.getElementById('delete-modal').classList.add('active');
+    setTimeout(function() { document.getElementById('modal-password').focus(); }, 100);
+}
+
+function closeDeleteModal() {
+    document.getElementById('delete-modal').classList.remove('active');
+}
+
+document.getElementById('modal-password').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') confirmDelete();
+    if (e.key === 'Escape') closeDeleteModal();
+});
+
+function confirmDelete() {
+    var ids = getSelectedIds();
+    var password = document.getElementById('modal-password').value.trim();
+    var errorEl = document.getElementById('modal-error');
+    var confirmBtn = document.getElementById('modal-confirm-btn');
+
+    if (!password) {
+        errorEl.textContent = 'Ingresa tu contraseña.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Eliminando...';
+    errorEl.style.display = 'none';
+
+    fetch('/mantenimiento/ordenes/bulk-delete/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ ids: ids, password: password })
+    })
+    .then(function(resp) { return resp.json().then(function(data) { return {ok: resp.ok, data: data}; }); })
+    .then(function(result) {
+        if (result.ok && result.data.status === 'success') {
+            closeDeleteModal();
+            // Remove deleted rows from DOM
+            ids.forEach(function(id) {
+                var row = document.querySelector('tr[data-ot-id="' + id + '"]');
+                if (row) row.remove();
+            });
+            clearSelection();
+            // Show success toast
+            showToast(result.data.message, 'success');
+        } else {
+            errorEl.textContent = result.data.message || 'Error al eliminar.';
+            errorEl.style.display = 'block';
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Eliminar';
+        }
+    })
+    .catch(function(err) {
+        errorEl.textContent = 'Error de conexión.';
+        errorEl.style.display = 'block';
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Eliminar';
+    });
+}
+
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showToast(msg, type) {
+    var toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 24px;font-size:0.85rem;font-weight:600;color:white;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.2);';
+    toast.style.background = type === 'success' ? '#107e3e' : '#bb0000';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 3500);
+}
 </script>
 </body>
 </html>

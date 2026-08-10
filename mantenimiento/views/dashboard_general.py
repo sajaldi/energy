@@ -169,3 +169,39 @@ def ordenes_lista_view(request):
         'fecha_hasta': fecha_hasta,
     }
     return render(request, 'mantenimiento/ordenes_lista.html', context)
+
+
+@staff_member_required
+def ordenes_bulk_delete(request):
+    """Eliminación masiva de órdenes de trabajo con verificación de contraseña."""
+    import json
+    from django.http import JsonResponse
+    from django.contrib.auth import authenticate
+
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        password = data.get('password', '')
+        orden_ids = data.get('ids', [])
+
+        if not orden_ids:
+            return JsonResponse({'status': 'error', 'message': 'No se seleccionaron órdenes.'}, status=400)
+
+        # Verificar contraseña
+        user = authenticate(username=request.user.username, password=password)
+        if user is None:
+            return JsonResponse({'status': 'error', 'message': 'Contraseña incorrecta.'}, status=403)
+
+        # Eliminar las órdenes
+        ordenes = OrdenTrabajo.objects.filter(id__in=orden_ids)
+        count = ordenes.count()
+        ordenes.delete()
+
+        return JsonResponse({
+            'status': 'success',
+            'message': f'{count} orden(es) eliminada(s) correctamente.'
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

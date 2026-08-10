@@ -172,6 +172,72 @@ def mobile_ot_update_ajax(request, pk):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
+
+@staff_member_required
+def mobile_ot_vincular_activo(request, pk):
+    """API para vincular/desvincular activos a una OT."""
+    ot = get_object_or_404(OrdenTrabajo, pk=pk)
+    
+    if request.method == 'GET':
+        # Buscar activos por query
+        q = request.GET.get('q', '').strip()
+        if len(q) < 2:
+            return JsonResponse({'results': []})
+        
+        activos_ya = ot.activos.values_list('id', flat=True)
+        activos = Activo.objects.filter(
+            Q(nombre__icontains=q) |
+            Q(codigo_interno__icontains=q) |
+            Q(serie__icontains=q)
+        ).exclude(id__in=activos_ya).select_related('ubicacion')[:15]
+        
+        results = [{
+            'id': a.id,
+            'nombre': a.nombre,
+            'codigo': a.codigo_interno or '',
+            'serie': a.serie or '',
+            'ubicacion': str(a.ubicacion) if a.ubicacion else '',
+        } for a in activos]
+        return JsonResponse({'results': results})
+    
+    elif request.method == 'POST':
+        import json
+        data = json.loads(request.body)
+        action = data.get('action')  # 'add' or 'remove'
+        activo_id = data.get('activo_id')
+        
+        if not activo_id:
+            return JsonResponse({'status': 'error', 'message': 'ID de activo requerido'}, status=400)
+        
+        activo = Activo.objects.filter(id=activo_id).first()
+        if not activo:
+            return JsonResponse({'status': 'error', 'message': 'Activo no encontrado'}, status=404)
+        
+        if action == 'add':
+            ot.activos.add(activo)
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Activo "{activo.nombre}" vinculado correctamente.',
+                'activo': {
+                    'id': activo.id,
+                    'nombre': activo.nombre,
+                    'codigo': activo.codigo_interno or 'Sin Código',
+                    'serie': activo.serie or 'S/S',
+                    'descripcion': activo.descripcion or '',
+                }
+            })
+        elif action == 'remove':
+            ot.activos.remove(activo)
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Activo "{activo.nombre}" desvinculado.'
+            })
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Acción inválida'}, status=400)
+    
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
 @staff_member_required
 @mobile_permission_required('crear_aviso')
 def mobile_crear_aviso(request, pk=None):

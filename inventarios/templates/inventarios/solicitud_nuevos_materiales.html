@@ -330,14 +330,11 @@
             <label>SKU / Código <span class="req">*</span></label>
             <input type="text" id="f-sku" class="fiori-input" required placeholder="Ej: FLED-15W-001">
           </div>
-          <div class="fiori-field">
+          <div class="fiori-field" style="position:relative;">
             <label>Marca</label>
-            <select id="f-marca" class="fiori-select">
-              <option value="">— Sin marca —</option>
-              {% for m in marcas %}
-              <option value="{{ m.id }}">{{ m.nombre }}</option>
-              {% endfor %}
-            </select>
+            <input type="text" id="f-marca-search" class="fiori-input" placeholder="Buscar marca..." autocomplete="off">
+            <input type="hidden" id="f-marca" value="">
+            <div id="marca-results" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:200; background:#fff; border:1px solid var(--sap-border, #d9d9d9); border-radius:6px; max-height:200px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
           </div>
         </div>
 
@@ -424,6 +421,8 @@ function openEditor(art) {
   $('#f-nombre').val(art.articulo || '');
   $('#f-sku').val('');
   $('#f-marca').val('');
+  $('#f-marca-search').val('');
+  $('#marca-results').hide();
   $('#f-categoria').val('');
   $('#f-unidad').val('');
   $('#f-tipo').val('INSUMO');
@@ -484,7 +483,11 @@ function submitMaterial() {
   formData.append('stock_inicial', stock.toString());
   if (ubicacion_id) formData.append('ubicacion_id', ubicacion_id);
   formData.append('no_afecta_stock', noAfectaStock ? 'true' : 'false');
-  if ($('#f-marca').val()) formData.append('marca_id', $('#f-marca').val());
+  if ($('#f-marca').val()) {
+    formData.append('marca_id', $('#f-marca').val());
+  } else if ($('#f-marca-search').val().trim()) {
+    formData.append('marca_nombre', $('#f-marca-search').val().trim());
+  }
   if ($('#f-tipo').val()) formData.append('tipo_material', $('#f-tipo').val());
   if ($('#f-descripcion').val()) formData.append('descripcion', $('#f-descripcion').val());
 
@@ -519,5 +522,73 @@ function submitMaterial() {
 $(document).on('keydown', function(e) {
   if (e.key === 'Escape') closeEditor();
 });
+
+// ─── Buscador de Marca ─────────────────────────────────────────────────────
+(function() {
+  let marcaTimeout;
+  const $input = $('#f-marca-search');
+  const $hidden = $('#f-marca');
+  const $results = $('#marca-results');
+
+  $input.on('input', function() {
+    const q = $(this).val().trim();
+    clearTimeout(marcaTimeout);
+    $hidden.val(''); // limpiar selección al escribir
+
+    marcaTimeout = setTimeout(() => {
+      $.get('{% url "inventarios:api_search_marcas" %}', { q: q }, function(data) {
+        let html = '';
+        if (data.results.length > 0) {
+          data.results.forEach(m => {
+            html += `<div class="marca-item" data-id="${m.id}" data-nombre="${m.nombre}" 
+                      style="padding:8px 12px; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f0f0f0; transition:background 0.15s;">
+                      ${m.nombre}</div>`;
+          });
+        } else {
+          html = `<div style="padding:10px 12px; font-size:0.82rem; color:#666;">
+                    Sin resultados. Se creará "<strong>${q}</strong>" como nueva marca.
+                  </div>`;
+        }
+        $results.html(html).show();
+      });
+    }, 300);
+  });
+
+  $input.on('focus', function() {
+    if (!$hidden.val()) {
+      // Mostrar marcas iniciales al hacer focus
+      $.get('{% url "inventarios:api_search_marcas" %}', { q: '' }, function(data) {
+        let html = '';
+        data.results.forEach(m => {
+          html += `<div class="marca-item" data-id="${m.id}" data-nombre="${m.nombre}" 
+                    style="padding:8px 12px; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f0f0f0; transition:background 0.15s;">
+                    ${m.nombre}</div>`;
+        });
+        if (html) $results.html(html).show();
+      });
+    }
+  });
+
+  $(document).on('click', '.marca-item', function() {
+    const id = $(this).data('id');
+    const nombre = $(this).data('nombre');
+    $input.val(nombre);
+    $hidden.val(id);
+    $results.hide();
+  });
+
+  $(document).on('mouseenter', '.marca-item', function() {
+    $(this).css('background', '#f0f5ff');
+  }).on('mouseleave', '.marca-item', function() {
+    $(this).css('background', '');
+  });
+
+  // Cerrar dropdown al hacer click fuera
+  $(document).on('click', function(e) {
+    if (!$(e.target).closest('#f-marca-search, #marca-results').length) {
+      $results.hide();
+    }
+  });
+})();
 </script>
 {% endblock %}

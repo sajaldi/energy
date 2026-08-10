@@ -36,6 +36,7 @@ from .mobile import (
     mobile_programacion_detalle,
     mobile_ot_detalle,
     mobile_ot_update_ajax,
+    mobile_ot_vincular_activo,
     mobile_crear_aviso,
     mobile_aviso_editar,
     mobile_ot_iniciar,
@@ -56,7 +57,7 @@ from .mobile import (
     mobile_ot_whatsapp_webhook
 )
 from .dashboard import dashboard_cargas, asignar_puesto_ajax
-from .dashboard_general import mantenimiento_dashboard, ordenes_lista_view
+from .dashboard_general import mantenimiento_dashboard, ordenes_lista_view, ordenes_bulk_delete
 from .ai_search import buscador_ia_cronograma, api_busqueda_ia
 from . import import_personal
 from . import import_procedimientos

@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction, IntegrityError
 from datetime import datetime, date, timedelta
 from colorfield.fields import ColorField
 from pgvector.django import VectorField, CosineDistance
@@ -1154,30 +1154,47 @@ class OrdenTrabajo(models.Model):
         
         if is_new and not self.codigo_de_orden:
             if self.tipo == 'NO_PROGRAMADA':
-                year = timezone.now().year
-                # Buscar la última OTNP de este año para incrementar la secuencia
-                last_otnp = OrdenTrabajo.objects.filter(
-                    tipo='NO_PROGRAMADA',
-                    codigo_de_orden__startswith=f"OTNP-{year}-"
-                ).order_by('-codigo_de_orden').first()
-                
-                next_num = 1
-                if last_otnp and last_otnp.codigo_de_orden:
-                    try:
-                        # Asumiendo formato OTNP-YYYY-#####
-                        parts = last_otnp.codigo_de_orden.split('-')
-                        if len(parts) == 3:
-                            last_num = int(parts[2])
-                            next_num = last_num + 1
-                    except (ValueError, IndexError):
-                        pass
-                
-                new_code = f"OTNP-{year}-{str(next_num).zfill(5)}"
+                self._assign_otnp_code()
             else:
                 new_code = f"OT-{str(self.id).zfill(9)}"
-                
-            self.codigo_de_orden = new_code
-            OrdenTrabajo.objects.filter(pk=self.pk).update(codigo_de_orden=new_code)
+                self.codigo_de_orden = new_code
+                OrdenTrabajo.objects.filter(pk=self.pk).update(codigo_de_orden=new_code)
+
+    def _assign_otnp_code(self, max_retries=5):
+        """Asigna código OTNP con reintentos para manejar concurrencia."""
+        year = timezone.now().year
+        prefix = f"OTNP-{year}-"
+        
+        for attempt in range(max_retries):
+            try:
+                with transaction.atomic():
+                    # Buscar el máximo código con este prefijo SIN filtrar por tipo
+                    # (puede haber OTs que cambiaron de tipo pero conservaron el código)
+                    last_otnp = OrdenTrabajo.objects.select_for_update().filter(
+                        codigo_de_orden__startswith=prefix
+                    ).order_by('-codigo_de_orden').first()
+                    
+                    next_num = 1
+                    if last_otnp and last_otnp.codigo_de_orden:
+                        try:
+                            parts = last_otnp.codigo_de_orden.split('-')
+                            if len(parts) == 3:
+                                last_num = int(parts[2])
+                                next_num = last_num + 1
+                        except (ValueError, IndexError):
+                            pass
+                    
+                    new_code = f"{prefix}{str(next_num).zfill(5)}"
+                    self.codigo_de_orden = new_code
+                    OrdenTrabajo.objects.filter(pk=self.pk).update(codigo_de_orden=new_code)
+                    return  # Éxito, salir del bucle
+            except IntegrityError:
+                if attempt == max_retries - 1:
+                    # Último intento: usar el ID como fallback
+                    fallback_code = f"{prefix}{str(self.pk).zfill(5)}"
+                    self.codigo_de_orden = fallback_code
+                    OrdenTrabajo.objects.filter(pk=self.pk).update(codigo_de_orden=fallback_code)
+                # Si no es el último intento, reintentar automáticamente
 
     class Meta:
         verbose_name = "Orden de Trabajo"

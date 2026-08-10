@@ -16,6 +16,7 @@ class SolicitudMaterial(models.Model):
     estado = models.CharField(max_length=30, choices=ESTADO_CHOICES, default='PENDIENTE', db_index=True)
     
     orden_trabajo = models.ForeignKey('mantenimiento.OrdenTrabajo', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_material')
+    ticket = models.ForeignKey('callcenter.SolicitudTicket', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_material', verbose_name="Ticket vinculado")
     ubicacion_origen = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='solicitudes_salida')
     
     edificio_destino = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_edificio', verbose_name="Edificio Destino")
