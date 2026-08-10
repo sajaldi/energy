@@ -367,6 +367,7 @@
                         <th>Ubicación</th>
                         <th>Clasificación de Falla</th>
                         <th>Técnico Asignado</th>
+                        <th>Servicio Responsable</th>
                         <th>Descripción</th>
                         <th>Fecha</th>
                         <th>Tiempo Resolución (Hrs)</th>
@@ -386,7 +387,7 @@
                     {% for group in grouped_tickets %}
                         <tr class="group-header" onclick="toggleGroup(this)" data-group-id="group-{{ forloop.counter }}" style="cursor: pointer; background: #f8f9fa;">
                             <td style="width:36px; padding: 0.8rem 0.5rem; text-align: center;"><input type="checkbox" class="group-select-all" data-group="{{ forloop.counter }}" onchange="toggleGroupSelect(this, {{ forloop.counter }})" onclick="event.stopPropagation();"></td>
-                            <td colspan="13" style="padding: 0.8rem 1.25rem; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; box-shadow: inset 5px 0 0 var(--sap-primary);">
+                            <td colspan="14" style="padding: 0.8rem 1.25rem; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; box-shadow: inset 5px 0 0 var(--sap-primary);">
                                 <div style="display: flex; align-items: center; gap: 1rem;">
                                     <i class="ph ph-caret-right caret-icon" style="transition: transform 0.3s; {% if q %}transform: rotate(90deg);{% endif %}"></i>
                                     <span style="font-weight: 700; color: var(--sap-primary);">{{ group.grouper|default:"Sin Clasificar" }}</span>
@@ -441,6 +442,7 @@
                                 {% endif %}
                                 </a>
                             </td>
+<td>{{ t.servicio|default:"-" }}</td>
 <td><span class="desc-cell" data-folio="{{ t.folio|default:t.id_solicitud }}" data-ubicacion="{{ t.ubicacion_jerarquica }}" data-desc="{{ t.solicitud_descripcion|default:'-' }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
                             <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                             <td style="text-align: center; font-weight: 500;">{{ t.tiempo_resolucion_horas|default:"-" }}</td>
