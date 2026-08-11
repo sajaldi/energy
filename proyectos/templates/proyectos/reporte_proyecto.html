@@ -3,12 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <title>Reporte: {{ proyecto.nombre }}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    @font-face {
+        font-family: 'Artifakt Element';
+        src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Element%20Medium.woff2') format('woff2');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+    }
+    @font-face {
+        font-family: 'Artifakt Element';
+        src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Legend%20Bold.woff2') format('woff2');
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+    }
+</style>
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; padding: 20px; }
+    body { font-family: 'Artifakt Element', 'Outfit', sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; padding: 20px; }
     .page { max-width: 210mm; margin: 0 auto; }
-    @media print { body { padding: 0; } .no-print { display: none !important; } }
     h1 { font-size: 20px; margin-bottom: 4px; }
     h2 { font-size: 14px; margin: 20px 0 10px; border-bottom: 2px solid #0070f2; padding-bottom: 4px; }
     h3 { font-size: 12px; margin: 12px 0 6px; }
@@ -17,19 +32,86 @@
     th { background: #f0f4f8; font-weight: 600; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
     .header-info p { font-size: 11px; color: #555; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 0; font-size: 10px; font-weight: 600; }
     .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 10px 0; }
-    .card { border: 1px solid #d0d0d0; border-radius: 6px; padding: 10px; }
+    .card { border: 1px solid #d0d0d0; border-radius: 0; padding: 10px; }
     .card .val { font-size: 18px; font-weight: 700; }
     .card .lbl { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    .ot-card { border: 1px solid #d0d0d0; border-radius: 6px; padding: 10px; margin: 8px 0; page-break-inside: avoid; }
+    .ot-card { border: 1px solid #d0d0d0; border-radius: 0; padding: 10px; margin: 8px 0; page-break-inside: avoid; }
     .ot-card h3 { margin-top: 0; }
     .ot-fotos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-    .ot-fotos img { width: calc(33.333% - 4px); height: auto; aspect-ratio: 4/3; object-fit: cover; border-radius: 4px; border: 1px solid #d0d0d0; }
+    .ot-fotos img { width: calc(33.333% - 4px); height: auto; aspect-ratio: 4/3; object-fit: cover; border-radius: 0; border: 1px solid #d0d0d0; }
     .req-table td:nth-child(3) { text-align: right; }
     .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #d0d0d0; font-size: 9px; color: #888; text-align: center; }
-    .btn-print { display: inline-block; padding: 8px 20px; background: #0070f2; color: #fff; text-decoration: none; border-radius: 4px; font-size: 12px; margin-bottom: 16px; }
+    .btn-print { display: inline-block; padding: 8px 20px; background: #0070f2; color: #fff; text-decoration: none; border-radius: 0; font-size: 12px; margin-bottom: 16px; }
+
+    /* ========== PRINT STYLES ========== */
+    @media print {
+        body { padding: 0; font-size: 10px; }
+        .no-print { display: none !important; }
+
+        /* Force background colors/images to print */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+        }
+
+        .page { max-width: 100%; }
+
+        /* Prevent page breaks inside important elements */
+        .ot-card, .card, table, tr, .grid {
+            page-break-inside: avoid;
+        }
+
+        h2 {
+            page-break-after: avoid;
+        }
+
+        /* Ensure table headers repeat on new pages */
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
+
+        /* Keep badges visible with border fallback */
+        .badge {
+            border: 1px solid currentColor;
+        }
+
+        /* Ensure grid doesn't break */
+        .grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .grid .card {
+            flex: 1;
+            min-width: 100px;
+        }
+
+        /* Images: ensure they print and don't overflow */
+        .ot-fotos img {
+            max-height: 150px;
+            page-break-inside: avoid;
+        }
+
+        /* Gantt bars: ensure colors print */
+        div[style*="position:absolute"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        /* Footer on every page */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+
+        /* Table cells: tighter for print */
+        th, td { padding: 4px 6px; font-size: 9px; }
+    }
 </style>
 </head>
 <body>
@@ -94,6 +176,7 @@
                 <th>Avance</th>
                 <th>Responsable</th>
                 <th>Predecesora</th>
+                <th>Órdenes de Trabajo</th>
             </tr>
         </thead>
         <tbody>
@@ -113,6 +196,7 @@
                 <td>{{ act.porcentaje_avance }}%</td>
                 <td>{% if act.asignado_a %}{{ act.asignado_a.get_full_name|default:act.asignado_a.username }}{% else %}-{% endif %}</td>
                 <td>{{ act.predecesora.nombre|default:"-" }}</td>
+                <td>{% for ot in act.ordenes_trabajo.all %}{{ ot.codigo_de_orden }}{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -120,22 +204,22 @@
 
     {% if actividades %}
     <h3>Diagrama de Gantt</h3>
-    <div style="overflow-x:auto;margin:8px 0;">
-        <div style="display:flex;margin-left:160px;font-size:9px;color:#555;border-bottom:2px solid #333;padding:4px 0;">
-            {% for day_offset in gantt_markers %}
-            <div style="flex:1;text-align:center;font-weight:600;color:#34495e;">Día {{ day_offset }}</div>
+    <div style="margin:4px 0;border:1px solid #d0d0d0;width:100%;max-width:100%;overflow:hidden;">
+        <div style="display:flex;margin-left:220px;font-size:8px;color:#555;border-bottom:1px solid #333;padding:2px 0;background:#f8f9fa;">
+            {% for marker in gantt_markers %}
+            <div style="flex:1;text-align:center;font-weight:600;color:#34495e;min-width:0;">{{ marker.label }}</div>
             {% endfor %}
         </div>
         {% for act in actividades %}
-        <div style="display:flex;align-items:center;height:22px;border-bottom:1px solid #e0e0d0;">
-            <div style="width:160px;text-align:right;padding-right:8px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#000;">{{ act.nombre }}</div>
-            <div style="flex:1;position:relative;height:16px;background:#f4f6f9;border-radius:3px;">
+        <div style="display:flex;align-items:center;height:16px;border-bottom:1px solid #f0f0f0;">
+            <div style="width:220px;min-width:220px;text-align:right;padding-right:6px;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#000;font-weight:500;">{{ act.orden }}. {{ act.nombre }}</div>
+            <div style="flex:1;position:relative;height:12px;background:#f4f6f9;min-width:0;">
                 {% if act.gantt_width_pct > 0 %}
-                <div style="position:absolute;top:0;left:{{ act.gantt_left_pct }}%;width:{{ act.gantt_width_pct }}%;height:100%;border-radius:3px;background:
+                <div style="position:absolute;top:1px;left:{{ act.gantt_left_pct }}%;width:{{ act.gantt_width_pct }}%;height:10px;min-width:2px;background:
                     {% if act.estado == 'COMPLETADA' %}#10b981
                     {% elif act.estado == 'EN_PROGRESO' %}#f59e0b
                     {% elif act.estado == 'BLOQUEADA' %}#ef4444
-                    {% else %}#94a3b8{% endif %};box-shadow:0 1px 2px rgba(0,0,0,0.15);"></div>
+                    {% else %}#94a3b8{% endif %};"></div>
                 {% endif %}
             </div>
         </div>
@@ -152,7 +236,7 @@
     {% if act_ots %}
     <div style="margin-bottom: 16px; page-break-inside: avoid;">
         <h3 style="background: #f0f4f8; padding: 6px 10px; border-left: 3px solid #0070f2; margin-bottom: 6px;">
-            {{ act.nombre }}
+            <span style="font-weight: 700; color: #0070f2; margin-right: 6px;">{{ act.orden }}.</span>{{ act.nombre }}
             <span style="font-weight: 400; font-size: 10px; color: #555; margin-left: 8px;">
                 ({{ act.fecha_inicio|date:"d/m/Y"|default:"Sin fecha" }} — {{ act.fecha_fin|date:"d/m/Y"|default:"Sin fecha" }})
             </span>
@@ -198,12 +282,11 @@
     {% endfor %}
 
     <!-- OTs vinculadas al proyecto pero sin actividad -->
-    {% if ordenes %}
+    {% if ordenes_sin_actividad %}
     <h3 style="margin-top: 16px; background: #fef3c7; padding: 6px 10px; border-left: 3px solid #f59e0b;">
-        Órdenes sin actividad asignada
+        Órdenes vinculadas al proyecto (sin actividad asignada)
     </h3>
-    {% for ot in ordenes %}
-    {% if not ot.actividades_proyecto.exists %}
+    {% for ot in ordenes_sin_actividad %}
     <div class="ot-card">
         <h3 style="display: flex; justify-content: space-between; align-items: center;">
             <span>{{ ot.codigo_de_orden }}</span>
@@ -237,7 +320,6 @@
         {% endif %}
         {% endwith %}
     </div>
-    {% endif %}
     {% endfor %}
     {% endif %}
 

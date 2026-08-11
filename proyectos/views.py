@@ -727,25 +727,67 @@ def reporte_proyecto(request, pk):
         if act.fecha_fin and (max_date is None or act.fecha_fin > max_date):
             max_date = act.fecha_fin
 
+    # Add padding before and after for visual breathing room
+    if min_date and max_date:
+        span = (max_date - min_date).days
+        if span <= 7:
+            pad = timedelta(days=2)
+        elif span <= 30:
+            pad = timedelta(days=3)
+        else:
+            pad = timedelta(days=7)
+        min_date = min_date - pad
+        max_date = max_date + pad
+
     # Gantt computation — TIEMPO ACORDADO style
     gantt_total_days = 1
     gantt_markers = []
+    gantt_mode = 'day'  # day, week, month
     if min_date and max_date:
         delta = max_date - min_date
         gantt_total_days = max(delta.days, 1)
 
-        if gantt_total_days <= 14: step = 1
-        elif gantt_total_days <= 60: step = 7
-        elif gantt_total_days <= 180: step = 14
-        elif gantt_total_days <= 365: step = 30
-        else: step = 60
+        # Limit to max ~5-6 markers to keep it compact horizontally
+        if gantt_total_days <= 3:
+            step = 1
+            gantt_mode = 'day'
+        elif gantt_total_days <= 14:
+            step = max(gantt_total_days // 4 + 1, 2)  # ~4 markers
+            gantt_mode = 'day'
+        elif gantt_total_days <= 30:
+            step = 7
+            gantt_mode = 'week'
+        elif gantt_total_days <= 90:
+            step = 14
+            gantt_mode = 'week'
+        elif gantt_total_days <= 365:
+            step = 30
+            gantt_mode = 'month'
+        else:
+            step = 60
+            gantt_mode = 'month'
 
         curr = 0
         while curr <= gantt_total_days:
-            gantt_markers.append(curr)
+            marker_date = min_date + timedelta(days=curr)
+            if gantt_mode == 'day':
+                label = marker_date.strftime('%d/%m')
+            elif gantt_mode == 'week':
+                label = marker_date.strftime('%d/%m')
+            else:
+                label = marker_date.strftime('%b %Y')
+            gantt_markers.append({'offset': curr, 'label': label})
             curr += step
-        if gantt_markers and gantt_markers[-1] < gantt_total_days:
-            gantt_markers.append(gantt_markers[-1] + step)
+        # Ensure we reach the end
+        if gantt_markers and gantt_markers[-1]['offset'] < gantt_total_days:
+            end_marker = min_date + timedelta(days=gantt_markers[-1]['offset'] + step)
+            if gantt_mode == 'day':
+                label = end_marker.strftime('%d/%m')
+            elif gantt_mode == 'week':
+                label = end_marker.strftime('%d/%m')
+            else:
+                label = end_marker.strftime('%b %Y')
+            gantt_markers.append({'offset': gantt_markers[-1]['offset'] + step, 'label': label})
 
     for act in actividades:
         if act.fecha_inicio and act.fecha_fin and min_date and max_date:
@@ -760,10 +802,20 @@ def reporte_proyecto(request, pk):
             act.gantt_left_pct = 0
             act.gantt_width_pct = 0
 
+    # Collect IDs of OTs already linked to activities (to avoid duplicates in "sin actividad" section)
+    ot_ids_in_activities = set()
+    for act in actividades:
+        for ot in act.ordenes_trabajo.all():
+            ot_ids_in_activities.add(ot.id)
+
+    # OTs linked to project but NOT to any activity of this project
+    ordenes_sin_actividad = [ot for ot in ordenes if ot.id not in ot_ids_in_activities]
+
     context = {
         'proyecto': proyecto,
         'actividades': actividades,
         'ordenes': ordenes,
+        'ordenes_sin_actividad': ordenes_sin_actividad,
         'requisiciones': requisiciones,
         'total_requisiciones': total_requisiciones,
         'estados_act': estados_act,

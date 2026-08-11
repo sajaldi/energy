@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Curso: Cómo Cargar Rutinas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Source Sans 3', sans-serif;
+        background: #f5f6f7;
+        color: #32363a;
+        line-height: 1.6;
+    }
+    .course-header {
+        background: #354a5f;
+        color: #fff;
+        padding: 32px 24px;
+        text-align: center;
+    }
+    .course-header h1 {
+        font-size: 26px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+    .course-header p {
+        margin-top: 6px;
+        color: rgba(255,255,255,0.75);
+        font-size: 14px;
+    }
+    .wrap {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 24px 16px 60px;
+    }
+    .steps-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 24px;
+    }
+    .steps-nav button {
+        font-family: 'Source Sans 3', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 8px 14px;
+        border: 1px solid #d0d0d0;
+        background: #fff;
+        color: #32363a;
+        border-radius: 0;
+        cursor: pointer;
+        transition: all .15s;
+    }
+    .steps-nav button.active {
+        background: #0a6ed1;
+        border-color: #0a6ed1;
+        color: #fff;
+    }
+    .step {
+        background: #fff;
+        border-radius: 0;
+        padding: 24px 28px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+        display: none;
+    }
+    .step.active { display: block; }
+    .step h2 {
+        font-size: 18px;
+        font-weight: 700;
+        color: #354a5f;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .step h2 .num {
+        background: #0a6ed1;
+        color: #fff;
+        width: 28px; height: 28px;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 50%;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+    .step p { margin-bottom: 10px; }
+    .step ul, .step ol { margin: 10px 0 14px 22px; }
+    .step li { margin-bottom: 6px; }
+    .callout {
+        border-left: 4px solid #0a6ed1;
+        background: #eef5fd;
+        padding: 12px 16px;
+        margin: 14px 0;
+        font-size: 13.5px;
+    }
+    .callout.warn {
+        border-color: #e65100;
+        background: #fff3e0;
+    }
+    .callout.ok {
+        border-color: #107e3e;
+        background: #e8f5e9;
+    }
+    .callout strong { display: block; margin-bottom: 2px; }
+    .tag {
+        display: inline-block;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 0;
+        background: #e8f4fd;
+        color: #0a6ed1;
+        margin-right: 6px;
+    }
+    .btn-demo {
+        display: inline-block;
+        font-family: 'Source Sans 3', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 9px 16px;
+        background: #7c3aed;
+        color: #fff;
+        border: none;
+        border-radius: 0;
+        cursor: pointer;
+        margin-top: 6px;
+    }
+    .btn-demo:hover { background: #6d28d9; }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        margin: 12px 0;
+    }
+    th {
+        text-align: left;
+        padding: 8px 10px;
+        background: #f5f6f7;
+        color: #6a6d70;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        border-bottom: 2px solid #e5e5e5;
+    }
+    td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #f0f0f0;
+        vertical-align: top;
+    }
+    code {
+        background: #f0f0f0;
+        padding: 1px 6px;
+        border-radius: 3px;
+        font-size: 12.5px;
+        font-family: Consolas, monospace;
+        color: #0a3d62;
+    }
+    pre.code {
+        background: #1e293b;
+        color: #e2e8f0;
+        padding: 12px 14px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 12.5px;
+        font-family: Consolas, monospace;
+        line-height: 1.5;
+        margin: 10px 0;
+    }
+    .nav-buttons {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+    .nav-buttons button {
+        font-family: 'Source Sans 3', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 22px;
+        border: none;
+        border-radius: 0;
+        cursor: pointer;
+    }
+    .btn-prev { background: #f5f6f7; color: #32363a; border: 1px solid #d0d0d0; }
+    .btn-next { background: #0a6ed1; color: #fff; margin-left: auto; }
+    .btn-next:hover { background: #0854a0; }
+    .progress-track {
+        height: 4px;
+        background: #e5e5e5;
+        margin-top: 16px;
+        border-radius: 0;
+    }
+    .progress-fill {
+        height: 4px;
+        background: #0a6ed1;
+        width: 20%;
+        transition: width .3s ease;
+    }
+    @media (max-width: 640px) {
+        .wrap { padding: 16px 10px 40px; }
+        .step { padding: 18px 16px; }
+        .course-header h1 { font-size: 20px; }
+    }
+</style>
+</head>
+<body>
+    <div class="course-header">
+        <h1>📦 Curso: Cómo Cargar Rutinas</h1>
+        <p>Guía paso a paso para importar rutinas de mantenimiento desde Excel/CSV con Carga Masiva</p>
+    </div>
+
+    <div class="wrap">
+        <div class="steps-nav" id="stepsNav"></div>
+
+        <!-- PASO 1 -->
+        <section class="step" data-step="1">
+            <h2><span class="num">1</span> ¿Qué es la Carga Masiva de Rutinas?</h2>
+            <p>
+                La <strong>Carga Masiva</strong> permite crear o actualizar muchas rutinas de mantenimiento a la vez,
+                subiendo un archivo de Excel (<code>.xlsx</code>) o CSV. Es ideal para cuando tienes un listado grande
+                (p.ej. rutinas de un nuevo proyecto) en lugar de crearlas una por una.
+            </p>
+            <div class="callout ok">
+                <strong>✅ ¿Qué logra?</strong>
+                Crea rutinas nuevas, actualiza las existentes y detecta errores antes de guardar nada.
+            </div>
+            <div class="callout warn">
+                <strong>⚠️ Requisito previo</strong>
+                Los <em>Tipos/Categorías</em> y las <em>Frecuencias</em> deben existir en el sistema antes de importar
+                (se buscan por nombre exacto). Si no existen, la rutina se marcará como error.
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-next" onclick="go(2)">Siguiente →</button>
+            </div>
+        </section>
+
+        <!-- PASO 2 -->
+        <section class="step" data-step="2">
+            <h2><span class="num">2</span> Dónde encontrar la Carga Masiva</h2>
+            <ol>
+                <li>Ve al módulo <strong>Mantenimiento</strong>.</li>
+                <li>Abre el <strong>Dashboard de Rutinas</strong> (la pantalla con el árbol de categorías y rutinas).</li>
+                <li>En la barra superior, haz clic en el botón <strong>"🚀 Carga Masiva"</strong> (de color violeta).</li>
+            </ol>
+            <div class="callout">
+                <strong>Truco</strong>
+                También puedes exportar las rutinas existentes a Excel desde el botón <em>"Exportar Excel"</em> de la
+                misma barra, así tendrás un archivo de referencia con el formato correcto.
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-prev" onclick="go(1)">← Atrás</button>
+                <button class="btn-next" onclick="go(3)">Siguiente →</button>
+            </div>
+        </section>
+
+        <!-- PASO 3 -->
+        <section class="step" data-step="3">
+            <h2><span class="num">3</span> Descargar el formato oficial</h2>
+            <p>
+                La pantalla de importación muestra un botón verde <strong>"📊 Descargar Formato de Importación de Rutinas"</strong>.
+                Descárgalo y úsalo como plantilla: así garantizas que las columnas estén bien nombradas.
+            </p>
+            <p>El archivo soporta columnas como:</p>
+            <table>
+                <thead>
+                    <tr><th>Columna</th><th>¿Requerida?</th><th>Ejemplo</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>id</code></td><td>⚠️ Solo para actualizar</td><td>42</td></tr>
+                    <tr><td><code>codigo_rutina</code></td><td>✅ SÍ</td><td>RT-001</td></tr>
+                    <tr><td><code>nombre</code></td><td>✅ SÍ</td><td>Inspección de transformadores</td></tr>
+                    <tr><td><code>tipo_nombre</code> / <code>categoria_nombre</code></td><td>⚪ Opcional</td><td>Transformadores</td></tr>
+                    <tr><td><code>frecuencia_nombre</code></td><td>⚪ Opcional</td><td>Mensual</td></tr>
+                    <tr><td><code>tiempo_estimado</code></td><td>⚪ Opcional</td><td>01:00:00</td></tr>
+                    <tr><td><code>cantidad_tecnicos</code></td><td>⚪ Opcional</td><td>2</td></tr>
+                    <tr><td><code>descripcion</code></td><td>⚪ Opcional</td><td>Inspección visual completa</td></tr>
+                </tbody>
+            </table>
+            <div class="callout warn">
+                <strong>⚠️ Ojo con estos detalles</strong>
+                <ul style="margin:6px 0 0 18px;">
+                    <li>El <code>tiempo_estimado</code> va en formato <code>HH:MM:SS</code> (ej. <code>01:30:00</code>).</li>
+                    <li><code>cantidad_tecnicos</code> es un número entero positivo (por defecto 1).</li>
+                    <li>Si incluyes <code>id</code> o <code>codigo_rutina</code> de una rutina existente, esta se <strong>actualizará</strong>; si no existen, se <strong>creará</strong> una nueva.</li>
+                    <li>No subas columnas de fechas internas ni campos de auditoría: los maneja el sistema.</li>
+                </ul>
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-prev" onclick="go(2)">← Atrás</button>
+                <button class="btn-next" onclick="go(4)">Siguiente →</button>
+            </div>
+        </section>
+
+        <!-- PASO 4 -->
+        <section class="step" data-step="4">
+            <h2><span class="num">4</span> Llenar tu archivo</h2>
+            <p>Un archivo mínimo se ve así:</p>
+            <pre class="code">codigo_rutina,nombre,tipo_nombre,frecuencia_nombre,tiempo_estimado,cantidad_tecnicos,descripcion
+RT-001,Inspección de transformadores,Transformadores,Mensual,01:00:00,1,Inspección visual completa
+RT-002,Limpieza de aires acondicionados,Climatización,Mensual,02:00:00,2,Limpieza de filtros
+RT-003,Medición de temperatura en motores,Motores,Semanal,00:30:00,1,Medición con termómetro</pre>
+            <div class="callout">
+                <strong>Consejo</strong>
+                Los nombres de <em>tipo</em> y <em>frecuencia</em> deben coincidir exactamente con los que ya existen
+                en el sistema (mayúsculas, tildes y espacios incluidos). Ante la duda, expórtalos antes.
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-prev" onclick="go(3)">← Atrás</button>
+                <button class="btn-next" onclick="go(5)">Siguiente →</button>
+            </div>
+        </section>
+
+        <!-- PASO 5 -->
+        <section class="step" data-step="5">
+            <h2><span class="num">5</span> Subir el archivo y configurar</h2>
+            <ol>
+                <li>
+                    En la pantalla de importación, haz clic en la zona punteada
+                    <strong>"Selecciona tu archivo de Rutinas"</strong> y elige tu <code>.xlsx</code>, <code>.xls</code> o <code>.csv</code>.
+                    Verás el nombre del archivo cargado.
+                </li>
+                <li>
+                    (Opcional) Escribe un <strong>🏷️ Nombre de la importación</strong>
+                    (ej. <em>"Importación Rutinas Febrero 2024"</em>) para identificarla en el historial.
+                </li>
+                <li>
+                    <strong>No marques</strong> la casilla "🔍 Solo verificar si los códigos existen"
+                    (esa opción es solo para revisar sin guardar; la explicamos en el paso 7).
+                </li>
+                <li>Haz clic en <strong>"🚀 Iniciar Proceso"</strong>.</li>
+            </ol>
+            <div class="callout">
+                <strong>Automático</strong>
+                El archivo se guarda en el servidor y la importación corre en segundo plano, mostrando una barra de
+                progreso. No necesitas mantener la pestaña abierta para que termine, pero sí para ver el resultado.
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-prev" onclick="go(4)">← Atrás</button>
+                <button class="btn-next" onclick="go(6)">Siguiente →</button>
+            </div>
+        </section>
+
+        <!-- PASO 6 -->
+        <section class="step" data-step="6">
+            <h2><span class="num">6</span> Revisar el análisis previo y confirmar</h2>
+            <p>
+                Al terminar el análisis, el sistema muestra un resumen con lo que hará antes de tocar nada:
+            </p>
+            <table>
+                <tbody>
+                    <tr><td>🆕 <strong>Nuevas (Se crearán)</strong></td><td>Rutinas del archivo que no existen aún.</td></tr>
+                    <tr><td>🔄 <strong>Existentes (Se actualizarán)</strong></td><td>Rutinas que ya existen (por <code>id</code> o <code>codigo_rutina</code>) y se modificarán.</td></tr>
+                    <tr><td>⏭️ <strong>Sin cambios</strong></td><td>Filas idénticas a lo ya guardado, se omiten.</td></tr>
+                    <tr><td>❌ <strong>Errores</strong></td><td>Filas con problemas (p.ej. tipo o frecuencia que no existe).</td></tr>
+                </tbody>
+            </table>
+            <ol>
+                <li>Revisa que el desglose tenga sentido (no más errores de los esperados).</li>
+                <li>Confirmas con <strong>"✅ Sí, Importar todo"</strong> si estás de acuerdo.</li>
+                <li>Si ves problemas, usa <strong>"❌ Cancelar"</strong> y corrige el archivo; no se guardó nada.</li>
+            </ol>
+            <div class="callout ok">
+                <strong>✅ Modo seguro</strong>
+                Este flujo garantiza que primero solo se <em>analiza</em> el archivo. Nada se escribe en la base de datos
+                hasta que tú confirmas.
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-prev" onclick="go(5)">← Atrás</button>
+                <button class="btn-next" onclick="go(7)">Siguiente →</button>
+            </div>
+        </section>
+
+        <!-- PASO 7 -->
+        <section class="step" data-step="7">
+            <h2><span class="num">7</span> Opción avanzada: solo verificar</h2>
+            <p>
+                Si marcas <strong>"🔍 Solo verificar si los códigos existen (No importar nada)"</strong>,
+                el sistema <strong>no guardará ningún registro</strong>. Solo revisará qué códigos ya existen.
+            </p>
+            <table>
+                <tbody>
+                    <tr><td>✅ <strong>Encontrados (Ya existen)</strong></td><td>Cantidad de códigos presentes en el sistema.</td></tr>
+                    <tr><td>🆕 <strong>No encontrados (Nuevos)</strong></td><td>Cantidad de códigos que no existen y se crearían.</td></tr>
+                    <tr><td>📊 <strong>Descargar Faltantes</strong></td><td>Enlace para bajar un archivo con solo los registros que faltan.</td></tr>
+                </tbody>
+            </table>
+            <p>
+                Es ideal como <em>ensayo</em>: confirma que tu archivo está bien armado antes de ejecutar la importación real.
+            </p>
+            <div class="nav-buttons">
+                <button class="btn-prev" onclick="go(6)">← Atrás</button>
+                <button class="btn-next" onclick="go(8)">Siguiente →</button>
+            </div>
+        </section>
+
+        <!-- PASO 8 -->
+        <section class="step" data-step="8">
+            <h2><span class="num">8</span> Errores comunes y solución</h2>
+            <table>
+                <thead>
+                    <tr><th>Error</th><th>Causa</th><th>Solución</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>tipo matching query does not exist</code></td>
+                        <td>El nombre del tipo/categoría no coincide con uno existente.</td>
+                        <td>Verifica el nombre exacto en <strong>Mantenimiento → Categorías</strong>.</td>
+                    </tr>
+                    <tr>
+                        <td><code>frecuencia matching query does not exist</code></td>
+                        <td>El nombre de la frecuencia no existe o está mal escrito.</td>
+                        <td>Verifica en <strong>Mantenimiento → Frecuencias</strong> y usa el nombre exacto.</td>
+                    </tr>
+                    <tr>
+                        <td><code>Invalid duration format</code></td>
+                        <td><code>tiempo_estimado</code> en formato incorrecto.</td>
+                        <td>Usa <code>HH:MM:SS</code> (ej. <code>01:30:00</code>).</td>
+                    </tr>
+                    <tr>
+                        <td><em>Filas omitidas</em></td>
+                        <td>Filas sin <code>codigo_rutina</code> válido.</td>
+                        <td>Asegúrate de que cada fila tenga su código.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="callout warn">
+                <strong>⚠️ No se importó nada pero hubo "error crítico"</strong>
+                Revisa que el archivo tenga la primera fila con los nombres de columna y que el formato sea
+                <code>.xlsx</code>/<code>.xls</code>/<code>.csv</code> (no renames un .txt a .xlsx).
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-prev" onclick="go(7)">← Atrás</button>
+                <button class="btn-next" onclick="go(9)">Siguiente →</button>
+            </div>
+        </section>
+
+        <!-- PASO 9 -->
+        <section class="step" data-step="9">
+            <h2><span class="num">9</span> Resumen rápido (checklist)</h2>
+            <ul>
+                <li>☐ Confirmar que los <strong>Tipos/Categorías</strong> y <strong>Frecuencias</strong> ya existen.</li>
+                <li>☐ Entrar a <strong>Rutinas</strong> y hacer clic en <strong>"🚀 Carga Masiva"</strong>.</li>
+                <li>☐ Descargar el <strong>formato oficial</strong>.</li>
+                <li>☐ Llenar <code>codigo_rutina</code>, <code>nombre</code> y (si aplica) tipo, frecuencia y tiempos.</li>
+                <li>☐ Subir el archivo → <strong>"🚀 Iniciar Proceso"</strong>.</li>
+                <li>☐ Revisar el <strong>análisis previo</strong> (nuevas / actualizadas / errores).</li>
+                <li>☐ Confirmar con <strong>"✅ Sí, Importar todo"</strong>.</li>
+                <li>☐ Verificar el resultado final y corregir errores si los hubo.</li>
+            </ul>
+            <div class="callout ok">
+                <strong>🎉 ¡Listo!</strong>
+                Recuerda que puedes usar <strong>"Solo verificar"</strong> antes de cada carga importante para evitar
+                sorpresas, y que las rutinas nuevas ya quedan listas para programarse en el calendario.
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-prev" onclick="go(8)">← Atrás</button>
+                <button class="btn-next" onclick="restart()">↺ Reiniciar curso</button>
+            </div>
+        </section>
+
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <script>
+        const total = 9;
+        let current = 1;
+
+        const nav = document.getElementById('stepsNav');
+        for (let i = 1; i <= total; i++) {
+            const b = document.createElement('button');
+            b.textContent = i;
+            b.onclick = () => go(i);
+            b.dataset.step = i;
+            nav.appendChild(b);
+        }
+
+        function render() {
+            document.querySelectorAll('.step').forEach(s => s.classList.toggle('active', +s.dataset.step === current));
+            document.querySelectorAll('#stepsNav button').forEach(b => b.classList.toggle('active', +b.dataset.step === current));
+            document.getElementById('progressFill').style.width = (current / total * 100) + '%';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function go(n) {
+            current = Math.min(total, Math.max(1, n));
+            render();
+        }
+
+        function restart() {
+            current = 1;
+            render();
+        }
+
+        render();
+    </script>
+</body>
+</html>
