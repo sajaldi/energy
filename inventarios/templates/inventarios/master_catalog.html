@@ -127,10 +127,14 @@
         display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         background: rgba(44, 58, 72, 0.9); backdrop-filter: blur(5px);
         z-index: 10000; opacity: 0; transition: opacity 0.3s;
+        padding: 20px;
     }
     .modal-overlay.active { display: flex; opacity: 1; align-items: center; justify-content: center; }
     .modal-window {
-        background: #fff; width: 95%; max-width: 1200px; height: 90vh;
+        background: #fff; width: 95%; max-width: 1200px; height: 85vh;
+        border-radius: 8px; overflow: hidden;
+        display: flex; flex-direction: column; transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
         border-radius: 0; overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,0.5);
         display: flex; flex-direction: column; transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
@@ -230,8 +234,11 @@
             {% endfor %}
         </select>
     </div>
-    <div style="padding-bottom:10px;">
+    <div style="padding-bottom:10px; display: flex; justify-content: space-between; align-items: center;">
         <div id="results-count" style="font-size:0.8rem; font-weight:700; color:var(--sap-blue);"></div>
+        <button onclick="exportToExcel()" style="padding:6px 14px; background:#107e3e; color:white; border:none; font-weight:600; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            <ion-icon name="download-outline"></ion-icon> Exportar Excel
+        </button>
     </div>
 </div>
 
@@ -491,8 +498,8 @@
                             <div style="margin-bottom:8px; color:var(--text-muted); font-size:0.8rem; font-weight:700;"># ${data.sku} | ${data.marca || ''}</div>
                             <h3 style="margin:0 0 16px 0; font-size:1.5rem;">${data.nombre}</h3>
                             
-                            <div style="display:flex; gap:10px; margin-bottom:20px;">
-                                <span class="mat-badge" style="background:var(--sap-shell); color:white;">${data.categoria}</span>
+                            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+                                <span class="mat-badge" style="background:var(--sap-blue); color:white;">📂 ${data.categoria || 'Sin categoría'}</span>
                                 <span class="mat-badge" style="background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9;">${data.tipo_material || 'Material'}</span>
                             </div>
 
@@ -680,6 +687,7 @@
                     <table style="width:100%; border-collapse:collapse;">
                         <thead>
                             <tr style="border-bottom:2px solid #ddd; text-align:left;">
+                                <th style="padding:10px 12px; font-size:0.72rem; text-transform:uppercase; color:#6a6d70; font-weight:600;"># Mov</th>
                                 <th style="padding:10px 12px; font-size:0.72rem; text-transform:uppercase; color:#6a6d70; font-weight:600;">Fecha</th>
                                 <th style="padding:10px 12px; font-size:0.72rem; text-transform:uppercase; color:#6a6d70; font-weight:600;">Tipo</th>
                                 <th style="padding:10px 12px; font-size:0.72rem; text-transform:uppercase; color:#6a6d70; font-weight:600;">Estado</th>
@@ -697,7 +705,8 @@
                                 };
                                 const estadoStyle = estadoColors[m.estado_raw] || 'background:#f1f3f4; color:#5f6368;';
                                 return `
-                                <tr style="border-bottom:1px solid #eee;">
+                                <tr style="border-bottom:1px solid #eee; cursor:pointer; transition:background 0.1s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''" onclick="openMovimientoModal(${m.id})">
+                                    <td style="padding:10px 12px; font-size:0.8rem; font-weight:700; color:#0a6ed1;">#${m.id}</td>
                                     <td style="padding:10px 12px; font-size:0.85rem;">${m.fecha}</td>
                                     <td style="padding:10px 12px;">
                                         <span style="background:${m.es_salida ? '#fdeded' : '#e6f4ea'}; color:${m.es_salida ? '#d32f2f' : '#1e7e34'}; padding:3px 8px; font-size:0.72rem; font-weight:700;">${m.tipo}</span>
@@ -708,7 +717,7 @@
                                     <td style="padding:10px 12px; text-align:right; font-weight:700;">${m.cantidad}</td>
                                     <td style="padding:10px 12px; font-size:0.85rem;">${m.usuario}</td>
                                     <td style="padding:10px 12px;">
-                                        <a href="/admin/inventarios/movimientoinventario/${m.id}/change/" target="_blank" style="color:#0a6ed1; font-size:0.75rem; font-weight:600; text-decoration:none; border:1px solid #0a6ed1; padding:3px 8px;">Abrir</a>
+                                        <span style="color:#0a6ed1; font-size:0.75rem; font-weight:600; border:1px solid #0a6ed1; padding:3px 8px; cursor:pointer;">Ver</span>
                                     </td>
                                 </tr>
                             `}).join('')}
@@ -741,19 +750,23 @@
                                 <th style="padding:12px;">Solicitante</th>
                                 <th style="padding:12px; text-align:right;">Cantidad</th>
                                 <th style="padding:12px;">Fecha</th>
+                                <th style="padding:12px;"></th>
                             </tr>
                         </thead>
                         <tbody>
                             ${data.requisiciones.map(r => `
-                                <tr style="border-bottom:1px solid #eee;">
-                                    <td style="padding:12px; font-weight:700; font-size:0.85rem;">${r.requisicion_numero}</td>
+                                <tr style="border-bottom:1px solid #eee; cursor:pointer; transition:background 0.1s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background=''" onclick="window.open('/presupuestos/requisiciones/editar/${r.requisicion_pk}/', '_blank')">
+                                    <td style="padding:12px; font-weight:700; font-size:0.85rem; color:#0a6ed1;">${r.requisicion_numero}</td>
                                     <td style="padding:12px; font-size:0.85rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${r.requisicion_asunto}">${r.requisicion_asunto}</td>
                                     <td style="padding:12px;">
-                                        <span style="background:${r.estado === 'AUTORIZADO' ? '#e6f4ea' : r.estado === 'RECHAZADO' || r.estado === 'CANCELADO' ? '#fdeded' : '#fff7ed'}; color:${r.estado === 'AUTORIZADO' ? '#1e7e34' : r.estado === 'RECHAZADO' || r.estado === 'CANCELADO' ? '#d32f2f' : '#c2410c'}; padding:4px 8px; border-radius:4px; font-size:0.7rem; font-weight:700; white-space:nowrap;">${r.estado}</span>
+                                        <span style="background:${r.estado === 'AUTORIZADO' ? '#e6f4ea' : r.estado === 'RECHAZADO' || r.estado === 'CANCELADO' ? '#fdeded' : '#fff7ed'}; color:${r.estado === 'AUTORIZADO' ? '#1e7e34' : r.estado === 'RECHAZADO' || r.estado === 'CANCELADO' ? '#d32f2f' : '#c2410c'}; padding:4px 8px; font-size:0.7rem; font-weight:700; white-space:nowrap;">${r.estado}</span>
                                     </td>
                                     <td style="padding:12px; font-size:0.85rem;">${r.solicitante}</td>
                                     <td style="padding:12px; text-align:right; font-weight:800; color:var(--sap-blue);">${r.cantidad} ${data.unidad}</td>
                                     <td style="padding:12px; font-size:0.85rem; color:var(--text-muted);">${r.fecha}</td>
+                                    <td style="padding:12px;">
+                                        <span style="color:#0a6ed1; font-size:0.75rem; font-weight:600; border:1px solid #0a6ed1; padding:3px 8px;">Ver</span>
+                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -1049,6 +1062,15 @@
         }
 
         window.changePage = (p) => loadCatalog(p);
+
+        window.exportToExcel = function() {
+            const query = $('#search').val() || '';
+            const cat = $('#category').val() || '';
+            const params = new URLSearchParams();
+            if (query) params.set('q', query);
+            if (cat) params.set('category', cat);
+            window.location.href = '{% url "inventarios:api_export_materials_excel" %}?' + params.toString();
+        };
 
         let searchTimer;
         $('#search').on('input', () => {

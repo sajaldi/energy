@@ -276,6 +276,7 @@ def api_get_material_stock(request, material_id):
         'requisiciones': [
             {
                 'id': str(art.cr8ca_itemderequisicionid),
+                'requisicion_pk': str(art.requisicion.pk),
                 'requisicion_numero': art.requisicion.cr8ca_requisicion,
                 'requisicion_asunto': art.requisicion.cr8ca_asunto,
                 'estado': art.requisicion.estado_requisicion,

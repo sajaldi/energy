@@ -27,11 +27,76 @@ def api_list_materials(request):
     )
 
     if query:
-        # Priorizar búsqueda por SKU exacto (usa índice), luego nombre
-        materials = materials.filter(
-            Q(sku__icontains=query) |
-            Q(nombre__icontains=query)
-        )
+        # Búsqueda avanzada:
+        # - ? entre términos = AND (debe contener TODOS, orden no importa)
+        # - , entre términos = OR (contiene cualquiera)
+        # - // antes de un término = excluir
+        # - Insensible a acentos (unaccent)
+        # Ejemplo: "etiqueta ? térmica" busca items que contengan ambos
+        # Ejemplo: "cable, tubo" busca items que contengan cable O tubo
+        # Ejemplo: "PVC ? 40 //codo" busca PVC y 40 pero excluye "codo"
+        import re
+        import unicodedata
+
+        def strip_accents(text):
+            """Quita acentos de un string para búsqueda insensible."""
+            nfkd = unicodedata.normalize('NFKD', text)
+            return ''.join(c for c in nfkd if not unicodedata.category(c).startswith('M'))
+
+        def term_q(term):
+            """Genera Q para un término, buscando con y sin acentos."""
+            t = term.strip()
+            t_no_accent = strip_accents(t)
+            q = Q(sku__icontains=t) | Q(nombre__icontains=t) | Q(descripcion__icontains=t)
+            if t != t_no_accent:
+                q |= Q(sku__icontains=t_no_accent) | Q(nombre__icontains=t_no_accent) | Q(descripcion__icontains=t_no_accent)
+            return q
+
+        # Primero separar exclusiones (delimitadas por //)
+        parts = re.split(r'//', query)
+        main_query = parts[0].strip()
+        exclusions = [p.strip() for p in parts[1:] if p.strip()]
+
+        # Construir filtro de exclusión
+        exclude_q = Q()
+        for ex in exclusions:
+            for sub in re.split(r'[,?]', ex):
+                sub = sub.strip()
+                if sub:
+                    exclude_q |= term_q(sub)
+
+        # Procesar la query principal
+        if ',' in main_query:
+            # Coma = OR entre grupos
+            or_groups = main_query.split(',')
+            include_q = Q()
+            for group in or_groups:
+                group = group.strip()
+                if not group:
+                    continue
+                if '?' in group:
+                    # Dentro del grupo, ? = AND
+                    and_terms = [t.strip() for t in group.split('?') if t.strip()]
+                    group_q = Q()
+                    for term in and_terms:
+                        group_q &= term_q(term)
+                    include_q |= group_q
+                else:
+                    include_q |= term_q(group)
+        elif '?' in main_query:
+            # Solo ? = AND entre todos los términos
+            and_terms = [t.strip() for t in main_query.split('?') if t.strip()]
+            include_q = Q()
+            for term in and_terms:
+                include_q &= term_q(term)
+        else:
+            # Búsqueda simple
+            include_q = term_q(main_query)
+
+        if include_q:
+            materials = materials.filter(include_q)
+        if exclude_q:
+            materials = materials.exclude(exclude_q)
         
     if category_id:
         materials = materials.filter(categoria_id=category_id)
@@ -546,3 +611,137 @@ def api_search_codigos_exoneracion(request):
         })
 
     return JsonResponse({'results': data})
+
+
+@login_required
+def api_export_materials_excel(request):
+    """
+    Exporta materiales a Excel (.xlsx) con los mismos filtros que el catálogo.
+    Soporta: ?q=búsqueda&category=id
+    """
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from django.http import HttpResponse
+    from django.db.models import Sum
+
+    query = request.GET.get('q', '')
+    category_id = request.GET.get('category')
+
+    materials = Material.objects.select_related('categoria', 'unidad_medida', 'marca').all()
+
+    if query:
+        import re
+        import unicodedata
+
+        def strip_accents(text):
+            nfkd = unicodedata.normalize('NFKD', text)
+            return ''.join(c for c in nfkd if not unicodedata.category(c).startswith('M'))
+
+        def term_q(term):
+            t = term.strip()
+            t_no_accent = strip_accents(t)
+            q = Q(sku__icontains=t) | Q(nombre__icontains=t) | Q(descripcion__icontains=t)
+            if t != t_no_accent:
+                q |= Q(sku__icontains=t_no_accent) | Q(nombre__icontains=t_no_accent) | Q(descripcion__icontains=t_no_accent)
+            return q
+
+        # Misma lógica de búsqueda avanzada que api_list_materials
+        parts = re.split(r'//', query)
+        main_query = parts[0].strip()
+        exclusions = [p.strip() for p in parts[1:] if p.strip()]
+
+        exclude_q = Q()
+        for ex in exclusions:
+            for sub in re.split(r'[,?]', ex):
+                sub = sub.strip()
+                if sub:
+                    exclude_q |= term_q(sub)
+
+        if ',' in main_query:
+            or_groups = main_query.split(',')
+            include_q = Q()
+            for group in or_groups:
+                group = group.strip()
+                if not group:
+                    continue
+                if '?' in group:
+                    and_terms = [t.strip() for t in group.split('?') if t.strip()]
+                    group_q = Q()
+                    for term in and_terms:
+                        group_q &= term_q(term)
+                    include_q |= group_q
+                else:
+                    include_q |= term_q(group)
+        elif '?' in main_query:
+            and_terms = [t.strip() for t in main_query.split('?') if t.strip()]
+            include_q = Q()
+            for term in and_terms:
+                include_q &= term_q(term)
+        else:
+            include_q = term_q(main_query)
+
+        if include_q:
+            materials = materials.filter(include_q)
+        if exclude_q:
+            materials = materials.exclude(exclude_q)
+
+    if category_id:
+        materials = materials.filter(categoria_id=category_id)
+
+    materials = materials.order_by('nombre')
+
+    # Crear workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Materiales"
+
+    # Estilos
+    header_font = Font(name='Arial', bold=True, size=11, color='FFFFFF')
+    header_fill = PatternFill(start_color='0070F2', end_color='0070F2', fill_type='solid')
+    header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # Headers
+    headers = ['SKU', 'Nombre', 'Categoría', 'Tipo', 'Unidad', 'Marca', 'Precio Estimado', 'Stock Mínimo', 'Descripción']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+
+    # Data rows
+    for row_idx, mat in enumerate(materials[:10000], 2):  # Limitar a 10k para evitar timeout
+        ws.cell(row=row_idx, column=1, value=mat.sku or '')
+        ws.cell(row=row_idx, column=2, value=mat.nombre or '')
+        ws.cell(row=row_idx, column=3, value=mat.categoria.nombre if mat.categoria else '')
+        ws.cell(row=row_idx, column=4, value=mat.get_tipo_material_display() if mat.tipo_material else '')
+        ws.cell(row=row_idx, column=5, value=mat.unidad_medida.abreviatura if mat.unidad_medida else '')
+        ws.cell(row=row_idx, column=6, value=mat.marca.nombre if mat.marca else '')
+        ws.cell(row=row_idx, column=7, value=float(mat.precio_estimado) if mat.precio_estimado else 0)
+        ws.cell(row=row_idx, column=8, value=float(mat.stock_minimo) if mat.stock_minimo else 0)
+        ws.cell(row=row_idx, column=9, value=(mat.descripcion or '')[:200])
+
+        for col in range(1, 10):
+            ws.cell(row=row_idx, column=col).border = thin_border
+
+    # Auto-adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = min(max_length + 2, 50)
+
+    # Response
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f'materiales_catalogo.xlsx'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response

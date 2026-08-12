@@ -1,0 +1,146 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    @font-face {
+        font-family: 'Artifakt Element';
+        src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Element%20Medium.woff2') format('woff2');
+        font-weight: 400; font-style: normal; font-display: swap;
+    }
+    .vacias-container {
+        max-width: 700px;
+        margin: 40px auto;
+        font-family: 'Artifakt Element', 'Segoe UI', sans-serif;
+    }
+    .vacias-header {
+        background: #fffbeb;
+        border: 1px solid #f59e0b;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+    }
+    .vacias-header h2 {
+        margin: 0 0 8px;
+        font-size: 1.2rem;
+        color: #92400e;
+        font-weight: 600;
+    }
+    .vacias-header p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #78350f;
+        line-height: 1.5;
+    }
+    .vacias-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 24px;
+    }
+    .vacias-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 18px;
+        border: 1px solid #d9d9d9;
+        margin-bottom: 8px;
+        background: #fff;
+    }
+    .vacias-list li:hover {
+        border-color: #0070f2;
+        background: #f0f7ff;
+    }
+    .vacias-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .vacias-code {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #32363a;
+    }
+    .vacias-date {
+        font-size: 0.8rem;
+        color: #6a6d70;
+    }
+    .btn-continuar {
+        padding: 8px 18px;
+        background: #0070f2;
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        border: none;
+    }
+    .btn-continuar:hover {
+        background: #0058c4;
+    }
+    .btn-nueva {
+        display: inline-block;
+        padding: 12px 28px;
+        background: #107e3e;
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: none;
+    }
+    .btn-nueva:hover {
+        background: #0a5c2d;
+    }
+    .btn-volver {
+        display: inline-block;
+        padding: 12px 28px;
+        background: #fff;
+        color: #32363a;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: 1px solid #d9d9d9;
+        margin-left: 10px;
+    }
+    .btn-volver:hover {
+        background: #f5f5f5;
+    }
+    .actions-bar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'presupuestos:requisicion_dashboard' %}">Requisiciones</a>
+    &rsaquo; Nueva Requisición
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="vacias-container">
+    <div class="vacias-header">
+        <h2>⚠️ Tienes requisiciones sin completar</h2>
+        <p>Las siguientes requisiciones fueron creadas pero quedaron sin asunto. Puedes continuar editando una existente o crear una nueva.</p>
+    </div>
+
+    <ul class="vacias-list">
+        {% for req in requisiciones_vacias %}
+        <li>
+            <div class="vacias-info">
+                <span class="vacias-code">{{ req.cr8ca_requisicion|default:"Sin código" }}</span>
+                <span class="vacias-date">Creada: {{ req.createdon|date:"d/m/Y H:i" }}</span>
+            </div>
+            <a href="{% url 'presupuestos:requisicion_editar' req.pk %}" class="btn-continuar">Continuar →</a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div class="actions-bar">
+        <a href="{{ url_nueva }}" class="btn-nueva">+ Crear nueva de todos modos</a>
+        <a href="{% url 'presupuestos:requisicion_dashboard' %}" class="btn-volver">← Volver al Dashboard</a>
+    </div>
+</div>
+{% endblock %}

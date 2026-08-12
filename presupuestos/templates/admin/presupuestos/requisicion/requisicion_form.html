@@ -23,6 +23,14 @@
     <div style="margin-bottom: 30px; text-align: center;">
         <h1 style="margin: 0; font-weight: 800; color: var(--text-main); font-size: 1.75rem;">{{ title }}</h1>
         <p style="color: var(--text-muted); margin-top: 8px;">Completa los pasos para procesar tu Requisición</p>
+        {% if instance.pk %}
+        <div style="margin-top: 12px;">
+            <a href="{% url 'presupuestos:requisicion_editar' instance.pk %}" target="_blank"
+               class="btn-custom" style="background: #0070f2; color: white; border: none; padding: 10px 20px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+                <span style="font-size: 1rem;">👁️</span> Visualizar Requisición
+            </a>
+        </div>
+        {% endif %}
     </div>
 
     {% if messages %}
@@ -275,13 +283,36 @@
                         data-provider="{{ a_form.proveedor.value|default:'' }}" data-index="{{ forloop.counter0 }}">
                         {{ a_form.cr8ca_itemderequisicionid }}
                         <div style="display:none">{{ a_form.proveedor }}</div>
-                        <div>
+                        <div style="display:flex; align-items:center; gap:4px;">
                             {{ a_form.material }}
                             <input type="text" class="form-control sku-display" value="{% if a_form.instance.material %}{{ a_form.instance.material.sku }}{% endif %}" readonly
-                                style="cursor:pointer; color:var(--primary); font-weight:600;"
+                                style="cursor:pointer; color:var(--primary); font-weight:600; flex:1;"
                                 onclick="abrirHistorialDesdeRow({{ forloop.counter0 }})" title="Clic para ver historial">
+                            {% if a_form.instance.material %}
+                            <button type="button" class="btn-custom btn-danger-custom" 
+                                onclick="desvincularMaterial({{ forloop.counter0 }})"
+                                style="padding:4px 6px; font-size:0.7rem; flex-shrink:0;" title="Desvincular material">✕</button>
+                            {% endif %}
                         </div>
-                        <div>{{ a_form.cr8ca_articulo }}</div>
+                        <div>
+                            {{ a_form.cr8ca_articulo }}
+                            {% if a_form.instance.material %}
+                            <script>
+                                (function(){
+                                    var row = document.getElementById('article-{{ forloop.counter0 }}');
+                                    if (row) {
+                                        var desc = row.querySelector('[name$="-cr8ca_articulo"]');
+                                        if (desc) {
+                                            desc.value = "{{ a_form.instance.material.nombre|escapejs }}";
+                                            desc.readOnly = true;
+                                            desc.style.background = '#f1f5f9';
+                                            desc.style.color = '#475569';
+                                        }
+                                    }
+                                })();
+                            </script>
+                            {% endif %}
+                        </div>
                         <div>{{ a_form.cr8ca_cantidad }}</div>
                         <div>{{ a_form.cr8ca_costoaproximado }}</div>
                         <div style="text-align: right;"><span class="row-total">0.00</span></div>
@@ -916,6 +947,33 @@
 
 <script>
 let editArticleIndex = null;
+
+function desvincularMaterial(index) {
+    if (!confirm('¿Desvincular el material de este artículo? El artículo se mantendrá pero sin material asociado.')) return;
+    const row = document.getElementById('article-' + index);
+    if (!row) return;
+    const materialSelect = row.querySelector('[name$="-material"]');
+    const skuInput = row.querySelector('.sku-display');
+    const descInput = row.querySelector('[name$="-cr8ca_articulo"]');
+    if (materialSelect) {
+        materialSelect.value = '';
+    }
+    if (skuInput) {
+        skuInput.value = '(Sin material)';
+        skuInput.style.color = '#999';
+    }
+    // Unlock description field for manual editing
+    if (descInput) {
+        descInput.readOnly = false;
+        descInput.style.background = '';
+        descInput.style.color = '';
+        descInput.value = '';
+        descInput.placeholder = 'Escriba descripción manualmente...';
+    }
+    // Remove the unlink button
+    const unlinkBtn = row.querySelector('.btn-danger-custom[onclick^="desvincularMaterial"]');
+    if (unlinkBtn) unlinkBtn.remove();
+}
 
 function abrirHistorialDesdeRow(index) {
     const row = document.getElementById('article-' + index);

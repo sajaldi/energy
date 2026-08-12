@@ -8,6 +8,7 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
+from django.db import models
 from celery.result import AsyncResult
 from .tasks import import_requisiciones_task, import_codigos_exoneracion_task
 from django.views.decorators.csrf import csrf_exempt
@@ -170,10 +171,32 @@ def requisicion_upsert(request, pk=None):
 
     instance = get_object_or_404(Requisicion, pk=pk) if pk else None
 
-    # Si es nueva, la creamos y redirigimos a la vista de edición para evitar duplicados en POST y conflictos de unicidad
+    # Si es nueva, verificar si el usuario tiene requisiciones con asunto vacío
     if not instance:
+        # Buscar requisiciones del usuario con asunto vacío o nulo
+        vacias = Requisicion.objects.filter(
+            usuario_solicitante=request.user,
+            estado_requisicion='BORRADOR'
+        ).filter(
+            models.Q(cr8ca_asunto__isnull=True) | models.Q(cr8ca_asunto='')
+        ).order_by('-createdon')
+
+        # Si el usuario forzó crear nueva (parámetro ?force_new=1), crear directamente
+        if request.GET.get('force_new') == '1':
+            instance = Requisicion(usuario_solicitante=request.user)
+            instance.save()
+            return redirect(reverse('presupuestos:requisicion_editar', kwargs={'pk': instance.pk}))
+
+        # Si hay requisiciones vacías, mostrar listado para elegir
+        if vacias.exists():
+            return render(request, 'admin/presupuestos/requisicion/requisiciones_vacias.html', {
+                'requisiciones_vacias': vacias,
+                'url_nueva': reverse('presupuestos:requisicion_nuevo') + '?force_new=1',
+            })
+
+        # Si no hay vacías, crear nueva normalmente
         instance = Requisicion(usuario_solicitante=request.user)
-        instance.save()  # Guardar para obtener PK
+        instance.save()
         return redirect(reverse('presupuestos:requisicion_editar', kwargs={'pk': instance.pk}))
     
     # Si no tiene solicitante, asignar el usuario actual

@@ -395,6 +395,12 @@ class RequisicionAdmin(ImportExportModelAdmin):
             'all': ('presupuestos/css/requisicion_admin.css',)
         }
 
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        """Redirige al formulario Fiori en vez del change form del admin."""
+        from django.shortcuts import redirect
+        from django.urls import reverse
+        return redirect(reverse('presupuestos:requisicion_editar', kwargs={'pk': object_id}))
+
     fieldsets = (
         ('Identificación', {
             'fields': ('cr8ca_requisicionid', 'cr8ca_requisicion', 'cr8ca_asunto', 'versionnumber', 'import_background_btn')
