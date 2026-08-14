@@ -87,6 +87,7 @@
         font-weight: 600; color: var(--fiori-text-muted); font-size: 0.72rem;
         text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--fiori-border);
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        position: relative;
     }
     .fiori-table th.sortable { cursor: pointer; user-select: none; }
     .fiori-table th.sortable:hover { color: var(--fiori-blue); }
@@ -96,6 +97,15 @@
     }
     .fiori-table tr:hover td { background: #fafbfc; }
     .fiori-table tr:last-child td { border-bottom: none; }
+
+    /* Column resize handle */
+    .col-resize-handle {
+        position: absolute; right: 0; top: 0; bottom: 0; width: 5px;
+        cursor: col-resize; user-select: none; z-index: 5;
+    }
+    .col-resize-handle:hover, .col-resize-handle.active {
+        background: var(--fiori-blue); opacity: 0.4;
+    }
 
     .fiori-link { color: var(--fiori-blue); text-decoration: none; font-weight: 600; }
     .fiori-link:hover { text-decoration: underline; }
@@ -652,6 +662,107 @@ function showToast(msg, type) {
     document.body.appendChild(toast);
     setTimeout(function() { toast.remove(); }, 3500);
 }
+
+// ==================== COLUMN RESIZE (DRAG) ====================
+(function() {
+    var table = document.getElementById('ordenes-table');
+    var thead = table.querySelector('thead');
+    var ths = thead.querySelectorAll('th');
+    var resizing = null;
+
+    // Add resize handles to all visible th (except checkbox col)
+    function addResizeHandles() {
+        // Remove existing handles
+        thead.querySelectorAll('.col-resize-handle').forEach(function(h) { h.remove(); });
+        ths.forEach(function(th) {
+            if (th.classList.contains('cb-col')) return;
+            if (th.style.display === 'none') return;
+            var handle = document.createElement('div');
+            handle.className = 'col-resize-handle';
+            th.appendChild(handle);
+        });
+    }
+
+    addResizeHandles();
+
+    // Listen for mousedown on handles
+    thead.addEventListener('mousedown', function(e) {
+        if (!e.target.classList.contains('col-resize-handle')) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        var th = e.target.parentElement;
+        var startX = e.pageX;
+        var startW = th.offsetWidth;
+
+        e.target.classList.add('active');
+        resizing = { th: th, startX: startX, startW: startW, handle: e.target };
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!resizing) return;
+        var diff = e.pageX - resizing.startX;
+        var newW = Math.max(40, resizing.startW + diff);
+        resizing.th.style.width = newW + 'px';
+
+        // Also set matching td widths via colIndex
+        var colIdx = Array.prototype.indexOf.call(ths, resizing.th);
+        table.querySelectorAll('tbody tr').forEach(function(tr) {
+            var td = tr.children[colIdx];
+            if (td) td.style.width = newW + 'px';
+        });
+    });
+
+    document.addEventListener('mouseup', function() {
+        if (!resizing) return;
+        resizing.handle.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        resizing = null;
+        // Save widths to sessionStorage
+        saveColumnWidths();
+    });
+
+    // Save/restore column widths from sessionStorage
+    function saveColumnWidths() {
+        var widths = {};
+        ths.forEach(function(th) {
+            var col = th.getAttribute('data-col');
+            if (col && th.style.width) widths[col] = th.style.width;
+        });
+        sessionStorage.setItem('ot_col_widths', JSON.stringify(widths));
+    }
+
+    function restoreColumnWidths() {
+        var saved = sessionStorage.getItem('ot_col_widths');
+        if (!saved) return;
+        try {
+            var widths = JSON.parse(saved);
+            Object.keys(widths).forEach(function(col) {
+                var thEl = thead.querySelector('th[data-col="' + col + '"]');
+                if (thEl && thEl.style.display !== 'none') {
+                    thEl.style.width = widths[col];
+                    var colIdx = Array.prototype.indexOf.call(ths, thEl);
+                    table.querySelectorAll('tbody tr').forEach(function(tr) {
+                        var td = tr.children[colIdx];
+                        if (td) td.style.width = widths[col];
+                    });
+                }
+            });
+        } catch(e) {}
+    }
+
+    restoreColumnWidths();
+
+    // Re-add handles when columns visibility changes
+    var _origApply = applyColumns;
+    applyColumns = function() {
+        _origApply();
+        setTimeout(addResizeHandles, 50);
+    };
+})();
 </script>
 </body>
 </html>
