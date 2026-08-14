@@ -125,11 +125,13 @@ def mantenimiento_dashboard(request):
 def ordenes_lista_view(request):
     """Vista de listado de órdenes de trabajo con búsqueda avanzada y selección de columnas."""
     from django.db.models import Max
+    from .models import Rutina
 
     q = request.GET.get('q', '')
     estado = request.GET.get('estado', '')
     tipo = request.GET.get('tipo', '')
     prioridad = request.GET.get('prioridad', '')
+    rutina_id = request.GET.get('rutina', '')
 
     ordenes = OrdenTrabajo.objects.select_related(
         'rutina', 'ubicacion', 'tecnico_puesto', 'empresa_responsable'
@@ -149,6 +151,8 @@ def ordenes_lista_view(request):
         ordenes = ordenes.filter(tipo=tipo)
     if prioridad:
         ordenes = ordenes.filter(prioridad=prioridad)
+    if rutina_id:
+        ordenes = ordenes.filter(rutina_id=rutina_id)
 
     # Filtro de rango de fechas
     fecha_desde = request.GET.get('fecha_desde', '')
@@ -158,6 +162,9 @@ def ordenes_lista_view(request):
     if fecha_hasta:
         ordenes = ordenes.filter(inicio_programado__date__lte=fecha_hasta)
 
+    # Rutinas para el selector
+    rutinas = Rutina.objects.order_by('nombre').values_list('id', 'nombre')
+
     context = {
         'ordenes': ordenes[:100],
         'total': ordenes.count(),
@@ -165,6 +172,8 @@ def ordenes_lista_view(request):
         'estado_filter': estado,
         'tipo_filter': tipo,
         'prioridad_filter': prioridad,
+        'rutina_filter': rutina_id,
+        'rutinas': rutinas,
         'fecha_desde': fecha_desde,
         'fecha_hasta': fecha_hasta,
     }

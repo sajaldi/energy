@@ -81,16 +81,18 @@
     .fiori-table-title { font-size: 0.85rem; font-weight: 600; color: var(--fiori-text); }
     .fiori-table-count { font-size: 0.75rem; color: var(--fiori-text-muted); font-weight: 400; }
 
-    .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: fixed; }
     .fiori-table th {
-        text-align: left; padding: 10px 16px; background: #fafafa;
+        text-align: left; padding: 10px 12px; background: #fafafa;
         font-weight: 600; color: var(--fiori-text-muted); font-size: 0.72rem;
         text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--fiori-border);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .fiori-table th.sortable { cursor: pointer; user-select: none; }
     .fiori-table th.sortable:hover { color: var(--fiori-blue); }
     .fiori-table td {
-        padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: var(--fiori-text); vertical-align: middle;
+        padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: var(--fiori-text); vertical-align: middle;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .fiori-table tr:hover td { background: #fafbfc; }
     .fiori-table tr:last-child td { border-bottom: none; }
@@ -122,6 +124,34 @@
     }
     .col-selector-panel label:hover { background: #f8fafc; }
     .col-selector-panel input[type="checkbox"] { accent-color: var(--fiori-blue); }
+
+    /* Rutina Selector */
+    .rutina-selector {
+        display: flex; align-items: center; gap: 10px; padding: 0.6rem 1rem;
+        margin-bottom: 0.75rem; background: var(--fiori-card); border: 1px solid var(--fiori-border);
+    }
+    .rutina-selector label { font-size: 0.8rem; font-weight: 600; color: var(--fiori-text-muted); white-space: nowrap; }
+    .rutina-search-wrapper { position: relative; flex: 1; max-width: 400px; }
+    .rutina-search-wrapper input {
+        width: 100%; padding: 7px 12px; font-size: 0.83rem; border: 1px solid var(--fiori-border);
+        background: var(--fiori-bg); font-family: inherit;
+    }
+    .rutina-search-wrapper input:focus { outline: none; border-color: var(--fiori-blue); }
+    .rutina-dropdown {
+        display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;
+        background: white; border: 1px solid var(--fiori-border); max-height: 250px;
+        overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .rutina-dropdown .rutina-option {
+        padding: 8px 12px; font-size: 0.82rem; cursor: pointer; border-bottom: 1px solid #f5f5f5;
+    }
+    .rutina-dropdown .rutina-option:hover { background: #e8f0fe; }
+    .rutina-dropdown .rutina-option.active { background: #e8f0fe; font-weight: 600; }
+    .rutina-clear {
+        padding: 5px 10px; font-size: 0.75rem; font-weight: 600; border: 1px solid var(--fiori-border);
+        background: white; color: var(--fiori-text); cursor: pointer;
+    }
+    .rutina-clear:hover { border-color: var(--fiori-error); color: var(--fiori-error); }
 
     .fiori-empty { text-align: center; padding: 3rem; color: var(--fiori-text-muted); }
 
@@ -194,10 +224,24 @@
         <a href="/mantenimiento/" class="fiori-btn">← Dashboard</a>
     </div>
 
+    <!-- Rutina Selector -->
+    <div class="rutina-selector">
+        <label>📋 Rutina:</label>
+        <div class="rutina-search-wrapper">
+            <input type="text" id="rutina-search" placeholder="🔍 Buscar rutina por nombre..." autocomplete="off"
+                   value="{% for r in rutinas %}{% if r.0|stringformat:'s' == rutina_filter %}{{ r.1 }}{% endif %}{% endfor %}">
+            <div class="rutina-dropdown" id="rutina-dropdown"></div>
+        </div>
+        {% if rutina_filter %}
+        <button type="button" class="rutina-clear" onclick="clearRutina()">✕ Quitar filtro</button>
+        {% endif %}
+    </div>
+
     <!-- Toolbar -->
     <div class="fiori-toolbar">
         <form method="get" id="filter-form" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; flex:1;">
             {% csrf_token %}
+            <input type="hidden" name="rutina" id="rutina-hidden" value="{{ rutina_filter }}">
             <input type="text" name="q" class="fiori-search" placeholder="🔍 Código, descripción, rutina, ubicación..." value="{{ q }}">
             <select name="estado" class="fiori-filter-select" onchange="this.form.submit()">
                 <option value="">— Estado —</option>
@@ -224,7 +268,7 @@
             <input type="date" name="fecha_desde" class="fiori-date-input" value="{{ fecha_desde }}" onchange="this.form.submit()">
             <span style="font-size:0.72rem; color:var(--fiori-text-muted);">Hasta:</span>
             <input type="date" name="fecha_hasta" class="fiori-date-input" value="{{ fecha_hasta }}" onchange="this.form.submit()">
-            {% if q or estado_filter or tipo_filter or prioridad_filter or fecha_desde or fecha_hasta %}
+            {% if q or estado_filter or tipo_filter or prioridad_filter or fecha_desde or fecha_hasta or rutina_filter %}
             <a href="/mantenimiento/ordenes/" class="fiori-btn" style="font-size:0.75rem;">✕ Limpiar</a>
             {% endif %}
         </form>
@@ -304,6 +348,94 @@
 </div>
 
 <script>
+// ==================== RUTINAS DATA ====================
+var RUTINAS = [
+    {% for r in rutinas %}
+    {id: '{{ r.0 }}', nombre: '{{ r.1|escapejs }}'},
+    {% endfor %}
+];
+
+// ==================== RUTINA SELECTOR ====================
+(function() {
+    var input = document.getElementById('rutina-search');
+    var dropdown = document.getElementById('rutina-dropdown');
+    var hidden = document.getElementById('rutina-hidden');
+    var debounceTimer;
+
+    function renderOptions(filter) {
+        var html = '';
+        var lowerFilter = (filter || '').toLowerCase();
+        var filtered = RUTINAS.filter(function(r) {
+            return !lowerFilter || r.nombre.toLowerCase().indexOf(lowerFilter) !== -1;
+        });
+        if (filtered.length === 0) {
+            html = '<div class="rutina-option" style="color:#94a3b8;cursor:default;">Sin resultados</div>';
+        } else {
+            filtered.slice(0, 30).forEach(function(r) {
+                var cls = (r.id === hidden.value) ? 'rutina-option active' : 'rutina-option';
+                html += '<div class="' + cls + '" data-id="' + r.id + '">' + r.nombre + '</div>';
+            });
+        }
+        dropdown.innerHTML = html;
+        dropdown.style.display = 'block';
+
+        dropdown.querySelectorAll('.rutina-option[data-id]').forEach(function(opt) {
+            opt.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                hidden.value = opt.getAttribute('data-id');
+                input.value = opt.textContent;
+                dropdown.style.display = 'none';
+                document.getElementById('filter-form').submit();
+            });
+        });
+    }
+
+    input.addEventListener('focus', function() { renderOptions(input.value); });
+    input.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() { renderOptions(input.value); }, 150);
+    });
+    input.addEventListener('blur', function() {
+        setTimeout(function() { dropdown.style.display = 'none'; }, 200);
+    });
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') dropdown.style.display = 'none';
+    });
+})();
+
+function clearRutina() {
+    document.getElementById('rutina-hidden').value = '';
+    document.getElementById('rutina-search').value = '';
+    document.getElementById('filter-form').submit();
+}
+
+// ==================== COLUMN WIDTHS ====================
+// Proportional column widths based on average content length
+var COL_WEIGHTS = {
+    codigo: 10, tipo: 7, prioridad: 6, estado: 14,
+    descripcion: 18, rutina: 18, ubicacion: 12,
+    tecnico: 10, empresa: 10, inicio: 8, fin: 8, creado: 8
+};
+
+function applyColumnWidths() {
+    var visibleCols = COLUMNS.filter(function(c) { return c.visible; });
+    var totalWeight = visibleCols.reduce(function(sum, c) { return sum + (COL_WEIGHTS[c.id] || 8); }, 0);
+    // Add checkbox col weight
+    var cbWeight = 3;
+    totalWeight += cbWeight;
+
+    var table = document.getElementById('ordenes-table');
+    // Set checkbox column
+    var cbThs = table.querySelectorAll('th.cb-col');
+    cbThs.forEach(function(th) { th.style.width = (cbWeight / totalWeight * 100).toFixed(1) + '%'; });
+
+    visibleCols.forEach(function(col) {
+        var w = ((COL_WEIGHTS[col.id] || 8) / totalWeight * 100).toFixed(1) + '%';
+        var cells = table.querySelectorAll('th[data-col="' + col.id + '"], td[data-col="' + col.id + '"]');
+        cells.forEach(function(cell) { cell.style.width = w; });
+    });
+}
+
 // Column selector
 var COLUMNS = [
     {id:'codigo', label:'Código', visible:true},
@@ -351,7 +483,11 @@ function applyColumns() {
         var cells = document.querySelectorAll('[data-col="' + col.id + '"]');
         cells.forEach(function(cell) { cell.style.display = col.visible ? '' : 'none'; });
     });
+    applyColumnWidths();
 }
+
+// Apply initial widths on load
+applyColumnWidths();
 
 // Date sort
 var sortDir = 'desc';
