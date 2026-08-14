@@ -81,19 +81,18 @@
     .fiori-table-title { font-size: 0.85rem; font-weight: 600; color: var(--fiori-text); }
     .fiori-table-count { font-size: 0.75rem; color: var(--fiori-text-muted); font-weight: 400; }
 
-    .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: fixed; }
+    .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     .fiori-table th {
         text-align: left; padding: 10px 12px; background: #fafafa;
         font-weight: 600; color: var(--fiori-text-muted); font-size: 0.72rem;
         text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--fiori-border);
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        position: relative;
+        white-space: nowrap; position: relative;
     }
     .fiori-table th.sortable { cursor: pointer; user-select: none; }
     .fiori-table th.sortable:hover { color: var(--fiori-blue); }
     .fiori-table td {
         padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: var(--fiori-text); vertical-align: middle;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        white-space: nowrap;
     }
     .fiori-table tr:hover td { background: #fafbfc; }
     .fiori-table tr:last-child td { border-bottom: none; }
@@ -420,32 +419,6 @@ function clearRutina() {
 }
 
 // ==================== COLUMN WIDTHS ====================
-// Proportional column widths based on average content length
-var COL_WEIGHTS = {
-    codigo: 10, tipo: 7, prioridad: 6, estado: 14,
-    descripcion: 18, rutina: 18, ubicacion: 12,
-    tecnico: 10, empresa: 10, inicio: 8, fin: 8, creado: 8
-};
-
-function applyColumnWidths() {
-    var visibleCols = COLUMNS.filter(function(c) { return c.visible; });
-    var totalWeight = visibleCols.reduce(function(sum, c) { return sum + (COL_WEIGHTS[c.id] || 8); }, 0);
-    // Add checkbox col weight
-    var cbWeight = 3;
-    totalWeight += cbWeight;
-
-    var table = document.getElementById('ordenes-table');
-    // Set checkbox column
-    var cbThs = table.querySelectorAll('th.cb-col');
-    cbThs.forEach(function(th) { th.style.width = (cbWeight / totalWeight * 100).toFixed(1) + '%'; });
-
-    visibleCols.forEach(function(col) {
-        var w = ((COL_WEIGHTS[col.id] || 8) / totalWeight * 100).toFixed(1) + '%';
-        var cells = table.querySelectorAll('th[data-col="' + col.id + '"], td[data-col="' + col.id + '"]');
-        cells.forEach(function(cell) { cell.style.width = w; });
-    });
-}
-
 // Column selector
 var COLUMNS = [
     {id:'codigo', label:'Código', visible:true},
@@ -493,11 +466,7 @@ function applyColumns() {
         var cells = document.querySelectorAll('[data-col="' + col.id + '"]');
         cells.forEach(function(cell) { cell.style.display = col.visible ? '' : 'none'; });
     });
-    applyColumnWidths();
 }
-
-// Apply initial widths on load
-applyColumnWidths();
 
 // Date sort
 var sortDir = 'desc';
