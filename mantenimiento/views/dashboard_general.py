@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
-from ..models import OrdenTrabajo, Aviso, TecnicoPuesto, Empresa
+from ..models import OrdenTrabajo, Aviso, TecnicoPuesto, Empresa, Rutina
 from seguridad.models import TipoPermiso
 from callcenter.models import SolicitudTicket, FallaTicket
 from core.models import Departamento
@@ -125,7 +125,6 @@ def mantenimiento_dashboard(request):
 def ordenes_lista_view(request):
     """Vista de listado de órdenes de trabajo con búsqueda avanzada y selección de columnas."""
     from django.db.models import Max
-    from .models import Rutina
 
     q = request.GET.get('q', '')
     estado = request.GET.get('estado', '')
