@@ -17,6 +17,8 @@ urlpatterns = [
     path('materiales/asignar/', views.asignar_materiales, name='asignar_materiales'),
     path('materiales/pendientes/', views.materiales_pendientes, name='materiales_pendientes'),
     path('materiales/crear-desde-solicitud-ajax/', views.crear_material_desde_solicitud_ajax, name='crear_material_desde_solicitud_ajax'),
+    path('materiales/verificar-duplicados-ajax/', views.verificar_materiales_duplicados_ajax, name='verificar_materiales_duplicados_ajax'),
+    path('materiales/vincular-existente-ajax/', views.vincular_material_existente_ajax, name='vincular_material_existente_ajax'),
 
     # Almacenes e Inventario
     path('almacenes/', views.lista_almacenes, name='lista_almacenes'),

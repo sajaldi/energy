@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flujo de Requisiciones → Orden de Compra</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --primary: #2563eb;
+    --green: #16a34a;
+    --amber: #ca8a04;
+    --red: #e11d48;
+    --border: #e5e7eb;
+    --shadow: 0 4px 20px rgba(0,0,0,.08);
+    --radius: 14px;
+  }
+  [data-theme="dark"] {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #334155;
+    --shadow: 0 4px 20px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    transition: background .3s, color .3s;
+  }
+  header {
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    color: #fff;
+    padding: 28px 24px 22px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: var(--shadow);
+  }
+  header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+  header p { margin: 6px 0 0; opacity: .85; font-size: 14px; }
+  .header-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .controls { display: flex; gap: 10px; align-items: center; }
+  .btn {
+    border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+    font-size: 13px; font-weight: 600; transition: transform .1s, opacity .2s;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-ghost { background: rgba(255,255,255,.15); color: #fff; }
+  .btn-ghost:hover { background: rgba(255,255,255,.25); }
+  .container { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .tab {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 10px; padding: 9px 16px; cursor: pointer; font-size: 14px; font-weight: 600;
+    transition: all .2s;
+  }
+  .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .panel { display: none; animation: fadeIn .4s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; box-shadow: var(--shadow); margin-bottom: 20px;
+  }
+  .card h2 { margin-top: 0; font-size: 18px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .mermaid-wrap {
+    background: #fff; border-radius: 12px; padding: 16px;
+    overflow: auto; border: 1px solid var(--border);
+  }
+  [data-theme="dark"] .mermaid-wrap { background: #0b1220; }
+  .mermaid-wrap svg { max-width: none; }
+  .mermaid { display: flex; justify-content: center; }
+  .zoom-controls { display: flex; gap: 8px; margin-top: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .steps { counter-reset: step; }
+  .step { display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start; }
+  .step-num {
+    counter-increment: step; min-width: 30px; height: 30px; border-radius: 50%;
+    background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; flex-shrink: 0;
+  }
+  .step-num::before { content: counter(step); }
+  .step-body { padding-top: 4px; }
+  .step-body b { display: block; margin-bottom: 2px; }
+  .step-body p { margin: 0; font-size: 14px; color: var(--muted); }
+  code {
+    background: rgba(37,99,235,.1); color: var(--primary); padding: 2px 6px;
+    border-radius: 5px; font-size: 12.5px; font-family: "JetBrains Mono", Consolas, monospace;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .4px; }
+  .state-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; font-weight: 600; }
+  .state-chip {
+    padding: 7px 13px; border-radius: 999px; color: #fff; font-size: 12.5px;
+    cursor: pointer; transition: transform .15s, box-shadow .15s;
+  }
+  .state-chip:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+  .arrow { color: var(--muted); font-weight: 700; }
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
+    align-items: center; justify-content: center; z-index: 100; padding: 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card); color: var(--text); border-radius: var(--radius);
+    max-width: 520px; width: 100%; max-height: 85vh; overflow: auto; padding: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.4); animation: fadeIn .25s ease;
+  }
+  .modal h3 { margin-top: 0; font-size: 18px; }
+  .modal .tag { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+  .modal ul { padding-left: 18px; font-size: 14px; line-height: 1.7; }
+  .modal .close { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); }
+  .hint { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 8px; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px; }
+</style>
+</head>
+<body data-theme="light">
+
+<header>
+  <div class="header-row">
+    <div>
+      <h1>📋 Flujo de Requisiciones → Materiales → Orden de Compra</h1>
+      <p>Diagrama interactivo del flujo real del sistema (apps presupuestos · inventarios · almacen)</p>
+    </div>
+    <div class="controls">
+      <button class="btn btn-ghost" onclick="toggleTheme()">🌙 Tema</button>
+      <button class="btn btn-ghost" onclick="resetZoom()">🔍 Restablecer zoom</button>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" data-tab="main">🔄 Flujo principal</button>
+    <button class="tab" data-tab="materials">📦 Materiales</button>
+    <button class="tab" data-tab="states">🗺️ Estados</button>
+    <button class="tab" data-tab="steps">📝 Paso a paso</button>
+    <button class="tab" data-tab="refs">📎 Referencias</button>
+  </div>
+
+  <!-- PANEL 1: FLUJO PRINCIPAL -->
+  <div class="panel active" id="panel-main">
+    <div class="card">
+      <h2>Flujo completo</h2>
+      <div class="legend">
+        <span><span class="dot" style="background:#2563eb"></span> Solicitante</span>
+        <span><span class="dot" style="background:#9333ea"></span> Power Automate</span>
+        <span><span class="dot" style="background:#16a34a"></span> Grupo Procura + Procura_Tecnica</span>
+        <span><span class="dot" style="background:#ca8a04"></span> Grupo Almacenes</span>
+        <span><span class="dot" style="background:#a855f7"></span> Solicitud de Información</span>
+        <span><span class="dot" style="background:#e11d48"></span> Orden de Compra</span>
+      </div>
+      <p class="hint">💡 Haz clic en cualquier nodo del diagrama para ver los detalles.</p>
+      <div class="mermaid-wrap" id="wrap-main">
+        <pre class="mermaid" id="mm-main">
+flowchart TD
+    subgraph SOLICITANTE["👤 SOLICITANTE"]
+        A1["🧾 Crear requisición<br/>Wizard 4 pasos<br/><small>datos · artículos · documentos · revisión</small><br/><i>BORRADOR</i>"]
+        A2["📤 Enviar a aprobación<br/><small>webhook N8N + Power Automate</small><br/><i>PENDIENTE</i>"]
+        A3["✏️ Desbloquear y editar<br/><small>solo si RECHAZADO</small>"]
+    end
+    subgraph PA["⚡ POWER AUTOMATE"]
+        B1{"¿Aprueba?<br/><small>aprobación externa</small>"}
+    end
+    subgraph PROCURA["🛒 GRUPO PROCURA + PROCURA_TECNICA"]
+        C1["👁️ Abrir requisición autorizada<br/><small>marca automática</small><br/><i>VISTO_PROCURA</i>"]
+        C2["⚙️ Procesar requisición<br/><small>artículos · proveedores · docs · STOCK</small><br/><i>PROCURA_PROCESANDO</i>"]
+        C3["🟢 Finalizar y Generar OC<br/><small>hereda forma de pago<br/>agrupa artículos POR PROVEEDOR</small><br/><i>EN_ORDEN_COMPRA</i>"]
+        C4{"↩️ Revertir OC?"}
+        C5["❓ Solicitar Información<br/><small>justificar materiales con stock</small><br/><i>SOLICITUD_INFORMACION</i>"]
+        F1["📝 Responder Solicitud<br/><small>comentario en NotaRequisicion</small><br/><i>vuelve a VISTO_PROCURA</i>"]
+    end
+    subgraph RECEP["🏭 GRUPO ALMACENES"]
+        D1["📬 Notificar recepción<br/><small>aviso al grupo Almacenes</small>"]
+        D2["📥 Registrar ingreso<br/><small>IngresoInventario + ENTRADA<br/>actualiza stock</small>"]
+    end
+    subgraph OC["📄 ORDEN DE COMPRA"]
+        E1["OC BORRADOR"]
+        E2["OC ENVIADA"]
+        E3["OC CONFIRMADA"]
+        E4["OC RECIBIDA"]
+        E5["OC CANCELADA"]
+    end
+    F["💵 Pagos<br/><small>SolicitudPago / ItemSolicitudPago</small>"]
+    A1 --> A2 --> B1
+    B1 -->|"✅ APROBAR"| C1
+    B1 -->|"❌ RECHAZAR"| A3
+    A3 -.-> A1
+    C1 --> C2 --> C3
+    C2 -.->|"stock disponible / dudas"| C5
+    C3 -.->|"necesita aclaración"| C5
+    C5 --> F1 --> C2
+    C3 --> E1 --> E2 --> E3 --> E4
+    E1 --> E5
+    C3 --> D1 --> D2
+    C4 -->|"sí, sin recepción"| C2
+    D2 -.-> F
+        </pre>
+      </div>
+      <div class="zoom-controls">
+        <button class="btn" style="background:var(--primary);color:#fff" onclick="zoomIn('main')">➕ Acercar</button>
+        <button class="btn" style="background:var(--primary);color:#fff" onclick="zoomOut('main')">➖ Alejar</button>
+        <button class="btn" style="background:var(--primary);color:#fff" onclick="fitDiagram('main')">🖼️ Ajustar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: MATERIALES -->
+  <div class="panel" id="panel-materials">
+    <div class="card">
+      <h2>5 vías para crear un material</h2>
+      <p class="hint">💡 Haz clic en cada vía del diagrama para ver los detalles.</p>
+      <div class="mermaid-wrap" id="wrap-materials">
+        <pre class="mermaid" id="mm-materials">
+flowchart LR
+    subgraph M1["📦 CREAR MATERIAL"]
+        V1["🖥️ Admin Django<br/><small>MaterialAdmin</small>"]
+        V2["🌐 Formulario web almacén<br/><small>crear_material</small>"]
+        V3["➕ Artículo sin material [NUEVO]<br/><small>materiales_pendientes +<br/>crear_material_desde_solicitud_ajax</small>"]
+        V4["📱 API móvil<br/><small>api_create_material</small>"]
+        V5["🗂️ Solicitud de Nuevos Materiales"]
+    end
+    subgraph M2["⚙️ DATOS DEL MATERIAL"]
+        C1["🏷️ CategoriaMaterial"]
+        C2["📏 UnidadMedida"]
+        C3["™️ Marca"]
+        C4["🔑 SKU único · precio · stock mín."]
+    end
+    FIN["🏷️ Material creado<br/>disponible en catálogo"]
+    V1 --> M2
+    V2 --> M2
+    V3 --> M2
+    V4 --> M2
+    V5 --> M2
+    M2 --> FIN
+    FIN -.->|"🔗 vincula al artículo"| V3
+        </pre>
+      </div>
+      <div class="zoom-controls">
+        <button class="btn" style="background:var(--primary);color:#fff" onclick="zoomIn('materials')">➕ Acercar</button>
+        <button class="btn" style="background:var(--primary);color:#fff" onclick="zoomOut('materials')">➖ Alejar</button>
+        <button class="btn" style="background:var(--primary);color:#fff" onclick="fitDiagram('materials')">🖼️ Ajustar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 3: ESTADOS -->
+  <div class="panel" id="panel-states">
+    <div class="card">
+      <h2>Mapa de estados de la requisición</h2>
+      <div class="state-bar">
+        <span class="state-chip" style="background:#64748b" onclick="showState('borrador')">BORRADOR</span>
+        <span class="arrow">→</span>
+        <span class="state-chip" style="background:#f59e0b" onclick="showState('pendiente')">PENDIENTE</span>
+        <span class="arrow">→</span>
+        <span class="state-chip" style="background:#2563eb" onclick="showState('autorizado')">AUTORIZADO</span>
+        <span class="arrow">→</span>
+        <span class="state-chip" style="background:#9333ea" onclick="showState('visto')">VISTO_PROCURA</span>
+        <span class="arrow">→</span>
+        <span class="state-chip" style="background:#0d9488" onclick="showState('procesando')">PROCURA_PROCESANDO</span>
+        <span class="arrow">→</span>
+        <span class="state-chip" style="background:#a855f7" onclick="showState('solicitud-info')">SOLICITUD_INFORMACION</span>
+        <span class="arrow">→</span>
+        <span class="state-chip" style="background:#16a34a" onclick="showState('oc')">EN_ORDEN_COMPRA</span>
+        <span class="arrow">╰</span>
+        <span class="state-chip" style="background:#e11d48" onclick="showState('rechazado')">RECHAZADO</span>
+        <span class="arrow">→</span>
+        <span class="state-chip" style="background:#64748b" onclick="showState('cancelado')">CANCELADO</span>
+      </div>
+      <p class="hint">💡 Haz clic en cada estado para ver detalles.</p>
+    </div>
+    <div class="card">
+      <h2>Ciclo de la Orden de Compra</h2>
+      <div class="state-bar">
+        <span class="state-chip" style="background:#94a3b8" onclick="showState('oc-borrador')">OC BORRADOR</span>
+        <span class="arrow">→</span>
+        <span class="state-chip" style="background:#0ea5e9" onclick="showState('oc-enviada')">OC ENVIADA</span>
+        <span class="arrow">→</span>
+        <span class="state-chip" style="background:#8b5cf6" onclick="showState('oc-confirmada')">OC CONFIRMADA</span>
+        <span class="arrow">→</span>
+        <span class="state-chip" style="background:#16a34a" onclick="showState('oc-recibida')">OC RECIBIDA</span>
+        <span class="arrow">/</span>
+        <span class="state-chip" style="background:#e11d48" onclick="showState('oc-cancelada')">OC CANCELADA</span>
+      </div>
+      <p class="hint">💡 Haz clic en cada estado para ver detalles.</p>
+    </div>
+  </div>
+
+  <!-- PANEL 4: PASO A PASO -->
+  <div class="panel" id="panel-steps">
+    <div class="card">
+      <h2>Paso a paso explicado</h2>
+      <div class="steps">
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Crear requisición (BORRADOR)</b><p>El solicitante crea la requisición con el wizard de 4 pasos (<code>requisicion_upsert</code>, <code>views_import.py:164</code>). Se autogenera el número <code>REQ-{COD_DEPTO}-{correlativo}-{año}</code>.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Enviar a aprobación (PENDIENTE)</b><p>Se notifica al aprobador (auto-populado del <code>Departamento</code>) y se dispara el webhook a N8N / Power Automate (<code>webhooks.py</code>).</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Aprobar / Rechazar (AUTORIZADO · RECHAZADO)</b><p>Power Automate responde al webhook <code>requisicion_webhook_update</code> (<code>views_webhook.py:16</code>): <b>APROBAR</b> genera el PDF aprobado y actualiza <code>precio_estimado</code> de materiales; <b>RECHAZAR</b> permite desbloquear y editar.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Visto por Procura (VISTO_PROCURA)</b><p>Al abrir una requisición AUTORIZADO, si el usuario pertenece al grupo <b>Procura</b> o <b>Procura_Tecnica</b> se marca automáticamente (<code>views_import.py:229</code>).</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Procesar (PROCURA_PROCESANDO)</b><p>Procura/Procura_Tecnica pulsa <b>📋 Procesar Requisición</b> (<code>procesar_requisicion</code>, <code>views_import.py:917</code>); el modal muestra artículos, proveedores sugeridos, documentos y <b>stock actual por material</b>.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Solicitar Información (SOLICITUD_INFORMACION)</b><p>Procura/Procura_Tecnica pulsa <b>❓ Solicitar Información</b> (<code>requisicion_solicitar_informacion</code>, <code>views_import.py:166</code>) para pedir justificación (ej. materiales con stock). El comentario se guarda como <code>NotaRequisicion</code> y se notifica al solicitante. El solicitante responde con <b>📝 Responder Solicitud</b> (<code>views_import.py:218</code>), que reenvía a <b>VISTO_PROCURA</b>.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Generar Orden de Compra (EN_ORDEN_COMPRA)</b><p>Procura pulsa <b>Finalizar y Generar OC</b> (<code>finalizar_procesamiento</code>, <code>views_import.py:992</code>): agrupa artículos <b>por proveedor</b> y crea <b>una OrdenCompra por proveedor</b> con sus líneas vinculadas al <code>ArticuloRequisicion</code>. La OC hereda la <b>forma de pago</b> de la requisición. Notifica al solicitante.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Notificar recepción</b><p>Procura pulsa <b>📬 Notificar Recepción</b> (<code>notificar_recepcion</code>, <code>views_import.py:833</code>) → aviso al grupo <b>Almacenes</b>.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Ingreso físico en almacén</b><p>El almacén registra la entrada (<code>api_ingreso_lote</code>, <code>inventarios/views.py:1588</code>) creando <code>IngresoInventario</code> (con <code>requisicion_origen</code>) y <code>MovimientoInventario</code> ENTRADA, actualizando stock.</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Pagos</b><p>Con la requisición en OC, se registran montos vía <code>SolicitudPago</code> / <code>ItemSolicitudPago</code> (<code>views_pagos.py</code>).</p></div></div>
+        <div class="step"><div class="step-num"></div><div class="step-body"><b>Revertir OC (opcional)</b><p>Procura puede revertir la OC a <code>PROCURA_PROCESANDO</code> solo si aún no se notificó recepción (<code>revertir_orden_compra</code>, <code>views_import.py:1099</code>).</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 5: REFERENCIAS -->
+  <div class="panel" id="panel-refs">
+    <div class="card">
+      <h2>Permisos y roles</h2>
+      <table>
+        <thead><tr><th>Rol</th><th>Acciones</th></tr></thead>
+        <tbody>
+          <tr><td>👤 Solicitante</td><td>Crear/editar BORRADOR, enviar a aprobación, ver estados, responder solicitudes de información</td></tr>
+          <tr><td>⚡ Aprobador (Power Automate)</td><td>Aprobar / rechazar vía webhook</td></tr>
+          <tr><td>🛒 Grupo Procura / PROCURA</td><td>Procesar requisición, generar / revertir / actualizar OC, ver OCs, solicitar información</td></tr>
+          <tr><td>🔧 Grupo Procura_Tecnica</td><td>Ver requisiciones, procesar / verificar stock, solicitar información, procesar materiales [NUEVO] (crear, verificar duplicados, vincular existentes)</td></tr>
+          <tr><td>🏭 Grupo Almacenes</td><td>Registrar recepción / ingresos de inventario, procesar materiales [NUEVO]</td></tr>
+          <tr><td>💵 Solicitante (pagos)</td><td>Registrar SolicitudPago contra la requisición</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Referencias de código</h2>
+      <table>
+        <thead><tr><th>Pieza</th><th>Ubicación</th></tr></thead>
+        <tbody>
+          <tr><td>Modelos <code>Requisicion · ArticuloRequisicion · OrdenCompra · OrdenCompraArticulo</code></td><td><code>presupuestos/models.py:492, 755, 1166, 1238</code></td></tr>
+          <tr><td>Estados de requisición</td><td><code>presupuestos/models.py:537-546</code></td></tr>
+          <tr><td>Wizard de creación</td><td><code>presupuestos/views_import.py:164</code></td></tr>
+          <tr><td>Aprobación (Power Automate)</td><td><code>views_autorizar.py:13 · views_webhook.py:16</code></td></tr>
+          <tr><td>Procesar / Finalizar OC / Revertir</td><td><code>views_import.py:917, 992, 1099</code></td></tr>
+          <tr><td>Notificar recepción</td><td><code>presupuestos/views_import.py:833</code></td></tr>
+          <tr><td>Material (catálogo)</td><td><code>inventarios/models.py:84</code></td></tr>
+          <tr><td>Crear material desde artículo <code>[NUEVO]</code></td><td><code>almacen/views.py:462, 507</code></td></tr>
+          <tr><td>Recepción de inventario</td><td><code>inventarios/views.py:1588</code></td></tr>
+          <tr><td>Notificaciones automáticas</td><td><code>presupuestos/signals.py:18-149</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="close" onclick="closeModal()">✕</button>
+    <span class="tag" id="m-tag" style="background:#2563eb">Nodo</span>
+    <h3 id="m-title"></h3>
+    <ul id="m-body"></ul>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:0" id="m-code"></p>
+  </div>
+</div>
+
+<footer>
+  Generado a partir de <code>FLUJO_REQUISICIONES.md</code> · apps <code>presupuestos</code>, <code>inventarios</code>, <code>almacen</code> ·
+  <button class="btn" style="background:var(--primary);color:#fff;margin-top:8px" onclick="print()">🖨️ Imprimir / PDF</button>
+</footer>
+
+<script>
+  // ---- Configuración Mermaid ----
+  let svgRefs = {};
+  let zoomState = {};
+
+  const mermaidConfig = {
+    startOnLoad: false,
+    theme: 'base',
+    securityLevel: 'loose',
+    themeVariables: {
+      primaryColor: '#dbeafe',
+      primaryBorderColor: '#2563eb',
+      primaryTextColor: '#1e293b',
+      lineColor: '#94a3b8',
+      fontFamily: 'Segoe UI, Roboto, sans-serif',
+      fontSize: '14px',
+      clusterBkg: '#f8fafc',
+      clusterBorder: '#cbd5e1'
+    },
+    flowchart: { curve: 'basis', htmlLabels: true, nodeSpacing: 60, rankSpacing: 70 }
+  };
+
+  async function renderAll() {
+    mermaid.initialize(mermaidConfig);
+    const ids = ['mm-main', 'mm-materials'];
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      try {
+        const svgId = id.replace('mm-', 'svg-');
+        const { svg } = await mermaid.render(svgId, el.textContent);
+        el.innerHTML = svg;
+        svgRefs[id] = svgId;
+        zoomState[svgId] = 1;
+        attachClickHandlers(svgId);
+        fitDiagram(id.replace('mm-', ''));
+      } catch (e) {
+        console.error('Error renderizando ' + id, e);
+        el.textContent = 'Error al renderizar el diagrama: ' + e.message;
+      }
+    }
+  }
+
+  // ---- Zoom / pan ----
+  function getSvg(id) {
+    const svgId = svgRefs['mm-' + id];
+    return svgId ? document.getElementById(svgId) : null;
+  }
+  function zoomIn(id) {
+    const svg = getSvg(id); if (!svg) return;
+    zoomState[svg.id] = Math.min(zoomState[svg.id] * 1.2, 4);
+    svg.style.transformOrigin = '0 0';
+    svg.style.transform = 'scale(' + zoomState[svg.id] + ')';
+  }
+  function zoomOut(id) {
+    const svg = getSvg(id); if (!svg) return;
+    zoomState[svg.id] = Math.max(zoomState[svg.id] / 1.2, 0.3);
+    svg.style.transformOrigin = '0 0';
+    svg.style.transform = 'scale(' + zoomState[svg.id] + ')';
+  }
+  function fitDiagram(id) {
+    const svg = getSvg(id); if (!svg) return;
+    const wrap = document.getElementById('wrap-' + id);
+    const w = svg.getBBox ? svg.getBBox().width : svg.clientWidth;
+    const available = wrap.clientWidth - 32;
+    zoomState[svg.id] = Math.min(available / w, 1);
+    if (!zoomState[svg.id] || isNaN(zoomState[svg.id])) zoomState[svg.id] = 1;
+    svg.style.transformOrigin = '0 0';
+    svg.style.transform = 'scale(' + zoomState[svg.id] + ')';
+  }
+  function resetZoom() { zoomIn; fitDiagram('main'); fitDiagram('materials'); }
+
+  // ---- Clic en nodos: asignar manejadores ----
+  function attachClickHandlers(svgId) {
+    const svg = document.getElementById(svgId);
+    if (!svg) return;
+    svg.querySelectorAll('.node').forEach(node => {
+      const nodeId = node.id.replace(svgId + '-', '');
+      node.style.cursor = 'pointer';
+      node.addEventListener('click', () => showNodeInfo(nodeId));
+    });
+  }
+
+  // ---- Datos por nodo ----
+  const INFO = {
+    A1: { tag: 'Solicitante', color: '#2563eb', title: '🧾 Crear requisición (BORRADOR)', body: ['Wizard de 4 pasos: datos generales → artículos → documentos → revisión.', 'Función: requisicion_upsert (views_import.py:164).', 'Número autogenerado: REQ-{COD_DEPTO}-{correlativo}-{año}.', 'La edición queda bloqueada al salir de BORRADOR.'], code: 'presupuestos/views_import.py:164' },
+    A2: { tag: 'Solicitante', color: '#2563eb', title: '📤 Enviar a aprobación (PENDIENTE)', body: ['Al finalizar el wizard, el estado pasa a PENDIENTE.', 'Se notifica al aprobador (auto-populado desde el Departamento).', 'Se dispara el webhook N8N: notify_requisicion_finalizada.'], code: 'presupuestos/webhooks.py:8' },
+    A3: { tag: 'Solicitante', color: '#2563eb', title: '✏️ Desbloquear y editar', body: ['Solo disponible si la requisición fue RECHAZADA.', 'Permite corregir datos y volver a enviar a aprobación.'], code: 'requisicion_unlock_edit (views_import.py:131)' },
+    B1: { tag: 'Power Automate', color: '#9333ea', title: '⚡ ¿Aprueba? (aprobación externa)', body: ['El webhook requisicion_webhook_update recibe la decisión.', 'APROBAR → estado AUTORIZADO + genera PDF aprobado.', 'RECHAZAR → estado RECHAZADO.', 'REGISTRAR → solo historial/comentario, no cambia estado.'], code: 'presupuestos/views_webhook.py:16' },
+    C1: { tag: 'Grupo Procura/Procura_Tecnica', color: '#16a34a', title: '👁️ Abrir requisición autorizada (VISTO_PROCURA)', body: ['Si el usuario pertenece al grupo Procura/PROCURA o Procura_Tecnica, se marca VISTO_PROCURA automáticamente al abrir.'], code: 'presupuestos/views_import.py:229' },
+    C2: { tag: 'Grupo Procura/Procura_Tecnica', color: '#16a34a', title: '⚙️ Procesar requisición (PROCURA_PROCESANDO)', body: ['Botón "📋 Procesar Requisición" (Procura o Procura_Tecnica).', 'El modal muestra artículos, proveedores sugeridos, documentos y STOCK actual por material (verifica si el stock cubre la cantidad).', 'Valida estado en AUTORIZADO / VISTO_PROCURA / PROCURA_PROCESANDO.'], code: 'procesar_requisicion (views_import.py:917)' },
+    C3: { tag: 'Grupo Procura/Procura_Tecnica', color: '#16a34a', title: '🟢 Finalizar y Generar OC (EN_ORDEN_COMPRA)', body: ['Botón "Finalizar y Generar OC".', 'Agrupa los artículos POR PROVEEDOR.', 'Crea 1 OrdenCompra + líneas OrdenCompraArticulo por proveedor.', 'La OC hereda la FORMA DE PAGO de la requisición.', 'Cada línea queda vinculada a su ArticuloRequisicion.', 'Notifica al solicitante.'], code: 'finalizar_procesamiento (views_import.py:992)' },
+    C4: { tag: 'Grupo Procura', color: '#16a34a', title: '↩️ Revertir OC?', body: ['Solo en estado EN_ORDEN_COMPRA.', 'Solo si aún NO se notificó recepción.', 'Elimina las OC asociadas y regresa a PROCURA_PROCESANDO.'], code: 'revertir_orden_compra (views_import.py:1099)' },
+    C5: { tag: 'Grupo Procura/Procura_Tecnica', color: '#a855f7', title: '❓ Solicitar Información (SOLICITUD_INFORMACION)', body: ['Botón "❓ Solicitar Información" (Procura o Procura_Tecnica).', 'Devuelve la requisición a SOLICITUD_INFORMACION pidiendo justificación (ej. materiales con stock).', 'El comentario se guarda como NotaRequisicion para el timeline.', 'Notifica al solicitante.'], code: 'requisicion_solicitar_informacion (views_import.py:166)' },
+    F1: { tag: 'Solicitante', color: '#ec4899', title: '📝 Responder Solicitud (SOLICITUD_INFORMACION → VISTO_PROCURA)', body: ['Botón "📝 Responder Solicitud" (solo el solicitante).', 'Registra la respuesta como NotaRequisicion.', 'Reenvía la requisición a VISTO_PROCURA.', 'Notifica al grupo Procura/Procura_Tecnica.'], code: 'requisicion_reenviar_informacion (views_import.py:218)' },
+    D1: { tag: 'Grupo Almacenes', color: '#ca8a04', title: '📬 Notificar recepción', body: ['Requiere EN_ORDEN_COMPRA (o AUTORIZADO).', 'Fija fecha_probable_entrega + recepcion_notificada=True.', 'Envía aviso al grupo Almacenes.'], code: 'notificar_recepcion (views_import.py:833)' },
+    D2: { tag: 'Grupo Almacenes', color: '#ca8a04', title: '📥 Registrar ingreso físico', body: ['Crea IngresoInventario con requisicion_origen.', 'Crea MovimientoInventario tipo ENTRADA por ítem.', 'Actualiza stock vía StockRecord / recalcular_stock.'], code: 'api_ingreso_lote (inventarios/views.py:1588)' },
+    E1: { tag: 'Orden de Compra', color: '#e11d48', title: '📄 OC BORRADOR', body: ['Estado inicial al generarse.', 'Número autogenerado: OC{YY}-{NNN} o DOIH_OC{YY}-{NNN}.', 'Solo el grupo Procura puede gestionarlas.'], code: 'presupuestos/models.py:1166' },
+    E2: { tag: 'Orden de Compra', color: '#e11d48', title: '📄 OC ENVIADA', body: ['La OC se envía al proveedor.', 'Notificación por señal al creador y al solicitante.'], code: 'presupuestos/signals.py:86' },
+    E3: { tag: 'Orden de Compra', color: '#e11d48', title: '📄 OC CONFIRMADA', body: ['El proveedor confirma la orden.', 'Se pueden registrar condiciones: anticipo, crédito, documentos.'], code: 'actualizar_orden_compra (views_import.py:1208)' },
+    E4: { tag: 'Orden de Compra', color: '#e11d48', title: '📄 OC RECIBIDA', body: ['Recepción confirmada por el almacén.', 'Cierra el ciclo de la OC.'], code: 'presupuestos/signals.py:86' },
+    E5: { tag: 'Orden de Compra', color: '#e11d48', title: '📄 OC CANCELADA', body: ['Se cancela la orden antes de recibirse.', 'Notificación automática a creador y solicitante.'], code: 'presupuestos/signals.py:86' },
+    F: { tag: 'Pagos', color: '#0d9488', title: '💵 Pagos contra la requisición', body: ['Con la requisición en OC se pueden registrar pagos.', 'Modelos: SolicitudPago e ItemSolicitudPago.', 'El monto pagado se acumula en monto_pagado de la requisición.'], code: 'presupuestos/views_pagos.py' },
+    V1: { tag: 'Crear material', color: '#2563eb', title: '🖥️ Admin Django', body: ['MaterialAdmin con fieldsets completos.', 'Import/export Excel con MaterialResource.', 'URL: /admin/inventarios/material/.'], code: 'inventarios/admin.py:252' },
+    V2: { tag: 'Crear material', color: '#2563eb', title: '🌐 Formulario web almacén', body: ['Formulario simple: nombre, SKU, descripción, unidad, categoría, stock mínimo.', 'URL: /almacen/materiales/crear/.'], code: 'crear_material (almacen/views.py:226)' },
+    V3: { tag: 'Crear material', color: '#2563eb', title: '➕ Artículo sin material [NUEVO]', body: ['Lista artículos de requisición sin material cuya descripción empieza con [NUEVO].', 'Crea el Material y lo VINCULA al ArticuloRequisicion.', 'Flujo: materiales_pendientes + crear_material_desde_solicitud_ajax.'], code: 'almacen/views.py:462, 507' },
+    V4: { tag: 'Crear material', color: '#2563eb', title: '📱 API móvil', body: ['Crea material con fotos.', 'Crea la marca si no existe.', 'Permite stock inicial con auto-liquidación y no_afecta_stock.'], code: 'api_create_material (inventarios/views.py:1869)' },
+    V5: { tag: 'Crear material', color: '#2563eb', title: '🗂️ Solicitud de Nuevos Materiales', body: ['Pantalla que lista artículos sin material.', 'Admin de catálogos para crear CategoriaMaterial y UnidadMedida.'], code: 'inventarios/views.py:3003, 3065' },
+    C1m: { tag: 'Datos', color: '#0d9488', title: '🏷️ CategoriaMaterial', body: ['Catálogo jerárquico (padre self-FK).'], code: 'inventarios/models.py:49' },
+    C2m: { tag: 'Datos', color: '#0d9488', title: '📏 UnidadMedida', body: ['Catálogo de unidades de medida.'], code: 'inventarios/models.py:72' },
+    C3m: { tag: 'Datos', color: '#0d9488', title: '™️ Marca', body: ['Catálogo de marcas (app activos).'], code: 'activos.Marca' },
+    C4m: { tag: 'Datos', color: '#0d9488', title: '🔑 SKU único · precio · stock mínimo', body: ['SKU único obligatorio.', 'Precio estimado, stock mínimo, tipo_material (INSUMO, REPUESTO, etc.).'], code: 'inventarios/models.py:84' },
+    FIN: { tag: 'Resultado', color: '#16a34a', title: '🏷️ Material creado', body: ['Disponible en el catálogo para futuras requisiciones.', 'Si se creó desde [NUEVO], queda vinculado al artículo de la requisición.'], code: 'inventarios/models.py:84' }
+  };
+
+  const STATES = {
+    borrador: { tag: 'Requisición', color: '#64748b', title: 'BORRADOR', body: ['Wizard de creación en curso.', 'Editable por el solicitante.', 'Número: REQ-{COD_DEPTO}-{correlativo}-{año}.', 'Aún no notifica a nadie.'] },
+    pendiente: { tag: 'Requisición', color: '#f59e0b', title: 'PENDIENTE', body: ['Enviada a aprobación.', 'Webhook N8N + Power Automate.', 'Edición bloqueada.'] },
+    autorizado: { tag: 'Requisición', color: '#2563eb', title: 'AUTORIZADO', body: ['Aprobada por Power Automate.', 'Se genera el PDF aprobado.', 'Se actualiza precio_estimado de materiales vinculados.', 'Notificación al solicitante.'] },
+    visto: { tag: 'Requisición', color: '#9333ea', title: 'VISTO_PROCURA', body: ['Marcado automáticamente al abrir por Procura.'] },
+    procesando: { tag: 'Requisición', color: '#0d9488', title: 'PROCURA_PROCESANDO', body: ['Procura/Procura_Tecnica procesa: artículos, proveedores, documentos, stock.', 'Puede revertir desde EN_ORDEN_COMPRA a este estado.', 'Botón "❓ Solicitar Información" disponible.'] },
+    'solicitud-info': { tag: 'Requisición', color: '#a855f7', title: 'SOLICITUD_INFORMACION', body: ['Procura pidió más información (ej. justificar materiales con stock).', 'El comentario se guarda como NotaRequisicion.', 'Notifica al solicitante.', 'El solicitante responde con "📝 Responder Solicitud" → vuelve a VISTO_PROCURA.'] },
+    oc: { tag: 'Requisición', color: '#16a34a', title: 'EN_ORDEN_COMPRA', body: ['Generada al menos una OrdenCompra.', 'La OC hereda la forma de pago de la requisición.', 'Se puede Notificar Recepción.', 'Se puede Revertir (si no hubo recepción).'] },
+    rechazado: { tag: 'Requisición', color: '#e11d48', title: 'RECHAZADO', body: ['Rechazada por el aprobador.', 'El solicitante puede desbloquear y editar → vuelve a BORRADOR.'] },
+    cancelado: { tag: 'Requisición', color: '#64748b', title: 'CANCELADO', body: ['Cancelada, no sigue el flujo.'] },
+    'oc-borrador': { tag: 'Orden de Compra', color: '#94a3b8', title: 'OC BORRADOR', body: ['Estado inicial al generarse en finalizar_procesamiento.'] },
+    'oc-enviada': { tag: 'Orden de Compra', color: '#0ea5e9', title: 'OC ENVIADA', body: ['Enviada al proveedor.'] },
+    'oc-confirmada': { tag: 'Orden de Compra', color: '#8b5cf6', title: 'OC CONFIRMADA', body: ['Confirmada por el proveedor.', 'Se registran condiciones de pago y documentación.'] },
+    'oc-recibida': { tag: 'Orden de Compra', color: '#16a34a', title: 'OC RECIBIDA', body: ['Recepción confirmada en almacén.', 'Cierra el ciclo.'] },
+    'oc-cancelada': { tag: 'Orden de Compra', color: '#e11d48', title: 'OC CANCELADA', body: ['Cancelada antes de recibir.'] }
+  };
+
+  function showNodeInfo(nodeId) {
+    let info = INFO[nodeId];
+    const map = { C1: 'C1', C2: 'C2', C3: 'C3', C4: 'C4' };
+    if (!info) info = null;
+    if (info) { openModal(info); }
+  }
+
+  function showState(stateId) {
+    const s = STATES[stateId];
+    if (s) openModal(s);
+  }
+
+  function openModal(data) {
+    const tag = document.getElementById('m-tag');
+    tag.textContent = data.tag;
+    tag.style.background = data.color;
+    document.getElementById('m-title').textContent = data.title;
+    const ul = document.getElementById('m-body');
+    ul.innerHTML = '';
+    data.body.forEach(b => { const li = document.createElement('li'); li.textContent = b; ul.appendChild(li); });
+    document.getElementById('m-code').textContent = data.code ? '📎 ' + data.code : '';
+    document.getElementById('modal').classList.add('open');
+  }
+  function closeModal() { document.getElementById('modal').classList.remove('open'); }
+  document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ---- Tabs ----
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+      setTimeout(() => { fitDiagram('main'); fitDiagram('materials'); }, 100);
+    });
+  });
+
+  // ---- Tema ----
+  function toggleTheme() {
+    const b = document.body;
+    const dark = b.dataset.theme !== 'dark';
+    b.dataset.theme = dark ? 'dark' : 'light';
+    document.querySelector('header .btn-ghost').textContent = dark ? '☀️ Tema' : '🌙 Tema';
+  }
+
+  window.addEventListener('resize', () => { fitDiagram('main'); fitDiagram('materials'); });
+  renderAll();
+</script>
+</body>
+</html>

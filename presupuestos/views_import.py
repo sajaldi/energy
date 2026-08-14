@@ -140,7 +140,7 @@ def requisicion_unlock_edit(request, pk):
     requisicion = get_object_or_404(Requisicion, pk=pk)
     
     # Validar que puede desbloquearse
-    if requisicion.estado_requisicion not in ['PENDIENTE', 'RECHAZADO']:
+    if requisicion.estado_requisicion not in ['PENDIENTE', 'RECHAZADO', 'SOLICITUD_INFORMACION']:
         messages.error(request, f"No se puede desbloquear. Estado actual: {requisicion.get_estado_requisicion_display()}")
         return redirect('presupuestos:requisicion_editar', pk=pk)
     
@@ -158,6 +158,116 @@ def requisicion_unlock_edit(request, pk):
     
     # Redirigir a la vista de edición
     return redirect('presupuestos:requisicion_editar', pk=pk)
+
+
+@login_required
+@require_POST
+def requisicion_solicitar_informacion(request, pk):
+    """
+    Procura / Procura_Tecnica devuelve la requisición a estado SOLICITUD_INFORMACION
+    solicitando más información (por ejemplo, justificación de materiales con stock).
+    El comentario se guarda como NotaRequisicion para el timeline.
+    """
+    from .models import Requisicion, NotaRequisicion
+
+    if not request.user.groups.filter(name__in=['Procura', 'PROCURA', 'Procura_Tecnica']).exists():
+        return JsonResponse({'success': False, 'message': 'Solo Procura puede solicitar información.'}, status=403)
+
+    requisicion = get_object_or_404(Requisicion, pk=pk)
+
+    if requisicion.estado_requisicion not in ['AUTORIZADO', 'VISTO_PROCURA', 'PROCURA_PROCESANDO']:
+        return JsonResponse({'success': False, 'message': 'El estado actual no permite solicitar información.'}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        data = {}
+    comentario = (data.get('comentario') or '').strip()
+    if not comentario:
+        return JsonResponse({'success': False, 'message': 'Debe escribir el motivo de la solicitud de información.'}, status=400)
+
+    _registrar_historial(requisicion, 'SOLICITUD_INFORMACION', usuario=request.user,
+                         descripcion=f'Solicitud de información: {comentario}')
+    requisicion.estado_requisicion = 'SOLICITUD_INFORMACION'
+    requisicion.save(update_fields=['estado_requisicion'])
+
+    NotaRequisicion.objects.create(
+        requisicion=requisicion,
+        texto=f"❓ Solicitud de información: {comentario}",
+        usuario=request.user,
+    )
+
+    # Notificar al solicitante
+    if requisicion.usuario_solicitante:
+        from notificaciones.utils import crear_notificacion
+        crear_notificacion(
+            requisicion.usuario_solicitante,
+            'Solicitud de Información',
+            f'Procura solicitó información adicional para la requisición {requisicion.cr8ca_requisicion}.',
+            tipo='WARNING', modulo='PRESUPUESTOS',
+            enlace=f'/presupuestos/requisiciones/{requisicion.pk}/',
+        )
+
+    return JsonResponse({'success': True, 'message': 'Solicitud de información registrada. La requisición quedó en estado Solicitud de Información.'})
+
+
+@login_required
+@require_POST
+def requisicion_reenviar_informacion(request, pk):
+    """
+    El solicitante (o superusuario) responde a la solicitud de información y
+    reenvía la requisición a Procura (VISTO_PROCURA).
+    """
+    from .models import Requisicion, NotaRequisicion
+
+    requisicion = get_object_or_404(Requisicion, pk=pk)
+
+    es_solicitante = requisicion.usuario_solicitante_id == request.user.id or requisicion.usuario_en_nombre_de_id == request.user.id
+    es_procura = request.user.is_superuser or request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+    if not (es_solicitante or es_procura):
+        return JsonResponse({'success': False, 'message': 'Solo el solicitante puede responder la solicitud de información.'}, status=403)
+
+    if requisicion.estado_requisicion != 'SOLICITUD_INFORMACION':
+        return JsonResponse({'success': False, 'message': 'La requisición no está en estado Solicitud de Información.'}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        data = {}
+    respuesta = (data.get('respuesta') or '').strip()
+    if not respuesta:
+        return JsonResponse({'success': False, 'message': 'Debe escribir su respuesta.'}, status=400)
+
+    NotaRequisicion.objects.create(
+        requisicion=requisicion,
+        texto=f"📝 Respuesta: {respuesta}",
+        usuario=request.user,
+    )
+
+    _registrar_historial(requisicion, 'VISTO_PROCURA', usuario=request.user,
+                         descripcion='Respuesta a solicitud de información registrada.')
+    requisicion.estado_requisicion = 'VISTO_PROCURA'
+    requisicion.save(update_fields=['estado_requisicion'])
+
+    # Notificar a Procura
+    from notificaciones.utils import notificar_a_grupo
+    notificar_a_grupo(
+        'Procura',
+        'Respuesta a Solicitud de Información',
+        f'El solicitante respondió la solicitud de información de la requisición {requisicion.cr8ca_requisicion}.',
+        tipo='INFO', modulo='PRESUPUESTOS',
+        enlace=f'/presupuestos/requisiciones/{requisicion.pk}/',
+    )
+    notificar_a_grupo(
+        'Procura_Tecnica',
+        'Respuesta a Solicitud de Información',
+        f'El solicitante respondió la solicitud de información de la requisición {requisicion.cr8ca_requisicion}.',
+        tipo='INFO', modulo='PRESUPUESTOS',
+        enlace=f'/presupuestos/requisiciones/{requisicion.pk}/',
+    )
+
+    return JsonResponse({'success': True, 'message': 'Respuesta registrada. La requisición fue reenviada a Procura.'})
+
 
 @staff_member_required
 @login_required
@@ -214,10 +324,10 @@ def requisicion_upsert(request, pk=None):
     
     if instance and instance.pk:
         # Estados que bloquean la edición
-        locked_states = ['PENDIENTE', 'AUTORIZADO', 'VISTO_PROCURA', 'PROCURA_PROCESANDO', 'EN_ORDEN_COMPRA', 'RECHAZADO']
+        locked_states = ['PENDIENTE', 'AUTORIZADO', 'VISTO_PROCURA', 'PROCURA_PROCESANDO', 'SOLICITUD_INFORMACION', 'EN_ORDEN_COMPRA', 'RECHAZADO']
         
         # Superusuarios y grupo Procura pueden editar SIEMPRE
-        is_privileged = request.user.is_superuser or request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+        is_privileged = request.user.is_superuser or request.user.groups.filter(name__in=['Procura', 'PROCURA', 'Procura_Tecnica']).exists()
         
         if instance.estado_requisicion in locked_states and not is_privileged:
             is_readonly = True
@@ -228,7 +338,7 @@ def requisicion_upsert(request, pk=None):
                 messages.info(request, "Esta requisición fue enviada a aprobación y está bloqueada para edición.")
             elif instance.estado_requisicion == 'AUTORIZADO':
                 # Auto-marcar como Visto por Procura si el usuario pertenece al grupo PROCURA
-                if request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists():
+                if request.user.groups.filter(name__in=['Procura', 'PROCURA', 'Procura_Tecnica']).exists():
                     _registrar_historial(instance, 'VISTO_PROCURA', usuario=request.user)
                     instance.estado_requisicion = 'VISTO_PROCURA'
                     instance.save(update_fields=['estado_requisicion'])
@@ -239,6 +349,9 @@ def requisicion_upsert(request, pk=None):
                 messages.info(request, "Requisición revisada por Procura, pendiente de procesar a Orden de Compra.")
             elif instance.estado_requisicion == 'PROCURA_PROCESANDO':
                 messages.info(request, "Requisición está siendo procesada por Procura.")
+            elif instance.estado_requisicion == 'SOLICITUD_INFORMACION':
+                can_unlock = True
+                messages.warning(request, "Procura solicitó información adicional. Puede desbloquearla para responder en los comentarios.")
             elif instance.estado_requisicion == 'EN_ORDEN_COMPRA':
                 messages.info(request, "Esta requisición ya fue procesada a Orden de Compra.")
             elif instance.estado_requisicion == 'RECHAZADO':
@@ -329,6 +442,13 @@ def requisicion_upsert(request, pk=None):
                     _registrar_historial(instance, 'PENDIENTE', usuario=request.user)
                     instance.estado_requisicion = 'PENDIENTE'
                     instance.save()
+
+                # Si respondía a una solicitud de información, regresar a Procura
+                if instance.estado_requisicion == 'SOLICITUD_INFORMACION':
+                    _registrar_historial(instance, 'VISTO_PROCURA', usuario=request.user,
+                                         descripcion='Solicitante respondió a la solicitud de información.')
+                    instance.estado_requisicion = 'VISTO_PROCURA'
+                    instance.save()
                 
                 # Disparar Webhook
                 notify_requisicion_finalizada(instance)
@@ -405,6 +525,8 @@ def requisicion_upsert(request, pk=None):
         'historial': instance.historial.all() if instance else [],
         'notas': instance.notas.all()[:10] if instance else [],
         'presupuestos_disponibles': presupuestos_disponibles,
+        'es_procura': request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists(),
+        'es_procura_tecnica': request.user.groups.filter(name__in=['Procura_Tecnica', 'PROCURA_TECNICA']).exists(),
     }
     return render(request, 'admin/presupuestos/requisicion/requisicion_form.html', context)
 
@@ -498,13 +620,14 @@ def requisicion_dashboard(request):
 
     search_query = request.GET.get('q', '').strip()
     es_procura = request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists()
+    es_procura_tecnica = request.user.groups.filter(name__in=['Procura_Tecnica', 'PROCURA_TECNICA']).exists()
 
     # Departamento del usuario logueado
     dept = None
     if hasattr(request.user, 'perfil'):
         dept = request.user.perfil.departamento
 
-    if es_procura:
+    if es_procura or es_procura_tecnica:
         # Procura ve todas las requisiciones sin filtro de departamento,
         # pero excluye Borrador y Pendiente (no les interesa)
         dept_q = Q()
@@ -516,7 +639,7 @@ def requisicion_dashboard(request):
 
     # Base queryset filtrada por departamento
     base_qs = Requisicion.objects.filter(dept_q)
-    if es_procura:
+    if es_procura or es_procura_tecnica:
         base_qs = base_qs.exclude(estado_requisicion__in=['BORRADOR', 'PENDIENTE'])
 
     # Métricas (siempre filtradas por departamento)
@@ -536,7 +659,7 @@ def requisicion_dashboard(request):
             Q(cr8ca_asunto__icontains=search_query) |
             Q(cr8ca_motivo__icontains=search_query)
         )
-        if es_procura:
+        if es_procura or es_procura_tecnica:
             query = query.exclude(estado_requisicion__in=['BORRADOR', 'PENDIENTE'])
     else:
         query = base_qs
@@ -582,6 +705,7 @@ def requisicion_dashboard(request):
         'title': 'Dashboard de Requisiciones',
         'dept': dept,
         'es_procura': es_procura,
+        'es_procura_tecnica': es_procura_tecnica,
         'last_view_json': json.dumps(last_view),
     }
     return render(request, 'admin/presupuestos/requisicion/dashboard.html', context)
@@ -921,7 +1045,7 @@ def procesar_requisicion(request, pk):
         from mantenimiento.models import Empresa
         requisicion = get_object_or_404(Requisicion, pk=pk)
 
-        if not request.user.groups.filter(name__in=['Procura', 'PROCURA']).exists():
+        if not request.user.groups.filter(name__in=['Procura', 'PROCURA', 'Procura_Tecnica']).exists():
             return JsonResponse({'success': False, 'message': 'Solo usuarios del grupo Procura pueden procesar requisiciones.'}, status=403)
 
         if requisicion.estado_requisicion not in ['AUTORIZADO', 'VISTO_PROCURA', 'PROCURA_PROCESANDO']:
@@ -935,6 +1059,9 @@ def procesar_requisicion(request, pk):
         articulos_data = []
         for art in requisicion.articulos.all():
             proveedor = art.proveedor
+            stock = None
+            if art.material_id:
+                stock = float(art.material.get_stock_total())
             articulos_data.append({
                 'id': str(art.cr8ca_itemderequisicionid),
                 'descripcion': art.cr8ca_articulo or '',
@@ -943,6 +1070,7 @@ def procesar_requisicion(request, pk):
                 'subtotal': float(art.subtotal or 0),
                 'proveedor_actual': proveedor.nombre if proveedor else '',
                 'proveedor_id': proveedor.id if proveedor else None,
+                'stock_actual': stock,
             })
 
         proveedores_data = [
@@ -971,6 +1099,10 @@ def procesar_requisicion(request, pk):
                 'motivo': requisicion.cr8ca_motivo or '',
                 'total_actual': float(requisicion.cr8ca_totalenarticulos or 0),
                 'total_estimado': float(requisicion.total_estimado or 0),
+                'forma_pago': requisicion.forma_pago or '',
+                'forma_pago_display': requisicion.get_forma_pago_display() if requisicion.forma_pago else 'No especificada',
+                'proveedor_id': requisicion.proveedor_id,
+                'proveedor_nombre': requisicion.proveedor.nombre if requisicion.proveedor else '',
             },
             'articulos': articulos_data,
             'proveedores': proveedores_data,
@@ -1007,6 +1139,7 @@ def finalizar_procesamiento(request, pk):
         data = json.loads(request.body)
         articulos_data = data.get('articulos', [])
         tipo_documento = data.get('tipo_documento', 'OC')
+        doc_checklist = data.get('doc_checklist', {})
         if tipo_documento not in ('OC', 'DOIH'):
             tipo_documento = 'OC'
 
@@ -1045,7 +1178,12 @@ def finalizar_procesamiento(request, pk):
                 subtotal=subtotal_oc,
                 impuestos=impuestos_oc,
                 total=total_oc,
+                forma_pago=requisicion.forma_pago,
                 creado_por=request.user,
+                doc_factura=doc_checklist.get('doc_factura', False),
+                doc_estimacion=doc_checklist.get('doc_estimacion', False),
+                doc_respaldo=doc_checklist.get('doc_respaldo', False),
+                doc_garantia=doc_checklist.get('doc_garantia', False),
             )
             oc_numbers.append(oc.numero_oc)
 
@@ -1177,6 +1315,7 @@ def detalle_orden_compra(request, pk):
             'contraentrega': oc.contraentrega,
             'credito': oc.credito,
             'credito_dias': oc.credito_dias,
+            'forma_pago': oc.forma_pago,
             'doc_factura': oc.doc_factura,
             'doc_estimacion': oc.doc_estimacion,
             'doc_respaldo': oc.doc_respaldo,
@@ -1241,6 +1380,10 @@ def actualizar_orden_compra(request, pk):
             oc.credito = bool(data['credito'])
         if 'credito_dias' in data:
             oc.credito_dias = int(data['credito_dias']) if data['credito_dias'] else None
+
+        # Forma de pago
+        if 'forma_pago' in data:
+            oc.forma_pago = data['forma_pago'] or oc.forma_pago
 
         # Documentación
         if 'doc_factura' in data:

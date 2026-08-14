@@ -37,7 +37,7 @@ class RequisicionForm(forms.ModelForm):
         fields = [
             'cr8ca_requisicion', 'fecha', 'fecha_aprobacion', 'partida', 'item_presupuesto', 'usuario_solicitante', 'usuario_en_nombre_de', 'aprobador', 'cr8ca_asunto', 'cr8ca_prioridad', 
             'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion', 'cr8ca_totalenarticulos', 'isv',
-            'proveedor', 'proveedores_sugeridos', 'proveedores_sugeridos_notas', 'tipo', 'grupo'
+            'proveedor', 'proveedores_sugeridos', 'proveedores_sugeridos_notas', 'tipo', 'grupo', 'forma_pago'
         ]
         widgets = {
             'cr8ca_requisicion': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
@@ -63,6 +63,7 @@ class RequisicionForm(forms.ModelForm):
             }),
             'proveedores_sugeridos_notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Detalle de qué artículos corresponden a cada proveedor...'}),
             'tipo': forms.Select(attrs={'class': 'form-control'}),
+            'forma_pago': forms.Select(attrs={'class': 'form-control'}),
         }
         labels = {
             'cr8ca_totalenarticulos': 'Costo Aproximado'

@@ -3,8 +3,20 @@
 
 {% block extrahead %}
 {{ block.super }}
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    @font-face {
+        font-family: 'Artifakt Element';
+        src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Element%20Medium.woff2') format('woff2');
+        font-weight: 400; font-style: normal; font-display: swap;
+    }
+    @font-face {
+        font-family: 'Artifakt Element';
+        src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Legend%20Bold.woff2') format('woff2');
+        font-weight: 700; font-style: normal; font-display: swap;
+    }
+</style>
 
 {% include "admin/presupuestos/requisicion/includes/requisicion_styles.html" %}
 
@@ -24,11 +36,19 @@
         <h1 style="margin: 0; font-weight: 800; color: var(--text-main); font-size: 1.75rem;">{{ title }}</h1>
         <p style="color: var(--text-muted); margin-top: 8px;">Completa los pasos para procesar tu Requisición</p>
         {% if instance.pk %}
-        <div style="margin-top: 12px;">
+        <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
             <a href="{% url 'presupuestos:requisicion_editar' instance.pk %}" target="_blank"
                class="btn-custom" style="background: #0070f2; color: white; border: none; padding: 10px 20px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem;">
                 <span style="font-size: 1rem;">👁️</span> Visualizar Requisición
             </a>
+            {% if es_procura or es_procura_tecnica %}
+            {% if instance.estado_requisicion == 'AUTORIZADO' or instance.estado_requisicion == 'VISTO_PROCURA' or instance.estado_requisicion == 'PROCURA_PROCESANDO' %}
+            <a href="{% url 'presupuestos:requisicion_dashboard' %}?procesar={{ instance.pk }}"
+               class="btn-custom" style="background: #f59e0b; color: white; border: none; padding: 10px 20px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+                <span style="font-size: 1rem;">🛒</span> Generar Orden de Compra
+            </a>
+            {% endif %}
+            {% endif %}
         </div>
         {% endif %}
     </div>
@@ -66,7 +86,39 @@
         </div>
     </div>
 
-    {% if is_readonly %}
+    {% if instance.estado_requisicion == 'SOLICITUD_INFORMACION' %}
+    <!-- Banner de Solicitud de Información -->
+    <div
+        style="background: linear-gradient(135deg, #fdf4ff 0%, #faf5ff 100%); border-left: 4px solid #a855f7; padding: 20px; border-radius: 0; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="flex: 1; min-width: 260px;">
+                <h4 style="margin: 0 0 8px 0; color: #7e22ce; font-size: 1.1rem;">❓ Solicitud de Información</h4>
+                <p style="margin: 0; color: #666; line-height: 1.5;">
+                    Procura solicitó información adicional sobre esta requisición. Puede responder en el campo de
+                    comentarios o en las notas del timeline, luego finalice la requisición para reenviarla a Procura.
+                </p>
+            </div>
+            {% if can_unlock %}
+            <button type="button" id="btn-unlock-edit" class="btn-custom"
+                style="background: #a855f7; color: white; border: none; padding: 12px 24px; font-weight: 600; border-radius: 0; cursor: pointer; white-space: nowrap;">🔓
+                Desbloquear y Responder</button>
+            {% endif %}
+        </div>
+        <div style="margin-top: 14px; background: rgba(255,255,255,0.7); border: 1px solid #e9d5ff; border-radius: 8px; padding: 12px 14px;">
+            <div style="font-size: 0.8rem; font-weight: 700; color: #7e22ce; margin-bottom: 6px;">📌 Notas recientes</div>
+            {% for nota in notas %}
+            <div style="font-size: 0.85rem; color: #475569; padding: 3px 0; border-bottom: 1px dashed #e9d5ff;">
+                <strong>{{ nota.usuario.get_full_name|default:nota.usuario.username }} · {{ nota.creado_en|date:"d/m/Y H:i" }}</strong>:
+                {{ nota.texto }}
+            </div>
+            {% empty %}
+            <div style="font-size: 0.85rem; color: #94a3b8;">Sin notas registradas.</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if is_readonly and instance.estado_requisicion != 'SOLICITUD_INFORMACION' %}
     <!-- Banner de Bloqueo -->
     <div
         style="background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%); border-left: 4px solid #ff9800; padding: 20px; border-radius: 0; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -221,6 +273,12 @@
                         <div class="form-group">
                             <label class="form-label">Comentarios</label>
                             {{ form.cr8ca_comentarios }}
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Forma de Pago</label>
+                            {{ form.forma_pago }}
+                            <small class="form-hint">Se transferirá a la Orden de Compra al procesarla.</small>
                         </div>
 
                         <div class="form-group">
@@ -504,6 +562,10 @@
                         <span class="review-label">Prioridad</span>
                         <span class="review-value">{{ instance.get_cr8ca_prioridad_display }}</span>
                     </div>
+                    <div class="review-item">
+                        <span class="review-label">Forma de Pago</span>
+                        <span class="review-value">{{ instance.get_forma_pago_display|default:"Al Contado" }}</span>
+                    </div>
                     {% if instance.proveedor %}
                     <div class="review-item">
                         <span class="review-label">Proveedor Asignado</span>
@@ -712,6 +774,7 @@
                 {% elif h.estado_nuevo == 'EN_ORDEN_COMPRA' %}background:#3b82f6;
                 {% elif h.estado_nuevo == 'PROCURA_PROCESANDO' %}background:#f97316;
                 {% elif h.estado_nuevo == 'VISTO_PROCURA' %}background:#6366f1;
+                {% elif h.estado_nuevo == 'SOLICITUD_INFORMACION' %}background:#a855f7;
                 {% else %}background:#64748b;{% endif %}
                 border:2px solid white; box-shadow:0 1px 3px rgba(0,0,0,0.15);"></div>
             <div style="font-size:0.75rem; color:#64748b; margin-bottom:2px;">

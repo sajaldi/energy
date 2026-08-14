@@ -57,7 +57,8 @@
                     <input type="hidden" name="articulo_id" value="{{ art.cr8ca_itemderequisicionid }}">
                     <div class="form-group">
                         <label style="font-size:12px; font-weight:600; color:#475569;">Nombre</label>
-                        <input type="text" class="form-control" name="nombre" value="{{ item.nombre_sugerido }}" required>
+                        <input type="text" class="form-control" name="nombre" value="{{ item.nombre_sugerido }}" required oninput="verificarDuplicados(this)">
+                        <div class="duplicados-box" style="display:none; margin-top:6px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:8px 10px; font-size:12px; color:#b91c1c;"></div>
                     </div>
                     <div class="form-group">
                         <label style="font-size:12px; font-weight:600; color:#475569;">SKU</label>
@@ -119,6 +120,47 @@ function mostrarFormulario(articuloId) {
     // Ocultar todos los formularios
     document.querySelectorAll('[id^="form-"]').forEach(f => f.style.display = 'none');
     form.style.display = isVisible ? 'none' : 'block';
+    // Verificar duplicados al abrir
+    const nombreInput = form.querySelector('[name="nombre"]');
+    if (nombreInput) verificarDuplicados(nombreInput);
+}
+
+let verificarTimeout = null;
+function verificarDuplicados(input) {
+    const form = input.closest('[id^="form-"]');
+    const box = form.querySelector('.duplicados-box');
+    const nombre = input.value.trim();
+    if (nombre.length < 3) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        return;
+    }
+    clearTimeout(verificarTimeout);
+    verificarTimeout = setTimeout(function() {
+        fetch('{% url "almacen:verificar_materiales_duplicados_ajax" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ nombre: nombre }),
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (!result.success) return;
+            if (result.duplicados && result.duplicados.length > 0) {
+                let html = '<div style="font-weight:700; margin-bottom:4px;">⚠️ Posibles duplicados encontrados:</div>';
+                result.duplicados.forEach(d => {
+                    html += '<div style="display:flex; justify-content:space-between; gap:8px; padding:2px 0;">' +
+                            '<span>' + d.nombre + '</span>' +
+                            '<span style="color:#64748b;">' + (d.sku || 'sin SKU') + ' · Stock: ' + d.stock + '</span></div>';
+                });
+                box.innerHTML = html;
+                box.style.display = 'block';
+            } else {
+                box.style.display = 'none';
+                box.innerHTML = '';
+            }
+        })
+        .catch(() => {});
+    }, 400);
 }
 
 function crearMaterial(btn) {
@@ -157,6 +199,28 @@ function crearMaterial(btn) {
                 timer: 2000,
                 showConfirmButton: false
             });
+        } else if (result.duplicate) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Posible material duplicado',
+                html: result.error,
+                showCancelButton: true,
+                confirmButtonText: 'Crear de todos modos',
+                cancelButtonText: 'Cancelar',
+                showDenyButton: true,
+                denyButtonText: 'Usar material existente',
+            }).then(res => {
+                if (res.isConfirmed) {
+                    form.querySelector('[name="nombre"]').value = data.nombre;
+                    crearMaterialForzado(btn, data);
+                } else if (res.isDenied) {
+                    // Vincular artículo al material existente
+                    vincularMaterialExistente(form, data, result.duplicado);
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Crear Material';
+                }
+            });
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: result.error });
             btn.disabled = false;
@@ -167,6 +231,57 @@ function crearMaterial(btn) {
         Swal.fire({ icon: 'error', title: 'Error de red', text: err.message });
         btn.disabled = false;
         btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Crear Material';
+    });
+}
+
+function crearMaterialForzado(btn, data) {
+    data.forzar = true;
+    fetch('{% url "almacen:crear_material_desde_solicitud_ajax" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify(data),
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            const articuloDiv = btn.closest('.articulo-pendiente');
+            articuloDiv.style.opacity = '0.3';
+            articuloDiv.style.pointerEvents = 'none';
+            Swal.fire({ icon: 'success', title: 'Material creado', text: `${result.material_nombre}`, timer: 2000, showConfirmButton: false });
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: result.error });
+            btn.disabled = false;
+            btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Crear Material';
+        }
+    })
+    .catch(err => {
+        Swal.fire({ icon: 'error', title: 'Error de red', text: err.message });
+        btn.disabled = false;
+        btn.innerHTML = '<ion-icon name="checkmark-circle-outline"></ion-icon> Crear Material';
+    });
+}
+
+function vincularMaterialExistente(form, data, duplicado) {
+    const articulo_id = data.articulo_id;
+    const csrf = '{{ csrf_token }}';
+    fetch('{% url "almacen:vincular_material_existente_ajax" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify({ articulo_id: articulo_id, material_id: duplicado.id }),
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            const articuloDiv = form.closest('.articulo-pendiente');
+            articuloDiv.style.opacity = '0.3';
+            articuloDiv.style.pointerEvents = 'none';
+            Swal.fire({ icon: 'success', title: 'Vinculado', text: `Artículo vinculado a ${duplicado.nombre}`, timer: 2000, showConfirmButton: false });
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: result.error });
+        }
+    })
+    .catch(err => {
+        Swal.fire({ icon: 'error', title: 'Error de red', text: err.message });
     });
 }
 </script>

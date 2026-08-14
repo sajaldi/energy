@@ -6,7 +6,7 @@ from django.db.models import Count, Q, Sum
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from .decorators import almacenes_required
+from .decorators import almacenes_required, almacenes_o_procura_tecnica_required
 from inventarios.models import Material, MovimientoInventario, StockRecord, CategoriaMaterial, SolicitudMaterial, UnidadMedida
 from presupuestos.models import ArticuloRequisicion, Requisicion
 from activos.models.ubicacion import Ubicacion
@@ -458,7 +458,7 @@ def asignar_materiales(request):
     return render(request, 'almacen/asignar_materiales.html', context)
 
 
-@almacenes_required
+@almacenes_o_procura_tecnica_required
 def materiales_pendientes(request):
     """
     Muestra los artículos de requisiciones que tienen material NULL
@@ -492,22 +492,25 @@ def materiales_pendientes(request):
 
     categorias = CategoriaMaterial.objects.all()
     unidades_medida = UnidadMedida.objects.all()
+    es_procura_tecnica = request.user.groups.filter(name__in=['Procura_Tecnica', 'PROCURA_TECNICA']).exists()
 
     context = {
         'agrupados': agrupados,
         'categorias': categorias,
         'unidades_medida': unidades_medida,
         'total_pendientes': articulos_pendientes.count(),
+        'es_procura_tecnica': es_procura_tecnica,
     }
     return render(request, 'almacen/materiales_pendientes.html', context)
 
 
-@almacenes_required
+@almacenes_o_procura_tecnica_required
 @require_POST
 def crear_material_desde_solicitud_ajax(request):
     """
     AJAX: Crea un material real a partir de un ArticuloRequisicion pendiente [NUEVO].
     Actualiza el artículo para vincularlo al nuevo material.
+    Verifica duplicados por SKU y por nombre.
     """
     try:
         data = json.loads(request.body)
@@ -518,6 +521,7 @@ def crear_material_desde_solicitud_ajax(request):
         unidad_medida_id = data.get('unidad_medida_id')
         descripcion = data.get('descripcion', '').strip()
         stock_minimo = data.get('stock_minimo', '0')
+        forzar = bool(data.get('forzar'))
 
         if not nombre:
             return JsonResponse({'success': False, 'error': 'El nombre del material es obligatorio.'})
@@ -526,6 +530,24 @@ def crear_material_desde_solicitud_ajax(request):
 
         if Material.objects.filter(sku=sku).exists():
             return JsonResponse({'success': False, 'error': f'Ya existe un material con el SKU "{sku}".'})
+
+        # Verificar duplicados por nombre (insensible a mayúsculas)
+        if not forzar:
+            duplicados = Material.objects.filter(nombre__iexact=nombre)
+            if duplicados.exists():
+                dup = duplicados.first()
+                return JsonResponse({
+                    'success': False,
+                    'duplicate': True,
+                    'error': f'Ya existe un material con el nombre "{nombre}" (SKU: {dup.sku or "N/A"}). '
+                             f'Verifica si es el mismo material antes de crearlo.',
+                    'duplicado': {
+                        'id': str(dup.id),
+                        'nombre': dup.nombre,
+                        'sku': dup.sku,
+                        'stock': float(dup.get_stock_total()),
+                    },
+                })
 
         articulo = get_object_or_404(ArticuloRequisicion, pk=articulo_id)
 
@@ -553,5 +575,71 @@ def crear_material_desde_solicitud_ajax(request):
 
     except ArticuloRequisicion.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Artículo no encontrado.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@almacenes_o_procura_tecnica_required
+@require_POST
+def vincular_material_existente_ajax(request):
+    """
+    AJAX: Vincula un ArticuloRequisicion [NUEVO] a un material existente,
+    descartando la creación de un duplicado.
+    """
+    try:
+        data = json.loads(request.body)
+        articulo_id = data.get('articulo_id')
+        material_id = data.get('material_id')
+
+        articulo = get_object_or_404(ArticuloRequisicion, pk=articulo_id)
+        material = get_object_or_404(Material, pk=material_id)
+
+        articulo.material = material
+        articulo.cr8ca_articulo = material.nombre
+        articulo.save(update_fields=['material', 'cr8ca_articulo'])
+
+        return JsonResponse({
+            'success': True,
+            'material_id': str(material.id),
+            'material_nombre': material.nombre,
+            'articulo_id': str(articulo.cr8ca_itemderequisicionid),
+        })
+    except ArticuloRequisicion.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Artículo no encontrado.'})
+    except Material.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Material no encontrado.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@almacenes_o_procura_tecnica_required
+@require_POST
+def verificar_materiales_duplicados_ajax(request):
+    """
+    AJAX: Busca materiales existentes que coincidan (parcial) con un nombre
+    para verificar duplicados antes de crear un material NUEVO.
+    """
+    try:
+        data = json.loads(request.body)
+        nombre = data.get('nombre', '').strip()
+        if not nombre:
+            return JsonResponse({'success': True, 'duplicados': []})
+
+        duplicados = Material.objects.filter(
+            Q(nombre__icontains=nombre) | Q(sku__icontains=nombre)
+        ).order_by('nombre')[:10]
+
+        return JsonResponse({
+            'success': True,
+            'duplicados': [
+                {
+                    'id': str(m.id),
+                    'nombre': m.nombre,
+                    'sku': m.sku,
+                    'stock': float(m.get_stock_total()),
+                }
+                for m in duplicados
+            ],
+        })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)

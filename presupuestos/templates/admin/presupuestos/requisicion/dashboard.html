@@ -461,6 +461,8 @@
                                     {% if req.estado_requisicion == 'PENDIENTE' %}background:#fef9c3; color:#854d0e;{% endif %}
                                     {% if req.estado_requisicion == 'BORRADOR' %}background:#f1f5f9; color:#475569;{% endif %}
                                     {% if req.estado_requisicion == 'VISTO_PROCURA' %}background:#e0e7ff; color:#3730a3;{% endif %}
+                                    {% if req.estado_requisicion == 'PROCURA_PROCESANDO' %}background:#fff7ed; color:#9a3412;{% endif %}
+                                    {% if req.estado_requisicion == 'SOLICITUD_INFORMACION' %}background:#fdf4ff; color:#86198f;{% endif %}
                                     {% if req.estado_requisicion == 'EN_ORDEN_COMPRA' %}background:#dbeafe; color:#1e40af;{% endif %}
                                     {% if req.estado_requisicion == 'RECHAZADO' %}background:#fee2e2; color:#991b1b;{% endif %}
                                 ">
@@ -485,7 +487,7 @@
                                     class="btn-custom btn-outline-custom" style="padding: 6px 12px; font-size: 0.75rem;">
                                     Editar
                                 </a>
-                                {% if es_procura %}
+                                {% if es_procura or es_procura_tecnica %}
                                 {% if req.estado_requisicion == 'AUTORIZADO' or req.estado_requisicion == 'VISTO_PROCURA' %}
                                 <button type="button" class="btn-custom btn-procesar-requisicion"
                                     style="padding: 6px 12px; font-size: 0.75rem; background: #f59e0b; color: white !important; border: none; cursor: pointer;"
@@ -498,6 +500,22 @@
                                     style="padding: 6px 12px; font-size: 0.75rem; background: #f97316; color: white !important; border: none; cursor: pointer;"
                                     data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
                                     🔄 Continuar Procesando
+                                </button>
+                                {% endif %}
+                                {% if req.estado_requisicion == 'AUTORIZADO' or req.estado_requisicion == 'VISTO_PROCURA' or req.estado_requisicion == 'PROCURA_PROCESANDO' %}
+                                <button type="button" class="btn-custom btn-solicitar-informacion"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #a855f7; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    ❓ Solicitar Información
+                                </button>
+                                {% endif %}
+                                {% endif %}
+                                {% if req.estado_requisicion == 'SOLICITUD_INFORMACION' %}
+                                {% if request.user == req.usuario_solicitante or request.user == req.usuario_en_nombre_de %}
+                                <button type="button" class="btn-custom btn-responder-informacion"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #ec4899; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    📝 Responder Solicitud
                                 </button>
                                 {% endif %}
                                 {% endif %}
@@ -582,6 +600,7 @@
                                     {% if req.estado_requisicion == 'BORRADOR' %}background:#f1f5f9; color:#475569;{% endif %}
                                     {% if req.estado_requisicion == 'VISTO_PROCURA' %}background:#e0e7ff; color:#3730a3;{% endif %}
                                     {% if req.estado_requisicion == 'PROCURA_PROCESANDO' %}background:#fff7ed; color:#9a3412;{% endif %}
+                                    {% if req.estado_requisicion == 'SOLICITUD_INFORMACION' %}background:#fdf4ff; color:#86198f;{% endif %}
                                     {% if req.estado_requisicion == 'EN_ORDEN_COMPRA' %}background:#dbeafe; color:#1e40af;{% endif %}
                                     {% if req.estado_requisicion == 'RECHAZADO' %}background:#fee2e2; color:#991b1b;{% endif %}
                                 ">
@@ -606,7 +625,7 @@
                                     class="btn-custom btn-outline-custom" style="padding: 6px 12px; font-size: 0.75rem;">
                                     Editar
                                 </a>
-                                {% if es_procura %}
+                                {% if es_procura or es_procura_tecnica %}
                                 {% if req.estado_requisicion == 'AUTORIZADO' or req.estado_requisicion == 'VISTO_PROCURA' %}
                                 <button type="button" class="btn-custom btn-procesar-requisicion"
                                     style="padding: 6px 12px; font-size: 0.75rem; background: #f59e0b; color: white !important; border: none; cursor: pointer;"
@@ -619,6 +638,22 @@
                                     style="padding: 6px 12px; font-size: 0.75rem; background: #f97316; color: white !important; border: none; cursor: pointer;"
                                     data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
                                     🔄 Continuar Procesando
+                                </button>
+                                {% endif %}
+                                {% if req.estado_requisicion == 'AUTORIZADO' or req.estado_requisicion == 'VISTO_PROCURA' or req.estado_requisicion == 'PROCURA_PROCESANDO' %}
+                                <button type="button" class="btn-custom btn-solicitar-informacion"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #a855f7; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    ❓ Solicitar Información
+                                </button>
+                                {% endif %}
+                                {% endif %}
+                                {% if req.estado_requisicion == 'SOLICITUD_INFORMACION' %}
+                                {% if request.user == req.usuario_solicitante or request.user == req.usuario_en_nombre_de %}
+                                <button type="button" class="btn-custom btn-responder-informacion"
+                                    style="padding: 6px 12px; font-size: 0.75rem; background: #ec4899; color: white !important; border: none; cursor: pointer;"
+                                    data-pk="{{ req.pk }}" data-req="{{ req.cr8ca_requisicion }}">
+                                    📝 Responder Solicitud
                                 </button>
                                 {% endif %}
                                 {% endif %}
@@ -684,6 +719,7 @@
                     <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
                         <th style="padding:10px 12px; text-align:left; font-weight:600; color:#64748b;">Descripción</th>
                         <th style="padding:10px 12px; text-align:center; font-weight:600; color:#64748b;">Cantidad</th>
+                        <th style="padding:10px 12px; text-align:center; font-weight:600; color:#64748b;">Stock</th>
                         <th style="padding:10px 12px; text-align:right; font-weight:600; color:#64748b;">Costo Unitario</th>
                         <th style="padding:10px 12px; text-align:right; font-weight:600; color:#64748b;">Impuestos</th>
                         <th style="padding:10px 12px; text-align:right; font-weight:600; color:#64748b;">Subtotal</th>
@@ -693,7 +729,7 @@
                 <tbody id="procesar-articulos-tbody"></tbody>
                 <tfoot>
                     <tr style="border-top:2px solid #e2e8f0; font-weight:700;">
-                        <td colspan="4" style="padding:12px; text-align:right;">Totales:</td>
+                        <td colspan="5" style="padding:12px; text-align:right;">Totales:</td>
                         <td style="padding:12px; text-align:right;" id="procesar-total">L. 0.00</td>
                         <td></td>
                     </tr>
@@ -702,12 +738,46 @@
         </div>
 
         <!-- Tipo de Documento -->
-        <div style="margin-top:16px; display:flex; align-items:center; gap:12px;">
+        <div style="margin-top:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
             <label style="font-weight:600; color:#1e293b; font-size:0.9rem;">Tipo de Documento:</label>
             <select id="tipo-documento-select" style="padding:6px 12px; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem; background:white;">
                 <option value="OC">OC</option>
                 <option value="DOIH">DOIH</option>
             </select>
+
+            <div style="display:flex; align-items:center; gap:8px; margin-left:24px;">
+                <label style="font-weight:600; color:#1e293b; font-size:0.9rem;">💳 Condiciones de Pago:</label>
+                <span id="procesar-forma-pago" style="padding:6px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; font-size:0.9rem; font-weight:500; color:#1d4ed8;">—</span>
+            </div>
+        </div>
+
+        <!-- Proveedor de la Requisición -->
+        <div style="margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <label style="font-weight:600; color:#1e293b; font-size:0.9rem;">🏢 Proveedor Asignado:</label>
+            <span id="procesar-proveedor" style="padding:6px 14px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; font-size:0.9rem; font-weight:500; color:#166534;">—</span>
+        </div>
+
+        <!-- Checklist de Documentación a Entregar -->
+        <div style="margin-top:16px; padding:16px; background:#fafafa; border:1px solid #e2e8f0; border-radius:8px;">
+            <h4 style="margin:0 0 12px; font-size:0.9rem; font-weight:700; color:#1e293b;">📋 Documentación a Entregar</h4>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#374151; cursor:pointer;">
+                    <input type="checkbox" id="chk-doc-factura" style="width:16px; height:16px; accent-color:#0070f2;">
+                    Factura
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#374151; cursor:pointer;">
+                    <input type="checkbox" id="chk-doc-estimacion" style="width:16px; height:16px; accent-color:#0070f2;">
+                    Estimación
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#374151; cursor:pointer;">
+                    <input type="checkbox" id="chk-doc-respaldo" style="width:16px; height:16px; accent-color:#0070f2;">
+                    Respaldo
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#374151; cursor:pointer;">
+                    <input type="checkbox" id="chk-doc-garantia" style="width:16px; height:16px; accent-color:#0070f2;">
+                    Garantía
+                </label>
+            </div>
         </div>
 
         <!-- Documentos adjuntos -->
@@ -810,6 +880,16 @@
         <div style="margin-bottom:16px; border:1px solid #e2e8f0; border-radius:6px; padding:12px;">
             <div style="font-size:0.85rem; font-weight:600; color:#1e293b; margin-bottom:10px;">Condiciones de Pago</div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div style="grid-column: span 2;">
+                    <label style="font-size:0.75rem; color:#64748b; font-weight:600;">Forma de Pago</label>
+                    <select id="oc-forma-pago" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:4px; font-size:0.85rem; background:white;">
+                        <option value="CONTADO">Al Contado</option>
+                        <option value="ANTICIPO">Anticipo</option>
+                        <option value="DIFERIDO">Diferido</option>
+                        <option value="CREDITO">A Plazos / Crédito</option>
+                        <option value="CONTRA_ENTREGA">Contra Entrega</option>
+                    </select>
+                </div>
                 <div>
                     <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:flex; align-items:center; gap:6px;">
                         <input type="checkbox" id="oc-anticipo"> Anticipo
@@ -1000,6 +1080,102 @@
             });
         });
 
+        // Botón Solicitar Información (Procura / Procura_Tecnica)
+        document.querySelectorAll('.btn-solicitar-informacion').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var pk = this.getAttribute('data-pk');
+                var reqNum = this.getAttribute('data-req');
+                Swal.fire({
+                    title: '❓ Solicitar Información',
+                    html: 'Se devolverá <strong>' + reqNum + '</strong> a estado "Solicitud de Información".<br><br>' +
+                          '<textarea id="comentario-solicitud" class="swal2-textarea" style="width:100%; min-height:100px; border:1px solid #e2e8f0; border-radius:6px; padding:10px;" placeholder="Escribe el motivo: por qué se solicitan materiales con stock, datos faltantes, etc."></textarea>',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Enviar solicitud',
+                    cancelButtonText: 'Cancelar',
+                    preConfirm: function() {
+                        var comentario = document.getElementById('comentario-solicitud').value.trim();
+                        if (!comentario) {
+                            Swal.showValidationMessage('Debe escribir el motivo.');
+                            return false;
+                        }
+                        return fetch('/presupuestos/requisiciones/' + pk + '/solicitar-informacion/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({ comentario: comentario })
+                        })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (!data.success) {
+                                Swal.showValidationMessage(data.message);
+                                return false;
+                            }
+                            return data;
+                        })
+                        .catch(function() {
+                            Swal.showValidationMessage('Error de conexión.');
+                            return false;
+                        });
+                    }
+                }).then(function(result) {
+                    if (result.isConfirmed) {
+                        Swal.fire('¡Enviado!', result.value.message, 'success').then(function() { location.reload(); });
+                    }
+                });
+            });
+        });
+
+        // Botón Responder Solicitud de Información (solicitante)
+        document.querySelectorAll('.btn-responder-informacion').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var pk = this.getAttribute('data-pk');
+                var reqNum = this.getAttribute('data-req');
+                Swal.fire({
+                    title: '📝 Responder Solicitud',
+                    html: 'Responde a la solicitud de información de <strong>' + reqNum + '</strong>.<br><br>' +
+                          '<textarea id="respuesta-informacion" class="swal2-textarea" style="width:100%; min-height:100px; border:1px solid #e2e8f0; border-radius:6px; padding:10px;" placeholder="Justifica la compra o proporciona la información requerida..."></textarea>',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Reenviar a Procura',
+                    cancelButtonText: 'Cancelar',
+                    preConfirm: function() {
+                        var respuesta = document.getElementById('respuesta-informacion').value.trim();
+                        if (!respuesta) {
+                            Swal.showValidationMessage('Debe escribir su respuesta.');
+                            return false;
+                        }
+                        return fetch('/presupuestos/requisiciones/' + pk + '/reenviar-informacion/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({ respuesta: respuesta })
+                        })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (!data.success) {
+                                Swal.showValidationMessage(data.message);
+                                return false;
+                            }
+                            return data;
+                        })
+                        .catch(function() {
+                            Swal.showValidationMessage('Error de conexión.');
+                            return false;
+                        });
+                    }
+                }).then(function(result) {
+                    if (result.isConfirmed) {
+                        Swal.fire('¡Reenviado!', result.value.message, 'success').then(function() { location.reload(); });
+                    }
+                });
+            });
+        });
+
         // Botón Procesar Requisición - abre modal con datos
         var currentProcesarPk = null;
         var proveedoresMap = {};
@@ -1052,6 +1228,27 @@
             document.getElementById('modal-procesar-req-info').textContent =
                 req.numero + ' - ' + req.asunto + ' | Total actual: L. ' + req.total_actual.toFixed(2);
 
+            // Mostrar condiciones de pago
+            var formaPagoEl = document.getElementById('procesar-forma-pago');
+            if (formaPagoEl) {
+                formaPagoEl.textContent = req.forma_pago_display || 'No especificada';
+            }
+
+            // Mostrar proveedor asignado de la requisición
+            var proveedorEl = document.getElementById('procesar-proveedor');
+            if (proveedorEl) {
+                proveedorEl.textContent = req.proveedor_nombre || 'No asignado';
+                proveedorEl.style.color = req.proveedor_nombre ? '#166534' : '#94a3b8';
+                proveedorEl.style.background = req.proveedor_nombre ? '#f0fdf4' : '#f8fafc';
+                proveedorEl.style.borderColor = req.proveedor_nombre ? '#bbf7d0' : '#e2e8f0';
+            }
+
+            // Reset checklist documentación
+            document.getElementById('chk-doc-factura').checked = false;
+            document.getElementById('chk-doc-estimacion').checked = false;
+            document.getElementById('chk-doc-respaldo').checked = false;
+            document.getElementById('chk-doc-garantia').checked = false;
+
             var tbody = document.getElementById('procesar-articulos-tbody');
             tbody.innerHTML = '';
             var totalGeneral = 0;
@@ -1062,20 +1259,34 @@
                 var subtotal = cant * costo;
                 totalGeneral += subtotal;
 
+                // Si el artículo no tiene proveedor, usar el de la requisición
+                var artProvId = art.proveedor_id || req.proveedor_id || null;
+
                 var optionsHtml = '<option value="">Seleccionar proveedor</option>';
                 data.proveedores.forEach(function(p) {
-                    var selected = (p.id === art.proveedor_id) ? 'selected' : '';
+                    var selected = (p.id === artProvId) ? 'selected' : '';
                     optionsHtml += '<option value="' + p.id + '" ' + selected + '>' + p.nombre + '</option>';
                 });
 
                 var tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid #e2e8f0';
+                var stockCell = '';
+                if (art.stock_actual !== null && art.stock_actual !== undefined) {
+                    var color = (art.stock_actual >= art.cantidad) ? '#16a34a' : '#dc2626';
+                    var label = (art.stock_actual >= art.cantidad) ? 'Cubre' : 'Falta';
+                    stockCell = '<td style="padding:10px 12px; text-align:center;">' +
+                        '<span style="font-weight:600; color:' + color + ';">' + art.stock_actual.toFixed(2) + '</span>' +
+                        '<br><span style="font-size:0.65rem; color:' + color + ';">' + label + '</span></td>';
+                } else {
+                    stockCell = '<td style="padding:10px 12px; text-align:center; color:#94a3b8;">—</td>';
+                }
                 tr.innerHTML =
                     '<td style="padding:10px 12px;">' + art.descripcion +
                     '<input type="hidden" class="art-id" value="' + art.id + '">' +
                     '<input type="hidden" class="art-descripcion" value="' + art.descripcion.replace(/"/g, '&quot;') + '"></td>' +
                     '<td style="padding:10px 12px; text-align:center;">' +
                     '<input type="number" class="art-cantidad" value="' + cant + '" step="0.01" min="0" style="width:70px; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; text-align:center;"></td>' +
+                    stockCell +
                     '<td style="padding:10px 12px; text-align:right;">' +
                     '<input type="number" class="art-costo" value="' + costo + '" step="0.01" min="0" style="width:100px; padding:4px 6px; border:1px solid #e2e8f0; border-radius:4px; text-align:right;"></td>' +
                     '<td style="padding:10px 12px; text-align:right;">' +
@@ -1095,8 +1306,8 @@
                 var selProv = tr.querySelector('.art-proveedor');
                 var inpProv = tr.querySelector('.art-proveedor-search');
                 var ddProv = tr.querySelector('.art-proveedor-dropdown');
-                if (art.proveedor_id && proveedoresMap[art.proveedor_id]) {
-                    inpProv.value = proveedoresMap[art.proveedor_id];
+                if (artProvId && proveedoresMap[artProvId]) {
+                    inpProv.value = proveedoresMap[artProvId];
                 }
                 inpProv.oninput = function() { filtrarProveedoresFila(inpProv, selProv, ddProv); };
                 inpProv.onfocus = function() { mostrarTodosProveedores(inpProv, selProv, ddProv); };
@@ -1203,13 +1414,19 @@
                 Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
 
                 var tipoDoc = document.getElementById('tipo-documento-select').value;
+                var docChecklist = {
+                    doc_factura: document.getElementById('chk-doc-factura').checked,
+                    doc_estimacion: document.getElementById('chk-doc-estimacion').checked,
+                    doc_respaldo: document.getElementById('chk-doc-respaldo').checked,
+                    doc_garantia: document.getElementById('chk-doc-garantia').checked,
+                };
                 fetch('/presupuestos/requisiciones/' + pk + '/finalizar-procesamiento/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': '{{ csrf_token }}'
                     },
-                    body: JSON.stringify({ articulos: articulosData, tipo_documento: tipoDoc })
+                    body: JSON.stringify({ articulos: articulosData, tipo_documento: tipoDoc, doc_checklist: docChecklist })
                 })
                 .then(function(r) {
                     if (!r.ok) {
@@ -1330,6 +1547,7 @@
                 }
 
                 // Condiciones de Pago
+                document.getElementById('oc-forma-pago').value = d.forma_pago || 'CONTADO';
                 document.getElementById('oc-anticipo').checked = d.anticipo;
                 if (d.anticipo) {
                     document.getElementById('oc-anticipo-fields').style.display = 'block';
@@ -1441,6 +1659,7 @@
                 contraentrega: document.getElementById('oc-contraentrega').checked,
                 credito: document.getElementById('oc-credito').checked,
                 credito_dias: parseInt(document.getElementById('oc-credito-dias').value) || null,
+                forma_pago: document.getElementById('oc-forma-pago').value,
                 doc_factura: document.getElementById('oc-doc-factura').checked,
                 doc_estimacion: document.getElementById('oc-doc-estimacion').checked,
                 doc_respaldo: document.getElementById('oc-doc-respaldo').checked,
@@ -1830,6 +2049,7 @@ function getEstadoColor(raw) {
         'BORRADOR': {bg:'#f1f5f9', text:'#475569'},
         'VISTO_PROCURA': {bg:'#e0e7ff', text:'#3730a3'},
         'PROCURA_PROCESANDO': {bg:'#fff7ed', text:'#9a3412'},
+        'SOLICITUD_INFORMACION': {bg:'#fdf4ff', text:'#86198f'},
         'EN_ORDEN_COMPRA': {bg:'#dbeafe', text:'#1e40af'},
         'RECHAZADO': {bg:'#fee2e2', text:'#991b1b'},
         'CANCELADO': {bg:'#fee2e2', text:'#991b1b'},
@@ -1855,6 +2075,7 @@ function getTimelineColor(raw) {
         'BORRADOR': '#94a3b8',
         'VISTO_PROCURA': '#6366f1',
         'PROCURA_PROCESANDO': '#f97316',
+        'SOLICITUD_INFORMACION': '#a855f7',
         'EN_ORDEN_COMPRA': '#3b82f6',
         'RECHAZADO': '#ef4444',
         'CANCELADO': '#ef4444',
@@ -2163,6 +2384,14 @@ document.addEventListener('DOMContentLoaded', function() {
             lastView: {{ last_view_json|default:"null" }},
             viewsBarContainer: document.querySelector('.dashboard-content')
         });
+    }
+
+    var procesarParam = new URLSearchParams(window.location.search).get('procesar');
+    if (procesarParam) {
+        setTimeout(function() {
+            var btn = document.querySelector('.btn-procesar-requisicion[data-pk="' + procesarParam + '"]');
+            if (btn) { btn.click(); }
+        }, 600);
     }
 });
 </script>

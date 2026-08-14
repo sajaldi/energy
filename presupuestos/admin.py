@@ -406,7 +406,7 @@ class RequisicionAdmin(ImportExportModelAdmin):
             'fields': ('cr8ca_requisicionid', 'cr8ca_requisicion', 'cr8ca_asunto', 'versionnumber', 'import_background_btn')
         }),
         ('Detalles y Estado', {
-            'fields': ('partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_totalenarticulos', 'total_estimado', 'monto_pagado', 'cr8ca_prioridad')
+            'fields': ('partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_totalenarticulos', 'total_estimado', 'monto_pagado', 'cr8ca_prioridad', 'forma_pago')
         }),
         ('Flags y Control', {
             'fields': ('cr8ca_ejecutado', 'cr8ca_cerrar', 'cr8ca_cajachica', 'cr8ca_solicituddetabladepago', 'cr8ca_seleccionar', 'statecode', 'statuscode')
@@ -655,7 +655,7 @@ class OrdenCompraAdmin(admin.ModelAdmin):
     fieldsets = [
         ('Documento', {'fields': ['tipo_documento', 'numero_oc', 'estado']}),
         ('Referencias', {'fields': ['requisicion', 'proveedor', 'centro_costo']}),
-        ('Condiciones de Pago', {'fields': ['anticipo', 'anticipo_porcentaje', 'contraentrega', 'credito', 'credito_dias']}),
+        ('Condiciones de Pago', {'fields': ['forma_pago', 'anticipo', 'anticipo_porcentaje', 'contraentrega', 'credito', 'credito_dias']}),
         ('Documentación', {'fields': ['doc_factura', 'doc_estimacion', 'doc_respaldo', 'doc_garantia']}),
         ('Montos', {'fields': ['subtotal', 'impuestos', 'total']}),
         ('Fechas', {'fields': ['fecha_creacion', 'fecha_entrega_estimada']}),

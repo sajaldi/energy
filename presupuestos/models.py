@@ -540,6 +540,7 @@ class Requisicion(models.Model):
         ('AUTORIZADO', 'Autorizado'),
         ('VISTO_PROCURA', 'Visto por Procura'),
         ('PROCURA_PROCESANDO', 'Procura Procesando'),
+        ('SOLICITUD_INFORMACION', 'Solicitud de Información'),
         ('EN_ORDEN_COMPRA', 'En Orden de Compra'),
         ('RECHAZADO', 'Rechazado'),
         ('CANCELADO', 'Cancelado'),
@@ -645,6 +646,21 @@ class Requisicion(models.Model):
     fecha_probable_entrega = models.DateField(
         null=True, blank=True,
         verbose_name="Fecha Probable de Entrega"
+    )
+
+    FORMA_PAGO_CHOICES = (
+        ('CONTADO', 'Al Contado'),
+        ('ANTICIPO', 'Anticipo'),
+        ('DIFERIDO', 'Diferido'),
+        ('CREDITO', 'A Plazos / Crédito'),
+        ('CONTRA_ENTREGA', 'Contra Entrega'),
+    )
+    forma_pago = models.CharField(
+        max_length=20,
+        choices=FORMA_PAGO_CHOICES,
+        default='CONTADO',
+        verbose_name="Forma de Pago",
+        help_text="Condición de pago que se transferirá a la Orden de Compra."
     )
 
     def save(self, *args, **kwargs):
@@ -1206,6 +1222,20 @@ class OrdenCompra(models.Model):
     contraentrega = models.BooleanField(default=False, verbose_name="Contraentrega")
     credito = models.BooleanField(default=False, verbose_name="Crédito")
     credito_dias = models.IntegerField(null=True, blank=True, verbose_name="Días de crédito")
+    FORMA_PAGO_CHOICES = (
+        ('CONTADO', 'Al Contado'),
+        ('ANTICIPO', 'Anticipo'),
+        ('DIFERIDO', 'Diferido'),
+        ('CREDITO', 'A Plazos / Crédito'),
+        ('CONTRA_ENTREGA', 'Contra Entrega'),
+    )
+    forma_pago = models.CharField(
+        max_length=20,
+        choices=FORMA_PAGO_CHOICES,
+        default='CONTADO',
+        verbose_name="Forma de Pago",
+        help_text="Forma de pago heredada de la requisición."
+    )
     doc_factura = models.BooleanField(default=False, verbose_name="Factura")
     doc_estimacion = models.BooleanField(default=False, verbose_name="Estimación")
     doc_respaldo = models.BooleanField(default=False, verbose_name="Respaldo")
