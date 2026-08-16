@@ -373,11 +373,14 @@
 
 <script>
 // ==================== RUTINAS DATA ====================
-var RUTINAS = [
-    {% for r in rutinas %}
-    {id: '{{ r.0|stringformat:"d" }}', nombre: '{{ r.1|escapejs }}'},
-    {% endfor %}
-];
+var RUTINAS = [];
+try {
+    RUTINAS = [
+        {% for r in rutinas %}
+        {id: '{{ r.0|stringformat:"d" }}', nombre: '{{ r.1|escapejs }}'},
+        {% endfor %}
+    ];
+} catch(e) { console.error('Error parsing RUTINAS:', e); }
 
 // ==================== RUTINA SELECTOR ====================
 (function() {
@@ -513,11 +516,13 @@ document.querySelector('.fiori-search').addEventListener('keydown', function(e) 
 
 // ==================== BULK SELECTION ====================
 var selectAllCb = document.getElementById('select-all');
-var rowCbs = document.querySelectorAll('.row-cb');
 var bulkBar = document.getElementById('bulk-bar');
 var bulkCountEl = document.getElementById('bulk-count-num');
 
+function getRowCbs() { return document.querySelectorAll('.row-cb'); }
+
 function updateBulkBar() {
+    var rowCbs = getRowCbs();
     var checked = document.querySelectorAll('.row-cb:checked');
     var count = checked.length;
     bulkCountEl.textContent = count;
@@ -526,23 +531,31 @@ function updateBulkBar() {
     } else {
         bulkBar.classList.remove('active');
     }
-    // Update select-all state
     selectAllCb.checked = (count === rowCbs.length && count > 0);
     selectAllCb.indeterminate = (count > 0 && count < rowCbs.length);
 }
 
 selectAllCb.addEventListener('change', function() {
-    rowCbs.forEach(function(cb) { cb.checked = selectAllCb.checked; });
+    getRowCbs().forEach(function(cb) { cb.checked = selectAllCb.checked; });
     updateBulkBar();
 });
 
-rowCbs.forEach(function(cb) {
-    cb.addEventListener('change', updateBulkBar);
+// Use event delegation on the table for checkbox changes
+document.getElementById('ordenes-table').addEventListener('change', function(e) {
+    if (e.target.classList.contains('row-cb')) {
+        updateBulkBar();
+    }
+});
+// Also handle click (some browsers don't fire change reliably)
+document.getElementById('ordenes-table').addEventListener('click', function(e) {
+    if (e.target.classList.contains('row-cb')) {
+        setTimeout(updateBulkBar, 0);
+    }
 });
 
 function clearSelection() {
     selectAllCb.checked = false;
-    rowCbs.forEach(function(cb) { cb.checked = false; });
+    getRowCbs().forEach(function(cb) { cb.checked = false; });
     updateBulkBar();
 }
 
