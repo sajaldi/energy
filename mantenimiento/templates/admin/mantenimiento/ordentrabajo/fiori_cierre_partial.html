@@ -333,9 +333,15 @@
             </div>
             <div class="fi-card-body">
                 <div style="display:flex;flex-direction:column;gap:14px;">
-                    <div>
-                        <label class="fi-label">Hora de Cierre</label>
-                        <input type="datetime-local" name="fecha_cierre" id="fi-fecha-cierre" class="fi-input" required>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div>
+                            <label class="fi-label">Inicio Real de Ejecución</label>
+                            <input type="datetime-local" name="fecha_inicio" id="fi-fecha-inicio" class="fi-input" value="{{ ot.fecha_ejecucion|date:'Y-m-d\TH:i' }}" required>
+                        </div>
+                        <div>
+                            <label class="fi-label">Fin Real / Hora de Cierre</label>
+                            <input type="datetime-local" name="fecha_cierre" id="fi-fecha-cierre" class="fi-input" required>
+                        </div>
                     </div>
                     <div>
                         <label class="fi-label">Comentarios Finales</label>
@@ -374,6 +380,8 @@
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     var inp = document.getElementById('fi-fecha-cierre');
     if (inp && !inp.value) inp.value = now.toISOString().slice(0, 16);
+    var inpInicio = document.getElementById('fi-fecha-inicio');
+    if (inpInicio && !inpInicio.value) inpInicio.value = now.toISOString().slice(0, 16);
 
     // ── Reusable drag-drop logic ──
     function fiSetupDrop(container, addFilesFn) {
