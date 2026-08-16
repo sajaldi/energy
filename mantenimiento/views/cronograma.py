@@ -182,6 +182,11 @@ def cronograma_mantenimiento_visual(request):
     ubicacion_ids = parse_ids('ubicacion_id')
     tipo_ids = parse_ids('tipo_id')
     programacion_id = request.GET.get('programacion_id')
+    rutina_id = request.GET.get('rutina_id', '').strip()
+    if rutina_id and not rutina_id.isdigit():
+        rutina_id = None
+    else:
+        rutina_id = int(rutina_id) if rutina_id else None
 
     # Usar el servicio para obtener los datos base
     data = WorkOrderService.get_calendar_data(
@@ -189,7 +194,8 @@ def cronograma_mantenimiento_visual(request):
         view_mode=view_mode,
         ubicacion_ids=ubicacion_ids,
         tipo_ids=tipo_ids,
-        programacion_id=programacion_id
+        programacion_id=programacion_id,
+        rutina_id=rutina_id
     )
     
     grupos_dict = data['grupos_dict']

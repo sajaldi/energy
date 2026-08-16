@@ -11,7 +11,7 @@ from .utils.pdf_utils import generate_ot_pdf_bytes
 
 class WorkOrderService:
     @staticmethod
-    def get_calendar_data(year, view_mode='sistema', ubicacion_ids=None, tipo_ids=None, programacion_id=None):
+    def get_calendar_data(year, view_mode='sistema', ubicacion_ids=None, tipo_ids=None, programacion_id=None, rutina_id=None):
         """
         Logic for grouping and projecting Work Orders for the visual calendar.
         Refactored from cronograma_mantenimiento_visual.
@@ -21,6 +21,9 @@ class WorkOrderService:
         filtros = {'inicio_programado__year': year}
         if programacion_id:
             filtros['programacion_id'] = programacion_id
+
+        if rutina_id:
+            filtros['rutina_id'] = rutina_id
             
         if ubicacion_ids:
             if isinstance(ubicacion_ids, str): ubicacion_ids = [int(x) for x in ubicacion_ids.split(',') if x.strip()]
@@ -62,6 +65,9 @@ class WorkOrderService:
         proy_filtros = {'fecha_inicio__year__lte': year}
         if programacion_id:
             proy_filtros['id'] = programacion_id
+
+        if rutina_id:
+            proy_filtros['rutina_id'] = rutina_id
         
         if tipo_ids:
             proy_filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
