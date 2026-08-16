@@ -239,12 +239,12 @@
                 <h4>Evidencia de Inicio</h4>
             </div>
             <div class="fi-card-body">
-                <div class="fi-dropzone" onclick="document.getElementById('fi-foto-inicio').click()">
+                <div class="fi-dropzone" onclick="document.getElementById('fi-foto-inicio').click()" id="fi-dropzone-inicio">
                     <ion-icon name="cloud-upload-outline"></ion-icon>
-                    <div>Tocar para subir fotos</div>
-                    <small>Fotos de inicio de actividad</small>
+                    <div>Arrastre o haga clic para subir archivos</div>
+                    <small>Fotos, videos o documentos de inicio de actividad</small>
                 </div>
-                <input type="file" id="fi-foto-inicio" name="fotos_inicio" accept="image/*" multiple style="display:none;">
+                <input type="file" id="fi-foto-inicio" name="fotos_inicio" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" multiple style="display:none;">
                 <div id="fi-grid-inicio" class="fi-att-grid"></div>
             </div>
         </div>
@@ -343,12 +343,12 @@
                     </div>
                     <div>
                         <label class="fi-label">Evidencia de Cierre</label>
-                        <div class="fi-dropzone" onclick="document.getElementById('fi-foto-cierre').click()" style="margin-top:4px;">
+                        <div class="fi-dropzone" onclick="document.getElementById('fi-foto-cierre').click()" id="fi-dropzone-cierre" style="margin-top:4px;">
                             <ion-icon name="cloud-upload-outline"></ion-icon>
-                            <div>Tocar para subir fotos</div>
-                            <small>Fotos de cierre de actividad</small>
+                            <div>Arrastre o haga clic para subir archivos</div>
+                            <small>Fotos, videos o documentos de cierre</small>
                         </div>
-                        <input type="file" id="fi-foto-cierre" name="fotos_cierre" accept="image/*" multiple style="display:none;">
+                        <input type="file" id="fi-foto-cierre" name="fotos_cierre" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" multiple style="display:none;">
                         <div id="fi-grid-cierre" class="fi-att-grid"></div>
                     </div>
                 </div>
@@ -443,7 +443,7 @@
         var grid = document.getElementById(gridId);
         if (!real || !dropEl) return;
         function addFiles(files) {
-            for (var i=0; i<files.length; i++) { if (files[i].type.startsWith('image/')) fiAreaFiles[type].push(files[i]); }
+            for (var i=0; i<files.length; i++) { fiAreaFiles[type].push(files[i]); }
             sync(); render();
         }
         function sync() {
@@ -455,12 +455,26 @@
             grid.innerHTML = '';
             fiAreaFiles[type].forEach(function(file, i){
                 var w = document.createElement('div'); w.className = 'fi-att-item';
-                var img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
+                if (file.type.startsWith('image/')) {
+                    var img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    w.appendChild(img);
+                } else if (file.type.startsWith('video/')) {
+                    var vid = document.createElement('video');
+                    vid.src = URL.createObjectURL(file);
+                    vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                    vid.muted = true;
+                    w.appendChild(vid);
+                } else {
+                    var icon = document.createElement('div');
+                    icon.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:4px;padding:6px;';
+                    icon.innerHTML = '<ion-icon name="document-outline" style="font-size:1.5rem;color:#64748b;"></ion-icon><span style="font-size:0.6rem;color:#64748b;text-align:center;overflow:hidden;text-overflow:ellipsis;width:100%;white-space:nowrap;">' + file.name + '</span>';
+                    w.appendChild(icon);
+                }
                 var btn = document.createElement('button'); btn.type='button';
                 btn.className='fi-att-del'; btn.innerHTML='&times;';
                 btn.onclick = function(){ fiAreaFiles[type].splice(i,1); sync(); render(); };
-                w.appendChild(img); w.appendChild(btn);
+                w.appendChild(btn);
                 grid.appendChild(w);
             });
         }
@@ -468,9 +482,10 @@
         real.addEventListener('change', function(){ addFiles(real.files); real.value = ''; });
         fiSetupDrop(dropEl, function(files){ addFiles(files); });
     }
-    var dropzones = document.querySelectorAll('#fiori-cierre-content .fi-dropzone');
-    fiSetupArea('inicio', 'fi-foto-inicio', 'fi-grid-inicio', dropzones[0]);
-    fiSetupArea('cierre', 'fi-foto-cierre', 'fi-grid-cierre', dropzones[1]);
+    var dropzoneInicio = document.getElementById('fi-dropzone-inicio');
+    var dropzoneCierre = document.getElementById('fi-dropzone-cierre');
+    fiSetupArea('inicio', 'fi-foto-inicio', 'fi-grid-inicio', dropzoneInicio);
+    fiSetupArea('cierre', 'fi-foto-cierre', 'fi-grid-cierre', dropzoneCierre);
 
     // ── Form submit ──
     document.getElementById('fiori-cierre-form').onsubmit = function(e) {
