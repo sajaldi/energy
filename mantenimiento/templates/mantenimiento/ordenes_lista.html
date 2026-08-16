@@ -312,6 +312,7 @@
     <!-- Bulk Action Bar -->
     <div class="bulk-bar" id="bulk-bar">
         <span class="bulk-count"><span id="bulk-count-num">0</span> orden(es) seleccionada(s)</span>
+        <button type="button" onclick="openBulkStatusModal()" style="padding:6px 14px; font-size:0.78rem; font-weight:600; background:#0a6ed1; color:white; border:none; cursor:pointer;">📋 Cambiar Estado</button>
         <button type="button" class="bulk-btn-delete" onclick="openDeleteModal()">🗑 Eliminar seleccionadas</button>
         <button type="button" class="bulk-btn-cancel" onclick="clearSelection()">Cancelar</button>
     </div>
@@ -530,6 +531,54 @@
         <div style="padding:10px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; background:#f8fafc;">
             <a id="activo-modal-link-full" href="#" target="_blank" class="fiori-btn" style="font-size:0.78rem;">🔗 Ver Expediente Completo</a>
             <button onclick="closeActivoModal()" class="fiori-btn">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Status Change Modal -->
+<div class="modal-overlay" id="bulk-status-modal" style="z-index:100002;">
+    <div class="modal-box" style="max-width:850px; padding:0; overflow:hidden;">
+        <div style="padding:14px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-size:1.05rem; font-weight:700; color:#0f172a;">📋 Cambio de Estado Masivo</div>
+                <div style="font-size:0.75rem; color:#64748b;" id="bulk-status-subtitle">0 órdenes seleccionadas</div>
+            </div>
+            <button onclick="closeBulkStatusModal()" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#64748b;">✕</button>
+        </div>
+        <div style="padding:16px 24px; max-height:60vh; overflow-y:auto;">
+            <!-- Global status selector -->
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; padding:10px 14px; background:#eff6ff; border:1px solid #bfdbfe;">
+                <label style="font-size:0.8rem; font-weight:600; white-space:nowrap;">Aplicar a todas:</label>
+                <select id="bulk-global-estado" style="padding:6px 10px; font-size:0.8rem; border:1px solid #d9d9d9; font-family:inherit; flex:1;">
+                    <option value="">— Seleccionar estado —</option>
+                    <option value="ESPERA">En Espera de Programación</option>
+                    <option value="PROGRAMADA">Programada</option>
+                    <option value="EJECUCION">En Ejecución</option>
+                    <option value="REALIZADA">Realizada</option>
+                    <option value="CANCELADA">Cancelada</option>
+                </select>
+                <button type="button" onclick="applyGlobalStatus()" style="padding:6px 12px; font-size:0.78rem; font-weight:600; background:#0a6ed1; color:white; border:none; cursor:pointer;">Aplicar a todas ▼</button>
+            </div>
+            <!-- Table of selected OTs -->
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                <thead>
+                    <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+                        <th style="padding:8px 10px; text-align:left; font-weight:600; color:#64748b; font-size:0.7rem;">CÓDIGO</th>
+                        <th style="padding:8px 10px; text-align:left; font-weight:600; color:#64748b; font-size:0.7rem;">RUTINA</th>
+                        <th style="padding:8px 10px; text-align:center; font-weight:600; color:#64748b; font-size:0.7rem;">INICIO PROG.</th>
+                        <th style="padding:8px 10px; text-align:center; font-weight:600; color:#64748b; font-size:0.7rem;">FECHA FINALIZACIÓN</th>
+                        <th style="padding:8px 10px; text-align:center; font-weight:600; color:#64748b; font-size:0.7rem;">ESTADO</th>
+                    </tr>
+                </thead>
+                <tbody id="bulk-status-tbody"></tbody>
+            </table>
+        </div>
+        <div style="padding:12px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; background:#f8fafc; align-items:center;">
+            <span style="font-size:0.75rem; color:#64748b;">Los cambios se aplican inmediatamente al guardar.</span>
+            <div style="display:flex; gap:8px;">
+                <button type="button" onclick="closeBulkStatusModal()" class="fiori-btn">Cancelar</button>
+                <button type="button" onclick="saveBulkStatus()" style="padding:8px 20px; font-size:0.82rem; font-weight:600; background:#107e3e; color:white; border:none; cursor:pointer;">✅ Guardar Cambios</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1270,6 +1319,97 @@ function cambiarEstadoOt() {
     })
     .catch(function() { showToast('Error de conexión', 'error'); });
 }
+
+// ==================== BULK STATUS CHANGE MODAL ====================
+var bulkStatusModal = document.getElementById('bulk-status-modal');
+
+function openBulkStatusModal() {
+    var ids = getSelectedIds();
+    if (ids.length === 0) return;
+    document.getElementById('bulk-status-subtitle').textContent = ids.length + ' órdenes seleccionadas';
+    document.getElementById('bulk-global-estado').value = '';
+
+    var tbody = document.getElementById('bulk-status-tbody');
+    tbody.innerHTML = '';
+
+    ids.forEach(function(id) {
+        var row = document.querySelector('tr[data-ot-id="' + id + '"]');
+        if (!row) return;
+        var codigo = row.querySelector('[data-col="codigo"]');
+        var rutina = row.querySelector('[data-col="rutina"]');
+        var inicio = row.querySelector('[data-col="inicio"]');
+        var codigoText = codigo ? codigo.textContent.trim() : 'OT #' + id;
+        var rutinaText = rutina ? rutina.textContent.trim() : '-';
+        var inicioText = inicio ? inicio.textContent.trim() : '-';
+
+        var tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #f0f0f0';
+        tr.setAttribute('data-bulk-id', id);
+        tr.innerHTML =
+            '<td style="padding:8px 10px; font-weight:600; color:#0a6ed1; font-size:0.78rem;">' + codigoText + '</td>' +
+            '<td style="padding:8px 10px; font-size:0.76rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + rutinaText + '</td>' +
+            '<td style="padding:8px 10px; text-align:center; font-size:0.78rem;">' + inicioText + '</td>' +
+            '<td style="padding:8px 10px; text-align:center;"><input type="date" class="bulk-fecha-fin" style="padding:4px 6px; font-size:0.78rem; border:1px solid #d9d9d9; font-family:inherit;"></td>' +
+            '<td style="padding:8px 10px; text-align:center;">' +
+                '<select class="bulk-estado-select" style="padding:4px 8px; font-size:0.76rem; border:1px solid #d9d9d9; font-family:inherit;">' +
+                    '<option value="ESPERA">En Espera</option>' +
+                    '<option value="PROGRAMADA">Programada</option>' +
+                    '<option value="EJECUCION">En Ejecución</option>' +
+                    '<option value="REALIZADA">Realizada</option>' +
+                    '<option value="CANCELADA">Cancelada</option>' +
+                '</select>' +
+            '</td>';
+        tbody.appendChild(tr);
+    });
+
+    bulkStatusModal.classList.add('active');
+}
+
+function closeBulkStatusModal() { bulkStatusModal.classList.remove('active'); }
+
+function applyGlobalStatus() {
+    var estado = document.getElementById('bulk-global-estado').value;
+    if (!estado) return;
+    document.querySelectorAll('#bulk-status-tbody .bulk-estado-select').forEach(function(sel) { sel.value = estado; });
+    if (estado === 'REALIZADA') {
+        var today = new Date().toISOString().split('T')[0];
+        document.querySelectorAll('#bulk-status-tbody .bulk-fecha-fin').forEach(function(inp) { if (!inp.value) inp.value = today; });
+    }
+}
+
+function saveBulkStatus() {
+    var rows = document.querySelectorAll('#bulk-status-tbody tr[data-bulk-id]');
+    var ordenes = [];
+    rows.forEach(function(tr) {
+        ordenes.push({
+            id: parseInt(tr.getAttribute('data-bulk-id')),
+            estado: tr.querySelector('.bulk-estado-select').value,
+            fecha_fin: tr.querySelector('.bulk-fecha-fin').value || ''
+        });
+    });
+    if (ordenes.length === 0) return;
+
+    fetch('/mantenimiento/ordenes/bulk-status/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify({ordenes: ordenes})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.status === 'success') {
+            closeBulkStatusModal();
+            clearSelection();
+            showToast(data.message, 'success');
+            setTimeout(function() { location.reload(); }, 1200);
+        } else {
+            showToast(data.message || 'Error', 'error');
+        }
+    })
+    .catch(function() { showToast('Error de conexión', 'error'); });
+}
+
+bulkStatusModal.addEventListener('click', function(e) { if (e.target === bulkStatusModal) closeBulkStatusModal(); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && bulkStatusModal.classList.contains('active')) closeBulkStatusModal(); });
 </script>
 </body>
 </html>

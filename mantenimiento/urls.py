@@ -17,6 +17,7 @@ urlpatterns = [
     path('', views.mantenimiento_dashboard, name='dashboard'),
     path('ordenes/', views.ordenes_lista_view, name='ordenes_lista'),
     path('ordenes/bulk-delete/', views.ordenes_bulk_delete, name='ordenes_bulk_delete'),
+    path('ordenes/bulk-status/', views.ordenes_bulk_status, name='ordenes_bulk_status'),
     path('calendario/', views.calendario_mantenimiento, name='calendario'),
     path('calendario/detallado/', views.calendario_detallado, name='detallado'),
     path('cronograma/', views.cronograma_mantenimiento_visual, name='cronograma'),

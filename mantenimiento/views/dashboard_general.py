@@ -229,3 +229,54 @@ def ordenes_bulk_delete(request):
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def ordenes_bulk_status(request):
+    """Cambio masivo de estado de órdenes de trabajo con fecha de finalización."""
+    import json
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from datetime import datetime
+
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        ordenes_data = data.get('ordenes', [])
+
+        if not ordenes_data:
+            return JsonResponse({'status': 'error', 'message': 'No se enviaron órdenes.'}, status=400)
+
+        updated = 0
+        for item in ordenes_data:
+            ot_id = item.get('id')
+            nuevo_estado = item.get('estado')
+            fecha_fin_str = item.get('fecha_fin', '')
+
+            if not ot_id or not nuevo_estado:
+                continue
+
+            try:
+                ot = OrdenTrabajo.objects.get(id=ot_id)
+                if nuevo_estado in dict(OrdenTrabajo.ESTADO_CHOICES):
+                    ot.estado = nuevo_estado
+                    if nuevo_estado == 'REALIZADA' and fecha_fin_str:
+                        try:
+                            ot.fin_programado = datetime.strptime(fecha_fin_str, '%Y-%m-%d')
+                        except ValueError:
+                            pass
+                    if nuevo_estado == 'EJECUCION' and not ot.fecha_ejecucion:
+                        ot.fecha_ejecucion = timezone.now()
+                    ot.save()
+                    updated += 1
+            except OrdenTrabajo.DoesNotExist:
+                continue
+
+        return JsonResponse({
+            'status': 'success',
+            'message': f'{updated} orden(es) actualizada(s) correctamente.'
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
