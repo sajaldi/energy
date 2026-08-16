@@ -2141,6 +2141,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             'tecnicos_list': tecnicos_list,
             'colaboradores': colaboradores,
             'empresa_responsable': empresa_resp,
+            'is_superuser': request.user.is_superuser,
         }
         return render(request, 'admin/mantenimiento/ordentrabajo/fiori_edit_partial.html', context)
 
