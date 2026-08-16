@@ -251,7 +251,10 @@
             <h1 class="fiori-page-title">Órdenes de Trabajo</h1>
             <div class="fiori-page-subtitle">{{ total }} órdenes encontradas</div>
         </div>
-        <a href="/mantenimiento/" class="fiori-btn">← Dashboard</a>
+        <div style="display:flex; gap:8px;">
+            <button onclick="openCrearOtModal()" class="fiori-btn" style="background:var(--fiori-blue); color:white; border-color:var(--fiori-blue);">+ Nueva OT</button>
+            <a href="/mantenimiento/" class="fiori-btn">← Dashboard</a>
+        </div>
     </div>
 
     <!-- Rutina Selector -->
@@ -483,6 +486,22 @@
 </style>
 
 <!-- Bulk Status Change Modal -->
+
+<!-- Crear OT Modal -->
+<div id="crear-ot-modal" class="otnp-overlay" onclick="closeCrearOtModal()">
+    <div class="otnp-dialog" onclick="event.stopPropagation()" style="max-width:900px; width:95%;">
+        <div class="otnp-dialog-header" style="background:var(--fiori-blue); color:white;">
+            <div class="otnp-dialog-title" style="color:white;">
+                <span>➕</span>
+                <span>Nueva Orden de Trabajo</span>
+            </div>
+            <button class="otnp-close-btn" onclick="closeCrearOtModal()" style="color:white; background:transparent; border:none; cursor:pointer; font-size:1.3rem;">✕</button>
+        </div>
+        <div id="crear-ot-content" class="otnp-dialog-body" style="padding:0; min-height:400px;">
+            <div style="display:flex; justify-content:center; align-items:center; height:300px; color:#64748b;">Cargando formulario...</div>
+        </div>
+    </div>
+</div>
 <div class="modal-overlay" id="bulk-status-modal" style="z-index:100002;">
     <div class="modal-box" style="max-width:850px; padding:0; overflow:hidden;">
         <div style="padding:14px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
@@ -997,6 +1016,37 @@ document.addEventListener('click', function(e) {
     if (link) { e.preventDefault(); var pk = link.getAttribute('data-pk'); if (pk) openOtModal(pk); }
 });
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && otModal.classList.contains('active')) closeOtModal(); });
+
+// ==================== CREAR OT MODAL ====================
+function openCrearOtModal() {
+    var modal = document.getElementById('crear-ot-modal');
+    var content = document.getElementById('crear-ot-content');
+    modal.classList.add('active');
+    content.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:300px; color:#64748b;">Cargando formulario...</div>';
+
+    fetch('/mantenimiento/app/ot/crear-no-programada/')
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+        // Extract just the body content (between <body> and </body>)
+        var match = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        if (match) {
+            content.innerHTML = '<div style="padding:16px; overflow-y:auto; max-height:75vh;">' + match[1] + '</div>';
+        } else {
+            content.innerHTML = '<div style="padding:16px; overflow-y:auto; max-height:75vh;">' + html + '</div>';
+        }
+        // Execute scripts
+        content.querySelectorAll('script').forEach(function(script) {
+            var nuevo = document.createElement('script');
+            if (script.src) { nuevo.src = script.src; } else { nuevo.textContent = script.textContent; }
+            document.body.appendChild(nuevo);
+            nuevo.parentNode.removeChild(nuevo);
+        });
+    })
+    .catch(function() {
+        content.innerHTML = '<div style="padding:2rem; text-align:center; color:#bb0000;">Error al cargar el formulario.</div>';
+    });
+}
+function closeCrearOtModal() { document.getElementById('crear-ot-modal').classList.remove('active'); }
 
 // ==================== BULK STATUS CHANGE MODAL ====================
 var bulkStatusModal = document.getElementById('bulk-status-modal');
