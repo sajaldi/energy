@@ -248,7 +248,7 @@
                 <div id="fi-grid-inicio" class="fi-att-grid"></div>
                 {% if archivos_inicio %}
                 <div style="margin-top:10px; border-top:1px solid #e2e8f0; padding-top:8px;">
-                    <label class="fi-label">Archivos ya cargados ({{ archivos_inicio|length }})</label>
+                    <label class="fi-label">Archivos de inicio ({{ archivos_inicio|length }})</label>
                     <div class="fi-att-grid" style="margin-top:6px;">
                         {% for a in archivos_inicio %}
                         <div class="fi-att-item">
@@ -374,17 +374,48 @@
                         </div>
                         <input type="file" id="fi-foto-cierre" name="fotos_cierre" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" multiple style="display:none;">
                         <div id="fi-grid-cierre" class="fi-att-grid"></div>
-                        {% if archivos_cierre %}
+                        {% if archivos_cierre or archivos_durante %}
                         <div style="margin-top:10px; border-top:1px solid #e2e8f0; padding-top:8px;">
-                            <label class="fi-label">Archivos ya cargados ({{ archivos_cierre|length }})</label>
+                            <label class="fi-label">Archivos cargados ({{ archivos_cierre|length|add:archivos_durante|length }})</label>
                             <div class="fi-att-grid" style="margin-top:6px;">
                                 {% for a in archivos_cierre %}
                                 <div class="fi-att-item">
                                     {% if a.tipo == 'IMAGEN' %}
                                     <a href="{{ a.archivo.url }}" target="_blank"><img src="{{ a.archivo.url }}" loading="lazy"></a>
                                     {% else %}
-                                    <a href="{{ a.archivo.url }}" target="_blank" style="display:flex;align-items:center;justify-content:center;height:100%;background:#f1f5f9;">
+                                    <a href="{{ a.archivo.url }}" target="_blank" style="display:flex;align-items:center;justify-content:center;height:100%;background:#f1f5f9;flex-direction:column;gap:2px;">
                                         <ion-icon name="document-outline" style="font-size:1.5rem;color:#64748b;"></ion-icon>
+                                        <span style="font-size:0.55rem;color:#64748b;">{{ a.nombre|truncatechars:12 }}</span>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                                {% for a in archivos_durante %}
+                                <div class="fi-att-item">
+                                    {% if a.tipo == 'IMAGEN' %}
+                                    <a href="{{ a.archivo.url }}" target="_blank"><img src="{{ a.archivo.url }}" loading="lazy"></a>
+                                    {% else %}
+                                    <a href="{{ a.archivo.url }}" target="_blank" style="display:flex;align-items:center;justify-content:center;height:100%;background:#f1f5f9;flex-direction:column;gap:2px;">
+                                        <ion-icon name="document-outline" style="font-size:1.5rem;color:#64748b;"></ion-icon>
+                                        <span style="font-size:0.55rem;color:#64748b;">{{ a.nombre|truncatechars:12 }}</span>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% elif archivos_todos %}
+                        <div style="margin-top:10px; border-top:1px solid #e2e8f0; padding-top:8px;">
+                            <label class="fi-label">Todos los archivos ({{ archivos_todos|length }})</label>
+                            <div class="fi-att-grid" style="margin-top:6px;">
+                                {% for a in archivos_todos %}
+                                <div class="fi-att-item">
+                                    {% if a.tipo == 'IMAGEN' %}
+                                    <a href="{{ a.archivo.url }}" target="_blank"><img src="{{ a.archivo.url }}" loading="lazy"></a>
+                                    {% else %}
+                                    <a href="{{ a.archivo.url }}" target="_blank" style="display:flex;align-items:center;justify-content:center;height:100%;background:#f1f5f9;flex-direction:column;gap:2px;">
+                                        <ion-icon name="document-outline" style="font-size:1.5rem;color:#64748b;"></ion-icon>
+                                        <span style="font-size:0.55rem;color:#64748b;">{{ a.nombre|truncatechars:12 }}</span>
                                     </a>
                                     {% endif %}
                                 </div>
