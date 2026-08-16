@@ -176,6 +176,43 @@
         <textarea name="descripcion" class="otnp-textarea" style="border-radius: 0;" placeholder="Explique la necesidad de esta orden..." required>{{ ot.descripcion_detallada|default:ot.notas }}</textarea>
     </div>
 
+    <!-- Solicitudes de Material (Pases de Salida) -->
+    <div class="otnp-section-label" style="margin-top:16px;"><ion-icon name="cube-outline"></ion-icon> Materiales / Pases de Salida</div>
+    {% if solicitudes_material %}
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; margin-top:6px;">
+        {% for sol in solicitudes_material %}
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
+            <div style="flex:1;">
+                <a href="/admin/inventarios/solicitudmaterial/{{ sol.id|unlocalize }}/change/" target="_blank" style="font-size:0.85rem; font-weight:600; color:#0a6ed1; text-decoration:none;">
+                    Pase #{{ sol.id|unlocalize }}
+                </a>
+                <span style="font-size:0.72rem; color:#64748b; margin-left:8px;">{{ sol.fecha_solicitud|date:"d/m/Y H:i" }}</span>
+                <div style="font-size:0.75rem; color:#475569; margin-top:2px;">
+                    {{ sol.items_count }} material(es) · {{ sol.get_estado_display }}
+                </div>
+            </div>
+            <span style="padding:3px 8px; font-size:0.65rem; font-weight:700; text-transform:uppercase;
+                {% if sol.estado == 'ENTREGADO' %}background:#dcfce7; color:#166534;
+                {% elif sol.estado == 'AUTORIZADO' %}background:#eff6ff; color:#1d4ed8;
+                {% elif sol.estado == 'PENDIENTE' or sol.estado == 'PENDIENTE_AUTORIZACION' %}background:#fef3c7; color:#92400e;
+                {% else %}background:#f1f5f9; color:#475569;{% endif %}">
+                {{ sol.get_estado_display }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:14px; margin-top:6px; text-align:center; color:#94a3b8; font-size:0.85rem;">
+        <ion-icon name="cube-outline" style="font-size:1.3rem; display:block; margin-bottom:4px;"></ion-icon>
+        Sin pases de salida vinculados a esta orden.
+    </div>
+    {% endif %}
+    <div style="margin-top:8px;">
+        <a href="/admin/inventarios/solicitudmaterial/add/?orden_trabajo={{ ot.id|unlocalize }}" target="_blank" class="otnp-btn-ghost" style="border-radius:0; padding:6px 14px; font-size:0.78rem; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+            <ion-icon name="add-circle-outline"></ion-icon> Nueva Solicitud de Material
+        </a>
+    </div>
+
     {% if not cierre %}
     <div class="otnp-section-label" style="margin-top:16px;"><ion-icon name="flag-outline"></ion-icon> Finalizar Orden</div>
     <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:14px; margin-top:6px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
