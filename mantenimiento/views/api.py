@@ -344,27 +344,32 @@ def api_get_ot_related(request, pk):
     
     related_qs = OrdenTrabajo.objects.exclude(id=ot.id).select_related('rutina', 'ubicacion').order_by('-inicio_programado')
     
-    # Build Q filters for related OTs
-    q_filters = Q()
     reasons = {}  # ot_id -> list of reasons
     
     # By same rutina
     if ot.rutina_id:
-        by_rutina = related_qs.filter(rutina_id=ot.rutina_id)[:30]
-        for r in by_rutina:
+        for r in related_qs.filter(rutina_id=ot.rutina_id)[:50]:
             reasons.setdefault(r.id, []).append('rutina')
     
     # By same activos
     activo_ids = list(ot.activos.values_list('id', flat=True))
     if activo_ids:
-        by_activo = related_qs.filter(activos__id__in=activo_ids).distinct()[:30]
-        for r in by_activo:
+        for r in related_qs.filter(activos__id__in=activo_ids).distinct()[:30]:
             reasons.setdefault(r.id, []).append('activo')
     
-    # By same ubicacion (edificio)
+    # By same ubicacion OR parent edificio
     if ot.ubicacion_id:
-        by_ubicacion = related_qs.filter(ubicacion_id=ot.ubicacion_id)[:30]
-        for r in by_ubicacion:
+        ubi_ids = [ot.ubicacion_id]
+        try:
+            ubi = ot.ubicacion
+            if hasattr(ubi, 'get_ancestors'):
+                ancestors = ubi.get_ancestors(include_self=True)
+                building = ancestors.filter(tipo='EDIFICIO').first()
+                if building and hasattr(building, 'get_descendants'):
+                    ubi_ids = list(building.get_descendants(include_self=True).values_list('id', flat=True))
+        except Exception:
+            pass
+        for r in related_qs.filter(ubicacion_id__in=ubi_ids).exclude(id__in=list(reasons.keys()))[:30]:
             reasons.setdefault(r.id, []).append('ubicación')
     
     # Fetch all unique related OTs
