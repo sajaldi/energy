@@ -797,7 +797,12 @@ function confirmDelete() {
     var errorEl = document.getElementById('modal-error');
     var confirmBtn = document.getElementById('modal-confirm-btn');
 
-    if (!password) {
+    // Check grace period - if within grace, password not required
+    var lastVerified = parseInt(sessionStorage.getItem('bulk_delete_verified_at') || '0');
+    var now = Math.floor(Date.now() / 1000);
+    var withinGrace = (now - lastVerified) < 600;
+
+    if (!password && !withinGrace) {
         errorEl.textContent = 'Ingresa tu contraseña.';
         errorEl.style.display = 'block';
         return;
