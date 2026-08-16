@@ -2070,6 +2070,20 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         }
         return render(request, 'admin/mantenimiento/ordentrabajo/fiori_completa_page.html', context)
 
+    def crear_ot_fiori_completa_view(self, request):
+        """Crea una OT vacía y redirige a la página completa para editarla."""
+        from django.utils import timezone
+        from django.shortcuts import redirect
+
+        ot = OrdenTrabajo.objects.create(
+            tipo='NO_PROGRAMADA',
+            prioridad='MEDIA',
+            estado='ESPERA',
+            inicio_programado=timezone.now(),
+            fin_programado=timezone.now() + timezone.timedelta(hours=2),
+        )
+        return redirect(f'/admin/mantenimiento/ordentrabajo/fiori-completa-page/{ot.pk}/')
+
     def fiori_solicitar_materiales_partial_view(self, request, pk):
         """Partial para solicitar materiales desde el modal Fiori de OT"""
         ot = get_object_or_404(OrdenTrabajo, pk=pk)
@@ -2099,6 +2113,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             path('fiori-edit/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_edit_view), name='mantenimiento_ordentrabajo_fiori_edit'),
             path('fiori-completa/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_completa_view), name='mantenimiento_ordentrabajo_fiori_completa'),
             path('fiori-completa-page/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_completa_page_view), name='mantenimiento_ordentrabajo_fiori_completa_page'),
+            path('fiori-completa-page/new/', self.admin_site.admin_view(self.crear_ot_fiori_completa_view), name='mantenimiento_ordentrabajo_fiori_completa_new'),
             path('fiori-save/<int:pk>/', csrf_exempt(self.admin_site.admin_view(self.guardar_ot_fiori_view)), name='mantenimiento_ordentrabajo_fiori_save'),
             path('fiori-solicitar-materiales/<int:pk>/', self.admin_site.admin_view(self.fiori_solicitar_materiales_partial_view), name='mantenimiento_ordentrabajo_fiori_solicitar_materiales'),
             path('fiori-cierre/<int:pk>/', self.admin_site.admin_view(self.visualizar_ot_fiori_cierre_view), name='mantenimiento_ordentrabajo_fiori_cierre'),
