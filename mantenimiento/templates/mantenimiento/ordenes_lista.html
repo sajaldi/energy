@@ -241,11 +241,11 @@
                    value="{% for r in rutinas %}{% if r.0|stringformat:'s' == rutina_filter %}{{ r.1 }}{% endif %}{% endfor %}">
             <div class="rutina-dropdown" id="rutina-dropdown"></div>
         </div>
-        {% if rutina_filter %}
-        <a href="/mantenimiento/cronograma/?rutina_id={{ rutina_filter }}" target="_blank"
-           class="fiori-btn" style="background:var(--fiori-blue); color:white; border-color:var(--fiori-blue); font-size:0.78rem; padding:6px 14px;">
+        <a href="/mantenimiento/cronograma/?rutina_id={{ rutina_filter }}" target="_blank" id="btn-ver-cronograma"
+           class="fiori-btn" style="background:var(--fiori-blue); color:white; border-color:var(--fiori-blue); font-size:0.78rem; padding:6px 14px; {% if not rutina_filter %}display:none;{% endif %}">
             📊 Ver Cronograma
         </a>
+        {% if rutina_filter %}
         <button type="button" class="rutina-clear" onclick="clearRutina()">✕ Quitar filtro</button>
         {% endif %}
     </div>
@@ -417,9 +417,16 @@ try {
         dropdown.querySelectorAll('.rutina-option[data-id]').forEach(function(opt) {
             opt.addEventListener('mousedown', function(e) {
                 e.preventDefault();
-                hidden.value = opt.getAttribute('data-id');
+                var rutinaId = opt.getAttribute('data-id');
+                hidden.value = rutinaId;
                 input.value = opt.textContent;
                 dropdown.style.display = 'none';
+                // Show cronograma button immediately
+                var btnCrono = document.getElementById('btn-ver-cronograma');
+                if (btnCrono) {
+                    btnCrono.href = '/mantenimiento/cronograma/?rutina_id=' + rutinaId;
+                    btnCrono.style.display = '';
+                }
                 document.getElementById('filter-form').submit();
             });
         });
