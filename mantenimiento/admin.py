@@ -2184,6 +2184,9 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             'colaboradores': colaboradores,
             'empresa_responsable': empresa_resp,
             'cierre': getattr(ot, 'cierre', None),
+            'archivos_inicio': ot.archivos.filter(momento='ANTES').order_by('-creado_en'),
+            'archivos_cierre': ot.archivos.filter(momento='DESPUES').order_by('-creado_en'),
+            'archivos_durante': ot.archivos.filter(momento='DURANTE').order_by('-creado_en'),
         }
         return render(request, 'admin/mantenimiento/ordentrabajo/fiori_cierre_partial.html', context)
 

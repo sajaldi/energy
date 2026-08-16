@@ -246,6 +246,24 @@
                 </div>
                 <input type="file" id="fi-foto-inicio" name="fotos_inicio" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" multiple style="display:none;">
                 <div id="fi-grid-inicio" class="fi-att-grid"></div>
+                {% if archivos_inicio %}
+                <div style="margin-top:10px; border-top:1px solid #e2e8f0; padding-top:8px;">
+                    <label class="fi-label">Archivos ya cargados ({{ archivos_inicio|length }})</label>
+                    <div class="fi-att-grid" style="margin-top:6px;">
+                        {% for a in archivos_inicio %}
+                        <div class="fi-att-item">
+                            {% if a.tipo == 'IMAGEN' %}
+                            <a href="{{ a.archivo.url }}" target="_blank"><img src="{{ a.archivo.url }}" loading="lazy"></a>
+                            {% else %}
+                            <a href="{{ a.archivo.url }}" target="_blank" style="display:flex;align-items:center;justify-content:center;height:100%;background:#f1f5f9;">
+                                <ion-icon name="document-outline" style="font-size:1.5rem;color:#64748b;"></ion-icon>
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -336,7 +354,7 @@
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                         <div>
                             <label class="fi-label">Inicio Real de Ejecución</label>
-                            <input type="datetime-local" name="fecha_inicio" id="fi-fecha-inicio" class="fi-input" value="{% if cierre and cierre.fecha_inicio_real %}{{ cierre.fecha_inicio_real|date:'Y-m-d\TH:i' }}{% elif ot.fecha_ejecucion %}{{ ot.fecha_ejecucion|date:'Y-m-d\TH:i' }}{% endif %}" required>
+                            <input type="datetime-local" name="fecha_inicio" id="fi-fecha-inicio" class="fi-input" value="{% if cierre and cierre.fecha_inicio_real %}{{ cierre.fecha_inicio_real|date:'Y-m-d\TH:i' }}{% elif ot.fecha_ejecucion %}{{ ot.fecha_ejecucion|date:'Y-m-d\TH:i' }}{% elif ot.inicio_programado %}{{ ot.inicio_programado|date:'Y-m-d\TH:i' }}{% endif %}" required>
                         </div>
                         <div>
                             <label class="fi-label">Fin Real / Hora de Cierre</label>
@@ -356,6 +374,24 @@
                         </div>
                         <input type="file" id="fi-foto-cierre" name="fotos_cierre" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" multiple style="display:none;">
                         <div id="fi-grid-cierre" class="fi-att-grid"></div>
+                        {% if archivos_cierre %}
+                        <div style="margin-top:10px; border-top:1px solid #e2e8f0; padding-top:8px;">
+                            <label class="fi-label">Archivos ya cargados ({{ archivos_cierre|length }})</label>
+                            <div class="fi-att-grid" style="margin-top:6px;">
+                                {% for a in archivos_cierre %}
+                                <div class="fi-att-item">
+                                    {% if a.tipo == 'IMAGEN' %}
+                                    <a href="{{ a.archivo.url }}" target="_blank"><img src="{{ a.archivo.url }}" loading="lazy"></a>
+                                    {% else %}
+                                    <a href="{{ a.archivo.url }}" target="_blank" style="display:flex;align-items:center;justify-content:center;height:100%;background:#f1f5f9;">
+                                        <ion-icon name="document-outline" style="font-size:1.5rem;color:#64748b;"></ion-icon>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -379,10 +415,10 @@
     var now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     var localNow = now.toISOString().slice(0, 16);
+    // Only auto-fill Fin with current time if empty
     var inp = document.getElementById('fi-fecha-cierre');
     if (inp && !inp.value) inp.value = localNow;
-    var inpInicio = document.getElementById('fi-fecha-inicio');
-    if (inpInicio && !inpInicio.value) inpInicio.value = localNow;
+    // Don't auto-fill Inicio with "now" — leave it for user to set or use inicio_programado from template
 
     // ── Reusable drag-drop logic ──
     function fiSetupDrop(container, addFilesFn) {
