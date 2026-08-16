@@ -183,6 +183,34 @@ tr:last-child td{border-bottom:none}
             <textarea id="edit-comentarios-alm" rows="3" style="width:100%; padding:8px 10px; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit; resize:vertical;">{{ sol.comentarios_almacen|default:"" }}</textarea>
         </div>
 
+        <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:0.72rem; font-weight:600; color:#6a6d70; text-transform:uppercase; margin-bottom:4px;">Vincular Orden de Trabajo</label>
+            <div style="position:relative;">
+                <input type="text" id="edit-ot-search" placeholder="🔍 Buscar OT por código..." autocomplete="off"
+                       value="{% if sol.orden_trabajo %}{{ sol.orden_trabajo.codigo_de_orden }}{% endif %}"
+                       style="width:100%; padding:8px 10px; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit;">
+                <input type="hidden" id="edit-ot-id" value="{{ sol.orden_trabajo_id|default:'' }}">
+                <div id="edit-ot-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #d9d9d9; max-height:150px; overflow-y:auto; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+            </div>
+            {% if sol.orden_trabajo %}
+            <button type="button" onclick="document.getElementById('edit-ot-id').value=''; document.getElementById('edit-ot-search').value='';" style="margin-top:4px; font-size:0.72rem; color:#ef4444; background:none; border:none; cursor:pointer; text-decoration:underline;">✕ Desvincular OT</button>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom:20px;">
+            <label style="display:block; font-size:0.72rem; font-weight:600; color:#6a6d70; text-transform:uppercase; margin-bottom:4px;">Vincular Ticket</label>
+            <div style="position:relative;">
+                <input type="text" id="edit-ticket-search" placeholder="🔍 Buscar ticket por folio o descripción..." autocomplete="off"
+                       value="{% if sol.ticket %}{{ sol.ticket.folio }}{% endif %}"
+                       style="width:100%; padding:8px 10px; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit;">
+                <input type="hidden" id="edit-ticket-id" value="{{ sol.ticket_id|default:'' }}">
+                <div id="edit-ticket-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #d9d9d9; max-height:150px; overflow-y:auto; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+            </div>
+            {% if sol.ticket %}
+            <button type="button" onclick="document.getElementById('edit-ticket-id').value=''; document.getElementById('edit-ticket-search').value='';" style="margin-top:4px; font-size:0.72rem; color:#ef4444; background:none; border:none; cursor:pointer; text-decoration:underline;">✕ Desvincular Ticket</button>
+            {% endif %}
+        </div>
+
         <div style="display:flex; gap:8px; justify-content:flex-end;">
             <button onclick="closeEditModal()" class="btn">Cancelar</button>
             <button onclick="saveEdit()" class="btn" style="background:#0a6ed1; color:white; border-color:#0a6ed1;">Guardar</button>
@@ -200,6 +228,8 @@ function saveEdit() {
         estado: document.getElementById('edit-estado').value,
         comentarios_solicitud: document.getElementById('edit-comentarios-sol').value,
         comentarios_almacen: document.getElementById('edit-comentarios-alm').value,
+        orden_trabajo_id: document.getElementById('edit-ot-id').value || null,
+        ticket_id: document.getElementById('edit-ticket-id').value || null,
     };
     fetch('/inventarios/solicitud/{{ sol.id }}/update/', {
         method: 'POST',
@@ -208,15 +238,68 @@ function saveEdit() {
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-        if (data.status === 'ok') {
+        if (data.status === 'success' || data.status === 'ok') {
             closeEditModal();
             location.reload();
         } else {
-            alert('Error: ' + (data.error || 'No se pudo guardar'));
+            alert('Error: ' + (data.error || data.message || 'No se pudo guardar'));
         }
     })
     .catch(function(err) { alert('Error de red: ' + err.message); });
 }
+
+// OT Search
+(function() {
+    var input = document.getElementById('edit-ot-search');
+    var results = document.getElementById('edit-ot-results');
+    var hidden = document.getElementById('edit-ot-id');
+    var timer;
+    if (!input) return;
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        var q = this.value.trim();
+        if (q.length < 2) { results.style.display = 'none'; return; }
+        timer = setTimeout(function() {
+            fetch('/mantenimiento/api/search-ordenes/?q=' + encodeURIComponent(q))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var items = data.results || [];
+                if (!items.length) { results.innerHTML = '<div style="padding:8px 12px; color:#94a3b8; font-size:0.8rem;">Sin resultados</div>'; }
+                else { results.innerHTML = items.map(function(o) { return '<div style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f5f5f5; font-size:0.82rem;" onmouseenter="this.style.background=\'#eff6ff\'" onmouseleave="this.style.background=\'\'" onclick="pickOT(\'' + o.id + '\',\'' + (o.codigo || o.text || '').replace(/'/g, "\\'") + '\')">' + (o.codigo || o.text) + '</div>'; }).join(''); }
+                results.style.display = '';
+            });
+        }, 300);
+    });
+    input.addEventListener('blur', function() { setTimeout(function() { results.style.display = 'none'; }, 200); });
+    window.pickOT = function(id, text) { hidden.value = id; input.value = text; results.style.display = 'none'; };
+})();
+
+// Ticket Search
+(function() {
+    var input = document.getElementById('edit-ticket-search');
+    var results = document.getElementById('edit-ticket-results');
+    var hidden = document.getElementById('edit-ticket-id');
+    var timer;
+    if (!input) return;
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        var q = this.value.trim();
+        if (q.length < 2) { results.style.display = 'none'; return; }
+        timer = setTimeout(function() {
+            fetch('/callcenter/api/buscar-tickets/?q=' + encodeURIComponent(q))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var items = data.results || [];
+                if (!items.length) { results.innerHTML = '<div style="padding:8px 12px; color:#94a3b8; font-size:0.8rem;">Sin resultados</div>'; }
+                else { results.innerHTML = items.map(function(t) { return '<div style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f5f5f5; font-size:0.82rem;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'\'" onclick="pickTicket(\'' + t.id + '\',\'' + (t.folio || t.text || '').replace(/'/g, "\\'") + '\')">' + (t.folio || t.text) + ' - ' + (t.descripcion || '').substring(0, 40) + '</div>'; }).join(''); }
+                results.style.display = '';
+            })
+            .catch(function() { results.innerHTML = '<div style="padding:8px 12px; color:#94a3b8; font-size:0.8rem;">Error de búsqueda</div>'; results.style.display = ''; });
+        }, 300);
+    });
+    input.addEventListener('blur', function() { setTimeout(function() { results.style.display = 'none'; }, 200); });
+    window.pickTicket = function(id, text) { hidden.value = id; input.value = text; results.style.display = 'none'; };
+})();
 
 function getCookie(name) {
     var v = null; if (document.cookie) { document.cookie.split(';').forEach(function(c) {

@@ -3927,9 +3927,31 @@ def solicitud_update_rapido(request, pk):
         solicitud.comentarios_almacen = data['comentarios_almacen']
     if 'comentarios_solicitud' in data:
         solicitud.comentarios_solicitud = data['comentarios_solicitud']
+    if 'orden_trabajo_id' in data:
+        ot_id = data['orden_trabajo_id']
+        if ot_id:
+            from mantenimiento.models import OrdenTrabajo
+            solicitud.orden_trabajo = OrdenTrabajo.objects.filter(id=ot_id).first()
+        else:
+            solicitud.orden_trabajo = None
+    if 'ticket_id' in data:
+        ticket_id = data['ticket_id']
+        if ticket_id:
+            from callcenter.models import SolicitudTicket
+            solicitud.ticket = SolicitudTicket.objects.filter(id=ticket_id).first()
+        else:
+            solicitud.ticket = None
+
+    # Remove item action
+    if data.get('action') == 'remove_item':
+        item_id = data.get('item_id')
+        if item_id:
+            from .models import MovimientoInventario
+            MovimientoInventario.objects.filter(id=item_id, solicitud=solicitud).delete()
+            return JsonResponse({'status': 'success', 'message': 'Item eliminado'})
 
     solicitud.save()
-    return JsonResponse({'status': 'ok', 'estado': solicitud.get_estado_display()})
+    return JsonResponse({'status': 'success', 'estado': solicitud.get_estado_display()})
 
 
 @login_required
