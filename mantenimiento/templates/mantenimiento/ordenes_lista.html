@@ -81,18 +81,18 @@
     .fiori-table-title { font-size: 0.85rem; font-weight: 600; color: var(--fiori-text); }
     .fiori-table-count { font-size: 0.75rem; color: var(--fiori-text-muted); font-weight: 400; }
 
-    .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: fixed; }
     .fiori-table th {
         text-align: left; padding: 10px 12px; background: #fafafa;
         font-weight: 600; color: var(--fiori-text-muted); font-size: 0.72rem;
         text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--fiori-border);
-        white-space: nowrap; position: relative;
+        white-space: nowrap; position: relative; overflow: hidden;
     }
     .fiori-table th.sortable { cursor: pointer; user-select: none; }
     .fiori-table th.sortable:hover { color: var(--fiori-blue); }
     .fiori-table td {
         padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: var(--fiori-text); vertical-align: middle;
-        white-space: nowrap;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .fiori-table tr:hover td { background: #fafbfc; }
     .fiori-table tr:last-child td { border-bottom: none; }
@@ -300,6 +300,21 @@
             <span class="fiori-table-title">Resultados <span class="fiori-table-count">({{ total }})</span></span>
         </div>
         <table class="fiori-table" id="ordenes-table">
+            <colgroup>
+                <col style="width:36px;">
+                <col data-col="codigo" style="width:11%;">
+                <col data-col="tipo" style="width:7%;">
+                <col data-col="prioridad" style="width:6%;">
+                <col data-col="estado" style="width:15%;">
+                <col data-col="descripcion" style="width:8%;">
+                <col data-col="rutina" style="width:18%;">
+                <col data-col="ubicacion" style="width:10%;">
+                <col data-col="tecnico" style="width:9%;">
+                <col data-col="empresa" style="width:9%; display:none;">
+                <col data-col="inicio" style="width:8%;">
+                <col data-col="fin" style="width:8%; display:none;">
+                <col data-col="creado" style="width:8%; display:none;">
+            </colgroup>
             <thead>
                 <tr>
                     <th class="cb-col"><input type="checkbox" id="select-all" title="Seleccionar todas"></th>
@@ -360,7 +375,7 @@
 // ==================== RUTINAS DATA ====================
 var RUTINAS = [
     {% for r in rutinas %}
-    {id: '{{ r.0 }}', nombre: '{{ r.1|escapejs }}'},
+    {id: '{{ r.0|stringformat:"d" }}', nombre: '{{ r.1|escapejs }}'},
     {% endfor %}
 ];
 
@@ -463,8 +478,11 @@ document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && pan
 
 function applyColumns() {
     COLUMNS.forEach(function(col) {
-        var cells = document.querySelectorAll('[data-col="' + col.id + '"]');
+        var cells = document.querySelectorAll('th[data-col="' + col.id + '"], td[data-col="' + col.id + '"]');
         cells.forEach(function(cell) { cell.style.display = col.visible ? '' : 'none'; });
+        // Toggle colgroup col element
+        var colEl = document.querySelector('colgroup col[data-col="' + col.id + '"]');
+        if (colEl) colEl.style.display = col.visible ? '' : 'none';
     });
 }
 
@@ -636,12 +654,12 @@ function showToast(msg, type) {
 (function() {
     var table = document.getElementById('ordenes-table');
     var thead = table.querySelector('thead');
+    var colgroup = table.querySelector('colgroup');
     var ths = thead.querySelectorAll('th');
     var resizing = null;
 
     // Add resize handles to all visible th (except checkbox col)
     function addResizeHandles() {
-        // Remove existing handles
         thead.querySelectorAll('.col-resize-handle').forEach(function(h) { h.remove(); });
         ths.forEach(function(th) {
             if (th.classList.contains('cb-col')) return;
@@ -654,18 +672,20 @@ function showToast(msg, type) {
 
     addResizeHandles();
 
-    // Listen for mousedown on handles
     thead.addEventListener('mousedown', function(e) {
         if (!e.target.classList.contains('col-resize-handle')) return;
         e.preventDefault();
         e.stopPropagation();
 
         var th = e.target.parentElement;
+        var colIdx = Array.prototype.indexOf.call(ths, th);
+        var cols = colgroup.querySelectorAll('col');
+        var col = cols[colIdx];
         var startX = e.pageX;
         var startW = th.offsetWidth;
 
         e.target.classList.add('active');
-        resizing = { th: th, startX: startX, startW: startW, handle: e.target };
+        resizing = { th: th, col: col, startX: startX, startW: startW, handle: e.target };
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
     });
@@ -673,15 +693,8 @@ function showToast(msg, type) {
     document.addEventListener('mousemove', function(e) {
         if (!resizing) return;
         var diff = e.pageX - resizing.startX;
-        var newW = Math.max(40, resizing.startW + diff);
-        resizing.th.style.width = newW + 'px';
-
-        // Also set matching td widths via colIndex
-        var colIdx = Array.prototype.indexOf.call(ths, resizing.th);
-        table.querySelectorAll('tbody tr').forEach(function(tr) {
-            var td = tr.children[colIdx];
-            if (td) td.style.width = newW + 'px';
-        });
+        var newW = Math.max(50, resizing.startW + diff);
+        resizing.col.style.width = newW + 'px';
     });
 
     document.addEventListener('mouseup', function() {
@@ -690,16 +703,15 @@ function showToast(msg, type) {
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
         resizing = null;
-        // Save widths to sessionStorage
         saveColumnWidths();
     });
 
-    // Save/restore column widths from sessionStorage
     function saveColumnWidths() {
         var widths = {};
-        ths.forEach(function(th) {
-            var col = th.getAttribute('data-col');
-            if (col && th.style.width) widths[col] = th.style.width;
+        var cols = colgroup.querySelectorAll('col[data-col]');
+        cols.forEach(function(col) {
+            var id = col.getAttribute('data-col');
+            if (col.style.width) widths[id] = col.style.width;
         });
         sessionStorage.setItem('ot_col_widths', JSON.stringify(widths));
     }
@@ -709,23 +721,15 @@ function showToast(msg, type) {
         if (!saved) return;
         try {
             var widths = JSON.parse(saved);
-            Object.keys(widths).forEach(function(col) {
-                var thEl = thead.querySelector('th[data-col="' + col + '"]');
-                if (thEl && thEl.style.display !== 'none') {
-                    thEl.style.width = widths[col];
-                    var colIdx = Array.prototype.indexOf.call(ths, thEl);
-                    table.querySelectorAll('tbody tr').forEach(function(tr) {
-                        var td = tr.children[colIdx];
-                        if (td) td.style.width = widths[col];
-                    });
-                }
+            Object.keys(widths).forEach(function(id) {
+                var col = colgroup.querySelector('col[data-col="' + id + '"]');
+                if (col && col.style.display !== 'none') col.style.width = widths[id];
             });
         } catch(e) {}
     }
 
     restoreColumnWidths();
 
-    // Re-add handles when columns visibility changes
     var _origApply = applyColumns;
     applyColumns = function() {
         _origApply();

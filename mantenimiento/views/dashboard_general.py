@@ -130,7 +130,9 @@ def ordenes_lista_view(request):
     estado = request.GET.get('estado', '')
     tipo = request.GET.get('tipo', '')
     prioridad = request.GET.get('prioridad', '')
-    rutina_id = request.GET.get('rutina', '')
+    rutina_id = request.GET.get('rutina', '').split(',')[0].strip()
+    if rutina_id and not rutina_id.isdigit():
+        rutina_id = ''
 
     ordenes = OrdenTrabajo.objects.select_related(
         'rutina', 'ubicacion', 'tecnico_puesto', 'empresa_responsable'
