@@ -849,6 +849,27 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    {% elif solicitudes %}
+                    <!-- Fallback: mostrar items de solicitudes vinculadas -->
+                    {% for sol in solicitudes %}
+                    <div style="padding:8px 14px; {% if not forloop.first %}border-top:1px solid var(--sap-border-color);{% endif %}">
+                        <div style="font-size:10px; font-weight:700; color:var(--sap-brand-color); margin-bottom:4px;">
+                            Pase #{{ sol.id }} · {{ sol.fecha_solicitud|date:"d/m/Y H:i" }} · {{ sol.get_estado_display }}
+                        </div>
+                        <table class="fc-table" style="margin:0;">
+                            <thead><tr><th>Material</th><th style="text-align:right;">Solicitado</th><th style="text-align:right;">Entregado</th></tr></thead>
+                            <tbody>
+                                {% for item in sol.items.all %}
+                                <tr>
+                                    <td style="font-weight:500;">{{ item.material.nombre }}</td>
+                                    <td style="text-align:right; color:var(--sap-text-muted);">{{ item.cantidad_solicitada }} {{ item.material.unidad_medida|default:"" }}</td>
+                                    <td style="text-align:right; font-weight:700;">{{ item.cantidad }} {{ item.material.unidad_medida|default:"" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endfor %}
                     {% else %}
                     <div class="fc-empty">
                         <ion-icon name="cube-outline"></ion-icon>

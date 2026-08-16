@@ -2044,7 +2044,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         planes = PlanificacionMensual.objects.all().order_by('-anio', '-mes')[:100]
 
         materiales_usados = ot.materiales_utilizados_detalle.select_related('material', 'activo').all()
-        solicitudes = ot.solicitudes_material.all().order_by('-fecha_solicitud')
+        solicitudes = ot.solicitudes_material.prefetch_related('items__material__unidad_medida').all().order_by('-fecha_solicitud')
 
         context = {
             'ot': ot,
