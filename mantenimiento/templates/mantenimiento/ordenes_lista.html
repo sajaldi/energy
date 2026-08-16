@@ -398,59 +398,36 @@
     </div>
 </div>
 
-<!-- OT Detail Modal -->
-<div class="modal-overlay" id="ot-detail-modal">
-    <div class="modal-box" style="max-width:720px; padding:0; overflow:hidden;">
-        <div style="padding:12px 24px; background:#354a5f; display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; align-items:center; gap:8px; color:white;">
-                <span style="font-size:1rem;">📋</span>
-                <span id="ot-modal-codigo" style="font-size:0.9rem; font-weight:600;">Cargando...</span>
-                <span id="ot-modal-estado-badge" style="padding:3px 10px; font-size:0.65rem; font-weight:700; text-transform:uppercase; margin-left:8px;"></span>
+<!-- OT Detail Modal (Fiori Edit) -->
+<div id="ot-detail-modal" class="otnp-overlay" onclick="closeOtModal()">
+    <div class="otnp-dialog" onclick="event.stopPropagation()" style="max-width:1000px; width:95%;">
+        <div class="otnp-dialog-header" style="background:#354a5f; color:white;">
+            <div class="otnp-dialog-title" style="color:white;">
+                <span>📝</span>
+                <span>Editar Orden de Trabajo</span>
             </div>
-            <button onclick="closeOtModal()" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:white; padding:4px;">✕</button>
+            <button class="otnp-close-btn" onclick="closeOtModal()" style="color:white; background:transparent; border:none; cursor:pointer; font-size:1.3rem;">✕</button>
         </div>
-        <div id="ot-modal-body" style="padding:18px 24px; max-height:70vh; overflow-y:auto;">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
-                <div><div class="ot-label">TIPO</div><div id="ot-modal-tipo" class="ot-value">-</div></div>
-                <div><div class="ot-label">PRIORIDAD</div><div id="ot-modal-prioridad" class="ot-value">-</div></div>
-                <div><div class="ot-label">RUTINA</div><div id="ot-modal-rutina" class="ot-value">-</div></div>
-                <div><div class="ot-label">UBICACIÓN</div><div id="ot-modal-ubicacion" class="ot-value">-</div></div>
-                <div><div class="ot-label">TÉCNICO / PUESTO</div><div id="ot-modal-tecnico" class="ot-value">-</div></div>
-                <div><div class="ot-label">EMPRESA</div><div id="ot-modal-empresa" class="ot-value">-</div></div>
-                <div><div class="ot-label">INICIO PROGRAMADO</div><div id="ot-modal-inicio" class="ot-value">-</div></div>
-                <div><div class="ot-label">FIN PROGRAMADO</div><div id="ot-modal-fin" class="ot-value">-</div></div>
-            </div>
-            <div style="border-top:1px solid #e2e8f0; padding-top:10px; margin-bottom:10px;">
-                <div class="ot-label">DESCRIPCIÓN</div>
-                <div id="ot-modal-descripcion" class="ot-value" style="background:#f8fafc; padding:8px; border:1px solid #e2e8f0; min-height:24px;">-</div>
-            </div>
-            <div style="border-top:1px solid #e2e8f0; padding-top:10px;">
-                <div class="ot-label">NOTAS</div>
-                <div id="ot-modal-notas" class="ot-value" style="background:#f8fafc; padding:8px; border:1px solid #e2e8f0; min-height:24px;">-</div>
-            </div>
-            <div id="ot-modal-activos-section" style="border-top:1px solid #e2e8f0; padding-top:10px; margin-top:10px;">
-                <div class="ot-label">ACTIVOS</div>
-                <div id="ot-modal-activos" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;"></div>
-            </div>
-            <div id="ot-modal-archivos-section" style="border-top:1px solid #e2e8f0; padding-top:10px; margin-top:10px; display:none;">
-                <div class="ot-label">ARCHIVOS</div>
-                <div id="ot-modal-archivos" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;"></div>
-            </div>
-            <!-- Estado Change -->
-            <div style="border-top:1px solid #e2e8f0; padding-top:10px; margin-top:10px;">
-                <div class="ot-label">CAMBIAR ESTADO</div>
-                <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
-                    <select id="ot-modal-estado-select" style="padding:6px 10px; font-size:0.8rem; border:1px solid var(--fiori-border); font-family:inherit; flex:1;"></select>
-                    <button type="button" onclick="cambiarEstadoOt()" style="padding:6px 14px; font-size:0.78rem; font-weight:600; background:var(--fiori-blue); color:white; border:none; cursor:pointer;">Aplicar</button>
-                </div>
-            </div>
-        </div>
-        <div style="padding:10px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; background:#f8fafc;">
-            <a id="ot-modal-link-full" href="#" target="_blank" class="fiori-btn" style="font-size:0.78rem;">🔗 Abrir detalle completo</a>
-            <button onclick="closeOtModal()" class="fiori-btn">Cerrar</button>
+        <div id="ot-modal-fiori-content" class="otnp-dialog-body" style="padding:0; min-height:400px;">
+            <div style="display:flex; justify-content:center; align-items:center; height:300px; color:#64748b;">Cargando...</div>
         </div>
     </div>
 </div>
+
+<style>
+.otnp-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);z-index:9999;justify-content:center;align-items:flex-start;padding-top:4vh}
+.otnp-overlay.active{display:flex}
+.otnp-dialog{background:#fff;border-radius:0;width:calc(100vw - 80px);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,.18);animation:otnpSlideIn .28s cubic-bezier(.16,1,.3,1);border:2px solid #3b82f6}
+@keyframes otnpSlideIn{from{opacity:0;transform:translateY(-30px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.otnp-dialog-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #e2e8f0;background:#f8fafc;border-radius:0}
+.otnp-dialog-title{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem;color:#0f172a}
+.otnp-close-btn{width:36px;height:36px;border:1px solid #e2e8f0;border-radius:0;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.3rem;color:#64748b;transition:all .15s}
+.otnp-close-btn:hover{background:#fee2e2;color:#ef4444;border-color:#fecaca}
+.otnp-dialog-body{flex:1;overflow-y:auto;padding:24px 32px;display:flex;flex-direction:column;gap:6px}
+.otnp-dialog-footer{display:flex;justify-content:flex-end;gap:12px;padding:16px 32px;border-top:1px solid #e2e8f0;background:#f8fafc}
+.otnp-section-label{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#3b82f6;display:flex;align-items:center;gap:6px;margin-top:10px;margin-bottom:2px}
+.otnp-section-label:first-child{margin-top:0}
+</style>
 
 <!-- Bulk Status Change Modal -->
 <div class="modal-overlay" id="bulk-status-modal" style="z-index:100002;">
@@ -913,102 +890,31 @@ var currentOtPk = null;
 function openOtModal(pk) {
     currentOtPk = pk;
     otModal.classList.add('active');
-    document.getElementById('ot-modal-codigo').textContent = 'Cargando...';
+    var content = document.getElementById('ot-modal-fiori-content');
+    content.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:300px; color:#64748b;">Cargando...</div>';
 
-    fetch('/mantenimiento/api/ot/' + pk + '/detalle/')
-    .then(function(r) { return r.json(); })
-    .then(function(resp) {
-        if (resp.status !== 'success') { closeOtModal(); showToast('Error al cargar', 'error'); return; }
-        var ot = resp.ot;
-        document.getElementById('ot-modal-codigo').textContent = ot.codigo;
-        document.getElementById('ot-modal-tipo').textContent = ot.tipo;
-        document.getElementById('ot-modal-prioridad').textContent = ot.prioridad;
-        document.getElementById('ot-modal-rutina').textContent = ot.rutina;
-        document.getElementById('ot-modal-ubicacion').textContent = ot.ubicacion;
-        document.getElementById('ot-modal-tecnico').textContent = ot.tecnico_puesto || ot.tecnico || 'No asignado';
-        document.getElementById('ot-modal-empresa').textContent = ot.empresa || '-';
-        document.getElementById('ot-modal-inicio').textContent = ot.inicio;
-        document.getElementById('ot-modal-fin').textContent = ot.fin;
-        document.getElementById('ot-modal-descripcion').textContent = ot.descripcion || '-';
-        document.getElementById('ot-modal-notas').textContent = ot.notas || '-';
-        document.getElementById('ot-modal-link-full').href = '/mantenimiento/app/ot/' + ot.id + '/';
-
-        // Badge
-        var badge = document.getElementById('ot-modal-estado-badge');
-        badge.textContent = ot.estado;
-        badge.style.background = (ot.status_color || '#64748b') + '33';
-        badge.style.color = ot.status_color || '#fff';
-
-        // Activos
-        var activosDiv = document.getElementById('ot-modal-activos');
-        activosDiv.innerHTML = '';
-        if (ot.activos && ot.activos.length > 0) {
-            ot.activos.forEach(function(a) {
-                var chip = document.createElement('span');
-                chip.style.cssText = 'padding:4px 10px; background:#eff6ff; border:1px solid #bfdbfe; font-size:0.73rem; color:#1d4ed8; font-weight:500;';
-                chip.textContent = (a.codigo ? a.codigo + ' - ' : '') + a.nombre;
-                activosDiv.appendChild(chip);
-            });
-        } else {
-            activosDiv.innerHTML = '<span style="color:#94a3b8; font-size:0.78rem;">Sin activos</span>';
-        }
-
-        // Archivos
-        var archivosSection = document.getElementById('ot-modal-archivos-section');
-        var archivosDiv = document.getElementById('ot-modal-archivos');
-        if (ot.archivos && ot.archivos.length > 0) {
-            archivosSection.style.display = '';
-            archivosDiv.innerHTML = '';
-            ot.archivos.forEach(function(f) {
-                var link = document.createElement('a');
-                link.href = f.url; link.target = '_blank';
-                link.style.cssText = 'padding:4px 10px; background:#f0fdf4; border:1px solid #bbf7d0; font-size:0.73rem; color:#166534; font-weight:500; text-decoration:none;';
-                link.textContent = (f.tipo === 'FOTO' ? '🖼️ ' : '📄 ') + f.nombre;
-                archivosDiv.appendChild(link);
-            });
-        } else {
-            archivosSection.style.display = 'none';
-        }
-
-        // Estado select
-        var sel = document.getElementById('ot-modal-estado-select');
-        sel.innerHTML = '';
-        (ot.status_list || []).forEach(function(s) {
-            var opt = document.createElement('option');
-            opt.value = s.id; opt.textContent = s.label;
-            if (s.id === ot.raw_status) opt.selected = true;
-            sel.appendChild(opt);
+    fetch('/admin/mantenimiento/ordentrabajo/fiori-edit/' + pk + '/')
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+        content.innerHTML = html;
+        content.querySelectorAll('script').forEach(function(script) {
+            var nuevo = document.createElement('script');
+            if (script.src) { nuevo.src = script.src; } else { nuevo.textContent = script.textContent; }
+            document.body.appendChild(nuevo);
+            nuevo.parentNode.removeChild(nuevo);
         });
     })
-    .catch(function() { closeOtModal(); showToast('Error de conexión', 'error'); });
+    .catch(function() {
+        content.innerHTML = '<div style="padding:2rem; text-align:center; color:#bb0000;">Error al cargar la orden.</div>';
+    });
 }
 
 function closeOtModal() { otModal.classList.remove('active'); currentOtPk = null; }
-
-function cambiarEstadoOt() {
-    if (!currentOtPk) return;
-    var nuevoEstado = document.getElementById('ot-modal-estado-select').value;
-    fetch('/mantenimiento/api/ot/' + currentOtPk + '/update/', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-        body: JSON.stringify({estado: nuevoEstado})
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        if (data.status === 'success') {
-            showToast('Estado actualizado', 'success');
-            var badge = document.getElementById('ot-modal-estado-badge');
-            badge.textContent = document.getElementById('ot-modal-estado-select').selectedOptions[0].text;
-        } else { showToast(data.message || 'Error', 'error'); }
-    })
-    .catch(function() { showToast('Error de conexión', 'error'); });
-}
 
 document.addEventListener('click', function(e) {
     var link = e.target.closest('.ot-detail-link');
     if (link) { e.preventDefault(); var pk = link.getAttribute('data-pk'); if (pk) openOtModal(pk); }
 });
-otModal.addEventListener('click', function(e) { if (e.target === otModal) closeOtModal(); });
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && otModal.classList.contains('active')) closeOtModal(); });
 
 // ==================== BULK STATUS CHANGE MODAL ====================
