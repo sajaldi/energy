@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
     :root {
         --fiori-blue: #0a6ed1;
@@ -411,6 +412,15 @@
             <button class="otnp-close-btn" onclick="closeOtModal()" style="color:white; background:transparent; border:none; cursor:pointer; font-size:1.3rem;">✕</button>
         </div>
         <div id="ot-modal-fiori-content" class="otnp-dialog-body" style="padding:0; min-height:400px;">
+            <div style="display:flex; justify-content:center; align-items:center; height:300px; color:#64748b;">Cargando...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Cierre OT Modal -->
+<div id="fiori-cierre-overlay" class="otnp-overlay" style="z-index:10000;" onclick="closeFioriCierreModal()">
+    <div class="otnp-dialog" onclick="event.stopPropagation()" style="max-width:800px; width:95%;">
+        <div id="fiori-cierre-content" class="otnp-dialog-body" style="padding:0; min-height:400px;">
             <div style="display:flex; justify-content:center; align-items:center; height:300px; color:#64748b;">Cargando...</div>
         </div>
     </div>
@@ -932,6 +942,31 @@ var currentOtPk = null;
 
 // Alias for the fiori edit partial which calls closeFioriEditModal
 function closeFioriEditModal() { closeOtModal(); }
+
+// Cierre modal functions (called by the fiori edit partial)
+function openFioriCierreModal(otId) {
+    var overlay = document.getElementById('fiori-cierre-overlay');
+    var content = document.getElementById('fiori-cierre-content');
+    overlay.classList.add('active');
+    content.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:300px; color:#64748b;">Cargando cierre...</div>';
+    fetch('/admin/mantenimiento/ordentrabajo/fiori-cierre/' + otId + '/')
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+        content.innerHTML = html;
+        content.querySelectorAll('script').forEach(function(script) {
+            var nuevo = document.createElement('script');
+            if (script.src) { nuevo.src = script.src; } else { nuevo.textContent = script.textContent; }
+            document.body.appendChild(nuevo);
+            nuevo.parentNode.removeChild(nuevo);
+        });
+    })
+    .catch(function() {
+        content.innerHTML = '<div style="padding:2rem; text-align:center; color:#bb0000;">Error al cargar el cierre.</div>';
+    });
+}
+function closeFioriCierreModal() {
+    document.getElementById('fiori-cierre-overlay').classList.remove('active');
+}
 
 function openOtModal(pk) {
     currentOtPk = pk;
