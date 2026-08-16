@@ -2183,6 +2183,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             'tecnicos_list': tecnicos_list,
             'colaboradores': colaboradores,
             'empresa_responsable': empresa_resp,
+            'cierre': getattr(ot, 'cierre', None),
         }
         return render(request, 'admin/mantenimiento/ordentrabajo/fiori_cierre_partial.html', context)
 

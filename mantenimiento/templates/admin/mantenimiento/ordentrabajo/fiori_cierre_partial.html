@@ -336,16 +336,16 @@
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                         <div>
                             <label class="fi-label">Inicio Real de Ejecución</label>
-                            <input type="datetime-local" name="fecha_inicio" id="fi-fecha-inicio" class="fi-input" value="{{ ot.fecha_ejecucion|date:'Y-m-d\TH:i' }}" required>
+                            <input type="datetime-local" name="fecha_inicio" id="fi-fecha-inicio" class="fi-input" value="{% if cierre and cierre.fecha_inicio_real %}{{ cierre.fecha_inicio_real|date:'Y-m-d\TH:i' }}{% elif ot.fecha_ejecucion %}{{ ot.fecha_ejecucion|date:'Y-m-d\TH:i' }}{% endif %}" required>
                         </div>
                         <div>
                             <label class="fi-label">Fin Real / Hora de Cierre</label>
-                            <input type="datetime-local" name="fecha_cierre" id="fi-fecha-cierre" class="fi-input" required>
+                            <input type="datetime-local" name="fecha_cierre" id="fi-fecha-cierre" class="fi-input" value="{% if cierre and cierre.fecha_fin_real %}{{ cierre.fecha_fin_real|date:'Y-m-d\TH:i' }}{% endif %}" required>
                         </div>
                     </div>
                     <div>
                         <label class="fi-label">Comentarios Finales</label>
-                        <textarea name="comentarios_cierre" class="fi-textarea" placeholder="Describa el resultado general del trabajo...">{{ ot.comentarios_cierre|default:'' }}</textarea>
+                        <textarea name="comentarios_cierre" class="fi-textarea" placeholder="Describa el resultado general del trabajo...">{% if cierre %}{{ cierre.comentarios|default:'' }}{% else %}{{ ot.comentarios_cierre|default:'' }}{% endif %}</textarea>
                     </div>
                     <div>
                         <label class="fi-label">Evidencia de Cierre</label>
@@ -378,10 +378,11 @@
 (function(){
     var now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    var localNow = now.toISOString().slice(0, 16);
     var inp = document.getElementById('fi-fecha-cierre');
-    if (inp && !inp.value) inp.value = now.toISOString().slice(0, 16);
+    if (inp && !inp.value) inp.value = localNow;
     var inpInicio = document.getElementById('fi-fecha-inicio');
-    if (inpInicio && !inpInicio.value) inpInicio.value = now.toISOString().slice(0, 16);
+    if (inpInicio && !inpInicio.value) inpInicio.value = localNow;
 
     // ── Reusable drag-drop logic ──
     function fiSetupDrop(container, addFilesFn) {
