@@ -181,7 +181,7 @@
     {% if solicitudes_material %}
     <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; margin-top:6px;">
         {% for sol in solicitudes_material %}
-        <div style="padding:10px 0; {% if not forloop.last %}border-bottom:1px solid #e2e8f0; margin-bottom:8px; padding-bottom:12px;{% endif %}">
+        <div style="padding:10px 0; {% if not forloop.last %}border-bottom:1px solid #e2e8f0; margin-bottom:8px; padding-bottom:12px;{% endif %}" id="sol-row-{{ sol.id|unlocalize }}">
             <div style="display:flex; align-items:center; justify-content:space-between;">
                 <div style="flex:1;">
                     <a href="/inventarios/solicitud/{{ sol.id|unlocalize }}/detalle/" target="_blank" style="font-size:0.85rem; font-weight:600; color:#0a6ed1; text-decoration:none;">
@@ -189,13 +189,16 @@
                     </a>
                     <span style="font-size:0.72rem; color:#64748b; margin-left:8px;">{{ sol.fecha_solicitud|date:"d/m/Y H:i" }}</span>
                 </div>
-                <span style="padding:3px 8px; font-size:0.65rem; font-weight:700; text-transform:uppercase;
-                    {% if sol.estado == 'ENTREGADO' %}background:#dcfce7; color:#166534;
-                    {% elif sol.estado == 'AUTORIZADO' %}background:#eff6ff; color:#1d4ed8;
-                    {% elif sol.estado == 'PENDIENTE' or sol.estado == 'PENDIENTE_AUTORIZACION' %}background:#fef3c7; color:#92400e;
-                    {% else %}background:#f1f5f9; color:#475569;{% endif %}">
-                    {{ sol.get_estado_display }}
-                </span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="padding:3px 8px; font-size:0.65rem; font-weight:700; text-transform:uppercase;
+                        {% if sol.estado == 'ENTREGADO' %}background:#dcfce7; color:#166534;
+                        {% elif sol.estado == 'AUTORIZADO' %}background:#eff6ff; color:#1d4ed8;
+                        {% elif sol.estado == 'PENDIENTE' or sol.estado == 'PENDIENTE_AUTORIZACION' %}background:#fef3c7; color:#92400e;
+                        {% else %}background:#f1f5f9; color:#475569;{% endif %}">
+                        {{ sol.get_estado_display }}
+                    </span>
+                    <button type="button" onclick="unlinkSolicitud({{ sol.id|unlocalize }})" title="Desvincular pase" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:0.85rem; font-weight:700; padding:2px 4px;">✕</button>
+                </div>
             </div>
             {% if sol.items.all %}
             <table style="width:100%; margin-top:6px; font-size:0.76rem; border-collapse:collapse;">
@@ -567,7 +570,6 @@
             .then(r => r.json()).then(data => {
                 if (data.status === 'success') {
                     Swal.fire('Vinculado', data.message, 'success').then(() => {
-                        // Reload the modal content
                         const otId = {{ ot.id|unlocalize }};
                         fetch(`/admin/mantenimiento/ordentrabajo/fiori-edit/${otId}/`)
                         .then(r => r.text()).then(html => {
@@ -576,6 +578,21 @@
                         });
                     });
                 } else { Swal.fire('Error', data.message, 'error'); }
+            });
+        };
+
+        window.unlinkSolicitud = function(solId) {
+            if (!confirm('¿Desvincular este pase de salida de la orden?')) return;
+            fetch(`/mantenimiento/api/ot/{{ ot.id|unlocalize }}/vincular-solicitud/`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                body: JSON.stringify({action: 'unlink', solicitud_id: solId})
+            })
+            .then(r => r.json()).then(data => {
+                if (data.status === 'success') {
+                    const row = document.getElementById('sol-row-' + solId);
+                    if (row) row.remove();
+                } else { alert(data.message || 'Error'); }
             });
         };
 
