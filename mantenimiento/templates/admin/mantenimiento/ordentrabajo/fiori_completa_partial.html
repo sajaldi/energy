@@ -666,7 +666,7 @@
                                 {% for a in ot.activos.all %}
                                 <span class="fc-chip" data-id="{{ a.id|stringformat:'d' }}">
                                     <ion-icon name="cube-outline" style="font-size:11px;"></ion-icon>
-                                    <a href="/activos/app/activo/{{ a.id|stringformat:'d' }}/" target="_blank" style="color:inherit; text-decoration:none; border-bottom:1px dashed currentColor;" title="Ver ficha del activo">{{ a.nombre }}</a>
+                                    <a href="javascript:void(0)" onclick="openActivoFioriPopup('{{ a.id|stringformat:'d' }}')" style="color:inherit; text-decoration:none; border-bottom:1px dashed currentColor; cursor:pointer;" title="Ver ficha del activo">{{ a.nombre }}</a>
                                     <input type="hidden" name="activos" value="{{ a.id|stringformat:'d' }}">
                                     <span class="chip-x" onclick="event.stopPropagation(); this.parentElement.remove()">&times;</span>
                                 </span>
@@ -1192,6 +1192,31 @@
         .catch(function(err){
             Swal.fire({ icon:'error', title:'Error de conexión', text:err.message, customClass:{container:'swal-fc-container'}, didOpen:function(){document.querySelector('.swal-fc-container').style.zIndex='100000';} });
             btn.disabled = false; btn.innerHTML = '<ion-icon name="save-outline"></ion-icon> Guardar Cambios';
+        });
+    };
+
+    // ── Activo Fiori Popup ──
+    window.openActivoFioriPopup = function(activoId) {
+        var existing = document.getElementById('fc-activo-popup-overlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'fc-activo-popup-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:3vh;';
+        overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+        var dialog = document.createElement('div');
+        dialog.style.cssText = 'background:#fff;width:95%;max-width:1000px;max-height:90vh;overflow:hidden;border:2px solid #0a6ed1;box-shadow:0 25px 60px rgba(0,0,0,0.2);display:flex;flex-direction:column;';
+        dialog.innerHTML = '<div style="padding:12px 20px;background:#354a5f;color:white;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">' +
+            '<span style="font-weight:700;font-size:0.9rem;">⚙️ Ficha del Activo</span>' +
+            '<button onclick="document.getElementById(\'fc-activo-popup-overlay\').remove()" style="background:none;border:none;color:white;font-size:1.3rem;cursor:pointer;">✕</button></div>' +
+            '<iframe id="fc-activo-iframe" src="/activos/activo/' + activoId + '/fiori/" style="flex:1;border:none;width:100%;min-height:75vh;"></iframe>';
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        document.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Escape') { var el = document.getElementById('fc-activo-popup-overlay'); if (el) el.remove(); document.removeEventListener('keydown', handler); }
         });
     };
 })();
