@@ -56,7 +56,7 @@ class MovimientoInventarioInline(admin.TabularInline):
 
 @admin.register(SolicitudMaterial)
 class SolicitudMaterialAdmin(admin.ModelAdmin):
-    list_display = ('id', 'usuario', 'fecha_solicitud', 'estado', 'ubicacion_origen', 'orden_trabajo', 'comentarios_cortos')
+    list_display = ('id', 'boton_fiori', 'usuario', 'fecha_solicitud', 'estado', 'ubicacion_origen', 'orden_trabajo', 'comentarios_cortos')
     list_filter = ('estado',)
     search_fields = ('id', 'usuario__username', 'usuario__first_name', 'usuario__last_name', 'comentarios_solicitud')
     raw_id_fields = ('usuario', 'ubicacion_origen', 'orden_trabajo', 'ticket', 'edificio_destino', 'nivel_destino')
@@ -64,6 +64,15 @@ class SolicitudMaterialAdmin(admin.ModelAdmin):
     list_per_page = 30
     inlines = [MovimientoInventarioInline]
     change_form_template = 'admin/inventarios/solicitudmaterial/change_form.html'
+
+    def boton_fiori(self, obj):
+        from django.utils.html import mark_safe
+        url = f'/inventarios/solicitud/{obj.id}/detalle/'
+        return mark_safe(
+            f'<a href="{url}" target="_blank" style="padding:3px 8px; background:#0a6ed1; color:white; '
+            f'font-size:0.7rem; font-weight:700; text-decoration:none; display:inline-block;">📋 Ver</a>'
+        )
+    boton_fiori.short_description = ''
 
     def comentarios_cortos(self, obj):
         if obj.comentarios_solicitud:
