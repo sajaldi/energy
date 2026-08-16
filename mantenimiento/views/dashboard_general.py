@@ -166,9 +166,22 @@ def ordenes_lista_view(request):
     # Rutinas para el selector
     rutinas = Rutina.objects.order_by('nombre').values_list('id', 'nombre')
 
+    # Paginación
+    from django.core.paginator import Paginator
+    page_num = request.GET.get('page', '1')
+    try:
+        page_num = int(page_num)
+    except (ValueError, TypeError):
+        page_num = 1
+    
+    total = ordenes.count()
+    paginator = Paginator(ordenes, 100)
+    page_obj = paginator.get_page(page_num)
+
     context = {
-        'ordenes': ordenes[:100],
-        'total': ordenes.count(),
+        'ordenes': page_obj,
+        'total': total,
+        'page_obj': page_obj,
         'q': q,
         'estado_filter': estado,
         'tipo_filter': tipo,

@@ -384,6 +384,25 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Pagination -->
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--fiori-card); border:1px solid var(--fiori-border); border-top:none;">
+        <span style="font-size:0.78rem; color:var(--fiori-text-muted);">
+            Mostrando {{ page_obj.start_index }}-{{ page_obj.end_index }} de <strong>{{ total }}</strong> resultados
+        </span>
+        <div style="display:flex; gap:4px; align-items:center;">
+            {% if page_obj.has_previous %}
+            <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}" class="fiori-btn" style="padding:6px 12px; font-size:0.78rem;">← Anterior</a>
+            {% endif %}
+            <span style="padding:6px 12px; font-size:0.78rem; font-weight:700; background:var(--fiori-blue); color:white;">{{ page_obj.number }}</span>
+            <span style="padding:6px 4px; font-size:0.78rem; color:var(--fiori-text-muted);">/ {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+            <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}" class="fiori-btn" style="padding:6px 12px; font-size:0.78rem;">Siguiente →</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Password Confirmation Modal -->
@@ -835,6 +854,14 @@ function confirmDelete() {
             // Show success toast
             showToast(result.data.message, 'success');
         } else {
+            // If server says password needed, show password field and clear grace
+            if (result.data.message && result.data.message.toLowerCase().includes('contraseña')) {
+                sessionStorage.removeItem('bulk_delete_verified_at');
+                var pwField = document.getElementById('modal-password');
+                var pwLabel = document.getElementById('modal-pw-label');
+                pwField.style.display = '';
+                if (pwLabel) pwLabel.style.display = '';
+            }
             errorEl.textContent = result.data.message || 'Error al eliminar.';
             errorEl.style.display = 'block';
             confirmBtn.disabled = false;
