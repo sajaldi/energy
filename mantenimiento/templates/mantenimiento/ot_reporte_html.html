@@ -1,0 +1,242 @@
+{% load humanize l10n %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporte OT {{ ot.codigo_de_orden }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root { --blue:#0a6ed1; --shell:#354a5f; --success:#107e3e; --warning:#e9730c; --error:#bb0000; --bg:#f7f7f7; --card:#fff; --text:#32363a; --muted:#6a6d70; --border:#d9d9d9; }
+*{box-sizing:border-box; margin:0; padding:0}
+body{font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); font-size:13px; line-height:1.5}
+.page{max-width:900px; margin:0 auto; padding:20px}
+
+/* Header */
+.report-header{background:var(--shell); color:white; padding:24px 32px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center}
+.report-header h1{font-size:1.2rem; font-weight:800}
+.report-header .badge{padding:4px 12px; font-size:0.7rem; font-weight:700; text-transform:uppercase; background:rgba(255,255,255,0.15); border-radius:3px}
+.report-subtitle{font-size:0.8rem; opacity:0.8; margin-top:4px}
+
+/* Sections */
+.section{background:var(--card); border:1px solid var(--border); margin-bottom:16px; page-break-inside:avoid}
+.section-header{padding:12px 20px; border-bottom:1px solid var(--border); background:#fafafa; font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--blue); letter-spacing:0.5px}
+.section-body{padding:16px 20px}
+
+/* Grid */
+.grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.grid-3{grid-template-columns:1fr 1fr 1fr}
+.field-label{font-size:0.68rem; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:2px}
+.field-value{font-size:0.85rem; font-weight:500}
+
+/* Table */
+.table{width:100%; border-collapse:collapse; font-size:0.8rem}
+.table th{padding:8px 12px; text-align:left; font-size:0.68rem; font-weight:700; color:var(--muted); text-transform:uppercase; background:#fafafa; border-bottom:2px solid var(--border)}
+.table td{padding:8px 12px; border-bottom:1px solid #f0f0f0}
+.table tr:last-child td{border-bottom:none}
+
+/* Photos grid */
+.photos-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:8px; margin-top:8px}
+.photo-item{border:1px solid var(--border); overflow:hidden; aspect-ratio:1}
+.photo-item img{width:100%; height:100%; object-fit:cover}
+.photo-item .doc{display:flex; align-items:center; justify-content:center; height:100%; background:#f8fafc; color:var(--muted); font-size:0.75rem; text-align:center; padding:8px}
+
+/* Checklist */
+.check-item{padding:8px 0; border-bottom:1px solid #f5f5f5; display:flex; gap:10px; align-items:flex-start}
+.check-item:last-child{border-bottom:none}
+.check-num{font-size:0.65rem; font-weight:700; color:var(--blue); background:#eff6ff; padding:2px 6px; border-radius:2px; flex-shrink:0}
+.check-desc{flex:1; font-size:0.82rem}
+.check-result{font-size:0.8rem; font-weight:600; flex-shrink:0; min-width:80px; text-align:right}
+
+/* Print */
+.no-print{display:flex; gap:8px; margin-bottom:20px}
+@media print{
+    body{background:white; font-size:11px}
+    .no-print{display:none!important}
+    .page{padding:0; max-width:100%}
+    .report-header{margin-bottom:16px}
+    .section{border:1px solid #ccc; margin-bottom:12px}
+    .photos-grid{grid-template-columns:repeat(4,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="page">
+    <!-- Print buttons -->
+    <div class="no-print">
+        <button onclick="window.print()" style="padding:8px 20px; background:var(--blue); color:white; border:none; font-weight:700; font-size:0.85rem; cursor:pointer;">🖨️ Imprimir</button>
+        <a href="/mantenimiento/ordenes/" style="padding:8px 16px; border:1px solid var(--border); background:white; color:var(--text); font-weight:600; font-size:0.85rem; text-decoration:none;">← Volver</a>
+    </div>
+
+    <!-- Header -->
+    <div class="report-header">
+        <div>
+            <h1>{{ ot.codigo_de_orden|default:"Orden de Trabajo" }}</h1>
+            <div class="report-subtitle">{{ ot.rutina.nombre|default:ot.descripcion_corta|default:"Sin descripción" }}</div>
+        </div>
+        <span class="badge">{{ ot.get_estado_display }}</span>
+    </div>
+
+    <!-- Info General -->
+    <div class="section">
+        <div class="section-header">Información General</div>
+        <div class="section-body">
+            <div class="grid grid-3">
+                <div><div class="field-label">Tipo</div><div class="field-value">{{ ot.get_tipo_display }}</div></div>
+                <div><div class="field-label">Prioridad</div><div class="field-value">{{ ot.get_prioridad_display }}</div></div>
+                <div><div class="field-label">Estado</div><div class="field-value">{{ ot.get_estado_display }}</div></div>
+                <div><div class="field-label">Ubicación</div><div class="field-value">{{ ot.ubicacion|default:"-" }}</div></div>
+                <div><div class="field-label">Técnico / Puesto</div><div class="field-value">{{ ot.tecnico_puesto|default:ot.tecnico|default:"-" }}</div></div>
+                <div><div class="field-label">Empresa</div><div class="field-value">{{ ot.empresa_responsable|default:"-" }}</div></div>
+                <div><div class="field-label">Inicio Programado</div><div class="field-value">{{ ot.inicio_programado|date:"d/m/Y H:i"|default:"-" }}</div></div>
+                <div><div class="field-label">Fin Programado</div><div class="field-value">{{ ot.fin_programado|date:"d/m/Y H:i"|default:"-" }}</div></div>
+                <div><div class="field-label">Rutina</div><div class="field-value">{{ ot.rutina.nombre|default:"-" }}</div></div>
+            </div>
+            {% if ot.descripcion_detallada or ot.notas %}
+            <div style="margin-top:12px; border-top:1px solid #f0f0f0; padding-top:10px;">
+                <div class="field-label">Descripción / Notas</div>
+                <div class="field-value" style="white-space:pre-wrap;">{{ ot.descripcion_detallada|default:ot.notas }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Colaboradores -->
+    {% if colaboradores %}
+    <div class="section">
+        <div class="section-header">Técnicos Involucrados</div>
+        <div class="section-body" style="display:flex; flex-wrap:wrap; gap:6px;">
+            {% for c in colaboradores %}
+            <span style="padding:4px 10px; background:#eff6ff; border:1px solid #bfdbfe; font-size:0.78rem; font-weight:500; color:#1d4ed8;">{{ c.nombre }} {{ c.apellido }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Activos -->
+    {% if activos %}
+    <div class="section">
+        <div class="section-header">Activos Vinculados</div>
+        <div class="section-body">
+            <table class="table">
+                <thead><tr><th>Código</th><th>Nombre</th><th>Ubicación</th></tr></thead>
+                <tbody>
+                    {% for a in activos %}
+                    <tr><td>{{ a.codigo_interno|default:"-" }}</td><td>{{ a.nombre }}</td><td>{{ a.ubicacion|default:"-" }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Materiales -->
+    {% if solicitudes %}
+    <div class="section">
+        <div class="section-header">Materiales Utilizados (Pases de Salida)</div>
+        <div class="section-body">
+            {% for sol in solicitudes %}
+            <div style="{% if not forloop.first %}margin-top:12px; border-top:1px solid #e2e8f0; padding-top:10px;{% endif %}">
+                <div style="font-weight:600; font-size:0.82rem; margin-bottom:6px;">Pase #{{ sol.id }} · {{ sol.fecha_solicitud|date:"d/m/Y H:i" }} · {{ sol.get_estado_display }}</div>
+                <table class="table">
+                    <thead><tr><th>Material</th><th style="text-align:right;">Solicitado</th><th style="text-align:right;">Entregado</th></tr></thead>
+                    <tbody>
+                        {% for item in sol.items.all %}
+                        <tr>
+                            <td>{{ item.material.nombre }}</td>
+                            <td style="text-align:right;">{{ item.cantidad_solicitada }} {{ item.material.unidad_medida|default:"" }}</td>
+                            <td style="text-align:right; font-weight:600;">{{ item.cantidad }} {{ item.material.unidad_medida|default:"" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Checklist -->
+    {% if pasos %}
+    <div class="section">
+        <div class="section-header">Checklist de Actividad ({{ pasos|length }} pasos)</div>
+        <div class="section-body">
+            {% for paso in pasos %}
+            <div class="check-item">
+                <span class="check-num">{{ paso.orden }}</span>
+                <span class="check-desc">{{ paso.descripcion }}</span>
+                <span class="check-result">
+                    {% if paso.resultado %}
+                        {% if paso.tipo_respuesta == 'CHECK' %}
+                            {% if paso.resultado.valor_bool %}✅ Conforme{% else %}❌{% endif %}
+                        {% elif paso.tipo_respuesta == 'NUMERICO' or paso.tipo_respuesta == 'MEDICION' %}
+                            {{ paso.resultado.valor_numerico|default:"-" }} {{ paso.unidad_medida|default:"" }}
+                        {% elif paso.tipo_respuesta == 'TEXTO' %}
+                            {{ paso.resultado.valor_texto|default:"-"|truncatechars:30 }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    {% else %}
+                        <span style="color:#94a3b8;">Sin registro</span>
+                    {% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Cierre -->
+    {% if cierre %}
+    <div class="section">
+        <div class="section-header">Cierre de la Orden</div>
+        <div class="section-body">
+            <div class="grid">
+                <div><div class="field-label">Inicio Real</div><div class="field-value">{{ cierre.fecha_inicio_real|date:"d/m/Y H:i" }}</div></div>
+                <div><div class="field-label">Fin Real</div><div class="field-value">{{ cierre.fecha_fin_real|date:"d/m/Y H:i" }}</div></div>
+                <div><div class="field-label">HH Totales</div><div class="field-value">{{ cierre.horas_hombre|default:"0" }}</div></div>
+                <div><div class="field-label">Técnico</div><div class="field-value">{{ cierre.tecnico.get_full_name|default:cierre.tecnico.username|default:"-" }}</div></div>
+            </div>
+            {% if cierre.comentarios %}
+            <div style="margin-top:10px; border-top:1px solid #f0f0f0; padding-top:8px;">
+                <div class="field-label">Comentarios Técnicos</div>
+                <div class="field-value" style="white-space:pre-wrap;">{{ cierre.comentarios }}</div>
+            </div>
+            {% endif %}
+            {% if cierre.materiales_utilizados %}
+            <div style="margin-top:8px;">
+                <div class="field-label">Materiales Utilizados (Texto)</div>
+                <div class="field-value" style="white-space:pre-wrap;">{{ cierre.materiales_utilizados }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Fotos y Archivos -->
+    {% if archivos %}
+    <div class="section">
+        <div class="section-header">Fotos y Archivos ({{ archivos|length }})</div>
+        <div class="section-body">
+            <div class="photos-grid">
+                {% for a in archivos %}
+                <div class="photo-item">
+                    {% if a.tipo == 'IMAGEN' %}
+                    <img src="{{ a.archivo.url }}" alt="{{ a.nombre }}" loading="lazy">
+                    {% else %}
+                    <div class="doc">📄 {{ a.nombre|default:a.archivo.name|truncatechars:20 }}<br>{{ a.get_momento_display|default:"" }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div style="text-align:center; padding:16px; color:var(--muted); font-size:0.72rem; border-top:1px solid var(--border); margin-top:20px;">
+        Reporte generado el {% now "d/m/Y H:i" %} · Energy CCG · {{ ot.codigo_de_orden }}
+    </div>
+</div>
+</body>
+</html>

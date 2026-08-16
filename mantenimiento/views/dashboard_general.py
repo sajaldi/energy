@@ -280,3 +280,42 @@ def ordenes_bulk_status(request):
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def ot_reporte_html(request, pk):
+    """Reporte HTML imprimible completo de una Orden de Trabajo."""
+    from ..models import OrdenTrabajo
+    from django.shortcuts import get_object_or_404
+
+    ot = get_object_or_404(
+        OrdenTrabajo.objects.select_related(
+            'rutina', 'ubicacion', 'tecnico', 'tecnico_puesto',
+            'empresa_responsable', 'aviso', 'cierre'
+        ).prefetch_related(
+            'activos', 'archivos', 'colaboradores_puesto',
+            'solicitudes_material__items__material__unidad_medida',
+            'resultados_checklist__paso'
+        ),
+        pk=pk
+    )
+
+    # Pasos de rutina con resultados
+    pasos = []
+    if ot.rutina:
+        pasos_qs = ot.rutina.pasos.all().order_by('orden')
+        resultados_dict = {r.paso_id: r for r in ot.resultados_checklist.all()}
+        for p in pasos_qs:
+            p.resultado = resultados_dict.get(p.id)
+            pasos.append(p)
+
+    context = {
+        'ot': ot,
+        'pasos': pasos,
+        'cierre': getattr(ot, 'cierre', None),
+        'archivos': ot.archivos.all().order_by('momento', '-creado_en'),
+        'solicitudes': ot.solicitudes_material.prefetch_related('items__material__unidad_medida').all(),
+        'activos': ot.activos.all(),
+        'colaboradores': ot.colaboradores_puesto.all(),
+    }
+    return render(request, 'mantenimiento/ot_reporte_html.html', context)
