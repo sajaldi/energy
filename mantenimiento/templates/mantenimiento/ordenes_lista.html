@@ -210,6 +210,24 @@
     .modal-btn-confirm { background: var(--fiori-error); color: white; }
     .modal-btn-confirm:hover { background: #8b0000; }
     .modal-error { color: var(--fiori-error); font-size: 0.78rem; margin-bottom: 0.75rem; display: none; }
+
+    /* OT Modal Tabs */
+    .ot-tab {
+        padding: 10px 18px; font-size: 0.8rem; font-weight: 600; border: none;
+        background: transparent; color: var(--fiori-text-muted); cursor: pointer;
+        border-bottom: 2px solid transparent; transition: all 0.15s;
+    }
+    .ot-tab:hover { color: var(--fiori-blue); }
+    .ot-tab.active { color: var(--fiori-blue); border-bottom-color: var(--fiori-blue); }
+    .ot-label { font-size: 0.68rem; color: #64748b; font-weight: 600; margin-bottom: 2px; letter-spacing: 0.02em; }
+    .ot-value { font-size: 0.83rem; color: #1e293b; }
+    .ot-related-motivo {
+        display: inline-block; padding: 2px 6px; font-size: 0.65rem; font-weight: 600;
+        border-radius: 3px; margin-right: 3px;
+    }
+    .ot-related-motivo-rutina { background: #ede9fe; color: #6d28d9; }
+    .ot-related-motivo-activo { background: #fef3c7; color: #92400e; }
+    .ot-related-motivo-ubicación { background: #dcfce7; color: #166534; }
 </style>
 </head>
 <body>
@@ -381,54 +399,71 @@
 
 <!-- OT Detail Modal -->
 <div class="modal-overlay" id="ot-detail-modal">
-    <div class="modal-box" style="max-width:620px; padding:0; overflow:hidden;">
-        <div id="ot-modal-header" style="padding:16px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+    <div class="modal-box" style="max-width:720px; padding:0; overflow:hidden;">
+        <div id="ot-modal-header" style="padding:14px 24px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
             <div>
-                <div style="font-size:0.72rem; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Orden de Trabajo</div>
-                <div id="ot-modal-codigo" style="font-size:1.1rem; font-weight:700; color:#0f172a;">-</div>
+                <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Orden de Trabajo</div>
+                <div id="ot-modal-codigo" style="font-size:1.05rem; font-weight:700; color:#0f172a;">-</div>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
                 <span id="ot-modal-estado-badge" style="padding:4px 12px; font-size:0.7rem; font-weight:700; text-transform:uppercase;"></span>
                 <button onclick="closeOtModal()" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#64748b; padding:4px;">✕</button>
             </div>
         </div>
-        <div style="padding:20px 24px; max-height:70vh; overflow-y:auto;">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-                <div>
-                    <div style="font-size:0.7rem; color:#64748b; font-weight:600; margin-bottom:2px;">TIPO</div>
-                    <div id="ot-modal-tipo" style="font-size:0.85rem; color:#1e293b;">-</div>
-                </div>
-                <div>
-                    <div style="font-size:0.7rem; color:#64748b; font-weight:600; margin-bottom:2px;">PRIORIDAD</div>
-                    <div id="ot-modal-prioridad" style="font-size:0.85rem; color:#1e293b;">-</div>
-                </div>
-                <div>
-                    <div style="font-size:0.7rem; color:#64748b; font-weight:600; margin-bottom:2px;">RUTINA</div>
-                    <div id="ot-modal-rutina" style="font-size:0.85rem; color:#1e293b;">-</div>
-                </div>
-                <div>
-                    <div style="font-size:0.7rem; color:#64748b; font-weight:600; margin-bottom:2px;">UBICACIÓN</div>
-                    <div id="ot-modal-ubicacion" style="font-size:0.85rem; color:#1e293b;">-</div>
-                </div>
-                <div>
-                    <div style="font-size:0.7rem; color:#64748b; font-weight:600; margin-bottom:2px;">TÉCNICO</div>
-                    <div id="ot-modal-tecnico" style="font-size:0.85rem; color:#1e293b;">-</div>
-                </div>
-                <div>
-                    <div style="font-size:0.7rem; color:#64748b; font-weight:600; margin-bottom:2px;">INICIO PROGRAMADO</div>
-                    <div id="ot-modal-inicio" style="font-size:0.85rem; color:#1e293b;">-</div>
-                </div>
+        <!-- Tabs -->
+        <div style="display:flex; border-bottom:1px solid #e2e8f0; background:#fafbfc;">
+            <button class="ot-tab active" data-tab="detalle" onclick="switchOtTab('detalle')">📋 Detalle</button>
+            <button class="ot-tab" data-tab="archivos" onclick="switchOtTab('archivos')">📎 Archivos</button>
+            <button class="ot-tab" data-tab="relacionadas" onclick="switchOtTab('relacionadas')">🔗 Relacionadas</button>
+        </div>
+        <!-- Tab: Detalle -->
+        <div class="ot-tab-content active" id="ot-tab-detalle" style="padding:18px 24px; max-height:60vh; overflow-y:auto;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+                <div><div class="ot-label">TIPO</div><div id="ot-modal-tipo" class="ot-value">-</div></div>
+                <div><div class="ot-label">PRIORIDAD</div><div id="ot-modal-prioridad" class="ot-value">-</div></div>
+                <div><div class="ot-label">RUTINA</div><div id="ot-modal-rutina" class="ot-value">-</div></div>
+                <div><div class="ot-label">UBICACIÓN</div><div id="ot-modal-ubicacion" class="ot-value">-</div></div>
+                <div><div class="ot-label">TÉCNICO / PUESTO</div><div id="ot-modal-tecnico" class="ot-value">-</div></div>
+                <div><div class="ot-label">EMPRESA</div><div id="ot-modal-empresa" class="ot-value">-</div></div>
+                <div><div class="ot-label">INICIO PROGRAMADO</div><div id="ot-modal-inicio" class="ot-value">-</div></div>
+                <div><div class="ot-label">FIN PROGRAMADO</div><div id="ot-modal-fin" class="ot-value">-</div></div>
             </div>
-            <div style="border-top:1px solid #e2e8f0; padding-top:12px; margin-bottom:12px;">
-                <div style="font-size:0.7rem; color:#64748b; font-weight:600; margin-bottom:4px;">NOTAS / DESCRIPCIÓN</div>
-                <div id="ot-modal-notas" style="font-size:0.83rem; color:#374151; line-height:1.5; background:#f8fafc; padding:10px; border:1px solid #e2e8f0; min-height:40px;">-</div>
+            <div style="border-top:1px solid #e2e8f0; padding-top:10px; margin-bottom:10px;">
+                <div class="ot-label">DESCRIPCIÓN</div>
+                <div id="ot-modal-descripcion" class="ot-value" style="background:#f8fafc; padding:8px; border:1px solid #e2e8f0; min-height:28px;">-</div>
             </div>
-            <div id="ot-modal-activos-section" style="display:none; border-top:1px solid #e2e8f0; padding-top:12px;">
-                <div style="font-size:0.7rem; color:#64748b; font-weight:600; margin-bottom:6px;">ACTIVOS</div>
-                <div id="ot-modal-activos" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+            <div style="border-top:1px solid #e2e8f0; padding-top:10px;">
+                <div class="ot-label">NOTAS</div>
+                <div id="ot-modal-notas" class="ot-value" style="background:#f8fafc; padding:8px; border:1px solid #e2e8f0; min-height:28px;">-</div>
+            </div>
+            <div id="ot-modal-activos-section" style="display:none; border-top:1px solid #e2e8f0; padding-top:10px; margin-top:10px;">
+                <div class="ot-label">ACTIVOS</div>
+                <div id="ot-modal-activos" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;"></div>
             </div>
         </div>
-        <div style="padding:12px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; background:#f8fafc;">
+        <!-- Tab: Archivos -->
+        <div class="ot-tab-content" id="ot-tab-archivos" style="padding:18px 24px; max-height:60vh; overflow-y:auto; display:none;">
+            <div id="ot-modal-archivos-list"></div>
+            <div id="ot-modal-archivos-empty" style="text-align:center; padding:2rem; color:#94a3b8;">Sin archivos adjuntos.</div>
+        </div>
+        <!-- Tab: Relacionadas -->
+        <div class="ot-tab-content" id="ot-tab-relacionadas" style="padding:18px 24px; max-height:60vh; overflow-y:auto; display:none;">
+            <div id="ot-related-loading" style="text-align:center; padding:2rem; color:#64748b;">Cargando órdenes relacionadas...</div>
+            <div id="ot-related-empty" style="display:none; text-align:center; padding:2rem; color:#94a3b8;">No se encontraron órdenes relacionadas.</div>
+            <table id="ot-related-table" class="fiori-table" style="display:none; font-size:0.78rem;">
+                <thead><tr>
+                    <th style="padding:8px;">Código</th>
+                    <th style="padding:8px;">Estado</th>
+                    <th style="padding:8px;">Rutina</th>
+                    <th style="padding:8px;">Ubicación</th>
+                    <th style="padding:8px;">Inicio</th>
+                    <th style="padding:8px;">Relación</th>
+                </tr></thead>
+                <tbody id="ot-related-tbody"></tbody>
+            </table>
+        </div>
+        <!-- Footer -->
+        <div style="padding:10px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; background:#f8fafc;">
             <a id="ot-modal-link-full" href="#" target="_blank" class="fiori-btn" style="font-size:0.78rem;">🔗 Abrir detalle completo</a>
             <button onclick="closeOtModal()" class="fiori-btn">Cerrar</button>
         </div>
@@ -843,32 +878,46 @@ function showToast(msg, type) {
 
 // ==================== OT DETAIL MODAL ====================
 var otModal = document.getElementById('ot-detail-modal');
+var currentOtPk = null;
+var relatedLoaded = false;
+
+function switchOtTab(tab) {
+    document.querySelectorAll('.ot-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.ot-tab-content').forEach(function(c) { c.style.display = 'none'; });
+    document.querySelector('.ot-tab[data-tab="' + tab + '"]').classList.add('active');
+    document.getElementById('ot-tab-' + tab).style.display = '';
+
+    // Lazy-load related
+    if (tab === 'relacionadas' && !relatedLoaded && currentOtPk) {
+        loadRelated(currentOtPk);
+    }
+}
 
 function openOtModal(pk) {
+    currentOtPk = pk;
+    relatedLoaded = false;
     otModal.classList.add('active');
-    // Loading state
+    switchOtTab('detalle');
     document.getElementById('ot-modal-codigo').textContent = 'Cargando...';
 
     fetch('/mantenimiento/api/ot/' + pk + '/detalle/')
     .then(function(r) { return r.json(); })
     .then(function(resp) {
-        if (resp.status !== 'success') {
-            closeOtModal();
-            showToast('Error al cargar la orden', 'error');
-            return;
-        }
+        if (resp.status !== 'success') { closeOtModal(); showToast('Error al cargar la orden', 'error'); return; }
         var ot = resp.ot;
         document.getElementById('ot-modal-codigo').textContent = ot.codigo;
         document.getElementById('ot-modal-tipo').textContent = ot.tipo;
         document.getElementById('ot-modal-prioridad').textContent = ot.prioridad;
         document.getElementById('ot-modal-rutina').textContent = ot.rutina;
         document.getElementById('ot-modal-ubicacion').textContent = ot.ubicacion;
-        document.getElementById('ot-modal-tecnico').textContent = ot.tecnico;
+        document.getElementById('ot-modal-tecnico').textContent = ot.tecnico_puesto || ot.tecnico || 'No asignado';
+        document.getElementById('ot-modal-empresa').textContent = ot.empresa || 'No asignada';
         document.getElementById('ot-modal-inicio').textContent = ot.inicio;
-        document.getElementById('ot-modal-notas').textContent = ot.notas;
+        document.getElementById('ot-modal-fin').textContent = ot.fin;
+        document.getElementById('ot-modal-descripcion').textContent = ot.descripcion || '-';
+        document.getElementById('ot-modal-notas').textContent = ot.notas || 'Sin observaciones.';
         document.getElementById('ot-modal-link-full').href = '/mantenimiento/app/ot/' + ot.id + '/';
 
-        // Estado badge
         var badge = document.getElementById('ot-modal-estado-badge');
         badge.textContent = ot.estado;
         badge.style.background = (ot.status_color || '#64748b') + '22';
@@ -882,26 +931,77 @@ function openOtModal(pk) {
             activosDiv.innerHTML = '';
             ot.activos.forEach(function(a) {
                 var chip = document.createElement('span');
-                chip.style.cssText = 'padding:4px 10px; background:#eff6ff; border:1px solid #bfdbfe; font-size:0.75rem; color:#1d4ed8; font-weight:500;';
+                chip.style.cssText = 'padding:4px 10px; background:#eff6ff; border:1px solid #bfdbfe; font-size:0.73rem; color:#1d4ed8; font-weight:500;';
                 chip.textContent = (a.codigo ? a.codigo + ' - ' : '') + a.nombre;
                 activosDiv.appendChild(chip);
             });
         } else {
             activosSection.style.display = 'none';
         }
+
+        // Archivos
+        var archivosList = document.getElementById('ot-modal-archivos-list');
+        var archivosEmpty = document.getElementById('ot-modal-archivos-empty');
+        archivosList.innerHTML = '';
+        if (ot.archivos && ot.archivos.length > 0) {
+            archivosEmpty.style.display = 'none';
+            ot.archivos.forEach(function(f) {
+                var div = document.createElement('div');
+                div.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0;';
+                var icon = f.tipo === 'FOTO' ? '🖼️' : '📄';
+                div.innerHTML = '<span style="font-size:1.1rem;">' + icon + '</span>' +
+                    '<div style="flex:1;"><a href="' + f.url + '" target="_blank" style="font-size:0.82rem; color:var(--fiori-blue); font-weight:500;">' + f.nombre + '</a>' +
+                    '<div style="font-size:0.7rem; color:#94a3b8;">' + (f.momento || '') + '</div></div>';
+                archivosList.appendChild(div);
+            });
+        } else {
+            archivosEmpty.style.display = '';
+        }
     })
-    .catch(function() {
-        closeOtModal();
-        showToast('Error de conexión', 'error');
-    });
+    .catch(function() { closeOtModal(); showToast('Error de conexión', 'error'); });
+}
+
+function loadRelated(pk) {
+    var loading = document.getElementById('ot-related-loading');
+    var empty = document.getElementById('ot-related-empty');
+    var table = document.getElementById('ot-related-table');
+    var tbody = document.getElementById('ot-related-tbody');
+    loading.style.display = ''; empty.style.display = 'none'; table.style.display = 'none';
+
+    fetch('/mantenimiento/api/ot/' + pk + '/related/')
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+        loading.style.display = 'none';
+        relatedLoaded = true;
+        if (!resp.related || resp.related.length === 0) {
+            empty.style.display = ''; return;
+        }
+        table.style.display = '';
+        tbody.innerHTML = '';
+        resp.related.forEach(function(r) {
+            var tr = document.createElement('tr');
+            var motivos = (r.motivos || []).map(function(m) {
+                return '<span class="ot-related-motivo ot-related-motivo-' + m + '">' + m + '</span>';
+            }).join('');
+            tr.innerHTML = '<td style="padding:6px 8px;"><a href="javascript:void(0)" class="fiori-link ot-detail-link" data-pk="' + r.id + '">' + r.codigo + '</a></td>' +
+                '<td style="padding:6px 8px;"><span style="color:' + (r.status_color || '#64748b') + '; font-weight:600; font-size:0.75rem;">' + r.estado + '</span></td>' +
+                '<td style="padding:6px 8px;">' + r.rutina + '</td>' +
+                '<td style="padding:6px 8px;">' + r.ubicacion + '</td>' +
+                '<td style="padding:6px 8px;">' + r.inicio + '</td>' +
+                '<td style="padding:6px 8px;">' + motivos + '</td>';
+            tbody.appendChild(tr);
+        });
+    })
+    .catch(function() { loading.style.display = 'none'; empty.style.display = ''; });
 }
 
 function closeOtModal() {
     otModal.classList.remove('active');
+    currentOtPk = null;
 }
 
-// Event delegation for OT detail links
-document.getElementById('ordenes-table').addEventListener('click', function(e) {
+// Event delegation for OT detail links (works for both table and related tab)
+document.addEventListener('click', function(e) {
     var link = e.target.closest('.ot-detail-link');
     if (link) {
         e.preventDefault();
@@ -910,13 +1010,8 @@ document.getElementById('ordenes-table').addEventListener('click', function(e) {
     }
 });
 
-// Close modal on Escape or backdrop click
-otModal.addEventListener('click', function(e) {
-    if (e.target === otModal) closeOtModal();
-});
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && otModal.classList.contains('active')) closeOtModal();
-});
+otModal.addEventListener('click', function(e) { if (e.target === otModal) closeOtModal(); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && otModal.classList.contains('active')) closeOtModal(); });
 </script>
 </body>
 </html>

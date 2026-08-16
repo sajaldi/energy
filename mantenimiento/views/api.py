@@ -296,7 +296,7 @@ def api_get_ot_detail(request, pk):
     """
     Retorna detalles de una OT para mostrar en modal (Dashboard/Cronograma).
     """
-    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'programacion', 'aviso').prefetch_related('activos', 'archivos'), pk=pk)
+    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'tecnico_puesto', 'programacion', 'aviso', 'empresa_responsable').prefetch_related('activos', 'archivos'), pk=pk)
 
     activos = [{"id": a.id, "nombre": a.nombre, "codigo": a.codigo_interno} for a in ot.activos.all()]
     archivos = [{
@@ -311,14 +311,21 @@ def api_get_ot_detail(request, pk):
         'id': ot.id,
         'codigo': ot.codigo_de_orden or f"OT #{ot.id}",
         'tipo': ot.get_tipo_display(),
+        'tipo_raw': ot.tipo,
         'prioridad': ot.get_prioridad_display(),
+        'prioridad_raw': ot.prioridad,
         'estado': ot.get_estado_display(),
         'rutina': ot.rutina.nombre if ot.rutina else (f"Aviso #{ot.aviso.id}" if ot.aviso else "OT Correctiva"),
+        'rutina_id': ot.rutina_id,
         'ubicacion': ot.ubicacion.get_ruta_completa() if (ot.ubicacion and hasattr(ot.ubicacion, 'get_ruta_completa')) else (str(ot.ubicacion) if ot.ubicacion else 'No especificada'),
-        'tecnico': ot.tecnico.get_full_name() or ot.tecnico.username if ot.tecnico else 'No asignado',
+        'ubicacion_id': ot.ubicacion_id,
+        'tecnico': ot.tecnico.get_full_name() or ot.tecnico.username if ot.tecnico else None,
+        'tecnico_puesto': str(ot.tecnico_puesto) if ot.tecnico_puesto else None,
+        'empresa': str(ot.empresa_responsable) if ot.empresa_responsable else None,
         'inicio': ot.inicio_programado.strftime('%d/%m/%Y %H:%M') if ot.inicio_programado else 'Sin fecha',
         'fin': ot.fin_programado.strftime('%d/%m/%Y %H:%M') if ot.fin_programado else 'Sin fecha',
-        'notas': ot.notas or ot.descripcion_corta or 'Sin observaciones adicionales.',
+        'descripcion': ot.descripcion_corta or '',
+        'notas': ot.notas or '',
         'activos': activos,
         'status_color': get_status_color(ot.estado),
         'raw_status': ot.estado,
@@ -326,6 +333,62 @@ def api_get_ot_detail(request, pk):
         'archivos': archivos,
     }
     return JsonResponse({'status': 'success', 'ot': data})
+
+
+@staff_member_required
+def api_get_ot_related(request, pk):
+    """
+    Retorna órdenes relacionadas a una OT por rutina, activos o ubicación.
+    """
+    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion').prefetch_related('activos'), pk=pk)
+    
+    related_qs = OrdenTrabajo.objects.exclude(id=ot.id).select_related('rutina', 'ubicacion').order_by('-inicio_programado')
+    
+    # Build Q filters for related OTs
+    q_filters = Q()
+    reasons = {}  # ot_id -> list of reasons
+    
+    # By same rutina
+    if ot.rutina_id:
+        by_rutina = related_qs.filter(rutina_id=ot.rutina_id)[:30]
+        for r in by_rutina:
+            reasons.setdefault(r.id, []).append('rutina')
+    
+    # By same activos
+    activo_ids = list(ot.activos.values_list('id', flat=True))
+    if activo_ids:
+        by_activo = related_qs.filter(activos__id__in=activo_ids).distinct()[:30]
+        for r in by_activo:
+            reasons.setdefault(r.id, []).append('activo')
+    
+    # By same ubicacion (edificio)
+    if ot.ubicacion_id:
+        by_ubicacion = related_qs.filter(ubicacion_id=ot.ubicacion_id)[:30]
+        for r in by_ubicacion:
+            reasons.setdefault(r.id, []).append('ubicación')
+    
+    # Fetch all unique related OTs
+    all_related_ids = list(reasons.keys())[:50]
+    if not all_related_ids:
+        return JsonResponse({'status': 'success', 'related': []})
+    
+    related_ots = OrdenTrabajo.objects.filter(id__in=all_related_ids).select_related('rutina', 'ubicacion').order_by('-inicio_programado')
+    
+    result = []
+    for r in related_ots:
+        result.append({
+            'id': r.id,
+            'codigo': r.codigo_de_orden or f"OT #{r.id}",
+            'estado': r.get_estado_display(),
+            'estado_raw': r.estado,
+            'rutina': r.rutina.nombre if r.rutina else '-',
+            'ubicacion': str(r.ubicacion) if r.ubicacion else '-',
+            'inicio': r.inicio_programado.strftime('%d/%m/%Y') if r.inicio_programado else '-',
+            'motivos': reasons.get(r.id, []),
+            'status_color': get_status_color(r.estado),
+        })
+    
+    return JsonResponse({'status': 'success', 'related': result})
 
 @staff_member_required
 @require_POST
