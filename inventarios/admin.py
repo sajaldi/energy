@@ -56,13 +56,20 @@ class MovimientoInventarioInline(admin.TabularInline):
 
 @admin.register(SolicitudMaterial)
 class SolicitudMaterialAdmin(admin.ModelAdmin):
-    list_display = ('id', 'usuario', 'fecha_solicitud', 'estado', 'ubicacion_origen', 'orden_trabajo')
+    list_display = ('id', 'usuario', 'fecha_solicitud', 'estado', 'ubicacion_origen', 'orden_trabajo', 'comentarios_cortos')
     list_filter = ('estado',)
     search_fields = ('id', 'usuario__username', 'usuario__first_name', 'usuario__last_name', 'comentarios_solicitud')
     raw_id_fields = ('usuario', 'ubicacion_origen', 'orden_trabajo', 'ticket', 'edificio_destino', 'nivel_destino')
     list_select_related = ('usuario', 'ubicacion_origen', 'orden_trabajo')
     list_per_page = 30
     inlines = [MovimientoInventarioInline]
+    change_form_template = 'admin/inventarios/solicitudmaterial/change_form.html'
+
+    def comentarios_cortos(self, obj):
+        if obj.comentarios_solicitud:
+            return obj.comentarios_solicitud[:60] + ('...' if len(obj.comentarios_solicitud) > 60 else '')
+        return '-'
+    comentarios_cortos.short_description = 'Comentarios'
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('usuario', 'ubicacion_origen', 'orden_trabajo')

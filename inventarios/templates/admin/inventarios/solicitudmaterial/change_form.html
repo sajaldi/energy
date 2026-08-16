@@ -1,0 +1,240 @@
+{% extends "admin/change_form.html" %}
+{% load i18n l10n %}
+
+{% block after_related_objects %}
+{{ block.super }}
+
+{% if original %}
+<style>
+.fiori-receipt {
+    font-family: 'Inter', -apple-system, sans-serif;
+    max-width: 700px;
+    margin: 20px auto;
+    background: #fff;
+    border: 2px solid #3b82f6;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+}
+.fiori-receipt-header {
+    background: #354a5f;
+    color: white;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.fiori-receipt-header h3 { margin: 0; font-size: 0.95rem; font-weight: 700; }
+.fiori-receipt-badge {
+    padding: 4px 12px; font-size: 0.7rem; font-weight: 700;
+    text-transform: uppercase; border-radius: 3px;
+}
+.fiori-receipt-meta {
+    padding: 14px 24px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px; border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+.fiori-receipt-meta .meta-label { font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
+.fiori-receipt-meta .meta-value { font-size: 0.85rem; font-weight: 600; color: #1e293b; margin-top: 2px; }
+.fiori-receipt-items { padding: 0; }
+.fiori-receipt-items table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.fiori-receipt-items th {
+    padding: 10px 16px; text-align: left; font-size: 0.68rem; font-weight: 700;
+    color: #64748b; text-transform: uppercase; background: #fafafa;
+    border-bottom: 2px solid #e2e8f0;
+}
+.fiori-receipt-items td { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; }
+.fiori-receipt-items tr:last-child td { border-bottom: none; }
+.fiori-receipt-items .item-name { font-weight: 600; color: #1e293b; }
+.fiori-receipt-items .item-sku { font-size: 0.72rem; color: #64748b; }
+.fiori-receipt-add {
+    padding: 14px 24px; border-top: 1px solid #e2e8f0;
+    display: flex; gap: 8px; align-items: center;
+}
+.fiori-receipt-add input {
+    flex: 1; padding: 8px 12px; font-size: 0.85rem;
+    border: 1px solid #e2e8f0; background: #f8fafc; font-family: inherit;
+}
+.fiori-receipt-add input:focus { outline: none; border-color: #3b82f6; background: #fff; }
+.fiori-receipt-add button {
+    padding: 8px 16px; font-size: 0.8rem; font-weight: 600;
+    background: #3b82f6; color: white; border: none; cursor: pointer;
+}
+.fiori-receipt-add button:hover { background: #2563eb; }
+.fiori-receipt-footer {
+    padding: 12px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0;
+    font-size: 0.75rem; color: #64748b; text-align: center;
+}
+.fr-remove-btn {
+    background: none; border: none; color: #ef4444; cursor: pointer;
+    font-size: 0.85rem; font-weight: 700; padding: 2px 6px;
+}
+.fr-remove-btn:hover { background: #fee2e2; }
+</style>
+
+<div class="fiori-receipt" id="fiori-receipt">
+    <div class="fiori-receipt-header">
+        <h3>📋 Pase de Salida #{{ original.id }}</h3>
+        <span class="fiori-receipt-badge" style="
+            {% if original.estado == 'ENTREGADO' %}background:#dcfce7; color:#166534;
+            {% elif original.estado == 'PENDIENTE' or original.estado == 'PENDIENTE_AUTORIZACION' %}background:#fef3c7; color:#92400e;
+            {% elif original.estado == 'RECHAZADO' %}background:#fee2e2; color:#991b1b;
+            {% else %}background:#f1f5f9; color:#475569;{% endif %}">
+            {{ original.get_estado_display }}
+        </span>
+    </div>
+    <div class="fiori-receipt-meta">
+        <div>
+            <div class="meta-label">Solicitante</div>
+            <div class="meta-value">{{ original.usuario.get_full_name|default:original.usuario.username }}</div>
+        </div>
+        <div>
+            <div class="meta-label">Fecha</div>
+            <div class="meta-value">{{ original.fecha_solicitud|date:"d/m/Y H:i" }}</div>
+        </div>
+        <div>
+            <div class="meta-label">Origen</div>
+            <div class="meta-value">{{ original.ubicacion_origen }}</div>
+        </div>
+        {% if original.orden_trabajo %}
+        <div>
+            <div class="meta-label">Orden de Trabajo</div>
+            <div class="meta-value">{{ original.orden_trabajo.codigo_de_orden|default:original.orden_trabajo.id }}</div>
+        </div>
+        {% endif %}
+        {% if original.comentarios_solicitud %}
+        <div style="grid-column: span 2;">
+            <div class="meta-label">Comentarios</div>
+            <div class="meta-value" style="font-weight:400; font-size:0.8rem;">{{ original.comentarios_solicitud }}</div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="fiori-receipt-items">
+        <table>
+            <thead>
+                <tr>
+                    <th>Material</th>
+                    <th>Solicitado</th>
+                    <th>Entregado</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="receipt-items-body">
+                {% for item in original.items.all %}
+                <tr data-item-id="{{ item.id }}">
+                    <td>
+                        <div class="item-name">{{ item.material.nombre }}</div>
+                        <div class="item-sku">{{ item.material.sku|default:"" }}</div>
+                    </td>
+                    <td>{{ item.cantidad_solicitada }}</td>
+                    <td>{{ item.cantidad }}</td>
+                    <td>
+                        <span style="font-size:0.72rem; font-weight:600;
+                            {% if item.estado == 'APROBADO' %}color:#166534;
+                            {% elif item.estado == 'PENDIENTE' %}color:#92400e;
+                            {% else %}color:#64748b;{% endif %}">
+                            {{ item.get_estado_display }}
+                        </span>
+                    </td>
+                    <td><button type="button" class="fr-remove-btn" onclick="removeReceiptItem({{ item.id }})" title="Quitar">✕</button></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:20px;">Sin materiales</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="fiori-receipt-add">
+        <input type="text" id="receipt-add-search" placeholder="🔍 Buscar material para agregar..." autocomplete="off">
+        <button type="button" onclick="document.getElementById('receipt-add-search').focus()">+ Agregar</button>
+    </div>
+    <div id="receipt-add-results" style="display:none; max-height:200px; overflow-y:auto; border-top:1px solid #e2e8f0; background:#fff;"></div>
+    <div class="fiori-receipt-footer">
+        Solicitud creada el {{ original.fecha_solicitud|date:"d/m/Y" }} · {{ original.items.count }} material(es)
+    </div>
+</div>
+
+<script>
+(function() {
+    var searchInput = document.getElementById('receipt-add-search');
+    var resultsDiv = document.getElementById('receipt-add-results');
+    var timer;
+    var solId = {{ original.id }};
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(timer);
+        var q = this.value.trim();
+        if (q.length < 2) { resultsDiv.style.display = 'none'; return; }
+        timer = setTimeout(function() {
+            fetch('/inventarios/api/materials/?search=' + encodeURIComponent(q) + '&page_size=10')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var items = data.results || data;
+                if (!items.length) {
+                    resultsDiv.innerHTML = '<div style="padding:12px 16px; color:#94a3b8; font-size:0.82rem;">Sin resultados</div>';
+                } else {
+                    resultsDiv.innerHTML = items.map(function(m) {
+                        return '<div style="padding:10px 16px; cursor:pointer; border-bottom:1px solid #f5f5f5; font-size:0.82rem;" onmouseenter="this.style.background=\'#eff6ff\'" onmouseleave="this.style.background=\'\'" onclick="addMaterialToReceipt(' + m.id + ',\'' + (m.nombre || m.name || '').replace(/'/g, "\\'") + '\')">' +
+                            '<strong>' + (m.sku || '') + '</strong> ' + (m.nombre || m.name || '') +
+                            '</div>';
+                    }).join('');
+                }
+                resultsDiv.style.display = '';
+            });
+        }, 300);
+    });
+
+    searchInput.addEventListener('blur', function() { setTimeout(function() { resultsDiv.style.display = 'none'; }, 200); });
+
+    window.addMaterialToReceipt = function(materialId, nombre) {
+        var cant = prompt('Cantidad a solicitar para "' + nombre + '":', '1');
+        if (!cant || isNaN(cant) || parseFloat(cant) <= 0) return;
+
+        fetch('/inventarios/api/movimiento-rapido/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
+            body: JSON.stringify({
+                material_id: materialId,
+                solicitud_id: solId,
+                cantidad: parseFloat(cant),
+                tipo: 'SALIDA'
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'success' || data.id) {
+                location.reload();
+            } else {
+                alert(data.message || 'Error al agregar material');
+            }
+        })
+        .catch(function() { alert('Error de conexión'); });
+    };
+
+    window.removeReceiptItem = function(itemId) {
+        if (!confirm('¿Quitar este material del pase?')) return;
+        fetch('/inventarios/solicitud/' + solId + '/update/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
+            body: JSON.stringify({action: 'remove_item', item_id: itemId})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'success') {
+                var row = document.querySelector('tr[data-item-id="' + itemId + '"]');
+                if (row) row.remove();
+            } else {
+                alert(data.message || 'Error');
+            }
+        })
+        .catch(function() { alert('Error de conexión'); });
+    };
+
+    function getCsrf() {
+        var c = document.cookie.match(/csrftoken=([^;]+)/);
+        return c ? c[1] : '';
+    }
+})();
+</script>
+{% endif %}
+{% endblock %}
