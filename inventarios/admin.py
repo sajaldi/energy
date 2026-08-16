@@ -45,7 +45,7 @@ class MovimientoInventarioInline(admin.TabularInline):
     max_num = 15
     show_change_link = True
     raw_id_fields = ('material', 'ubicacion_origen', 'ubicacion_destino', 'lote', 'orden_trabajo')
-    exclude = ('solicitud', 'ingreso', 'devolucion', 'aprobado_por', 'fecha_aprobacion', 'es_inconsistente')
+    exclude = ('devolucion', 'aprobado_por', 'fecha_aprobacion', 'es_inconsistente')
     readonly_fields = ('fecha_movimiento', 'estado', 'usuario')
 
     def get_queryset(self, request):
