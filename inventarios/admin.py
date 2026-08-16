@@ -44,7 +44,8 @@ class MovimientoInventarioInline(admin.TabularInline):
     extra = 0
     max_num = 15
     show_change_link = True
-    raw_id_fields = ('material', 'ubicacion_origen', 'ubicacion_destino', 'lote')
+    raw_id_fields = ('material', 'ubicacion_origen', 'ubicacion_destino', 'lote', 'orden_trabajo')
+    exclude = ('solicitud', 'ingreso', 'devolucion', 'aprobado_por', 'fecha_aprobacion', 'es_inconsistente')
     readonly_fields = ('fecha_movimiento', 'estado', 'usuario')
 
     def get_queryset(self, request):
@@ -61,7 +62,6 @@ class SolicitudMaterialAdmin(admin.ModelAdmin):
     raw_id_fields = ('usuario', 'ubicacion_origen', 'orden_trabajo', 'ticket', 'edificio_destino', 'nivel_destino')
     list_select_related = ('usuario', 'ubicacion_origen', 'orden_trabajo')
     list_per_page = 30
-    date_hierarchy = 'fecha_solicitud'
     inlines = [MovimientoInventarioInline]
 
     def get_queryset(self, request):
