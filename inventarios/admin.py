@@ -55,10 +55,13 @@ class MovimientoInventarioInline(admin.TabularInline):
 
 @admin.register(SolicitudMaterial)
 class SolicitudMaterialAdmin(admin.ModelAdmin):
-    list_display = ('id', 'usuario', 'fecha_solicitud', 'estado', 'ubicacion_origen')
-    list_filter = ('estado', 'fecha_solicitud')
-    search_fields = ('usuario__username', 'items__material__nombre')
-    raw_id_fields = ('usuario', 'ubicacion_origen', 'orden_trabajo')
+    list_display = ('id', 'usuario', 'fecha_solicitud', 'estado', 'ubicacion_origen', 'orden_trabajo')
+    list_filter = ('estado',)
+    search_fields = ('id', 'usuario__username', 'usuario__first_name', 'usuario__last_name', 'comentarios_solicitud')
+    raw_id_fields = ('usuario', 'ubicacion_origen', 'orden_trabajo', 'ticket', 'edificio_destino', 'nivel_destino')
+    list_select_related = ('usuario', 'ubicacion_origen', 'orden_trabajo')
+    list_per_page = 30
+    date_hierarchy = 'fecha_solicitud'
     inlines = [MovimientoInventarioInline]
 
     def get_queryset(self, request):
