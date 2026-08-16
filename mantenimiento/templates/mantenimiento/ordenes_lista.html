@@ -6,6 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Órdenes de Trabajo | Energy</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 <style>
     :root {
         --fiori-blue: #0a6ed1;
@@ -415,6 +417,7 @@
 </div>
 
 <style>
+/* ── OTNP Modal Styles (from dashboard) ── */
 .otnp-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);z-index:9999;justify-content:center;align-items:flex-start;padding-top:4vh}
 .otnp-overlay.active{display:flex}
 .otnp-dialog{background:#fff;border-radius:0;width:calc(100vw - 80px);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,.18);animation:otnpSlideIn .28s cubic-bezier(.16,1,.3,1);border:2px solid #3b82f6}
@@ -427,6 +430,46 @@
 .otnp-dialog-footer{display:flex;justify-content:flex-end;gap:12px;padding:16px 32px;border-top:1px solid #e2e8f0;background:#f8fafc}
 .otnp-section-label{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#3b82f6;display:flex;align-items:center;gap:6px;margin-top:10px;margin-bottom:2px}
 .otnp-section-label:first-child{margin-top:0}
+.otnp-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.otnp-row-3{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:640px){.otnp-row,.otnp-row-3{grid-template-columns:1fr}}
+.otnp-field{display:flex;flex-direction:column;gap:4px;position:relative}
+.otnp-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#64748b}
+.otnp-label small{text-transform:none;font-weight:400;letter-spacing:0}
+.otnp-input-wrap{display:flex;align-items:center;gap:8px;border:none;border-radius:0;padding:0 12px;background:#f1f5f9;transition:all .2s}
+.otnp-input-wrap:focus-within{background:#e8f0fe;box-shadow:0 0 0 2px rgba(59,130,246,.15)}
+.otnp-icon{color:#3b82f6;font-size:1.1rem;flex-shrink:0}
+.otnp-input{border:none;outline:none;background:transparent;font:inherit;padding:10px 0;width:100%;font-size:.9rem;color:#0f172a}
+.otnp-select{border:none;border-radius:0;padding:10px 12px;background:#f1f5f9;font:inherit;font-size:.9rem;color:#0f172a;transition:all .2s;width:100%}
+.otnp-select:focus{background:#e8f0fe;box-shadow:0 0 0 2px rgba(59,130,246,.15);outline:none}
+.otnp-textarea{border:none;border-radius:0;padding:10px 12px;background:#f1f5f9;font:inherit;font-size:.9rem;color:#0f172a;resize:none;height:72px;transition:all .2s}
+.otnp-textarea:focus{background:#e8f0fe;box-shadow:0 0 0 2px rgba(59,130,246,.15);outline:none}
+.otnp-chips-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.otnp-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:0;background:#e0e7ff;color:#3730a3;font-size:.78rem;font-weight:600}
+.otnp-chip .chip-x{cursor:pointer;font-size:.85rem;opacity:.6;margin-left:2px}
+.otnp-chip .chip-x:hover{opacity:1;color:#ef4444}
+.otnp-btn-primary{display:flex;align-items:center;gap:6px;padding:10px 28px;border-radius:0;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;font-weight:700;font-size:.9rem;border:none;cursor:pointer;transition:all .2s;box-shadow:0 4px 12px rgba(59,130,246,.3)}
+.otnp-btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(59,130,246,.4)}
+.otnp-btn-primary:disabled{opacity:.6;pointer-events:none}
+.otnp-btn-ghost{padding:10px 20px;border-radius:0;background:transparent;border:1px solid #e2e8f0;color:#64748b;font-weight:600;font-size:.9rem;cursor:pointer;transition:all .15s}
+.otnp-btn-ghost:hover{background:#f1f5f9;color:#0f172a}
+.otnp-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:0;max-height:200px;overflow-y:auto;z-index:10;box-shadow:0 12px 24px rgba(0,0,0,.1);display:none}
+.otnp-dropdown.show{display:block}
+.otnp-dropdown-item{padding:10px 14px;cursor:pointer;font-size:.88rem;border-bottom:1px solid #f1f5f9;transition:background .1s}
+.otnp-dropdown-item:hover{background:#eff6ff}
+.otnp-dropdown-item strong{display:block;color:#0f172a}
+.otnp-dropdown-item small{color:#64748b}
+.otnp-badge{margin-top:2px;padding:4px 10px;border-radius:0;background:#eff6ff;color:#1d4ed8;font-size:.78rem;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.otnp-badge .remove{cursor:pointer;margin-left:4px;font-size:.9rem;opacity:.6}
+.otnp-badge .remove:hover{opacity:1;color:#ef4444}
+.otnp-toggle{position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:8px;margin-top:8px}
+.otnp-toggle input{display:none}
+.otnp-toggle-slider{width:44px;height:24px;background-color:#cbd5e1;border-radius:0;position:relative;transition:.3s}
+.otnp-toggle-slider:before{content:"";position:absolute;width:18px;height:18px;border-radius:0;background:white;top:3px;left:3px;transition:.3s;box-shadow:0 2px 4px rgba(0,0,0,0.2)}
+.otnp-toggle input:checked + .otnp-toggle-slider{background-color:#3b82f6}
+.otnp-toggle input:checked + .otnp-toggle-slider:before{transform:translateX(20px)}
+.otnp-toggle-text{font-size:0.85rem;font-weight:700;color:#64748b}
+.otnp-toggle input:checked ~ .otnp-toggle-text{color:#3b82f6}
 </style>
 
 <!-- Bulk Status Change Modal -->
@@ -886,6 +929,9 @@ function showToast(msg, type) {
 // ==================== OT DETAIL MODAL ====================
 var otModal = document.getElementById('ot-detail-modal');
 var currentOtPk = null;
+
+// Alias for the fiori edit partial which calls closeFioriEditModal
+function closeFioriEditModal() { closeOtModal(); }
 
 function openOtModal(pk) {
     currentOtPk = pk;
