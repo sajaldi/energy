@@ -183,10 +183,11 @@ def ordenes_lista_view(request):
 
 @staff_member_required
 def ordenes_bulk_delete(request):
-    """Eliminación masiva de órdenes de trabajo con verificación de contraseña."""
+    """Eliminación masiva de órdenes de trabajo con verificación de contraseña (con gracia de 10 min)."""
     import json
     from django.http import JsonResponse
     from django.contrib.auth import authenticate
+    from django.utils import timezone
 
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
@@ -199,10 +200,23 @@ def ordenes_bulk_delete(request):
         if not orden_ids:
             return JsonResponse({'status': 'error', 'message': 'No se seleccionaron órdenes.'}, status=400)
 
-        # Verificar contraseña
-        user = authenticate(username=request.user.username, password=password)
-        if user is None:
-            return JsonResponse({'status': 'error', 'message': 'Contraseña incorrecta.'}, status=403)
+        # Check if password was verified recently (10-minute grace period)
+        last_verified = request.session.get('bulk_delete_verified_at')
+        now = timezone.now().timestamp()
+        grace_period = 600  # 10 minutes
+
+        if last_verified and (now - last_verified) < grace_period:
+            # Within grace period — no password needed
+            pass
+        else:
+            # Require password verification
+            if not password:
+                return JsonResponse({'status': 'error', 'message': 'Ingresa tu contraseña.'}, status=403)
+            user = authenticate(username=request.user.username, password=password)
+            if user is None:
+                return JsonResponse({'status': 'error', 'message': 'Contraseña incorrecta.'}, status=403)
+            # Store verification timestamp
+            request.session['bulk_delete_verified_at'] = now
 
         # Eliminar las órdenes
         ordenes = OrdenTrabajo.objects.filter(id__in=orden_ids)

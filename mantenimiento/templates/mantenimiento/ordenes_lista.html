@@ -361,9 +361,13 @@
 <div class="modal-overlay" id="delete-modal">
     <div class="modal-box">
         <h3>⚠️ Confirmar eliminación</h3>
-        <p>Se eliminarán <strong id="modal-count">0</strong> orden(es) de trabajo. Esta acción no se puede deshacer. Ingresa tu contraseña para confirmar.</p>
+        <p>Se eliminarán <strong id="modal-count">0</strong> orden(es) de trabajo. <strong style="color:#bb0000;">Esta acción no se puede deshacer.</strong></p>
+        <p style="font-size:0.78rem; color:#6a6d70; margin-bottom:1rem; background:#fff8e1; padding:8px 10px; border-left:3px solid #f59e0b;">
+            ⚡ Al confirmar, asumes total responsabilidad sobre la eliminación de estos registros. Después de verificar tu contraseña, no se volverá a pedir durante 10 minutos.
+        </p>
         <div class="modal-error" id="modal-error">Contraseña incorrecta.</div>
-        <input type="password" id="modal-password" placeholder="Contraseña" autocomplete="current-password">
+        <label id="modal-pw-label" style="font-size:0.78rem; font-weight:600; color:#32363a; display:block; margin-bottom:4px;">Contraseña:</label>
+        <input type="password" id="modal-password" placeholder="Ingresa tu contraseña" autocomplete="current-password">
         <div class="modal-actions">
             <button type="button" class="modal-btn-cancel" onclick="closeDeleteModal()">Cancelar</button>
             <button type="button" class="modal-btn-confirm" id="modal-confirm-btn" onclick="confirmDelete()">Eliminar</button>
@@ -575,8 +579,26 @@ function openDeleteModal() {
     document.getElementById('modal-password').value = '';
     document.getElementById('modal-error').style.display = 'none';
     document.getElementById('modal-confirm-btn').disabled = false;
+    document.getElementById('modal-confirm-btn').textContent = 'Eliminar';
+
+    // If within grace period, hide password field
+    var lastVerified = parseInt(sessionStorage.getItem('bulk_delete_verified_at') || '0');
+    var now = Math.floor(Date.now() / 1000);
+    var withinGrace = (now - lastVerified) < 600; // 10 min
+    var pwField = document.getElementById('modal-password');
+    var pwLabel = document.getElementById('modal-pw-label');
+    if (withinGrace) {
+        pwField.style.display = 'none';
+        if (pwLabel) pwLabel.style.display = 'none';
+    } else {
+        pwField.style.display = '';
+        if (pwLabel) pwLabel.style.display = '';
+    }
+
     document.getElementById('delete-modal').classList.add('active');
-    setTimeout(function() { document.getElementById('modal-password').focus(); }, 100);
+    if (!withinGrace) {
+        setTimeout(function() { pwField.focus(); }, 100);
+    }
 }
 
 function closeDeleteModal() {
@@ -616,6 +638,8 @@ function confirmDelete() {
     .then(function(result) {
         if (result.ok && result.data.status === 'success') {
             closeDeleteModal();
+            // Store verification timestamp for grace period
+            sessionStorage.setItem('bulk_delete_verified_at', Math.floor(Date.now() / 1000).toString());
             // Remove deleted rows from DOM
             ids.forEach(function(id) {
                 var row = document.querySelector('tr[data-ot-id="' + id + '"]');
