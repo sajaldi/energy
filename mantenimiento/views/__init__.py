@@ -22,6 +22,7 @@ from .api import (
     api_search_ordenes,
     api_get_ot_detail,
     api_get_ot_related,
+    api_vincular_solicitud_material,
     api_update_ot_status_notes,
     api_buscar_activos,
     api_buscar_activos_filtrados,

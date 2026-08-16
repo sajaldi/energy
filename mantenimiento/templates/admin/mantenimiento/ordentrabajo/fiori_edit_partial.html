@@ -207,10 +207,20 @@
         Sin pases de salida vinculados a esta orden.
     </div>
     {% endif %}
-    <div style="margin-top:8px;">
+    <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
         <a href="/admin/inventarios/solicitudmaterial/add/?orden_trabajo={{ ot.id|unlocalize }}" target="_blank" class="otnp-btn-ghost" style="border-radius:0; padding:6px 14px; font-size:0.78rem; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
-            <ion-icon name="add-circle-outline"></ion-icon> Nueva Solicitud de Material
+            <ion-icon name="add-circle-outline"></ion-icon> Nueva Solicitud
         </a>
+        <button type="button" onclick="toggleSolicitudSearch()" class="otnp-btn-ghost" style="border-radius:0; padding:6px 14px; font-size:0.78rem; display:inline-flex; align-items:center; gap:4px;">
+            <ion-icon name="link-outline"></ion-icon> Vincular Existente
+        </button>
+    </div>
+    <div id="solicitud-search-box" style="display:none; margin-top:8px; position:relative;">
+        <div class="otnp-input-wrap" style="border-radius:0;">
+            <ion-icon name="search-outline" class="otnp-icon"></ion-icon>
+            <input type="text" id="solicitud-search-input" class="otnp-input" placeholder="Buscar pase por #, solicitante..." autocomplete="off">
+        </div>
+        <div id="solicitud-search-results" class="otnp-dropdown" style="border-radius:0;"></div>
     </div>
 
     {% if not cierre %}
@@ -491,6 +501,62 @@
             }).catch(err => {
                 Swal.fire('Error', 'Fallo en la conexión', 'error');
                 btn.disabled = false; btn.innerHTML = 'Guardar Cambios';
+            });
+        };
+
+        // ── Solicitud Material Search ──
+        window.toggleSolicitudSearch = function() {
+            const box = document.getElementById('solicitud-search-box');
+            box.style.display = box.style.display === 'none' ? '' : 'none';
+            if (box.style.display !== 'none') document.getElementById('solicitud-search-input').focus();
+        };
+
+        let _solTimer;
+        const solInput = document.getElementById('solicitud-search-input');
+        const solResults = document.getElementById('solicitud-search-results');
+        if (solInput) {
+            solInput.addEventListener('input', function() {
+                clearTimeout(_solTimer);
+                const q = this.value.trim();
+                if (q.length < 1) { solResults.classList.remove('show'); return; }
+                _solTimer = setTimeout(() => {
+                    fetch(`/mantenimiento/api/ot/{{ ot.id|unlocalize }}/vincular-solicitud/?q=${encodeURIComponent(q)}`)
+                    .then(r => r.json()).then(data => {
+                        if (!data.results.length) {
+                            solResults.innerHTML = '<div class="otnp-dropdown-item"><small>Sin resultados en últimos 30 días</small></div>';
+                        } else {
+                            solResults.innerHTML = data.results.map(s =>
+                                `<div class="otnp-dropdown-item" onclick="linkSolicitud(${s.id})"><strong>${s.label}</strong><small>${s.fecha} · ${s.items} material(es)</small></div>`
+                            ).join('');
+                        }
+                        solResults.classList.add('show');
+                    });
+                }, 300);
+            });
+            solInput.addEventListener('focus', function() {
+                if (!this.value) { this.dispatchEvent(new Event('input')); }
+            });
+            solInput.addEventListener('blur', function() { setTimeout(() => solResults.classList.remove('show'), 200); });
+        }
+
+        window.linkSolicitud = function(solId) {
+            fetch(`/mantenimiento/api/ot/{{ ot.id|unlocalize }}/vincular-solicitud/`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                body: JSON.stringify({action: 'link', solicitud_id: solId})
+            })
+            .then(r => r.json()).then(data => {
+                if (data.status === 'success') {
+                    Swal.fire('Vinculado', data.message, 'success').then(() => {
+                        // Reload the modal content
+                        const otId = {{ ot.id|unlocalize }};
+                        fetch(`/admin/mantenimiento/ordentrabajo/fiori-edit/${otId}/`)
+                        .then(r => r.text()).then(html => {
+                            const content = document.getElementById('ot-modal-fiori-content');
+                            if (content) { content.innerHTML = html; content.querySelectorAll('script').forEach(s => { const n = document.createElement('script'); n.textContent = s.textContent; document.body.appendChild(n).parentNode.removeChild(n); }); }
+                        });
+                    });
+                } else { Swal.fire('Error', data.message, 'error'); }
             });
         };
 

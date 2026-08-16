@@ -114,6 +114,7 @@ urlpatterns = [
     path('api/busqueda-global/', views.api_busqueda_global, name='api_busqueda_global'),
     path('api/ot/<int:pk>/detalle/', views.api_get_ot_detail, name='api_get_ot_detail'),
     path('api/ot/<int:pk>/related/', views.api_get_ot_related, name='api_get_ot_related'),
+    path('api/ot/<int:pk>/vincular-solicitud/', views.api_vincular_solicitud_material, name='api_vincular_solicitud_material'),
     path('api/ot/<int:pk>/update/', views.api_update_ot_status_notes, name='api_update_ot_status_notes'),
     path('api/foto/<int:pk>/update-descripcion/', views.api_update_foto_descripcion, name='api_update_foto_descripcion'),
     path('api/search-activos/', views.api_buscar_activos, name='api_buscar_activos'),

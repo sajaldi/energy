@@ -880,3 +880,67 @@ def api_guardar_cierre(request, pk):
         import traceback
         traceback.print_exc()
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def api_vincular_solicitud_material(request, pk):
+    """Buscar solicitudes de material y vincular/desvincular de una OT."""
+    from inventarios.models import SolicitudMaterial
+    from datetime import timedelta
+    
+    ot = get_object_or_404(OrdenTrabajo, pk=pk)
+    
+    if request.method == 'GET':
+        q = request.GET.get('q', '').strip()
+        # Search recent solicitudes (last 30 days) not linked to this OT
+        from django.utils import timezone
+        since = timezone.now() - timedelta(days=30)
+        qs = SolicitudMaterial.objects.filter(
+            fecha_solicitud__gte=since
+        ).exclude(orden_trabajo=ot).order_by('-fecha_solicitud')
+        
+        if q:
+            qs = qs.filter(
+                Q(id__icontains=q) |
+                Q(usuario__first_name__icontains=q) |
+                Q(usuario__last_name__icontains=q) |
+                Q(usuario__username__icontains=q) |
+                Q(comentarios_solicitud__icontains=q)
+            )
+        
+        results = []
+        for s in qs[:15]:
+            results.append({
+                'id': s.id,
+                'label': f"Pase #{s.id} - {s.solicitante_nombre} ({s.get_estado_display()})",
+                'fecha': s.fecha_solicitud.strftime('%d/%m/%Y %H:%M'),
+                'estado': s.get_estado_display(),
+                'items': s.items_count,
+            })
+        return JsonResponse({'results': results})
+    
+    elif request.method == 'POST':
+        data = json.loads(request.body)
+        action = data.get('action')  # 'link' or 'unlink'
+        solicitud_id = data.get('solicitud_id')
+        
+        if not solicitud_id:
+            return JsonResponse({'status': 'error', 'message': 'ID requerido'}, status=400)
+        
+        try:
+            sol = SolicitudMaterial.objects.get(id=solicitud_id)
+        except SolicitudMaterial.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Solicitud no encontrada'}, status=404)
+        
+        if action == 'link':
+            sol.orden_trabajo = ot
+            sol.save()
+            return JsonResponse({'status': 'success', 'message': f'Pase #{sol.id} vinculado a la OT.'})
+        elif action == 'unlink':
+            sol.orden_trabajo = None
+            sol.save()
+            return JsonResponse({'status': 'success', 'message': f'Pase #{sol.id} desvinculado.'})
+        
+        return JsonResponse({'status': 'error', 'message': 'Acción inválida'}, status=400)
+    
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
