@@ -2142,7 +2142,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             'colaboradores': colaboradores,
             'empresa_responsable': empresa_resp,
             'is_superuser': request.user.is_superuser,
-            'solicitudes_material': ot.solicitudes_material.all().order_by('-fecha_solicitud')[:10],
+            'solicitudes_material': ot.solicitudes_material.prefetch_related('items__material__unidad_medida').all().order_by('-fecha_solicitud')[:10],
         }
         return render(request, 'admin/mantenimiento/ordentrabajo/fiori_edit_partial.html', context)
 
