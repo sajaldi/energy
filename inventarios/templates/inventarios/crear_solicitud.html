@@ -501,16 +501,26 @@
             const otParam = urlParams.get('ot');
             if (otParam) {
                 selectedOtId.val(otParam);
-                // Fetch OT info to show code
-                fetch('/mantenimiento/api/search-ordenes/?q=' + otParam)
+                // Fetch OT info to show code and fill comentarios with description
+                fetch('/mantenimiento/api/ot/' + otParam + '/detalle/')
                 .then(r => r.json()).then(data => {
-                    if (data.results && data.results.length > 0) {
-                        const ot = data.results[0];
-                        otSearch.val(ot.text ? ot.text.split(' - ')[0] : ot.codigo || otParam)
+                    if (data.status === 'success' && data.ot) {
+                        const ot = data.ot;
+                        otSearch.val(ot.codigo || 'OT #' + otParam)
                                .css('font-weight', '700').css('color', 'var(--primary)');
+                        // Fill comentarios with OT description
+                        const desc = ot.descripcion || ot.notas || ot.rutina || '';
+                        if (desc) {
+                            const comentarios = document.getElementById('comentarios');
+                            if (comentarios && !comentarios.value) {
+                                comentarios.value = 'OT: ' + ot.codigo + ' - ' + desc;
+                            }
+                        }
                     } else {
                         otSearch.val('OT #' + otParam).css('font-weight', '700');
                     }
+                }).catch(() => {
+                    otSearch.val('OT #' + otParam).css('font-weight', '700');
                 });
             }
         })();
