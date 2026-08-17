@@ -264,16 +264,14 @@ class PerfilUsuario(models.Model):
         verbose_name_plural = "Perfiles de Usuarios"
 
 @receiver(post_save, sender=User)
-def crear_perfil_usuario(sender, instance, created, **kwargs):
+def crear_o_guardar_perfil_usuario(sender, instance, created, **kwargs):
     if created:
-        PerfilUsuario.objects.create(usuario=instance, invitation_status='active')
-
-@receiver(post_save, sender=User)
-def guardar_perfil_usuario(sender, instance, **kwargs):
-    if hasattr(instance, 'perfil'):
-        instance.perfil.save()
-    else:
         PerfilUsuario.objects.get_or_create(usuario=instance, defaults={'invitation_status': 'active'})
+    else:
+        try:
+            instance.perfil.save()
+        except PerfilUsuario.DoesNotExist:
+            PerfilUsuario.objects.get_or_create(usuario=instance, defaults={'invitation_status': 'active'})
 
 
 class VistaPersonalizada(models.Model):
