@@ -123,6 +123,11 @@ def revision_aprobar_rechazar(request, empresa_id, mes, anio):
         expediente_obj.revisado_por = request.user
         expediente_obj.observaciones = observaciones
         expediente_obj.save()
+        from .models import HistorialExpediente
+        HistorialExpediente.objects.create(
+            expediente=expediente_obj, evento='APROBADO', usuario=request.user,
+            observaciones=observaciones or 'Expediente aprobado.'
+        )
         return JsonResponse({'status': 'success', 'message': f'Expediente de {empresa.nombre} aprobado.'})
     elif accion == 'rechazar':
         expediente_obj.estado = 'RECHAZADO'
@@ -130,6 +135,11 @@ def revision_aprobar_rechazar(request, empresa_id, mes, anio):
         expediente_obj.revisado_por = request.user
         expediente_obj.observaciones = observaciones
         expediente_obj.save()
+        from .models import HistorialExpediente
+        HistorialExpediente.objects.create(
+            expediente=expediente_obj, evento='RECHAZADO', usuario=request.user,
+            observaciones=observaciones
+        )
         return JsonResponse({'status': 'success', 'message': f'Expediente de {empresa.nombre} rechazado.'})
 
     return JsonResponse({'status': 'error', 'message': 'Acción no válida'}, status=400)

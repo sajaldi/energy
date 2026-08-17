@@ -214,3 +214,28 @@ class HistorialPersonal(models.Model):
 
     def __str__(self):
         return f'{self.get_tipo_display()} - {self.tecnico.nombre} {self.tecnico.apellido} - {self.fecha.strftime("%d/%m/%Y %H:%M")}'
+
+
+class HistorialExpediente(models.Model):
+    """Registra los eventos del ciclo de vida de un expediente mensual."""
+    EVENTO_CHOICES = [
+        ('ENVIADO', 'Expediente Enviado'),
+        ('APROBADO', 'Expediente Aprobado'),
+        ('RECHAZADO', 'Expediente Rechazado'),
+        ('REENVIADO', 'Expediente Reenviado'),
+        ('CREADO', 'Expediente Creado'),
+    ]
+
+    expediente = models.ForeignKey(ExpedienteMensual, on_delete=models.CASCADE, related_name='historial')
+    evento = models.CharField(max_length=20, choices=EVENTO_CHOICES)
+    fecha = models.DateTimeField(auto_now_add=True)
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    observaciones = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Historial de Expediente'
+        verbose_name_plural = 'Historial de Expedientes'
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.get_evento_display()} - {self.expediente} ({self.fecha.strftime('%d/%m/%Y %H:%M')})"

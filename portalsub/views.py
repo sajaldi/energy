@@ -227,6 +227,7 @@ def expediente_mes(request, mes, anio):
         'progreso': progreso,
         'total_count': total_count,
         'complete_count': complete_count,
+        'historial': expediente_obj.historial.all().order_by('-fecha')[:20],
     }
     return render(request, 'portalsub/expediente_mes.html', context)
 
@@ -373,6 +374,17 @@ def enviar_expediente(request, mes, anio):
     expediente_obj.estado = 'ENVIADO'
     expediente_obj.fecha_envio = timezone.now()
     expediente_obj.save()
+
+    # Registrar en historial
+    from .models import HistorialExpediente
+    evento_tipo = 'REENVIADO' if request.POST.get('_reenvio') or expediente_obj.historial.filter(evento='ENVIADO').exists() else 'ENVIADO'
+    HistorialExpediente.objects.create(
+        expediente=expediente_obj,
+        evento=evento_tipo,
+        usuario=request.user,
+        observaciones=f"Expediente {'reenviado' if evento_tipo == 'REENVIADO' else 'enviado'} para revisión."
+    )
+
     notificar_a_grupo(
         grupo_nombre='Administradores',
         titulo="Expediente Mensual Enviado",
