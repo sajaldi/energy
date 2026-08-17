@@ -1,0 +1,105 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Revisión de Expedientes{% endblock %}
+
+{% block content %}
+<style>
+.rev-container { max-width: 1100px; margin: 20px auto; font-family: 'Inter', sans-serif; }
+.rev-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+.rev-title { font-size: 1.5rem; font-weight: 800; color: #1e293b; }
+.rev-subtitle { font-size: 0.85rem; color: #64748b; margin-top: 4px; }
+.rev-stats { display: flex; gap: 16px; margin-bottom: 20px; }
+.rev-stat { padding: 12px 20px; background: white; border: 1px solid #e2e8f0; flex: 1; text-align: center; }
+.rev-stat-num { font-size: 1.3rem; font-weight: 800; }
+.rev-stat-label { font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 600; }
+.rev-filter { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; padding: 10px 16px; background: white; border: 1px solid #e2e8f0; }
+.rev-filter select, .rev-filter input { padding: 6px 10px; border: 1px solid #d9d9d9; font-size: 0.85rem; font-family: inherit; }
+.rev-table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e2e8f0; font-size: 0.85rem; }
+.rev-table th { padding: 10px 14px; text-align: left; background: #f8fafc; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
+.rev-table td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+.rev-table tr:hover td { background: #fafbfc; }
+.rev-badge { padding: 3px 10px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; display: inline-block; }
+.rev-badge-enviado { background: #eff6ff; color: #1d4ed8; }
+.rev-badge-aprobado { background: #dcfce7; color: #166534; }
+.rev-badge-rechazado { background: #fee2e2; color: #991b1b; }
+.rev-badge-borrador { background: #f1f5f9; color: #475569; }
+.rev-btn { padding: 6px 14px; font-size: 0.78rem; font-weight: 600; border: 1px solid #d9d9d9; background: white; color: #1e293b; text-decoration: none; cursor: pointer; }
+.rev-btn:hover { border-color: #0a6ed1; color: #0a6ed1; }
+.rev-btn-primary { background: #0a6ed1; color: white; border-color: #0a6ed1; }
+.rev-btn-primary:hover { background: #0854a0; }
+</style>
+
+<div class="rev-container">
+    <div class="rev-header">
+        <div>
+            <h1 class="rev-title">📋 Revisión de Expedientes</h1>
+            <div class="rev-subtitle">{{ mes_nombre }} {{ anio }} · {{ total }} subcontratistas</div>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="rev-stats">
+        <div class="rev-stat"><div class="rev-stat-num" style="color:#1d4ed8;">{{ enviados }}</div><div class="rev-stat-label">Pendientes de Revisión</div></div>
+        <div class="rev-stat"><div class="rev-stat-num" style="color:#166534;">{{ aprobados }}</div><div class="rev-stat-label">Aprobados</div></div>
+        <div class="rev-stat"><div class="rev-stat-num" style="color:#991b1b;">{{ rechazados }}</div><div class="rev-stat-label">Rechazados</div></div>
+        <div class="rev-stat"><div class="rev-stat-num">{{ total }}</div><div class="rev-stat-label">Total Empresas</div></div>
+    </div>
+
+    <!-- Filter -->
+    <form method="get" class="rev-filter">
+        <label style="font-size:0.8rem; font-weight:600; color:#64748b;">Mes:</label>
+        <select name="mes" onchange="this.form.submit()">
+            {% for num, nombre in meses_opciones %}
+            <option value="{{ num }}" {% if num == mes %}selected{% endif %}>{{ nombre }}</option>
+            {% endfor %}
+        </select>
+        <label style="font-size:0.8rem; font-weight:600; color:#64748b;">Año:</label>
+        <input type="number" name="anio" value="{{ anio }}" min="2024" max="2030" style="width:80px;" onchange="this.form.submit()">
+    </form>
+
+    <!-- Table -->
+    <table class="rev-table">
+        <thead>
+            <tr>
+                <th>Empresa</th>
+                <th>Estado</th>
+                <th>Fecha Envío</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td style="font-weight:600;">{{ item.empresa.nombre }}</td>
+                <td>
+                    {% if item.estado_raw == 'ENVIADO' %}
+                    <span class="rev-badge rev-badge-enviado">{{ item.estado }}</span>
+                    {% elif item.estado_raw == 'APROBADO' %}
+                    <span class="rev-badge rev-badge-aprobado">{{ item.estado }}</span>
+                    {% elif item.estado_raw == 'RECHAZADO' %}
+                    <span class="rev-badge rev-badge-rechazado">{{ item.estado }}</span>
+                    {% elif item.estado_raw %}
+                    <span class="rev-badge rev-badge-borrador">{{ item.estado }}</span>
+                    {% else %}
+                    <span style="color:#94a3b8; font-size:0.78rem;">Sin expediente</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:0.78rem; color:#64748b;">{{ item.fecha_envio|date:"d/m/Y H:i"|default:"-" }}</td>
+                <td>
+                    {% if item.expediente %}
+                    <a href="{% url 'portalsub:revision_expediente' item.empresa.id mes anio %}" class="rev-btn {% if item.estado_raw == 'ENVIADO' %}rev-btn-primary{% endif %}">
+                        {% if item.estado_raw == 'ENVIADO' %}Revisar{% else %}Ver{% endif %}
+                    </a>
+                    {% else %}
+                    <span style="color:#94a3b8; font-size:0.78rem;">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="text-align:center; padding:2rem; color:#94a3b8;">No hay empresas registradas.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

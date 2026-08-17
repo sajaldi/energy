@@ -1,0 +1,139 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Revisión · {{ empresa.nombre }} · {{ mes_nombre }} {{ anio }}{% endblock %}
+
+{% block content %}
+<style>
+.rev-container { max-width: 900px; margin: 20px auto; font-family: 'Inter', sans-serif; }
+.rev-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+.rev-title { font-size: 1.3rem; font-weight: 800; color: #1e293b; }
+.rev-subtitle { font-size: 0.82rem; color: #64748b; margin-top: 4px; }
+.rev-badge { padding: 4px 12px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+.rev-badge-enviado { background: #eff6ff; color: #1d4ed8; }
+.rev-badge-aprobado { background: #dcfce7; color: #166534; }
+.rev-badge-rechazado { background: #fee2e2; color: #991b1b; }
+.rev-table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e2e8f0; font-size: 0.85rem; margin-bottom: 20px; }
+.rev-table th { padding: 10px 14px; text-align: left; background: #f8fafc; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
+.rev-table td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+.rev-actions { background: white; border: 1px solid #e2e8f0; padding: 20px; }
+.rev-actions h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; color: #1e293b; }
+.rev-textarea { width: 100%; padding: 10px; border: 1px solid #d9d9d9; font-size: 0.85rem; font-family: inherit; resize: vertical; min-height: 80px; margin-bottom: 12px; }
+.rev-textarea:focus { outline: none; border-color: #0a6ed1; }
+.rev-btn { padding: 10px 24px; font-size: 0.85rem; font-weight: 700; border: none; cursor: pointer; }
+.rev-btn-aprobar { background: #107e3e; color: white; }
+.rev-btn-aprobar:hover { background: #0d6b34; }
+.rev-btn-rechazar { background: #bb0000; color: white; }
+.rev-btn-rechazar:hover { background: #8b0000; }
+.rev-btn-back { padding: 8px 16px; font-size: 0.8rem; font-weight: 600; border: 1px solid #d9d9d9; background: white; color: #1e293b; text-decoration: none; }
+</style>
+
+<div class="rev-container">
+    <div class="rev-header">
+        <div>
+            <h1 class="rev-title">{{ empresa.nombre }}</h1>
+            <div class="rev-subtitle">Expediente {{ mes_nombre }} {{ anio }}</div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <span class="rev-badge rev-badge-{{ expediente.estado|lower }}">{{ expediente.get_estado_display }}</span>
+            <a href="{% url 'portalsub:revision_dashboard' %}?mes={{ mes }}&anio={{ anio }}" class="rev-btn-back">← Volver</a>
+        </div>
+    </div>
+
+    {% if expediente.observaciones %}
+    <div style="padding:12px 16px; margin-bottom:16px; background:#fff8e1; border-left:4px solid #f59e0b; font-size:0.85rem;">
+        <strong>Observaciones anteriores:</strong> {{ expediente.observaciones }}
+    </div>
+    {% endif %}
+
+    <!-- Entregables -->
+    <table class="rev-table">
+        <thead>
+            <tr>
+                <th>Entregable</th>
+                <th>Estado</th>
+                <th>Documento</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td style="font-weight:500;">{{ item.config.tipo_entregable.nombre }}</td>
+                <td>
+                    {% if item.no_aplica %}
+                    <span style="color:#64748b; font-size:0.78rem; font-weight:600;">— No Aplica</span>
+                    {% elif item.completo %}
+                    <span style="color:#166534; font-weight:600;">✔ Completo</span>
+                    {% else %}
+                    <span style="color:#991b1b; font-weight:600;">✘ Pendiente</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.documento and item.documento.archivo %}
+                    <a href="{{ item.documento.archivo.url }}" target="_blank" style="color:#0a6ed1; font-weight:500; text-decoration:none; font-size:0.82rem;">
+                        📄 Ver documento
+                    </a>
+                    {% elif item.no_aplica %}
+                    <span style="color:#94a3b8; font-size:0.78rem;">N/A</span>
+                    {% else %}
+                    <span style="color:#94a3b8; font-size:0.78rem;">No subido</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Acciones de revisión -->
+    {% if expediente.estado == 'ENVIADO' %}
+    <div class="rev-actions">
+        <h3>📝 Decisión de Revisión</h3>
+        <textarea id="rev-observaciones" class="rev-textarea" placeholder="Observaciones o motivo de rechazo (opcional para aprobación, requerido para rechazo)..."></textarea>
+        <div style="display:flex; gap:12px; justify-content:flex-end;">
+            <button type="button" class="rev-btn rev-btn-rechazar" onclick="accionExpediente('rechazar')">✕ Rechazar</button>
+            <button type="button" class="rev-btn rev-btn-aprobar" onclick="accionExpediente('aprobar')">✔ Aprobar</button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function accionExpediente(accion) {
+    var observaciones = document.getElementById('rev-observaciones').value.trim();
+    if (accion === 'rechazar' && !observaciones) {
+        Swal.fire('Observaciones requeridas', 'Para rechazar un expediente debes indicar el motivo.', 'warning');
+        return;
+    }
+    var confirmText = accion === 'aprobar' ? '¿Aprobar este expediente?' : '¿Rechazar este expediente?';
+    Swal.fire({
+        title: confirmText,
+        text: accion === 'rechazar' ? 'El subcontratista podrá corregir y reenviar.' : 'El expediente quedará como aprobado.',
+        icon: accion === 'aprobar' ? 'success' : 'warning',
+        showCancelButton: true,
+        confirmButtonText: accion === 'aprobar' ? 'Sí, aprobar' : 'Sí, rechazar',
+        cancelButtonText: 'Cancelar'
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        fetch('{% url "portalsub:revision_accion" empresa.id mes anio %}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({accion: accion, observaciones: observaciones})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'success') {
+                Swal.fire('¡Listo!', data.message, 'success').then(function() { location.reload(); });
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        });
+    });
+}
+function getCookie(name) {
+    var v = null; if (document.cookie) { document.cookie.split(';').forEach(function(c) {
+        c = c.trim(); if (c.startsWith(name + '=')) v = decodeURIComponent(c.substring(name.length + 1));
+    }); } return v;
+}
+</script>
+{% endblock %}

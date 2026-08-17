@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views_revision import revision_dashboard, revision_expediente, revision_aprobar_rechazar
 from notificaciones.views import portal_notificaciones
 
 app_name = 'portalsub'
@@ -15,6 +16,11 @@ urlpatterns = [
     path('expediente/<int:mes>/<int:anio>/no-aplica/', views.toggle_no_aplica, name='toggle_no_aplica'),
     path('entregable/subir/', views.subir_entregable, name='subir_entregable'),
     path('entregable/<int:doc_id>/eliminar/', views.eliminar_entregable, name='eliminar_entregable'),
+
+    # Plataforma de Revisión (staff)
+    path('revision/', revision_dashboard, name='revision_dashboard'),
+    path('revision/<int:empresa_id>/<int:mes>/<int:anio>/', revision_expediente, name='revision_expediente'),
+    path('revision/<int:empresa_id>/<int:mes>/<int:anio>/accion/', revision_aprobar_rechazar, name='revision_accion'),
     path('personal/', views.personal_list, name='personal_list'),
     path('personal/nuevo/', views.personal_crear, name='personal_crear'),
     path('personal/<int:pk>/editar/', views.personal_editar, name='personal_editar'),
