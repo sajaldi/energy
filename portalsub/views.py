@@ -343,7 +343,7 @@ def eliminar_entregable(request, doc_id):
 def enviar_expediente(request, mes, anio):
     empresa = get_empresa(request)
     expediente_obj = get_object_or_404(ExpedienteMensual, empresa=empresa, mes=mes, anio=anio)
-    if expediente_obj.estado != 'BORRADOR':
+    if expediente_obj.estado not in ('BORRADOR', 'RECHAZADO'):
         messages.warning(request, 'El expediente ya fue enviado o está en otro estado.')
         return redirect('portalsub:expediente_mes', mes=mes, anio=anio)
 
@@ -393,6 +393,15 @@ def enviar_expediente(request, mes, anio):
             "&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0"
             "&sig=S9C7DbiVeAms87D5ZOLkM0uj17TPdfLS-Vc68c0PpVE"
         )
+        # Obtener correo del departamento del usuario
+        correo_departamento = ''
+        try:
+            perfil = request.user.perfil
+            if perfil.departamento and perfil.departamento.correo:
+                correo_departamento = perfil.departamento.correo
+        except Exception:
+            pass
+
         payload = {
             "empresa": empresa.nombre,
             "mes": mes,
@@ -401,6 +410,8 @@ def enviar_expediente(request, mes, anio):
             "expediente_url": f"https://softcom.ccg.hn/portalsub/expediente/{mes}/{anio}/",
             "fecha_envio": expediente_obj.fecha_envio.isoformat(),
             "enviado_por": request.user.get_full_name() or request.user.username,
+            "correo_departamento": correo_departamento,
+            "correo_usuario": request.user.email or '',
         }
         http_requests.post(webhook_url, json=payload, timeout=10)
     except Exception:

@@ -107,6 +107,13 @@
         </div>
         {% endif %}
     </form>
+    {% elif expediente.estado == 'RECHAZADO' %}
+    <form method="post" action="{% url 'portalsub:enviar_expediente' mes anio %}" style="margin-top: 12px;" id="enviarForm" onsubmit="return validarEnvio()">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-warning btn-block" id="btnEnviar" {% if complete_count < total_count %}disabled style="opacity:0.5;cursor:not-allowed;"{% endif %}>
+            <ion-icon name="refresh-outline"></ion-icon> Reenviar para Revisión
+        </button>
+    </form>
 {% endif %}
 </div>
 
