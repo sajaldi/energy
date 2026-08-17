@@ -107,6 +107,25 @@
     </div>
     {% endif %}
 
+    {% if resultado.en_otra_empresa %}
+    <div style="margin-top:12px; padding:12px; background:#fff8e1; border:1px solid #fde68a; border-left:4px solid #f59e0b;">
+        <p style="font-size:12px;font-weight:700;color:#92400e;margin:0 0 8px;">⚠️ Identidades vinculadas a OTRA empresa ({{ resultado.en_otra_empresa|length }})</p>
+        <table class="table" style="font-size:12px; margin:0;">
+            <thead><tr><th>DNI</th><th>Nombre</th><th>Empresa Actual</th><th>Vigente</th></tr></thead>
+            <tbody>
+                {% for item in resultado.en_otra_empresa %}
+                <tr>
+                    <td style="font-weight:600;">{{ item.dni }}</td>
+                    <td>{{ item.nombre }}</td>
+                    <td style="color:#b91c1c; font-weight:600;">{{ item.empresa }}</td>
+                    <td>{% if item.vigente %}Sí{% else %}No{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
     {% if resultado.faltantes %}
     <form method="post" action="{% url 'portalsub:personal_guardar_cambios' %}">
         {% csrf_token %}

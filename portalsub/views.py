@@ -570,12 +570,38 @@ def personal_verificar_pdf(request):
 
             coinciden = []
             no_encontrados = []
+            en_otra_empresa = []
             for dni in dnis_pdf:
                 key = norm(dni)
                 if key in db_map:
                     coinciden.append(db_map[key])
                 else:
                     no_encontrados.append(dni)
+
+            # Verificar si los "no encontrados" están en otra empresa
+            if no_encontrados:
+                all_tecnicos = TecnicoPuesto.objects.filter(
+                    dni__isnull=False
+                ).exclude(empresa=empresa).select_related('empresa')
+                otros_map = {}
+                for t in all_tecnicos:
+                    if t.dni:
+                        otros_map[norm(t.dni)] = t
+                
+                no_encontrados_final = []
+                for dni in no_encontrados:
+                    key = norm(dni)
+                    if key in otros_map:
+                        tec = otros_map[key]
+                        en_otra_empresa.append({
+                            'dni': dni,
+                            'nombre': f"{tec.nombre} {tec.apellido}",
+                            'empresa': tec.empresa.nombre if tec.empresa else 'Desconocida',
+                            'vigente': tec.esta_vigente,
+                        })
+                    else:
+                        no_encontrados_final.append(dni)
+                no_encontrados = no_encontrados_final
 
             faltantes = [p for p in vigentes_db if norm(p.dni) not in pdf_norm]
 
@@ -584,6 +610,7 @@ def personal_verificar_pdf(request):
                 'coinciden': len(coinciden),
                 'coinciden_lista': coinciden,
                 'no_encontrados': no_encontrados,
+                'en_otra_empresa': en_otra_empresa,
                 'faltantes': faltantes,
                 'total_faltantes': len(faltantes),
             }
