@@ -60,4 +60,7 @@ urlpatterns = [
     path('proyecto/<int:pk>/elementos/<int:elemento_id>/documentos/', views.api_elemento_documentos, name='api_elemento_documentos'),
     path('proyecto/<int:pk>/elementos/<int:elemento_id>/documentos/subir/', views.api_elemento_subir_documento, name='api_elemento_subir_documento'),
     path('proyecto/<int:pk>/elementos/<int:elemento_id>/documentos/<int:doc_id>/eliminar/', views.api_elemento_eliminar_documento, name='api_elemento_eliminar_documento'),
+
+    # Comunicaciones del proyecto
+    path('proyecto/<int:pk>/comunicados/crear/', views.crear_comunicado_proyecto_api, name='crear_comunicado_proyecto'),
 ]

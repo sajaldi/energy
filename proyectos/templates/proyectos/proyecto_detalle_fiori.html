@@ -1543,7 +1543,7 @@
     <section id="comunicaciones" class="sap-section">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
             <h3 style="font-size:1.1rem; font-weight:600;">📨 Comunicaciones del Proyecto</h3>
-            <a href="/admin/comunicaciones/comunicado/add/?proyecto={{ proyecto.id }}" target="_blank" style="padding:8px 16px; background:var(--fiori-primary); color:white; text-decoration:none; font-size:0.85rem; font-weight:600; border-radius:4px;">+ Nuevo Comunicado</a>
+            <button onclick="openNuevoComunicadoModal()" style="padding:8px 16px; background:var(--fiori-primary); color:white; border:none; font-size:0.85rem; font-weight:600; border-radius:4px; cursor:pointer;">+ Nuevo Comunicado</button>
         </div>
         {% if comunicados %}
         <div style="display:flex; flex-direction:column; gap:10px;">
@@ -1552,7 +1552,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div>
                         <div style="font-size:0.75rem; color:var(--fiori-text-secondary);">
-                            {{ com.tipo.codigo }}-{{ com.consecutivo|default:"Borrador" }} · {{ com.fecha_envio|date:"d/m/Y H:i"|default:"Sin enviar" }}
+                            {{ com.consecutivo|default:"Borrador" }} · {{ com.tipo }} · {{ com.fecha_envio|date:"d/m/Y H:i"|default:"Sin enviar" }}
                         </div>
                         <div style="font-size:0.95rem; font-weight:600; color:var(--fiori-text); margin-top:2px;">{{ com.asunto }}</div>
                         <div style="font-size:0.8rem; color:var(--fiori-text-secondary); margin-top:4px;">
@@ -1579,6 +1579,49 @@
         </div>
         {% endif %}
     </section>
+
+    <!-- Modal: Nuevo Comunicado -->
+    <div id="comunicado-modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); backdrop-filter:blur(4px); z-index:99999; align-items:flex-start; justify-content:center; padding-top:4vh;">
+        <div style="background:white; width:95%; max-width:700px; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 25px 60px rgba(0,0,0,0.2); border:2px solid var(--fiori-primary);">
+            <!-- Header -->
+            <div style="padding:16px 24px; background:#354a5f; color:white; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <span style="font-weight:700; font-size:0.95rem;">📨 Nuevo Comunicado</span>
+                <button onclick="closeComunicadoModal()" style="background:none; border:none; color:white; font-size:1.3rem; cursor:pointer;">✕</button>
+            </div>
+            <!-- Body -->
+            <div style="flex:1; overflow-y:auto; padding:24px;">
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-size:0.72rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Tipo de Comunicado</label>
+                    <select id="com-tipo" style="width:100%; padding:8px 10px; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit;">
+                        <option value="">-- Seleccionar tipo --</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-size:0.72rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Asunto *</label>
+                    <input type="text" id="com-asunto" placeholder="Asunto del comunicado..." style="width:100%; padding:8px 10px; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit;">
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-size:0.72rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Destinatarios (Para) *</label>
+                    <select id="com-destinatarios" multiple style="width:100%; padding:8px 10px; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit; min-height:80px;">
+                        {% for u in usuarios %}
+                        <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+                        {% endfor %}
+                    </select>
+                    <small style="font-size:0.72rem; color:#94a3b8;">Ctrl+clic para seleccionar múltiples</small>
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-size:0.72rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Mensaje *</label>
+                    <textarea id="com-cuerpo" rows="6" placeholder="Escriba el contenido del comunicado..." style="width:100%; padding:10px; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit; resize:vertical;"></textarea>
+                </div>
+            </div>
+            <!-- Footer -->
+            <div style="padding:14px 24px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px; flex-shrink:0; background:#f8fafc;">
+                <button onclick="closeComunicadoModal()" style="padding:8px 20px; border:1px solid #d9d9d9; background:white; font-size:0.85rem; font-weight:600; cursor:pointer;">Cancelar</button>
+                <button onclick="guardarComunicado('BORRADOR')" style="padding:8px 20px; border:1px solid var(--fiori-primary); background:white; color:var(--fiori-primary); font-size:0.85rem; font-weight:600; cursor:pointer;">Guardar Borrador</button>
+                <button onclick="guardarComunicado('ENVIADO')" style="padding:8px 20px; border:none; background:var(--fiori-primary); color:white; font-size:0.85rem; font-weight:700; cursor:pointer;">Enviar ✉️</button>
+            </div>
+        </div>
+    </div>
 
     <!-- SECTION: TAREAS (Tablero Kanban) -->
     <section id="tareas" class="sap-section">
@@ -4792,6 +4835,51 @@
                 progress: data.estado === 'COMPLETADO' ? 100 : data.estado === 'EN_PROCESO' ? 50 : 0,
             });
         }
+    }
+
+    // ==================== COMUNICADO MODAL ====================
+    function openNuevoComunicadoModal() {
+        // Load tipos de comunicado
+        fetch('/comunicaciones/api/tipos/')
+        .then(r => r.json())
+        .then(data => {
+            var sel = document.getElementById('com-tipo');
+            sel.innerHTML = '<option value="">-- Seleccionar tipo --</option>';
+            (data.tipos || []).forEach(t => {
+                sel.innerHTML += '<option value="' + t.id + '">' + t.nombre + ' (' + t.codigo + ')</option>';
+            });
+        }).catch(() => {});
+        document.getElementById('com-asunto').value = '';
+        document.getElementById('com-cuerpo').value = '';
+        document.getElementById('comunicado-modal').style.display = 'flex';
+    }
+    function closeComunicadoModal() { document.getElementById('comunicado-modal').style.display = 'none'; }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeComunicadoModal(); });
+
+    function guardarComunicado(estado) {
+        var tipo = document.getElementById('com-tipo').value;
+        var asunto = document.getElementById('com-asunto').value.trim();
+        var cuerpo = document.getElementById('com-cuerpo').value.trim();
+        var destSel = document.getElementById('com-destinatarios');
+        var destinatarios = Array.from(destSel.selectedOptions).map(o => parseInt(o.value));
+
+        if (!asunto) { Swal.fire('Error', 'El asunto es obligatorio.', 'warning'); return; }
+        if (!cuerpo) { Swal.fire('Error', 'El mensaje es obligatorio.', 'warning'); return; }
+        if (estado === 'ENVIADO' && destinatarios.length === 0) { Swal.fire('Error', 'Selecciona al menos un destinatario para enviar.', 'warning'); return; }
+
+        fetch('/proyectos/proyecto/{{ proyecto.id }}/comunicados/crear/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+            body: JSON.stringify({tipo_id: tipo || null, asunto: asunto, cuerpo: cuerpo, estado: estado, destinatarios: destinatarios})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                closeComunicadoModal();
+                Swal.fire('¡Listo!', data.message, 'success').then(() => location.reload());
+            } else { Swal.fire('Error', data.message, 'error'); }
+        })
+        .catch(() => Swal.fire('Error', 'Error de conexión', 'error'));
     }
     </script>
 </body>

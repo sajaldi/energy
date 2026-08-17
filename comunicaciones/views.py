@@ -11,6 +11,13 @@ from .models import Comunicado, TipoComunicado, Destinatario, AdjuntoComunicado
 from activos.models import Activo
 from django.contrib.auth.models import User
 
+
+@login_required
+def api_tipos_comunicado(request):
+    """Retorna los tipos de comunicado disponibles."""
+    tipos = TipoComunicado.objects.all().order_by('nombre')
+    return JsonResponse({'tipos': [{'id': t.id, 'nombre': t.nombre, 'codigo': t.codigo} for t in tipos]})
+
 @csrf_exempt
 @login_required
 def api_create_transmittal(request):

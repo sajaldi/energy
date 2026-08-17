@@ -1655,3 +1655,49 @@ def api_elemento_eliminar_documento(request, pk, elemento_id, doc_id):
     doc = get_object_or_404(ElementoDocumento, pk=doc_id, elemento_id=elemento_id, elemento__proyecto_id=pk)
     doc.delete()
     return JsonResponse({'ok': True})
+
+
+@staff_member_required
+@csrf_exempt
+def crear_comunicado_proyecto_api(request, pk):
+    """Crea un comunicado vinculado al proyecto."""
+    from comunicaciones.models import Comunicado, TipoComunicado, Destinatario
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    
+    try:
+        data = json.loads(request.body)
+        tipo_id = data.get('tipo_id')
+        asunto = data.get('asunto', '').strip()
+        cuerpo = data.get('cuerpo', '').strip()
+        estado = data.get('estado', 'BORRADOR')
+        destinatarios_ids = data.get('destinatarios', [])
+
+        if not asunto:
+            return JsonResponse({'status': 'error', 'message': 'El asunto es obligatorio.'}, status=400)
+
+        tipo = TipoComunicado.objects.filter(id=tipo_id).first() if tipo_id else TipoComunicado.objects.first()
+        if not tipo:
+            return JsonResponse({'status': 'error', 'message': 'No hay tipos de comunicado configurados.'}, status=400)
+
+        comunicado = Comunicado.objects.create(
+            tipo=tipo,
+            asunto=asunto,
+            cuerpo=cuerpo,
+            remitente=request.user,
+            proyecto=proyecto,
+            estado=estado,
+        )
+
+        for uid in destinatarios_ids:
+            from django.contrib.auth.models import User
+            user = User.objects.filter(id=uid).first()
+            if user:
+                Destinatario.objects.create(comunicado=comunicado, usuario=user, tipo='PARA')
+
+        return JsonResponse({'status': 'success', 'message': f'Comunicado {"enviado" if estado == "ENVIADO" else "guardado"} correctamente.', 'id': comunicado.id})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
