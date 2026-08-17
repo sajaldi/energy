@@ -28,6 +28,7 @@ class Comunicado(models.Model):
     cuerpo = models.TextField(help_text="Contenido del mensaje")
     
     remitente = models.ForeignKey(User, on_delete=models.PROTECT, related_name='comunicados_enviados')
+    proyecto = models.ForeignKey('proyectos.Proyecto', on_delete=models.SET_NULL, null=True, blank=True, related_name='comunicados')
     fecha_envio = models.DateTimeField(blank=True, null=True)
     
     estado = models.CharField(max_length=20, choices=ESTADOS, default='BORRADOR')

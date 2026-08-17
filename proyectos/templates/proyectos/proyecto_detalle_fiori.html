@@ -632,6 +632,7 @@
         <div class="sap-tab" data-target="cotizaciones">Cotizaciones</div>
         <div class="sap-tab" data-target="elementos">Elementos</div>
         <div class="sap-tab" data-target="observaciones">Observaciones</div>
+        <div class="sap-tab" data-target="comunicaciones">Comunicaciones</div>
         <div class="sap-tab" data-target="tareas">Tareas</div>
     </nav>
 
@@ -1536,6 +1537,47 @@
                 </button>
             </div>
         </div>
+    </section>
+
+    <!-- SECTION: COMUNICACIONES -->
+    <section id="comunicaciones" class="sap-section" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h3 style="font-size:1.1rem; font-weight:600;">📨 Comunicaciones del Proyecto</h3>
+            <a href="/admin/comunicaciones/comunicado/add/?proyecto={{ proyecto.id }}" target="_blank" style="padding:8px 16px; background:var(--fiori-primary); color:white; text-decoration:none; font-size:0.85rem; font-weight:600; border-radius:4px;">+ Nuevo Comunicado</a>
+        </div>
+        {% if comunicados %}
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            {% for com in comunicados %}
+            <div style="background:white; border:1px solid var(--fiori-border); padding:14px 18px; border-left:4px solid {% if com.estado == 'ENVIADO' %}var(--fiori-primary){% else %}#d9d9d9{% endif %};">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--fiori-text-secondary);">
+                            {{ com.tipo.codigo }}-{{ com.consecutivo|default:"Borrador" }} · {{ com.fecha_envio|date:"d/m/Y H:i"|default:"Sin enviar" }}
+                        </div>
+                        <div style="font-size:0.95rem; font-weight:600; color:var(--fiori-text); margin-top:2px;">{{ com.asunto }}</div>
+                        <div style="font-size:0.8rem; color:var(--fiori-text-secondary); margin-top:4px;">
+                            De: {{ com.remitente.get_full_name|default:com.remitente.username }}
+                            · Para: {% for d in com.destinatarios.all %}{{ d.usuario.get_full_name|default:d.usuario.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        </div>
+                    </div>
+                    <span style="padding:3px 10px; font-size:0.7rem; font-weight:700; text-transform:uppercase;
+                        {% if com.estado == 'ENVIADO' %}background:#eff6ff; color:#1d4ed8;{% else %}background:#f1f5f9; color:#475569;{% endif %}">
+                        {{ com.get_estado_display }}
+                    </span>
+                </div>
+                {% if com.cuerpo %}
+                <div style="font-size:0.82rem; color:var(--fiori-text); margin-top:8px; padding-top:8px; border-top:1px solid #f0f0f0; white-space:pre-line;">{{ com.cuerpo|truncatechars:200 }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:3rem; color:var(--fiori-text-secondary); background:white; border:1px solid var(--fiori-border);">
+            <div style="font-size:2rem; margin-bottom:8px;">📭</div>
+            <p>No hay comunicaciones registradas en este proyecto.</p>
+            <p style="font-size:0.8rem; margin-top:4px;">Crea un nuevo comunicado para iniciar la correspondencia.</p>
+        </div>
+        {% endif %}
     </section>
 
     <!-- SECTION: TAREAS (Tablero Kanban) -->

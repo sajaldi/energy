@@ -406,6 +406,7 @@ def proyecto_detalle_fiori(request, pk):
             'disciplina', 'creado_por'
         ).prefetch_related('items').order_by('-creado_en'),
         'disciplinas': Disciplina.objects.all().order_by('nombre'),
+        'comunicados': proyecto.comunicados.select_related('remitente', 'tipo').prefetch_related('destinatarios__usuario').order_by('-creado_en')[:50],
     }
     return render(request, 'proyectos/proyecto_detalle_fiori.html', context)
 
