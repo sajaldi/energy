@@ -19,8 +19,11 @@ from .models import ExpedienteMensual, EntregableContratista, DocumentoEntregabl
 def revision_dashboard(request):
     """Dashboard de revisión: muestra empresas con expedientes pendientes de revisión."""
     today = date.today()
-    mes = int(request.GET.get('mes', today.month))
-    anio = int(request.GET.get('anio', today.year))
+    mes_raw = request.GET.get('mes', str(today.month))
+    anio_raw = request.GET.get('anio', str(today.year))
+    # Strip locale commas
+    mes = int(mes_raw.replace(',', '').strip())
+    anio = int(anio_raw.replace(',', '').strip())
 
     # Todas las empresas que tienen perfil de contratista activo
     empresas_ids = PerfilContratista.objects.filter(activo=True).values_list('empresa_id', flat=True).distinct()
