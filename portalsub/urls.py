@@ -12,6 +12,7 @@ urlpatterns = [
     path('expediente/<int:mes>/<int:anio>/', views.expediente_mes, name='expediente_mes'),
     path('expediente/<int:mes>/<int:anio>/subir/', views.subir_documento, name='subir_documento'),
     path('expediente/<int:mes>/<int:anio>/enviar/', views.enviar_expediente, name='enviar_expediente'),
+    path('expediente/<int:mes>/<int:anio>/no-aplica/', views.toggle_no_aplica, name='toggle_no_aplica'),
     path('entregable/subir/', views.subir_entregable, name='subir_entregable'),
     path('entregable/<int:doc_id>/eliminar/', views.eliminar_entregable, name='eliminar_entregable'),
     path('personal/', views.personal_list, name='personal_list'),

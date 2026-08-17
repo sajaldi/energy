@@ -53,7 +53,9 @@
             <tr class="entregable-row" data-target="desc-{{ forloop.counter }}" style="cursor:pointer;">
                 <td style="font-weight: 500;">{{ item.config.tipo_entregable.nombre }}</td>
                 <td>
-                    {% if item.completo %}
+                    {% if item.no_aplica %}
+                    <span class="badge badge-secondary">— No Aplica</span>
+                    {% elif item.completo %}
                     <span class="badge badge-success">✔ Completado</span>
                     {% else %}
                     <span class="badge badge-danger">✘ Pendiente</span>
@@ -63,12 +65,12 @@
                     <form class="upload-entregable-form" data-tipo="{{ item.config.tipo_entregable_id }}" data-mes="{{ mes }}" style="display: inline; margin: 0;">
                         {% csrf_token %}
                         <input type="file" name="archivo" class="file-input" style="display: none;" accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.doc,.docx">
-                        <button type="button" class="btn btn-primary btn-sm upload-entregable-btn" title="Subir documento">
+                        <button type="button" class="btn btn-primary btn-sm upload-entregable-btn" title="Subir documento" {% if item.no_aplica %}disabled style="opacity:0.4;"{% endif %}>
                             <ion-icon name="cloud-upload-outline"></ion-icon>
-                            {% if item.completo %}Reemplazar{% else %}Subir{% endif %}
+                            {% if item.completo and not item.no_aplica %}Reemplazar{% else %}Subir{% endif %}
                         </button>
                     </form>
-                    {% if item.documento %}
+                    {% if item.documento and item.documento.archivo %}
                     <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation();previewDocumento('{{ item.documento.archivo.url|escapejs }}')" title="Ver">
                         <ion-icon name="eye-outline"></ion-icon>
                     </button>
@@ -76,6 +78,10 @@
                         <ion-icon name="trash-outline"></ion-icon>
                     </button>
                     {% endif %}
+                    <label style="display:inline-flex; align-items:center; gap:4px; margin-left:8px; font-size:11px; color:#64748b; cursor:pointer;" onclick="event.stopPropagation();">
+                        <input type="checkbox" class="na-check" data-tipo="{{ item.config.tipo_entregable_id }}" {% if item.no_aplica %}checked{% endif %} style="accent-color:#64748b;">
+                        N/A
+                    </label>
                 </td>
             </tr>
             {% if item.config.tipo_entregable.descripcion %}
@@ -220,5 +226,22 @@
         }
         return true;
     }
+
+    // N/A checkbox toggle
+    document.querySelectorAll('.na-check').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            var tipoId = this.getAttribute('data-tipo');
+            var checked = this.checked;
+            fetch('{% url "portalsub:toggle_no_aplica" mes anio %}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                body: JSON.stringify({tipo_entregable_id: tipoId, no_aplica: checked})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'success') { location.reload(); }
+            });
+        });
+    });
 </script>
 {% endblock %}

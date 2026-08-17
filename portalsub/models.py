@@ -174,9 +174,10 @@ class DocumentoEntregable(models.Model):
     tipo_entregable = models.ForeignKey(TipoEntregable, on_delete=models.CASCADE, related_name='documentos_subidos')
     mes = models.PositiveIntegerField(null=True, blank=True, verbose_name='Mes')
     anio = models.PositiveIntegerField(verbose_name='Año')
-    archivo = models.FileField(upload_to=entregable_path, max_length=500, verbose_name='Archivo')
+    archivo = models.FileField(upload_to=entregable_path, max_length=500, verbose_name='Archivo', blank=True, null=True)
     subido_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     es_valido = models.BooleanField(default=True, verbose_name='Válido')
+    no_aplica = models.BooleanField(default=False, verbose_name='No Aplica')
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -208,7 +208,8 @@ def expediente_mes(request, mes, anio):
         items.append({
             'config': c,
             'documento': doc,
-            'completo': doc is not None and doc.es_valido,
+            'completo': doc is not None and (doc.es_valido or doc.no_aplica),
+            'no_aplica': doc.no_aplica if doc else False,
         })
 
     total_count = len(items)
@@ -357,9 +358,9 @@ def enviar_expediente(request, mes, anio):
             continue
         doc = DocumentoEntregable.objects.filter(
             empresa=empresa, tipo_entregable=c.tipo_entregable,
-            mes=mes, anio=anio, es_valido=True,
+            mes=mes, anio=anio,
         ).first()
-        if not doc:
+        if not doc or (not doc.es_valido and not doc.no_aplica):
             incompletos.append(c.tipo_entregable.nombre)
 
     if incompletos:
@@ -382,6 +383,39 @@ def enviar_expediente(request, mes, anio):
         icono='document-text-outline',
     )
     return redirect('portalsub:expediente_mes', mes=mes, anio=anio)
+
+
+@contratista_required
+@require_POST
+def toggle_no_aplica(request, mes, anio):
+    """Toggle 'No Aplica' para un entregable específico."""
+    import json
+    from django.http import JsonResponse
+    empresa = get_empresa(request)
+    
+    try:
+        data = json.loads(request.body)
+        tipo_id = data.get('tipo_entregable_id')
+        no_aplica = data.get('no_aplica', True)
+    except (json.JSONDecodeError, ValueError):
+        tipo_id = request.POST.get('tipo_entregable_id')
+        no_aplica = request.POST.get('no_aplica') == 'true'
+
+    if not tipo_id:
+        return JsonResponse({'status': 'error', 'message': 'Tipo de entregable requerido'}, status=400)
+
+    doc, created = DocumentoEntregable.objects.get_or_create(
+        empresa=empresa,
+        tipo_entregable_id=tipo_id,
+        mes=mes,
+        anio=anio,
+        defaults={'no_aplica': no_aplica, 'es_valido': True, 'subido_por': request.user}
+    )
+    if not created:
+        doc.no_aplica = no_aplica
+        doc.save()
+
+    return JsonResponse({'status': 'success', 'no_aplica': doc.no_aplica})
 
 
 @contratista_required
