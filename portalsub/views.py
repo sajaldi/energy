@@ -382,6 +382,30 @@ def enviar_expediente(request, mes, anio):
         enlace=f"/admin/portalsub/expedientemensual/",
         icono='document-text-outline',
     )
+
+    # Webhook Power Automate - notificar envío de expediente
+    try:
+        import requests as http_requests
+        webhook_url = (
+            "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443"
+            "/powerautomate/automations/direct/cu/09/workflows/946fb7325d714fdf87893231a5c7b6cb"
+            "/triggers/manual/paths/invoke?api-version=1"
+            "&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0"
+            "&sig=S9C7DbiVeAms87D5ZOLkM0uj17TPdfLS-Vc68c0PpVE"
+        )
+        payload = {
+            "empresa": empresa.nombre,
+            "mes": mes,
+            "anio": anio,
+            "estado": "ENVIADO",
+            "expediente_url": f"https://softcom.ccg.hn/portalsub/expediente/{mes}/{anio}/",
+            "fecha_envio": expediente_obj.fecha_envio.isoformat(),
+            "enviado_por": request.user.get_full_name() or request.user.username,
+        }
+        http_requests.post(webhook_url, json=payload, timeout=10)
+    except Exception:
+        pass  # No bloquear el flujo si el webhook falla
+
     return redirect('portalsub:expediente_mes', mes=mes, anio=anio)
 
 
