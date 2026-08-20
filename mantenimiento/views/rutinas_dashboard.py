@@ -8,13 +8,42 @@ from django.db.models import Count, Q, Max
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.conf import settings
+from django.core.cache import cache
 from types import SimpleNamespace
 import os
 import base64
 from playwright.sync_api import sync_playwright
 
 
-def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search, tipo_kpis_map=None):
+def _build_todas_categorias():
+    """Construye la lista de categorías con ruta completa para los selects."""
+    all_types = {t.id: t for t in Tipo.objects.all()}
+    for t in all_types.values():
+        path = [t.nombre]
+        curr = t.padre_id
+        while curr and curr in all_types:
+            p_obj = all_types[curr]
+            path.append(p_obj.nombre)
+            curr = p_obj.padre_id
+        t.temp_ruta_completa = " → ".join(reversed(path))
+    return sorted(all_types.values(), key=lambda x: x.temp_ruta_completa)
+
+
+def _build_ubicaciones():
+    """Construye la lista de ubicaciones con ruta completa para los selects."""
+    all_locs = {l.id: l for l in Ubicacion.objects.all()}
+    for l in all_locs.values():
+        path = [l.nombre]
+        curr = l.padre_id
+        while curr and curr in all_locs:
+            p_obj = all_locs[curr]
+            path.append(p_obj.nombre)
+            curr = p_obj.padre_id
+        l.temp_ruta_completa = " → ".join(reversed(path))
+    return sorted(all_locs.values(), key=lambda x: x.temp_ruta_completa)
+
+
+def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search, tipo_kpis_map=None, cat_map=None, cat_levels=None):
     """
     Construye el árbol jerárquico totalmente en memoria sin consultas adicionales.
     """
@@ -44,17 +73,17 @@ def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int
             if node:
                 sub_tree.append(node)
 
-        # Recopilar KPIs heredados (de esta categoría + ancestros)
+        # Recopilar KPIs heredados (de esta categoría + ancestros) sin tocar la BD
         cat_kpis = []
         kpi_names = set()
-        tip_curr = cat
-        while tip_curr:
-            if tipo_kpis_map and tip_curr.id in tipo_kpis_map:
-                for k_id, k_name in tipo_kpis_map[tip_curr.id]:
+        if tipo_kpis_map:
+            pid = cat.id
+            while pid is not None:
+                for k_id, k_name in tipo_kpis_map.get(pid, []):
                     if k_name not in kpi_names:
                         kpi_names.add(k_name)
                         cat_kpis.append({'id': k_id, 'nombre': k_name})
-            tip_curr = tip_curr.padre if hasattr(tip_curr, 'padre') else None
+                pid = cat_map[pid].padre_id if cat_map and pid in cat_map else None
 
         has_filters = frecuencia_int or puesto_int or search
         if rutinas_list or sub_tree or not has_filters:
@@ -62,7 +91,7 @@ def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int
                 'categoria': cat,
                 'rutinas': rutinas_list,
                 'subcategorias': sub_tree,
-                'level': cat.level,
+                'level': cat_levels.get(cat.id, 0) if cat_levels else cat.level,
                 'categoria_kpis': cat_kpis,
             }
         return None
@@ -98,13 +127,68 @@ def rutinas_dashboard(request):
     except ValueError:
         puesto_int = None
 
+    # --- CACHE: la carga masiva es costosa y los datos cambian poco ---
+    cache_key = f"rutinas_dashboard:{frecuencia_int}:{puesto_int}:{search}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        tree, total_rutinas = cached
+        frecuencias = cache.get("rutinas_dashboard:frecuencias")
+        puestos = cache.get("rutinas_dashboard:puestos")
+        todas_categorias = cache.get("rutinas_dashboard:todas_categorias")
+        ubicaciones = cache.get("rutinas_dashboard:ubicaciones")
+        categorias_activos = cache.get("rutinas_dashboard:categorias_activos")
+        horarios = cache.get("rutinas_dashboard:horarios")
+        if frecuencias is None:
+            frecuencias = list(Frecuencia.objects.all().order_by('nombre'))
+            cache.set("rutinas_dashboard:frecuencias", frecuencias, 300)
+        if puestos is None:
+            puestos = list(PuestoTrabajo.objects.all().order_by('nombre'))
+            cache.set("rutinas_dashboard:puestos", puestos, 300)
+        if todas_categorias is None:
+            todas_categorias = _build_todas_categorias()
+            cache.set("rutinas_dashboard:todas_categorias", todas_categorias, 300)
+        if ubicaciones is None:
+            ubicaciones = _build_ubicaciones()
+            cache.set("rutinas_dashboard:ubicaciones", ubicaciones, 300)
+        if categorias_activos is None:
+            categorias_activos = list(Categoria.objects.all().order_by('nombre'))
+            cache.set("rutinas_dashboard:categorias_activos", categorias_activos, 300)
+        if horarios is None:
+            horarios = list(Horario.objects.all().order_by('nombre'))
+            cache.set("rutinas_dashboard:horarios", horarios, 300)
+        return render(request, 'mantenimiento/rutinas_dashboard.html', {
+            'tree': tree,
+            'frecuencias': frecuencias,
+            'puestos': puestos,
+            'todas_categorias': todas_categorias,
+            'ubicaciones': ubicaciones,
+            'categorias_activos': categorias_activos,
+            'horarios': horarios,
+            'total_rutinas': total_rutinas,
+            'frecuencia_selected': frecuencia_int,
+            'puesto_selected': puesto_int,
+            'search': search
+        })
+
     # --- OPTIMIZACIÓN: Carga masiva en memoria ---
     all_categories_qs = Tipo.objects.all().order_by('nombre')
     all_categories = list(all_categories_qs)
     
-    # Pre-calcular rutas para búsqueda jerárquica
+    # Pre-calcular rutas y niveles para búsqueda jerárquica (todo en memoria, sin N+1)
     cat_paths = {}
     cat_map = {c.id: c for c in all_categories}
+    cat_levels = {}
+
+    def _calc_level(cid):
+        if cid is None:
+            return 0
+        if cid in cat_levels:
+            return cat_levels[cid]
+        cat = cat_map[cid]
+        lv = _calc_level(cat.padre_id) + 1
+        cat_levels[cid] = lv
+        return lv
+
     for c in all_categories:
         path = [c.nombre]
         curr = c.padre_id
@@ -113,6 +197,7 @@ def rutinas_dashboard(request):
             path.append(p_obj.nombre)
             curr = p_obj.padre_id
         cat_paths[c.id] = " → ".join(reversed(path)).lower()
+        _calc_level(c.id)
 
     all_rutinas_qs = Rutina.objects.all().select_related('frecuencia', 'puesto_trabajo', 'tipo', 'categoria_activo').prefetch_related('kpis')
     
@@ -144,14 +229,13 @@ def rutinas_dashboard(request):
     # Precalcular KPIs heredados por categoría (evitar N+1)
     from servicios.models import KPI
     tipo_kpis_map = {}
-    tipo_ids_con_kpis = set(Tipo.objects.exclude(kpis=None).values_list('id', flat=True))
-    for kpi in KPI.objects.filter(categorias_mantenimiento__in=tipo_ids_con_kpis).values('id', 'nombre', 'categorias_mantenimiento'):
+    for kpi in KPI.objects.filter(categorias_mantenimiento__isnull=False).values('id', 'nombre', 'categorias_mantenimiento'):
         tid = kpi['categorias_mantenimiento']
         if tid not in tipo_kpis_map:
             tipo_kpis_map[tid] = []
         tipo_kpis_map[tid].append((kpi['id'], kpi['nombre']))
 
-    tree = build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search, tipo_kpis_map)
+    tree = build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search, tipo_kpis_map, cat_map, cat_levels)
     
     # Agregar rutinas sin categoría al final del árbol
     uncategorized = [r for r in all_rutinas if r.tipo_id is None]
@@ -168,12 +252,12 @@ def rutinas_dashboard(request):
         })
     
     # Estadísticas y Datos para Formularios
-    frecuencias = Frecuencia.objects.all().order_by('nombre')
-    puestos = PuestoTrabajo.objects.all().order_by('nombre')
+    frecuencias = list(Frecuencia.objects.all().order_by('nombre'))
+    puestos = list(PuestoTrabajo.objects.all().order_by('nombre'))
     total_rutinas = Rutina.objects.count()
     
     # Todas las categorías para el select de creación/edición (con pre-cálculo de ruta para evitar N+1)
-    all_types = {t.id: t for t in Tipo.objects.all()}
+    all_types = {t.id: t for t in all_categories}
     for t in all_types.values():
         path = [t.nombre]
         curr = t.padre_id
@@ -196,8 +280,17 @@ def rutinas_dashboard(request):
         l.temp_ruta_completa = " → ".join(reversed(path))
     ubicaciones = sorted(all_locs.values(), key=lambda x: x.temp_ruta_completa)
 
-    categorias_activos = Categoria.objects.all().order_by('nombre')
-    horarios = Horario.objects.all().order_by('nombre')
+    categorias_activos = list(Categoria.objects.all().order_by('nombre'))
+    horarios = list(Horario.objects.all().order_by('nombre'))
+
+    # Guardar en caché los datos pesados (2 minutos)
+    cache.set(cache_key, (tree, total_rutinas), 120)
+    cache.set("rutinas_dashboard:frecuencias", frecuencias, 300)
+    cache.set("rutinas_dashboard:puestos", puestos, 300)
+    cache.set("rutinas_dashboard:todas_categorias", todas_categorias, 300)
+    cache.set("rutinas_dashboard:ubicaciones", ubicaciones, 300)
+    cache.set("rutinas_dashboard:categorias_activos", categorias_activos, 300)
+    cache.set("rutinas_dashboard:horarios", horarios, 300)
     
     return render(request, 'mantenimiento/rutinas_dashboard.html', {
         'tree': tree,

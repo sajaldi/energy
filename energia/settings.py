@@ -338,8 +338,8 @@ else:
                 'sslmode': 'disable',
                 'connect_timeout': 10,
             },
-            'CONN_MAX_AGE': 0,
-            'CONN_HEALTH_CHECKS': False,
+            'CONN_MAX_AGE': 300,
+            'CONN_HEALTH_CHECKS': True,
         }
     }
 
