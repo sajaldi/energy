@@ -443,8 +443,12 @@
 
             document.getElementById('k-abierto').innerHTML = renderKanbanCards(abiertos.slice(0, 8));
             document.getElementById('k-proceso').innerHTML = renderKanbanCards(proceso.slice(0, 8));
-            // Cerrados: mostrar mensaje simple
-            document.getElementById('k-cerrado').innerHTML = '<div style="text-align:center; padding:2rem; color:var(--fiori-text-secondary); font-size:0.82rem;"><i class="fas fa-check-circle" style="font-size:2rem; color:var(--fiori-success); display:block; margin-bottom:0.5rem;"></i>' + cerradosCount + ' avisos cerrados</div>';
+            // Cerrados: últimos 8
+            if (data.cerrados && data.cerrados.length > 0) {
+                document.getElementById('k-cerrado').innerHTML = renderKanbanCardsCerrados(data.cerrados);
+            } else {
+                document.getElementById('k-cerrado').innerHTML = '<div style="text-align:center; padding:2rem; color:var(--fiori-text-secondary); font-size:0.82rem;"><i class="fas fa-check-circle" style="font-size:2rem; color:var(--fiori-success); display:block; margin-bottom:0.5rem;"></i>' + cerradosCount + ' avisos cerrados</div>';
+            }
 
             // Table
             var sl = allSlides();
@@ -490,6 +494,18 @@
                     '<div class="k-card-top"><span class="k-card-id">' + a.titulo + parado + '</span><span class="k-card-prio ' + a.prioridad + '">' + a.prioridad + '</span></div>' +
                     '<div class="k-card-desc">' + a.descripcion + '</div>' +
                     '<div class="k-card-meta"><span><i class="fas fa-map-marker-alt"></i> ' + a.ubicacion + '</span><span><i class="fas fa-user"></i> ' + a.responsable + '</span></div>' +
+                '</div>';
+            });
+            return html;
+        }
+
+        function renderKanbanCardsCerrados(avisos) {
+            var html = '';
+            avisos.forEach(function(a) {
+                html += '<div class="k-card" style="opacity:0.85;">' +
+                    '<div class="k-card-top"><span class="k-card-id">' + a.titulo + '</span><span style="font-size:0.65rem; color:var(--fiori-success); font-weight:600;"><i class="fas fa-check"></i> Cerrado</span></div>' +
+                    '<div class="k-card-desc">' + a.descripcion + '</div>' +
+                    '<div class="k-card-meta"><span><i class="fas fa-map-marker-alt"></i> ' + a.ubicacion + '</span><span><i class="fas fa-calendar-check"></i> ' + a.fecha + '</span></div>' +
                 '</div>';
             });
             return html;

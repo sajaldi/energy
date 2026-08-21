@@ -261,6 +261,25 @@ def avisos_tv_api(request):
             'equipo_parado': a.equipo_parado or False,
         })
 
+    # Últimos cerrados (para el kanban)
+    cerrados_recientes = Aviso.objects.filter(
+        estado='CERRADO'
+    ).select_related('ubicacion', 'responsable', 'falla', 'departamento').order_by('-fecha_cierre', '-actualizado_en')[:8]
+
+    cerrados_list = []
+    for a in cerrados_recientes:
+        cerrados_list.append({
+            'id': a.id,
+            'titulo': f'AV-{a.id}',
+            'descripcion': a.descripcion[:60],
+            'estado': a.estado,
+            'prioridad': a.prioridad,
+            'tipo': a.get_tipo_display(),
+            'ubicacion': a.ubicacion.nombre if a.ubicacion else '-',
+            'responsable': a.responsable.get_full_name() or a.responsable.username if a.responsable else '-',
+            'fecha': a.fecha_cierre.strftime('%d/%m/%Y %H:%M') if a.fecha_cierre else a.actualizado_en.strftime('%d/%m/%Y %H:%M'),
+        })
+
     # Último actualizado_en (para detectar cambios)
     from django.utils import timezone
     last_update = Aviso.objects.order_by('-actualizado_en').values_list('actualizado_en', flat=True).first()
@@ -271,6 +290,7 @@ def avisos_tv_api(request):
         'prioridades': prioridades,
         'tipos': tipos,
         'avisos': avisos_list,
+        'cerrados': cerrados_list,
         'last_update': last_update.isoformat() if last_update else None,
         'timestamp': timezone.now().isoformat(),
     }
