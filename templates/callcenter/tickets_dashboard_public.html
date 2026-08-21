@@ -8,7 +8,6 @@
     <title>{{ config.titulo_dashboard }} | SoftCom-CCG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         @font-face {
             font-family: 'Artifakt Element';
@@ -190,33 +189,6 @@
             font-weight: 600;
         }
 
-        /* ===== CHARTS (simple, no gradients) ===== */
-        .charts-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            flex: 1;
-        }
-        .chart-box {
-            background: var(--fiori-card-bg);
-            border: 1px solid var(--fiori-border);
-            padding: 1.5rem 2rem;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-        .chart-box .chart-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--fiori-text);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .chart-box .chart-title i { color: var(--fiori-primary); }
-        .chart-box canvas { flex: 1; min-height: 0; }
-
         /* ===== TABLE ===== */
         .table-box {
             background: var(--fiori-card-bg);
@@ -376,22 +348,7 @@
         </div>
     </div>
 
-    <!-- Slide 2: Charts -->
-    <div class="slide" data-slide="charts">
-        <div class="page-title">Análisis Visual</div>
-        <div class="charts-row">
-            <div class="chart-box">
-                <div class="chart-title" id="title-c1"><i class="fas fa-users"></i> Tickets por Responsable</div>
-                <canvas id="canvas-resp"></canvas>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title" id="title-c2"><i class="fas fa-exclamation-triangle"></i> Por Tipo de Falla</div>
-                <canvas id="canvas-fallas"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Slide 3: Table -->
+    <!-- Slide 2: Table -->
     <div class="slide" data-slide="table">
         <div class="page-title">Tickets Recientes</div>
         <div class="table-box">
@@ -402,7 +359,7 @@
         </div>
     </div>
 
-    <!-- Slide 4: Clusters -->
+    <!-- Slide 3: Clusters -->
     <div class="slide" data-slide="clusters">
         <div class="page-title">Clusters Activos</div>
         <div class="clusters-grid" id="clusters-grid"></div>
@@ -414,7 +371,6 @@
         var API = '{% url "callcenter:tickets_dashboard_api" %}';
         var SLIDE_MS = 20000;
         var refreshMs = {{ config.intervalo_refresh }} * 1000;
-        var chartR = null, chartF = null;
         var active = [];
         var idx = 0;
         var pStart = Date.now();
@@ -507,30 +463,15 @@
             // Slide 1 always
             active.push(sl[0]);
 
-            // Slide 2: charts
-            var h1 = data.top_fallas && data.top_fallas.labels && data.top_fallas.labels.length > 0;
-            var h2 = data.categorias && data.categorias.labels && data.categorias.labels.length > 0;
-            if (h1 || h2) {
-                active.push(sl[1]);
-                if (h1) {
-                    document.getElementById('title-c1').innerHTML = '<i class="fas fa-users"></i> ' + (data.top_fallas.titulo || 'Por Responsable');
-                    drawBar(data.top_fallas);
-                }
-                if (h2) {
-                    document.getElementById('title-c2').innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + (data.categorias.titulo || 'Por Falla');
-                    drawPie(data.categorias);
-                }
-            }
-
-            // Slide 3
+            // Slide 2: Table
             if (cfg.mostrar_tabla_recientes && data.tickets_recientes && data.tickets_recientes.length > 0) {
-                active.push(sl[2]);
+                active.push(sl[1]);
                 drawTable(data.tickets_recientes);
             }
 
-            // Slide 4
+            // Slide 3: Clusters
             if (data.clusters && data.clusters.length > 0) {
-                active.push(sl[3]);
+                active.push(sl[2]);
                 drawClusters(data.clusters);
             }
 
@@ -538,50 +479,6 @@
             if (idx >= active.length) idx = 0;
             sl.forEach(function(s) { s.classList.remove('active'); });
             if (active[idx]) active[idx].classList.add('active');
-        }
-
-        function drawBar(d) {
-            var ctx = document.getElementById('canvas-resp');
-            if (chartR) chartR.destroy();
-            chartR = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: d.labels,
-                    datasets: [{ data: d.data, backgroundColor: '#0070f2', borderRadius: 0 }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { color: '#e0e0e0' }, ticks: { color: '#6a6d70' } },
-                        y: { grid: { display: false }, ticks: { color: '#32363a', font: { size: 13, family: "'Artifakt Element','Outfit',sans-serif" } } }
-                    }
-                }
-            });
-        }
-
-        function drawPie(d) {
-            var ctx = document.getElementById('canvas-fallas');
-            if (chartF) chartF.destroy();
-            var colors = ['#0070f2','#107e3e','#e9730c','#bb0000','#6a6d70','#1b90ff','#f59e0b','#0e7c86'];
-            chartF = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: d.labels,
-                    datasets: [{ data: d.data, backgroundColor: colors.slice(0, d.labels.length), borderWidth: 2, borderColor: '#ffffff' }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: {
-                        legend: { position: 'right', labels: { color: '#32363a', font: { size: 13, family: "'Artifakt Element','Outfit',sans-serif" }, padding: 14 } }
-                    }
-                }
-            });
         }
 
         function drawTable(tickets) {
