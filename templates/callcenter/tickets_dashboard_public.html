@@ -555,50 +555,77 @@
             var ranked = responsables.filter(function(r) { return r.total > 0; }).map(function(r) {
                 return { nombre: r.nombre, total: r.total, cerrados: r.cerrados, pct: Math.round((r.cerrados / r.total) * 100), foto: r.foto };
             });
-            // Campeón: mayor porcentaje de cierre
-            ranked.sort(function(a, b) { return b.pct - a.pct; });
-            var champion = ranked[0];
-            // Villano: menor porcentaje (de los que tienen tickets asignados)
-            var villain = ranked[ranked.length - 1];
 
-            if (champion) {
-                document.getElementById('champion-name').textContent = champion.nombre;
-                document.getElementById('champion-pct').textContent = champion.pct + '%';
-                document.getElementById('champion-detail').textContent = champion.cerrados + ' de ' + champion.total + ' cerrados';
-                var champPhoto = document.getElementById('champion-photo');
-                if (champion.foto) {
-                    champPhoto.src = champion.foto;
-                    champPhoto.style.display = 'block';
+            // Verificar si TODOS cerraron al 100%
+            var todosAlDia = ranked.length > 0 && ranked.every(function(r) { return r.pct === 100; });
+
+            var slideEl = document.querySelector('[data-slide="ranking"]');
+
+            if (todosAlDia) {
+                // Pintar fondo verde
+                slideEl.style.background = '#dcfce7';
+                document.getElementById('champion-name').textContent = '¡Todo el equipo!';
+                document.getElementById('champion-pct').textContent = '100%';
+                document.getElementById('champion-detail').textContent = 'Todos los tickets cerrados';
+                document.getElementById('champion-photo').style.display = 'none';
+                // Ocultar villano
+                document.getElementById('villain-name').textContent = '—';
+                document.getElementById('villain-pct').textContent = '🎉';
+                document.getElementById('villain-detail').textContent = 'Sin pendientes';
+                document.getElementById('villain-photo').style.display = 'none';
+            } else {
+                slideEl.style.background = '';
+                // Campeón: mayor porcentaje de cierre
+                ranked.sort(function(a, b) { return b.pct - a.pct; });
+                var champion = ranked[0];
+                // Villano: menor porcentaje, pero solo si tiene tickets abiertos (pct < 100)
+                var villains = ranked.filter(function(r) { return r.pct < 100; });
+                villains.sort(function(a, b) { return a.pct - b.pct; });
+                var villain = villains.length > 0 ? villains[0] : null;
+
+                if (champion) {
+                    document.getElementById('champion-name').textContent = champion.nombre;
+                    document.getElementById('champion-pct').textContent = champion.pct + '%';
+                    document.getElementById('champion-detail').textContent = champion.cerrados + ' de ' + champion.total + ' cerrados';
+                    var champPhoto = document.getElementById('champion-photo');
+                    if (champion.foto) {
+                        champPhoto.src = champion.foto;
+                        champPhoto.style.display = 'block';
+                    } else {
+                        champPhoto.style.display = 'none';
+                    }
+                }
+                if (villain) {
+                    document.getElementById('villain-name').textContent = villain.nombre;
+                    document.getElementById('villain-pct').textContent = villain.pct + '%';
+                    document.getElementById('villain-detail').textContent = villain.cerrados + ' de ' + villain.total + ' cerrados';
+                    var villPhoto = document.getElementById('villain-photo');
+                    if (villain.foto) {
+                        villPhoto.src = villain.foto;
+                        villPhoto.style.display = 'block';
+                    } else {
+                        villPhoto.style.display = 'none';
+                    }
                 } else {
-                    champPhoto.style.display = 'none';
+                    document.getElementById('villain-name').textContent = '—';
+                    document.getElementById('villain-pct').textContent = '✓';
+                    document.getElementById('villain-detail').textContent = 'Todos al día';
+                    document.getElementById('villain-photo').style.display = 'none';
                 }
             }
-            if (villain && villain.nombre !== champion.nombre) {
-                document.getElementById('villain-name').textContent = villain.nombre;
-                document.getElementById('villain-pct').textContent = villain.pct + '%';
-                document.getElementById('villain-detail').textContent = villain.cerrados + ' de ' + villain.total + ' cerrados';
-                var villPhoto = document.getElementById('villain-photo');
-                if (villain.foto) {
-                    villPhoto.src = villain.foto;
-                    villPhoto.style.display = 'block';
-                } else {
-                    villPhoto.style.display = 'none';
-                }
-            }
 
-            // Resto del equipo (excluir campeón y villano)
-            var others = ranked.filter(function(r) {
-                return r.nombre !== (champion ? champion.nombre : '') && r.nombre !== (villain ? villain.nombre : '');
-            });
+            // Top 3 por número de tickets cerrados
+            var top3 = ranked.slice().sort(function(a, b) { return b.cerrados - a.cerrados; }).slice(0, 3);
             var container = document.getElementById('ranking-others');
-            var h = '';
-            others.forEach(function(r) {
+            var h = '<div style="width:100%; font-size:0.85rem; font-weight:700; color:var(--fiori-text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem;">Top 3 — Mayor Cantidad de Cierres</div>';
+            var medals = ['🥇', '🥈', '🥉'];
+            top3.forEach(function(r, i) {
                 var photoHtml = r.foto ? '<img src="' + r.foto + '" style="width:50px; height:50px; object-fit:cover; border:2px solid var(--fiori-border);">' : '<div style="width:50px; height:50px; background:#f0f4f8; display:flex; align-items:center; justify-content:center; color:var(--fiori-text-secondary);"><i class="fas fa-user"></i></div>';
-                var pctColor = r.pct >= 80 ? 'var(--fiori-success)' : r.pct >= 50 ? 'var(--fiori-warning)' : 'var(--fiori-error)';
-                h += '<div style="background:var(--fiori-card-bg); border:1px solid var(--fiori-border); padding:0.75rem 1.25rem; display:flex; align-items:center; gap:0.85rem; box-shadow:0 1px 4px rgba(0,0,0,0.04); min-width:220px;">' +
+                h += '<div style="background:var(--fiori-card-bg); border:1px solid var(--fiori-border); padding:0.75rem 1.25rem; display:flex; align-items:center; gap:0.85rem; box-shadow:0 1px 4px rgba(0,0,0,0.04); min-width:280px;">' +
+                    '<span style="font-size:1.5rem;">' + medals[i] + '</span>' +
                     photoHtml +
-                    '<div style="flex:1;"><div style="font-weight:700; font-size:0.85rem;">' + r.nombre + '</div><div style="font-size:0.72rem; color:var(--fiori-text-secondary);">' + r.cerrados + '/' + r.total + ' cerrados</div></div>' +
-                    '<div style="font-size:1.3rem; font-weight:800; color:' + pctColor + ';">' + r.pct + '%</div>' +
+                    '<div style="flex:1;"><div style="font-weight:700; font-size:0.9rem;">' + r.nombre + '</div><div style="font-size:0.75rem; color:var(--fiori-text-secondary);">' + r.pct + '% cumplimiento</div></div>' +
+                    '<div style="font-size:1.5rem; font-weight:800; color:var(--fiori-primary);">' + r.cerrados + '</div>' +
                 '</div>';
             });
             container.innerHTML = h;
