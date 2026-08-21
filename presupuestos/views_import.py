@@ -1048,8 +1048,9 @@ def procesar_requisicion(request, pk):
         if not request.user.groups.filter(name__in=['Procura', 'PROCURA', 'Procura_Tecnica']).exists():
             return JsonResponse({'success': False, 'message': 'Solo usuarios del grupo Procura pueden procesar requisiciones.'}, status=403)
 
+        warning_msg = None
         if requisicion.estado_requisicion not in ['AUTORIZADO', 'VISTO_PROCURA', 'PROCURA_PROCESANDO']:
-            return JsonResponse({'success': False, 'message': 'La requisición debe estar Autorizada, Visto por Procura o en Procesamiento.'}, status=400)
+            warning_msg = f'Advertencia: La requisición está en estado "{requisicion.get_estado_requisicion_display()}". Se recomienda que esté Autorizada antes de generar la OC.'
 
         _registrar_historial(requisicion, 'PROCURA_PROCESANDO', usuario=request.user)
         requisicion.estado_requisicion = 'PROCURA_PROCESANDO'
@@ -1109,7 +1110,7 @@ def procesar_requisicion(request, pk):
             'documentos': documentos_data,
         }
 
-        return JsonResponse({'success': True, 'data': data, 'message': 'Procesando requisición...'})
+        return JsonResponse({'success': True, 'data': data, 'message': 'Procesando requisición...', 'warning': warning_msg})
 
     except Exception as e:
         import traceback

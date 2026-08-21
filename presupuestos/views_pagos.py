@@ -13,6 +13,7 @@ from django.core.files.storage import default_storage
 from django.core.cache import cache
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
+import json
 from openpyxl.utils import get_column_letter
 import json
 import os
@@ -219,6 +220,22 @@ def detalle_solicitud_pago(request, pk):
         'detalle_items_budget': detalle_item_budget,
     }
 
+    es_procura = request.user.groups.filter(name__in=['Procura', 'PROCURA', 'Procura_Tecnica', 'PROCURA_TECNICA']).exists()
+
+    # Mapa de requisición -> primera OC asociada (para menú contextual)
+    req_oc_map = {}
+    if es_procura:
+        from .models import OrdenCompra
+        req_ids = set()
+        for prov_data in items_por_proveedor.values():
+            for item in prov_data['lista_items']:
+                req_ids.add(str(item.requisicion.pk))
+        ocs = OrdenCompra.objects.filter(
+            requisicion_id__in=req_ids
+        ).values_list('requisicion_id', 'id')
+        for req_id, oc_id in ocs:
+            req_oc_map[str(req_id)] = oc_id
+
     context = {
         'solicitud': solicitud,
         'items_por_proveedor': items_por_proveedor,
@@ -226,6 +243,8 @@ def detalle_solicitud_pago(request, pk):
         'ESTATUS_CHOICES': ItemSolicitudPago.ESTATUS_CHOICES,
         'CONDICION_CHOICES': ItemSolicitudPago.CONDICION_PAGO_CHOICES,
         'proveedores_todos': Empresa.objects.all().order_by('nombre'),
+        'es_procura': es_procura,
+        'req_oc_map_json': json.dumps(req_oc_map),
     }
     
     return render(request, 'presupuestos/solicitudes_pago/detalle.html', context)

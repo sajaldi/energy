@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ config.titulo_dashboard }} | SoftCom-CCG</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         @font-face {
@@ -22,10 +22,8 @@
         }
 
         :root {
-            /* SAP Fiori Light Palette */
             --fiori-primary: #0070f2;
-            --fiori-bg: #f7f7f7;
-            --fiori-shell-bg: #354a5f;
+            --fiori-bg: #eff2f5;
             --fiori-card-bg: #ffffff;
             --fiori-text: #32363a;
             --fiori-text-secondary: #6a6d70;
@@ -33,8 +31,6 @@
             --fiori-success: #107e3e;
             --fiori-warning: #e9730c;
             --fiori-error: #bb0000;
-            --fiori-info: #0070f2;
-            --fiori-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -47,192 +43,169 @@
             color: var(--fiori-text);
         }
 
-        /* ===== SHELL HEADER (SAP Fiori style) ===== */
-        .fiori-shell-header {
+        /* ===== SHELL BAR ===== */
+        .shell-bar {
             position: fixed;
             top: 0; left: 0; right: 0;
             height: 2.75rem;
-            background: var(--fiori-shell-bg);
+            background: #354a5f;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 1.5rem;
+            padding: 0 2rem;
             z-index: 200;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
-        .shell-title {
-            font-size: 0.875rem;
+        .shell-bar-title {
+            font-size: 0.85rem;
             font-weight: 600;
-            color: #ffffff;
-            letter-spacing: 0.3px;
+            color: #fff;
         }
-        .shell-right {
+        .shell-bar-right {
             display: flex;
             align-items: center;
-            gap: 1.25rem;
+            gap: 1.5rem;
         }
-        .shell-badge {
+        .shell-nav {
             display: flex;
-            align-items: center;
-            gap: 0.35rem;
-            font-size: 0.72rem;
-            color: rgba(255,255,255,0.85);
+            gap: 5px;
         }
-        .shell-badge .live-dot {
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            background: #36db84;
-            animation: livePulse 1.8s infinite;
-        }
-        @keyframes livePulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.8); }
-        }
-        .shell-indicators {
-            display: flex;
-            gap: 4px;
-            align-items: center;
-        }
-        .shell-indicators .dot {
-            width: 20px; height: 3px;
-            border-radius: 2px;
-            background: rgba(255,255,255,0.3);
-            transition: all 0.3s;
+        .shell-nav .dot {
+            width: 22px; height: 3px;
+            background: rgba(255,255,255,0.25);
             cursor: pointer;
+            transition: background 0.3s, width 0.3s;
         }
-        .shell-indicators .dot.active {
-            background: #ffffff;
-            width: 30px;
+        .shell-nav .dot.active {
+            background: #fff;
+            width: 34px;
         }
+        .shell-live {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.68rem;
+            color: rgba(255,255,255,0.8);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .shell-live .dot-green {
+            width: 6px; height: 6px;
+            background: #36db84;
+            animation: blink 2s infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
         .shell-time {
-            font-size: 0.72rem;
-            color: rgba(255,255,255,0.7);
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.6);
+            font-variant-numeric: tabular-nums;
         }
 
-        /* ===== SLIDE PROGRESS ===== */
-        .slide-progress-track {
+        /* Progress */
+        .progress-track {
             position: fixed;
             top: 2.75rem; left: 0; right: 0;
             height: 3px;
-            background: #e0e0e0;
+            background: #d9d9d9;
             z-index: 199;
         }
-        .slide-progress-bar {
+        .progress-bar {
             height: 100%;
-            background: var(--fiori-primary);
             width: 0%;
+            background: var(--fiori-primary);
             transition: width 0.1s linear;
         }
 
         /* ===== CAROUSEL ===== */
-        .carousel {
-            width: 100%;
-            height: 100vh;
-            padding-top: calc(2.75rem + 3px);
-            position: relative;
-        }
         .slide {
-            position: absolute;
+            position: fixed;
             top: calc(2.75rem + 3px);
-            left: 0;
-            width: 100%;
-            height: calc(100vh - 2.75rem - 3px);
+            left: 0; right: 0; bottom: 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
             padding: 2rem 3rem;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.6s ease, visibility 0.6s;
+            transition: opacity 0.5s ease;
         }
         .slide.active {
             opacity: 1;
             visibility: visible;
         }
 
-        /* ===== PAGE HEADER inside slide ===== */
-        .page-header {
-            margin-bottom: 1.5rem;
-        }
-        .page-header h2 {
-            font-size: 1.5rem;
+        /* Page title in slide */
+        .page-title {
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--fiori-text);
-            margin-bottom: 0.25rem;
-        }
-        .page-header p {
-            font-size: 0.82rem;
-            color: var(--fiori-text-secondary);
+            margin-bottom: 1.5rem;
         }
 
-        /* ===== SLIDE 1: KPIs ===== */
-        .kpi-grid {
+        /* ===== KPI CARDS (ultra large, NO border-radius) ===== */
+        .kpi-row {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
+            gap: 2rem;
         }
-        .kpi-tile {
+        .kpi-box {
             background: var(--fiori-card-bg);
             border: 1px solid var(--fiori-border);
-            border-radius: 0.5rem;
-            padding: 2rem;
-            box-shadow: var(--fiori-shadow);
+            padding: 3rem 2.5rem;
             text-align: center;
-            transition: box-shadow 0.2s;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
-        .kpi-tile:hover {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        .kpi-box .stripe {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 5px;
         }
-        .kpi-tile .kpi-label {
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: var(--fiori-text-secondary);
+        .kpi-box.c1 .stripe { background: var(--fiori-primary); }
+        .kpi-box.c2 .stripe { background: var(--fiori-success); }
+        .kpi-box.c3 .stripe { background: var(--fiori-warning); }
+        .kpi-box.c4 .stripe { background: #6a6d70; }
+        .kpi-box .kpi-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        .kpi-box.c1 .kpi-icon { color: var(--fiori-primary); }
+        .kpi-box.c2 .kpi-icon { color: var(--fiori-success); }
+        .kpi-box.c3 .kpi-icon { color: var(--fiori-warning); }
+        .kpi-box.c4 .kpi-icon { color: #6a6d70; }
+        .kpi-box .kpi-number {
+            font-size: 5rem;
+            font-weight: 800;
+            line-height: 1;
             margin-bottom: 0.75rem;
+            color: var(--fiori-text);
         }
-        .kpi-tile .kpi-value {
-            font-size: 3.2rem;
-            font-weight: 700;
-            line-height: 1.1;
-        }
-        .kpi-tile .kpi-footer {
-            font-size: 0.72rem;
+        .kpi-box.c1 .kpi-number { color: var(--fiori-primary); }
+        .kpi-box.c2 .kpi-number { color: var(--fiori-success); }
+        .kpi-box.c3 .kpi-number { color: var(--fiori-warning); }
+        .kpi-box .kpi-label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             color: var(--fiori-text-secondary);
-            margin-top: 0.75rem;
+            font-weight: 600;
         }
-        .kpi-tile.primary .kpi-value { color: var(--fiori-primary); }
-        .kpi-tile.success .kpi-value { color: var(--fiori-success); }
-        .kpi-tile.warning .kpi-value { color: var(--fiori-warning); }
-        .kpi-tile.neutral .kpi-value { color: var(--fiori-text); }
 
-        /* Status strip at bottom of kpi */
-        .kpi-tile .status-strip {
-            height: 4px;
-            border-radius: 0 0 0.5rem 0.5rem;
-            margin: 1.5rem -2rem -2rem -2rem;
-        }
-        .kpi-tile.primary .status-strip { background: var(--fiori-primary); }
-        .kpi-tile.success .status-strip { background: var(--fiori-success); }
-        .kpi-tile.warning .status-strip { background: var(--fiori-warning); }
-        .kpi-tile.neutral .status-strip { background: var(--fiori-border); }
-
-        /* ===== SLIDE 2: CHARTS ===== */
+        /* ===== CHARTS (simple, no gradients) ===== */
         .charts-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
+            gap: 2rem;
             flex: 1;
         }
-        .chart-card {
+        .chart-box {
             background: var(--fiori-card-bg);
             border: 1px solid var(--fiori-border);
-            border-radius: 0.5rem;
-            padding: 1.5rem;
+            padding: 1.5rem 2rem;
             display: flex;
             flex-direction: column;
-            box-shadow: var(--fiori-shadow);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
-        .chart-card .card-title {
+        .chart-box .chart-title {
             font-size: 0.9rem;
             font-weight: 600;
             color: var(--fiori-text);
@@ -241,487 +214,342 @@
             align-items: center;
             gap: 0.5rem;
         }
-        .chart-card .card-title i { color: var(--fiori-primary); font-size: 0.85rem; }
-        .chart-card canvas { flex: 1; min-height: 0; }
+        .chart-box .chart-title i { color: var(--fiori-primary); }
+        .chart-box canvas { flex: 1; min-height: 0; }
 
-        /* ===== SLIDE 3: TABLE ===== */
-        .table-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-        .table-wrapper {
-            flex: 1;
+        /* ===== TABLE ===== */
+        .table-box {
             background: var(--fiori-card-bg);
             border: 1px solid var(--fiori-border);
-            border-radius: 0.5rem;
+            flex: 1;
             overflow: hidden;
-            box-shadow: var(--fiori-shadow);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
-        .sap-table {
+        .fiori-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.85rem;
+            font-size: 0.88rem;
         }
-        .sap-table th {
+        .fiori-table th {
             background: #f0f4f8;
-            padding: 0.85rem 1.25rem;
+            padding: 0.9rem 1.25rem;
             text-align: left;
             font-weight: 600;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             color: var(--fiori-text);
             border-bottom: 1px solid var(--fiori-border);
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
         }
-        .sap-table td {
+        .fiori-table td {
             padding: 0.75rem 1.25rem;
             border-bottom: 1px solid #f0f0f0;
-            color: var(--fiori-text);
         }
-        .sap-table tr:hover td { background: #fafbfc; }
-        .badge-abierto {
+        .fiori-table tr:hover td { background: #fafbfc; }
+        .badge-open {
             display: inline-block;
             padding: 0.2rem 0.6rem;
-            border-radius: 4px;
             font-size: 0.7rem;
             font-weight: 600;
             background: #fef3c7;
             color: #92400e;
         }
-        .badge-cerrado {
+        .badge-closed {
             display: inline-block;
             padding: 0.2rem 0.6rem;
-            border-radius: 4px;
             font-size: 0.7rem;
             font-weight: 600;
             background: #dcfce7;
             color: #166534;
         }
 
-        /* ===== SLIDE 4: CLUSTERS ===== */
-        .clusters-container { flex: 1; }
+        /* ===== CLUSTERS ===== */
         .clusters-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 1.25rem;
         }
         .cluster-card {
             background: var(--fiori-card-bg);
             border: 1px solid var(--fiori-border);
-            border-radius: 0.5rem;
             padding: 1.25rem 1.5rem;
-            box-shadow: var(--fiori-shadow);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
-        .cluster-header {
+        .cluster-hdr {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 0.5rem;
         }
-        .cluster-id {
-            font-weight: 700;
-            color: var(--fiori-primary);
-            font-size: 0.88rem;
-        }
-        .cluster-date {
-            font-size: 0.72rem;
-            color: var(--fiori-text-secondary);
-        }
-        .cluster-desc {
-            font-size: 0.8rem;
-            color: var(--fiori-text-secondary);
-            margin-bottom: 0.65rem;
-            line-height: 1.4;
-        }
-        .cluster-stats {
-            display: flex;
-            gap: 1rem;
-            font-size: 0.78rem;
-            color: var(--fiori-text);
-        }
-        .cluster-stats span {
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-        .progress-bar {
+        .cluster-hdr .cid { font-weight: 700; color: var(--fiori-primary); font-size: 0.9rem; }
+        .cluster-hdr .cdate { font-size: 0.72rem; color: var(--fiori-text-secondary); }
+        .cluster-desc { font-size: 0.8rem; color: var(--fiori-text-secondary); margin-bottom: 0.6rem; }
+        .cluster-stats { display: flex; gap: 1rem; font-size: 0.78rem; }
+        .cluster-stats span { display: flex; align-items: center; gap: 0.3rem; }
+        .cluster-progress {
             height: 4px;
             background: #e5e7eb;
-            border-radius: 2px;
-            margin-top: 0.75rem;
+            margin-top: 0.7rem;
             overflow: hidden;
         }
-        .progress-bar .fill {
+        .cluster-progress .fill {
             height: 100%;
             background: var(--fiori-success);
-            border-radius: 2px;
-            transition: width 0.6s ease;
+            transition: width 0.6s;
         }
     </style>
 </head>
 <body>
-    <!-- SAP Fiori Shell Header -->
-    <div class="fiori-shell-header">
-        <span class="shell-title" id="shell-title">{{ config.titulo_dashboard }}</span>
-        <div class="shell-right">
-            <div class="shell-indicators" id="shell-indicators"></div>
-            <div class="shell-badge">
-                <span class="live-dot"></span>
-                En vivo
+    <!-- Shell Bar -->
+    <div class="shell-bar">
+        <span class="shell-bar-title" id="shell-title">{{ config.titulo_dashboard }}</span>
+        <div class="shell-bar-right">
+            <div class="shell-nav" id="shell-nav"></div>
+            <div class="shell-live"><span class="dot-green"></span> En vivo</div>
+            <span class="shell-time" id="shell-time">--:--</span>
+        </div>
+    </div>
+    <div class="progress-track"><div class="progress-bar" id="pbar"></div></div>
+
+    <!-- Slide 1: KPIs -->
+    <div class="slide active" data-slide="kpis">
+        <div class="page-title" id="s1-title">Resumen Operativo</div>
+        <div class="kpi-row">
+            <div class="kpi-box c1">
+                <div class="stripe"></div>
+                <div class="kpi-icon"><i class="fas fa-ticket-alt"></i></div>
+                <div class="kpi-number" id="v-total">—</div>
+                <div class="kpi-label">Total Tickets</div>
             </div>
-            <span class="shell-time" id="shell-time">—</span>
+            <div class="kpi-box c2">
+                <div class="stripe"></div>
+                <div class="kpi-icon"><i class="fas fa-check-double"></i></div>
+                <div class="kpi-number" id="v-cerrados">—</div>
+                <div class="kpi-label">Cerrados</div>
+            </div>
+            <div class="kpi-box c3">
+                <div class="stripe"></div>
+                <div class="kpi-icon"><i class="fas fa-hourglass-half"></i></div>
+                <div class="kpi-number" id="v-abiertos">—</div>
+                <div class="kpi-label">En Gestión</div>
+            </div>
+            <div class="kpi-box c4">
+                <div class="stripe"></div>
+                <div class="kpi-icon"><i class="fas fa-bullseye"></i></div>
+                <div class="kpi-number" id="v-pct">—</div>
+                <div class="kpi-label">Cumplimiento</div>
+            </div>
         </div>
     </div>
 
-    <!-- Progress track -->
-    <div class="slide-progress-track">
-        <div class="slide-progress-bar" id="progress-bar"></div>
+    <!-- Slide 2: Charts -->
+    <div class="slide" data-slide="charts">
+        <div class="page-title">Análisis Visual</div>
+        <div class="charts-row">
+            <div class="chart-box">
+                <div class="chart-title" id="title-c1"><i class="fas fa-users"></i> Tickets por Responsable</div>
+                <canvas id="canvas-resp"></canvas>
+            </div>
+            <div class="chart-box">
+                <div class="chart-title" id="title-c2"><i class="fas fa-exclamation-triangle"></i> Por Tipo de Falla</div>
+                <canvas id="canvas-fallas"></canvas>
+            </div>
+        </div>
     </div>
 
-    <!-- Carousel -->
-    <div class="carousel">
-        <!-- Slide 1: KPIs -->
-        <div class="slide active" data-slide="metrics">
-            <div class="page-header">
-                <h2>Resumen Operativo</h2>
-                <p id="page-subtitle">{{ config.subtitulo_dashboard }}</p>
-            </div>
-            <div class="kpi-grid">
-                <div class="kpi-tile primary">
-                    <div class="kpi-label">Total Tickets</div>
-                    <div class="kpi-value" id="val-total">—</div>
-                    <div class="kpi-footer">Últimos {{ config.dias_antiguedad }} días</div>
-                    <div class="status-strip"></div>
-                </div>
-                <div class="kpi-tile success">
-                    <div class="kpi-label">Cerrados</div>
-                    <div class="kpi-value" id="val-cerrados">—</div>
-                    <div class="kpi-footer">Documentados y notificados</div>
-                    <div class="status-strip"></div>
-                </div>
-                <div class="kpi-tile warning">
-                    <div class="kpi-label">En Gestión</div>
-                    <div class="kpi-value" id="val-abiertos">—</div>
-                    <div class="kpi-footer">Pendientes de cierre</div>
-                    <div class="status-strip"></div>
-                </div>
-                <div class="kpi-tile neutral">
-                    <div class="kpi-label">Cumplimiento</div>
-                    <div class="kpi-value" id="val-porcentaje">—</div>
-                    <div class="kpi-footer">Ratio de cierre</div>
-                    <div class="status-strip"></div>
-                </div>
-            </div>
+    <!-- Slide 3: Table -->
+    <div class="slide" data-slide="table">
+        <div class="page-title">Tickets Recientes</div>
+        <div class="table-box">
+            <table class="fiori-table">
+                <thead><tr><th>Folio</th><th>Solicitante</th><th>Falla</th><th>Ubicación</th><th>Fecha</th><th>Estado</th></tr></thead>
+                <tbody id="tbody-tickets"></tbody>
+            </table>
         </div>
+    </div>
 
-        <!-- Slide 2: Charts -->
-        <div class="slide" data-slide="charts">
-            <div class="page-header">
-                <h2>Análisis Visual</h2>
-                <p>Distribución de tickets por tipo y ubicación</p>
-            </div>
-            <div class="charts-row">
-                <div class="chart-card">
-                    <div class="card-title" id="title-fallas"><i class="fas fa-chart-bar"></i> Tickets por Responsable</div>
-                    <canvas id="chart-fallas"></canvas>
-                </div>
-                <div class="chart-card">
-                    <div class="card-title" id="title-categorias"><i class="fas fa-chart-pie"></i> Tickets por Tipo de Falla</div>
-                    <canvas id="chart-categorias"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Slide 3: Table -->
-        <div class="slide" data-slide="table">
-            <div class="page-header">
-                <h2>Tickets Recientes</h2>
-                <p>Últimas solicitudes recibidas</p>
-            </div>
-            <div class="table-container">
-                <div class="table-wrapper">
-                    <table class="sap-table">
-                        <thead>
-                            <tr>
-                                <th>Folio</th>
-                                <th>Solicitante</th>
-                                <th>Falla</th>
-                                <th>Ubicación</th>
-                                <th>Fecha</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-recientes"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Slide 4: Clusters -->
-        <div class="slide" data-slide="clusters">
-            <div class="page-header">
-                <h2>Clusters Activos</h2>
-                <p>Agrupaciones de tickets por gestión</p>
-            </div>
-            <div class="clusters-container">
-                <div class="clusters-grid" id="clusters-grid"></div>
-            </div>
-        </div>
+    <!-- Slide 4: Clusters -->
+    <div class="slide" data-slide="clusters">
+        <div class="page-title">Clusters Activos</div>
+        <div class="clusters-grid" id="clusters-grid"></div>
     </div>
 
     <script>
     (function() {
         'use strict';
+        var API = '{% url "callcenter:tickets_dashboard_api" %}';
+        var SLIDE_MS = 20000;
+        var refreshMs = {{ config.intervalo_refresh }} * 1000;
+        var chartR = null, chartF = null;
+        var active = [];
+        var idx = 0;
+        var pStart = Date.now();
 
-        const API_URL = '{% url "callcenter:tickets_dashboard_api" %}';
-        const SLIDE_INTERVAL = 20000; // 20 segundos por slide
-        let dataRefreshMs = {{ config.intervalo_refresh }} * 1000;
+        function allSlides() { return Array.from(document.querySelectorAll('.slide')); }
 
-        let chartFallas = null;
-        let chartCategorias = null;
-        let activeSlides = [];
-        let currentIndex = 0;
-        let progressStart = Date.now();
-        let animFrameId = null;
-
-        // ===== CAROUSEL ENGINE =====
-        function getAllSlides() {
-            return Array.from(document.querySelectorAll('.slide'));
-        }
-
-        function buildIndicators() {
-            const container = document.getElementById('shell-indicators');
-            container.innerHTML = '';
-            activeSlides.forEach(function(_, i) {
-                const dot = document.createElement('div');
-                dot.className = 'dot' + (i === currentIndex ? ' active' : '');
-                dot.addEventListener('click', function() { goToSlide(i); });
-                container.appendChild(dot);
+        function buildNav() {
+            var nav = document.getElementById('shell-nav');
+            nav.innerHTML = '';
+            active.forEach(function(_, i) {
+                var d = document.createElement('div');
+                d.className = 'dot' + (i === idx ? ' active' : '');
+                d.onclick = function() { goTo(i); };
+                nav.appendChild(d);
             });
         }
 
-        function goToSlide(idx) {
-            // Hide all
-            getAllSlides().forEach(function(s) { s.classList.remove('active'); });
-            currentIndex = idx;
-            if (activeSlides[currentIndex]) {
-                activeSlides[currentIndex].classList.add('active');
-            }
-            // Update indicators
-            var dots = document.querySelectorAll('.shell-indicators .dot');
-            dots.forEach(function(d, i) { d.classList.toggle('active', i === currentIndex); });
-            // Reset progress
-            progressStart = Date.now();
+        function goTo(i) {
+            allSlides().forEach(function(s) { s.classList.remove('active'); });
+            idx = i;
+            if (active[idx]) active[idx].classList.add('active');
+            document.querySelectorAll('.shell-nav .dot').forEach(function(d, j) {
+                d.classList.toggle('active', j === idx);
+            });
+            pStart = Date.now();
         }
 
-        function advanceSlide() {
-            if (activeSlides.length <= 1) return;
-            var next = (currentIndex + 1) % activeSlides.length;
-            goToSlide(next);
+        function next() {
+            if (active.length <= 1) return;
+            goTo((idx + 1) % active.length);
         }
 
-        // Progress bar animation loop
-        function tickProgress() {
-            var elapsed = Date.now() - progressStart;
-            var pct = Math.min((elapsed / SLIDE_INTERVAL) * 100, 100);
-            document.getElementById('progress-bar').style.width = pct + '%';
+        // Simple timer — no requestAnimationFrame to reduce GPU on TV
+        setInterval(function() {
+            var elapsed = Date.now() - pStart;
+            var pct = Math.min((elapsed / SLIDE_MS) * 100, 100);
+            document.getElementById('pbar').style.width = pct + '%';
+            if (elapsed >= SLIDE_MS) next();
+        }, 200);
 
-            if (elapsed >= SLIDE_INTERVAL) {
-                advanceSlide();
-            }
-            animFrameId = requestAnimationFrame(tickProgress);
+        // Data refresh
+        setInterval(fetchData, refreshMs);
+
+        // Clock
+        function clock() {
+            var n = new Date();
+            document.getElementById('shell-time').textContent = n.toLocaleTimeString('es-HN', {hour:'2-digit', minute:'2-digit'});
         }
+        setInterval(clock, 30000);
+        clock();
 
-        // Start the carousel animation
-        animFrameId = requestAnimationFrame(tickProgress);
+        function fmt(n) { return n.toLocaleString('es-HN'); }
 
-        // ===== DATA REFRESH =====
         function fetchData() {
-            fetch(API_URL)
-                .then(function(r) { return r.json(); })
-                .then(function(data) { updateDashboard(data); })
-                .catch(function(err) { console.error('Dashboard fetch error:', err); });
+            fetch(API).then(function(r) { return r.json(); }).then(render).catch(function(e) { console.error(e); });
         }
 
-        // Periodic data refresh
-        setInterval(fetchData, dataRefreshMs);
-
-        // ===== UPDATE DASHBOARD =====
-        function formatNum(n) { return n.toLocaleString('es-HN'); }
-
-        function updateDashboard(data) {
-            var cfg = data.config;
-            var m = data.metricas;
-
-            // Shell
+        function render(data) {
+            var cfg = data.config, m = data.metricas;
             document.getElementById('shell-title').textContent = cfg.titulo;
-            document.getElementById('page-subtitle').textContent = cfg.subtitulo;
 
-            // KPIs
-            document.getElementById('val-total').textContent = formatNum(m.total);
-            document.getElementById('val-cerrados').textContent = formatNum(m.cerrados);
-            document.getElementById('val-abiertos').textContent = formatNum(m.abiertos);
-            document.getElementById('val-porcentaje').textContent = m.porcentaje_cierre + '%';
+            document.getElementById('v-total').textContent = fmt(m.total);
+            document.getElementById('v-cerrados').textContent = fmt(m.cerrados);
+            document.getElementById('v-abiertos').textContent = fmt(m.abiertos);
+            document.getElementById('v-pct').textContent = m.porcentaje_cierre + '%';
 
-            // Determine which slides are active
-            activeSlides = [];
-            var allSlides = getAllSlides();
+            active = [];
+            var sl = allSlides();
 
-            // Slide 1: KPIs — siempre
-            activeSlides.push(allSlides[0]);
+            // Slide 1 always
+            active.push(sl[0]);
 
-            // Slide 2: Charts — si hay data
-            var hasCharts = (cfg.mostrar_grafica_fallas && data.top_fallas && data.top_fallas.labels && data.top_fallas.labels.length > 0) ||
-                            (cfg.mostrar_grafica_categorias && data.categorias && data.categorias.labels && data.categorias.labels.length > 0);
-            if (hasCharts) {
-                activeSlides.push(allSlides[1]);
-                if (data.top_fallas && data.top_fallas.labels && data.top_fallas.labels.length > 0) {
-                    document.getElementById('title-fallas').innerHTML = '<i class="fas fa-chart-bar"></i> ' + (data.top_fallas.titulo || 'Top Fallas');
-                    renderChartFallas(data.top_fallas);
+            // Slide 2: charts
+            var h1 = data.top_fallas && data.top_fallas.labels && data.top_fallas.labels.length > 0;
+            var h2 = data.categorias && data.categorias.labels && data.categorias.labels.length > 0;
+            if (h1 || h2) {
+                active.push(sl[1]);
+                if (h1) {
+                    document.getElementById('title-c1').innerHTML = '<i class="fas fa-users"></i> ' + (data.top_fallas.titulo || 'Por Responsable');
+                    drawBar(data.top_fallas);
                 }
-                if (data.categorias && data.categorias.labels && data.categorias.labels.length > 0) {
-                    document.getElementById('title-categorias').innerHTML = '<i class="fas fa-chart-pie"></i> ' + (data.categorias.titulo || 'Por Categoría');
-                    renderChartCategorias(data.categorias);
+                if (h2) {
+                    document.getElementById('title-c2').innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + (data.categorias.titulo || 'Por Falla');
+                    drawPie(data.categorias);
                 }
             }
 
-            // Slide 3: Table
+            // Slide 3
             if (cfg.mostrar_tabla_recientes && data.tickets_recientes && data.tickets_recientes.length > 0) {
-                activeSlides.push(allSlides[2]);
-                renderTable(data.tickets_recientes);
+                active.push(sl[2]);
+                drawTable(data.tickets_recientes);
             }
 
-            // Slide 4: Clusters
+            // Slide 4
             if (data.clusters && data.clusters.length > 0) {
-                activeSlides.push(allSlides[3]);
-                renderClusters(data.clusters);
+                active.push(sl[3]);
+                drawClusters(data.clusters);
             }
 
-            buildIndicators();
-
-            // Ensure current slide is still valid
-            if (currentIndex >= activeSlides.length) {
-                currentIndex = 0;
-            }
-            goToSlide(currentIndex);
-
-            // Update clock
-            updateClock();
-
-            // Update refresh interval if changed in config
-            var newInterval = cfg.intervalo_refresh * 1000;
-            if (newInterval !== dataRefreshMs) {
-                dataRefreshMs = newInterval;
-            }
+            buildNav();
+            if (idx >= active.length) idx = 0;
+            sl.forEach(function(s) { s.classList.remove('active'); });
+            if (active[idx]) active[idx].classList.add('active');
         }
 
-        function updateClock() {
-            var now = new Date();
-            document.getElementById('shell-time').textContent =
-                now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit' });
-        }
-        setInterval(updateClock, 30000);
-
-        // ===== RENDERERS =====
-        function renderChartFallas(fallas) {
-            var ctx = document.getElementById('chart-fallas');
-            if (chartFallas) chartFallas.destroy();
-            chartFallas = new Chart(ctx, {
+        function drawBar(d) {
+            var ctx = document.getElementById('canvas-resp');
+            if (chartR) chartR.destroy();
+            chartR = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: fallas.labels,
-                    datasets: [{
-                        data: fallas.data,
-                        backgroundColor: '#0070f2',
-                        borderRadius: 3
-                    }]
+                    labels: d.labels,
+                    datasets: [{ data: d.data, backgroundColor: '#0070f2', borderRadius: 0 }]
                 },
                 options: {
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { grid: { color: '#f0f0f0' }, ticks: { color: '#6a6d70' } },
-                        y: { grid: { display: false }, ticks: { color: '#32363a', font: { size: 12, family: "'Artifakt Element', 'Outfit', sans-serif" } } }
+                        x: { grid: { color: '#e0e0e0' }, ticks: { color: '#6a6d70' } },
+                        y: { grid: { display: false }, ticks: { color: '#32363a', font: { size: 13, family: "'Artifakt Element','Outfit',sans-serif" } } }
                     }
                 }
             });
         }
 
-        function renderChartCategorias(cats) {
-            var ctx = document.getElementById('chart-categorias');
-            if (chartCategorias) chartCategorias.destroy();
+        function drawPie(d) {
+            var ctx = document.getElementById('canvas-fallas');
+            if (chartF) chartF.destroy();
             var colors = ['#0070f2','#107e3e','#e9730c','#bb0000','#6a6d70','#1b90ff','#f59e0b','#0e7c86'];
-            chartCategorias = new Chart(ctx, {
+            chartF = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: cats.labels,
-                    datasets: [{
-                        data: cats.data,
-                        backgroundColor: colors.slice(0, cats.labels.length),
-                        borderWidth: 2,
-                        borderColor: '#ffffff'
-                    }]
+                    labels: d.labels,
+                    datasets: [{ data: d.data, backgroundColor: colors.slice(0, d.labels.length), borderWidth: 2, borderColor: '#ffffff' }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: false,
                     plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: { color: '#32363a', font: { size: 12, family: "'Artifakt Element', 'Outfit', sans-serif" }, padding: 14 }
-                        }
+                        legend: { position: 'right', labels: { color: '#32363a', font: { size: 13, family: "'Artifakt Element','Outfit',sans-serif" }, padding: 14 } }
                     }
                 }
             });
         }
 
-        function renderTable(tickets) {
-            var tbody = document.getElementById('tbody-recientes');
-            var html = '';
+        function drawTable(tickets) {
+            var tbody = document.getElementById('tbody-tickets');
+            var h = '';
             tickets.forEach(function(t) {
-                var badge = t.cerrado
-                    ? '<span class="badge-cerrado"><i class="fas fa-check-circle"></i> Cerrado</span>'
-                    : '<span class="badge-abierto"><i class="fas fa-clock"></i> En Gestión</span>';
-                html += '<tr>' +
-                    '<td><strong>' + t.folio + '</strong></td>' +
-                    '<td>' + t.solicitante + '</td>' +
-                    '<td>' + t.falla + '</td>' +
-                    '<td>' + t.ubicacion + '</td>' +
-                    '<td>' + t.fecha + '</td>' +
-                    '<td>' + badge + '</td>' +
-                '</tr>';
+                var b = t.cerrado ? '<span class="badge-closed">Cerrado</span>' : '<span class="badge-open">En Gestión</span>';
+                h += '<tr><td><strong>' + t.folio + '</strong></td><td>' + t.solicitante + '</td><td>' + t.falla + '</td><td>' + t.ubicacion + '</td><td>' + t.fecha + '</td><td>' + b + '</td></tr>';
             });
-            tbody.innerHTML = html;
+            tbody.innerHTML = h;
         }
 
-        function renderClusters(clusters) {
-            var grid = document.getElementById('clusters-grid');
-            var html = '';
+        function drawClusters(clusters) {
+            var g = document.getElementById('clusters-grid');
+            var h = '';
             clusters.forEach(function(c) {
-                html += '<div class="cluster-card">' +
-                    '<div class="cluster-header">' +
-                        '<span class="cluster-id">' + c.correlativo + '</span>' +
-                        '<span class="cluster-date">' + c.fecha + '</span>' +
-                    '</div>' +
-                    '<div class="cluster-desc">' + c.descripcion + '</div>' +
-                    '<div class="cluster-stats">' +
-                        '<span><i class="fas fa-ticket-alt"></i> ' + c.num_tickets + ' tickets</span>' +
-                        '<span style="color:var(--fiori-success)"><i class="fas fa-check-circle"></i> ' + c.num_cerrados + '</span>' +
-                        '<span style="color:var(--fiori-warning)"><i class="fas fa-clock"></i> ' + c.num_abiertos + '</span>' +
-                    '</div>' +
-                    '<div class="progress-bar"><div class="fill" style="width:' + c.porcentaje + '%"></div></div>' +
-                '</div>';
+                h += '<div class="cluster-card"><div class="cluster-hdr"><span class="cid">' + c.correlativo + '</span><span class="cdate">' + c.fecha + '</span></div><div class="cluster-desc">' + c.descripcion + '</div><div class="cluster-stats"><span><i class="fas fa-ticket-alt"></i> ' + c.num_tickets + '</span><span style="color:#107e3e"><i class="fas fa-check-circle"></i> ' + c.num_cerrados + '</span><span style="color:#e9730c"><i class="fas fa-clock"></i> ' + c.num_abiertos + '</span></div><div class="cluster-progress"><div class="fill" style="width:' + c.porcentaje + '%"></div></div></div>';
             });
-            grid.innerHTML = html;
+            g.innerHTML = h;
         }
 
-        // ===== INIT =====
         fetchData();
-        updateClock();
-
     })();
     </script>
 </body>
