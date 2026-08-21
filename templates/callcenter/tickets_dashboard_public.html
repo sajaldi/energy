@@ -297,9 +297,43 @@
             background: var(--fiori-success);
             transition: width 0.6s;
         }
+
+        /* Toast notification */
+        .toast-container {
+            position: fixed;
+            top: 3.5rem;
+            right: 2rem;
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .toast {
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            border-left: 4px solid var(--fiori-primary);
+            padding: 1rem 1.5rem;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.85rem;
+            animation: toastIn 0.4s ease;
+            max-width: 400px;
+        }
+        .toast.fade-out { animation: toastOut 0.4s ease forwards; }
+        .toast i { font-size: 1.25rem; color: var(--fiori-primary); }
+        .toast .toast-text { flex: 1; }
+        .toast .toast-title { font-weight: 700; font-size: 0.8rem; margin-bottom: 0.15rem; }
+        .toast .toast-body { font-size: 0.78rem; color: var(--fiori-text-secondary); }
+        @keyframes toastIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(100%); } }
     </style>
 </head>
 <body>
+    <!-- Toast container -->
+    <div class="toast-container" id="toast-container"></div>
+
     <!-- Shell Bar -->
     <div class="shell-bar">
         <span class="shell-bar-title" id="shell-title">{{ config.titulo_dashboard }}</span>
@@ -384,6 +418,7 @@
         var active = [];
         var idx = 0;
         var pStart = Date.now();
+        var prevTotal = null;
 
         function allSlides() { return Array.from(document.querySelectorAll('.slide')); }
 
@@ -434,6 +469,18 @@
 
         function fmt(n) { return n.toLocaleString('es-HN'); }
 
+        function showToast(title, body) {
+            var container = document.getElementById('toast-container');
+            var toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = '<i class="fas fa-bell"></i><div class="toast-text"><div class="toast-title">' + title + '</div><div class="toast-body">' + body + '</div></div>';
+            container.appendChild(toast);
+            setTimeout(function() {
+                toast.classList.add('fade-out');
+                setTimeout(function() { toast.remove(); }, 400);
+            }, 8000);
+        }
+
         function fetchData() {
             fetch(API).then(function(r) { return r.json(); }).then(render).catch(function(e) { console.error(e); });
         }
@@ -441,6 +488,13 @@
         function render(data) {
             var cfg = data.config, m = data.metricas;
             document.getElementById('shell-title').textContent = cfg.titulo;
+
+            // Detectar nuevos tickets
+            if (prevTotal !== null && m.total > prevTotal) {
+                var nuevos = m.total - prevTotal;
+                showToast('Nuevo Ticket', nuevos === 1 ? 'Se recibió 1 nuevo ticket' : 'Se recibieron ' + nuevos + ' nuevos tickets');
+            }
+            prevTotal = m.total;
 
             document.getElementById('v-total').textContent = fmt(m.total);
             document.getElementById('v-cerrados').textContent = fmt(m.cerrados);
