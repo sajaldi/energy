@@ -182,6 +182,78 @@
             font-size: 0.65rem; font-weight: 700;
             background: #991b1b; color: #fff;
         }
+
+        /* Kanban */
+        .kanban-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.5rem;
+            flex: 1;
+            min-height: 0;
+        }
+        .kanban-col {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .kanban-header {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            border-bottom: 3px solid;
+            background: var(--fiori-card-bg);
+            border-left: 1px solid var(--fiori-border);
+            border-right: 1px solid var(--fiori-border);
+            border-top: 1px solid var(--fiori-border);
+        }
+        .kanban-header.open { color: var(--fiori-error); border-bottom-color: var(--fiori-error); }
+        .kanban-header.process { color: var(--fiori-warning); border-bottom-color: var(--fiori-warning); }
+        .kanban-header.closed { color: var(--fiori-success); border-bottom-color: var(--fiori-success); }
+        .kanban-count {
+            margin-left: auto;
+            background: #f0f4f8;
+            padding: 0.15rem 0.5rem;
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: var(--fiori-text);
+        }
+        .kanban-cards {
+            flex: 1;
+            overflow-y: auto;
+            background: #f7f8fa;
+            border: 1px solid var(--fiori-border);
+            border-top: none;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .k-card {
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            padding: 0.75rem 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .k-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.35rem;
+        }
+        .k-card-id { font-weight: 700; font-size: 0.78rem; color: var(--fiori-primary); }
+        .k-card-prio { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; padding: 0.1rem 0.4rem; }
+        .k-card-prio.BAJA { background: #f1f5f9; color: #475569; }
+        .k-card-prio.MEDIA { background: #eff6ff; color: #1d4ed8; }
+        .k-card-prio.ALTA { background: #fef3c7; color: #92400e; }
+        .k-card-prio.CRITICA { background: #fee2e2; color: #991b1b; }
+        .k-card-desc { font-size: 0.76rem; color: var(--fiori-text); margin-bottom: 0.35rem; line-height: 1.3; }
+        .k-card-meta { font-size: 0.68rem; color: var(--fiori-text-secondary); display: flex; gap: 0.75rem; }
+        .k-card-parado { display: inline-block; background: #991b1b; color: #fff; font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.35rem; margin-left: 0.4rem; }
     </style>
 </head>
 <body>
@@ -195,8 +267,27 @@
     </div>
     <div class="progress-track"><div class="progress-bar" id="pbar"></div></div>
 
-    <!-- Slide 1: KPIs + Prioridades -->
-    <div class="slide active" data-slide="kpis">
+    <!-- Slide 1: Kanban -->
+    <div class="slide active" data-slide="kanban">
+        <div class="page-title">Tablero de Avisos</div>
+        <div class="kanban-row" id="kanban-row">
+            <div class="kanban-col">
+                <div class="kanban-header open"><i class="fas fa-exclamation-circle"></i> Abiertos <span class="kanban-count" id="k-abierto-count">0</span></div>
+                <div class="kanban-cards" id="k-abierto"></div>
+            </div>
+            <div class="kanban-col">
+                <div class="kanban-header process"><i class="fas fa-wrench"></i> En Proceso <span class="kanban-count" id="k-proceso-count">0</span></div>
+                <div class="kanban-cards" id="k-proceso"></div>
+            </div>
+            <div class="kanban-col">
+                <div class="kanban-header closed"><i class="fas fa-check-double"></i> Cerrados <span class="kanban-count" id="k-cerrado-count">0</span></div>
+                <div class="kanban-cards" id="k-cerrado"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 2: KPIs + Prioridades -->
+    <div class="slide" data-slide="kpis">
         <div class="page-title">Resumen de Avisos</div>
         <div class="kpi-row">
             <div class="kpi-box open">
@@ -244,7 +335,7 @@
         </div>
     </div>
 
-    <!-- Slide 2: Tabla de avisos abiertos -->
+    <!-- Slide 3: Tabla de avisos abiertos -->
     <div class="slide" data-slide="table">
         <div class="page-title">Avisos Pendientes</div>
         <div class="table-box">
@@ -340,12 +431,31 @@
             document.getElementById('v-alta').textContent = data.prioridades.ALTA;
             document.getElementById('v-critica').textContent = data.prioridades.CRITICA;
 
+            // Kanban
+            var abiertos = data.avisos.filter(function(a) { return a.estado === 'ABIERTO'; });
+            var proceso = data.avisos.filter(function(a) { return a.estado === 'PROCESO'; });
+            // Para cerrados tomamos los últimos del total
+            var cerradosCount = data.estados.CERRADO;
+
+            document.getElementById('k-abierto-count').textContent = abiertos.length;
+            document.getElementById('k-proceso-count').textContent = proceso.length;
+            document.getElementById('k-cerrado-count').textContent = cerradosCount;
+
+            document.getElementById('k-abierto').innerHTML = renderKanbanCards(abiertos.slice(0, 8));
+            document.getElementById('k-proceso').innerHTML = renderKanbanCards(proceso.slice(0, 8));
+            // Cerrados: mostrar mensaje simple
+            document.getElementById('k-cerrado').innerHTML = '<div style="text-align:center; padding:2rem; color:var(--fiori-text-secondary); font-size:0.82rem;"><i class="fas fa-check-circle" style="font-size:2rem; color:var(--fiori-success); display:block; margin-bottom:0.5rem;"></i>' + cerradosCount + ' avisos cerrados</div>';
+
             // Table
             var sl = allSlides();
-            active = [sl[0]];
+            active = [sl[0]]; // Kanban first
 
+            // Slide 2: KPIs always
+            active.push(sl[1]);
+
+            // Slide 3: Table
             if (data.avisos && data.avisos.length > 0) {
-                active.push(sl[1]);
+                active.push(sl[2]);
                 var tbody = document.getElementById('tbody-avisos');
                 var html = '';
                 data.avisos.forEach(function(a) {
@@ -369,6 +479,20 @@
             if (active[idx]) active[idx].classList.add('active');
 
             lastUpdate = data.last_update;
+        }
+
+        function renderKanbanCards(avisos) {
+            if (!avisos.length) return '<div style="text-align:center; padding:1.5rem; color:var(--fiori-text-secondary); font-size:0.78rem;">Sin avisos</div>';
+            var html = '';
+            avisos.forEach(function(a) {
+                var parado = a.equipo_parado ? '<span class="k-card-parado">PARADO</span>' : '';
+                html += '<div class="k-card">' +
+                    '<div class="k-card-top"><span class="k-card-id">' + a.titulo + parado + '</span><span class="k-card-prio ' + a.prioridad + '">' + a.prioridad + '</span></div>' +
+                    '<div class="k-card-desc">' + a.descripcion + '</div>' +
+                    '<div class="k-card-meta"><span><i class="fas fa-map-marker-alt"></i> ' + a.ubicacion + '</span><span><i class="fas fa-user"></i> ' + a.responsable + '</span></div>' +
+                '</div>';
+            });
+            return html;
         }
 
         fetchData();
