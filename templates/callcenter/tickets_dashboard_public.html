@@ -348,7 +348,18 @@
         </div>
     </div>
 
-    <!-- Slide 2: Table -->
+    <!-- Slide 2: Tickets Abiertos -->
+    <div class="slide" data-slide="abiertos">
+        <div class="page-title">Tickets en Gestión (Abiertos)</div>
+        <div class="table-box">
+            <table class="fiori-table">
+                <thead><tr><th>Folio</th><th>Solicitante</th><th>Descripción</th><th>Falla</th><th>Ubicación</th><th>Fecha</th></tr></thead>
+                <tbody id="tbody-abiertos"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Slide 3: Table -->
     <div class="slide" data-slide="table">
         <div class="page-title">Tickets Recientes</div>
         <div class="table-box">
@@ -359,7 +370,7 @@
         </div>
     </div>
 
-    <!-- Slide 3: Clusters -->
+    <!-- Slide 4: Clusters -->
     <div class="slide" data-slide="clusters">
         <div class="page-title">Clusters Activos</div>
         <div class="clusters-grid" id="clusters-grid"></div>
@@ -463,15 +474,21 @@
             // Slide 1 always
             active.push(sl[0]);
 
-            // Slide 2: Table
-            if (cfg.mostrar_tabla_recientes && data.tickets_recientes && data.tickets_recientes.length > 0) {
+            // Slide 2: Tickets Abiertos
+            if (data.tickets_abiertos_list && data.tickets_abiertos_list.length > 0) {
                 active.push(sl[1]);
+                drawAbiertos(data.tickets_abiertos_list);
+            }
+
+            // Slide 3: Table (recientes)
+            if (cfg.mostrar_tabla_recientes && data.tickets_recientes && data.tickets_recientes.length > 0) {
+                active.push(sl[2]);
                 drawTable(data.tickets_recientes);
             }
 
-            // Slide 3: Clusters
+            // Slide 4: Clusters
             if (data.clusters && data.clusters.length > 0) {
-                active.push(sl[2]);
+                active.push(sl[3]);
                 drawClusters(data.clusters);
             }
 
@@ -479,6 +496,15 @@
             if (idx >= active.length) idx = 0;
             sl.forEach(function(s) { s.classList.remove('active'); });
             if (active[idx]) active[idx].classList.add('active');
+        }
+
+        function drawAbiertos(tickets) {
+            var tbody = document.getElementById('tbody-abiertos');
+            var h = '';
+            tickets.forEach(function(t) {
+                h += '<tr><td><strong>' + t.folio + '</strong></td><td>' + t.solicitante + '</td><td>' + (t.descripcion || '-') + '</td><td>' + t.falla + '</td><td>' + t.ubicacion + '</td><td>' + t.fecha + '</td></tr>';
+            });
+            tbody.innerHTML = h;
         }
 
         function drawTable(tickets) {

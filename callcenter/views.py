@@ -4182,6 +4182,21 @@ def tickets_dashboard_api(request):
                 'cerrado': bool(t.fecha_cierre or t.cierre_enviado),
             })
     
+    # Tickets abiertos (sin cerrar)
+    abiertos_qs = ticket_qs.filter(
+        fecha_cierre__isnull=True, cierre_enviado=False
+    ).select_related('falla_reportada', 'ubicacion').order_by('-fecha_solicitud')[:20]
+    data['tickets_abiertos_list'] = []
+    for t in abiertos_qs:
+        data['tickets_abiertos_list'].append({
+            'folio': t.folio or str(t.id_solicitud),
+            'solicitante': t.solicitante or '-',
+            'descripcion': (t.solicitud_descripcion or t.falla_descripcion or '-')[:80],
+            'falla': t.falla_reportada.nombre if t.falla_reportada else (t.falla_descripcion or '-')[:40],
+            'ubicacion': str(t.ubicacion) if t.ubicacion else (t.area or '-'),
+            'fecha': t.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if t.fecha_solicitud else '-',
+        })
+    
     return JsonResponse(data)
 
 
