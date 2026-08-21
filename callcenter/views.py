@@ -4187,18 +4187,29 @@ def tickets_dashboard_api(request):
         fecha_cierre__isnull=True, cierre_enviado=False
     ).select_related('falla_reportada', 'ubicacion').order_by('-fecha_solicitud')[:20]
 
-    # Tickets por responsable
-    por_responsable = ticket_qs.exclude(
-        responsable__isnull=True
-    ).exclude(responsable='').values('responsable').annotate(
+    # Tickets por técnico asignado (usuario_responsable)
+    por_responsable = ticket_qs.filter(
+        usuario_responsable__isnull=False
+    ).values(
+        'usuario_responsable__first_name',
+        'usuario_responsable__last_name',
+        'usuario_responsable__username'
+    ).annotate(
         total=Count('id'),
         abiertos=Count('id', filter=Q(fecha_cierre__isnull=True) & Q(cierre_enviado=False)),
         cerrados=Count('id', filter=Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)),
     ).order_by('-total')[:15]
-    data['por_responsable'] = [
-        {'nombre': r['responsable'], 'total': r['total'], 'abiertos': r['abiertos'], 'cerrados': r['cerrados']}
-        for r in por_responsable
-    ]
+    data['por_responsable'] = []
+    for r in por_responsable:
+        nombre = f"{r['usuario_responsable__first_name']} {r['usuario_responsable__last_name']}".strip()
+        if not nombre:
+            nombre = r['usuario_responsable__username']
+        data['por_responsable'].append({
+            'nombre': nombre,
+            'total': r['total'],
+            'abiertos': r['abiertos'],
+            'cerrados': r['cerrados'],
+        })
 
     data['tickets_abiertos_list'] = []
     for t in abiertos_qs:
