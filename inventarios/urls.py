@@ -102,4 +102,8 @@ urlpatterns = [
     path('api/material/<int:material_id>/vincular-activo/', views.api_vincular_material_activo, name='api_vincular_material_activo'),
     path('api/activos/search/', views.api_search_activos, name='api_search_activos'),
     path('api/marcas/search/', views.api_search_marcas, name='api_search_marcas'),
+
+    # Ajuste Masivo (solo Auditoria)
+    path('ajuste-masivo/', views.ajuste_masivo_view, name='ajuste_masivo'),
+    path('api/ajuste-masivo/procesar/', views.api_ajuste_masivo_procesar, name='api_ajuste_masivo_procesar'),
 ]

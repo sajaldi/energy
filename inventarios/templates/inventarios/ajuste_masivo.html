@@ -1,0 +1,638 @@
+{% extends "inventarios/base_inventarios.html" %}
+
+{% block title %}Ajuste Masivo de Inventario{% endblock %}
+
+{% block extrahead %}
+<style>
+    .ajuste-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px;
+    }
+
+    .ajuste-header {
+        margin-bottom: 28px;
+    }
+
+    .ajuste-header h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 6px;
+    }
+
+    .ajuste-header p {
+        font-size: 0.88rem;
+        color: var(--text-muted);
+    }
+
+    .ajuste-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 28px;
+        box-shadow: var(--shadow);
+        margin-bottom: 24px;
+    }
+
+    .ajuste-card h2 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ajuste-card h2 ion-icon {
+        font-size: 1.2rem;
+        color: var(--primary);
+    }
+
+    .form-group {
+        margin-bottom: 18px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 6px;
+    }
+
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.88rem;
+        color: var(--text);
+        background: #fff;
+        transition: border-color 0.15s;
+    }
+
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.08);
+    }
+
+    .form-group textarea {
+        min-height: 70px;
+        resize: vertical;
+    }
+
+    .upload-zone {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 40px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+        border-color: var(--primary);
+        background: var(--primary-light);
+    }
+
+    .upload-zone ion-icon {
+        font-size: 2.5rem;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+    }
+
+    .upload-zone p {
+        font-size: 0.88rem;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+    }
+
+    .upload-zone .upload-hint {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        opacity: 0.7;
+    }
+
+    .upload-zone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .file-selected {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 6px;
+        margin-top: 12px;
+        font-size: 0.85rem;
+        color: #166534;
+    }
+
+    .file-selected ion-icon {
+        font-size: 1.2rem;
+    }
+
+    .btn-procesar {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 28px;
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .btn-procesar:hover {
+        background: var(--primary-hover);
+        transform: translateY(-1px);
+    }
+
+    .btn-procesar:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-procesar ion-icon {
+        font-size: 1.1rem;
+    }
+
+    /* Formato esperado */
+    .formato-info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 6px;
+        padding: 16px 20px;
+        margin-top: 16px;
+    }
+
+    .formato-info h4 {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #1d4ed8;
+        margin-bottom: 8px;
+    }
+
+    .formato-info pre {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 0.78rem;
+        background: #fff;
+        border: 1px solid #dbeafe;
+        border-radius: 4px;
+        padding: 10px 14px;
+        overflow-x: auto;
+        color: #334155;
+    }
+
+    .formato-info p {
+        font-size: 0.78rem;
+        color: #475569;
+        margin-top: 8px;
+    }
+
+    /* Resultados */
+    .resultado-container {
+        display: none;
+    }
+
+    .resultado-container.visible {
+        display: block;
+    }
+
+    .resultado-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        padding: 16px;
+        border-radius: 6px;
+        text-align: center;
+    }
+
+    .stat-card.procesados {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+    }
+
+    .stat-card.ajustados {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+
+    .stat-card.errores {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+
+    .stat-card.sin-cambio {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+
+    .stat-card .stat-num {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .stat-card.procesados .stat-num { color: #1d4ed8; }
+    .stat-card.ajustados .stat-num { color: #166534; }
+    .stat-card.errores .stat-num { color: #991b1b; }
+    .stat-card.sin-cambio .stat-num { color: #475569; }
+
+    .stat-card .stat-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+
+    .log-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+    }
+
+    .log-table th {
+        background: #f8fafc;
+        padding: 10px 12px;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text);
+        border-bottom: 2px solid var(--border);
+    }
+
+    .log-table td {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+    }
+
+    .log-table tr:hover td {
+        background: #f8fafc;
+    }
+
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+
+    .badge-status.ajustado { background: #dcfce7; color: #166534; }
+    .badge-status.error { background: #fee2e2; color: #991b1b; }
+    .badge-status.sin_cambio { background: #f1f5f9; color: #475569; }
+
+    /* Historial */
+    .historial-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.82rem;
+    }
+
+    .historial-item:last-child {
+        border-bottom: none;
+    }
+
+    .historial-item .hi-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .historial-item .hi-fecha {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+    }
+
+    .historial-item .hi-stats {
+        display: flex;
+        gap: 10px;
+        font-size: 0.75rem;
+    }
+
+    .spinner {
+        display: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #fff;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .btn-procesar.loading .spinner { display: inline-block; }
+    .btn-procesar.loading .btn-text { display: none; }
+
+    .btn-descargar-plantilla {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--text);
+        cursor: pointer;
+        transition: all 0.15s;
+        text-decoration: none;
+    }
+
+    .btn-descargar-plantilla:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: var(--primary-light);
+    }
+</style>
+{% endblock %}
+
+{% block inventarios_content %}
+<div class="ajuste-container">
+    <div class="ajuste-header">
+        <h1><ion-icon name="document-text-outline"></ion-icon> Ajuste Masivo de Inventario</h1>
+        <p>Importe un archivo CSV con los SKU y las cantidades reales (conteo físico) para ajustar el inventario automáticamente.</p>
+    </div>
+
+    <!-- Formulario de Carga -->
+    <div class="ajuste-card">
+        <h2><ion-icon name="cloud-upload-outline"></ion-icon> Cargar Archivo de Ajuste</h2>
+        
+        <form id="formAjusteMasivo" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="ubicacion_id">Ubicación / Bodega *</label>
+                <select id="ubicacion_id" name="ubicacion_id" required>
+                    <option value="">— Seleccionar ubicación —</option>
+                    {% for u in ubicaciones %}
+                    <option value="{{ u.id }}">{{ u.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Archivo CSV *</label>
+                <div class="upload-zone" id="uploadZone">
+                    <input type="file" id="archivo_csv" name="archivo_csv" accept=".csv,.txt" required>
+                    <ion-icon name="cloud-upload-outline"></ion-icon>
+                    <p>Arrastra tu archivo CSV aquí o haz clic para seleccionar</p>
+                    <span class="upload-hint">Formatos aceptados: .csv, .txt</span>
+                </div>
+                <div class="file-selected" id="fileSelected" style="display:none;">
+                    <ion-icon name="document-outline"></ion-icon>
+                    <span id="fileName"></span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="comentarios">Comentarios (opcional)</label>
+                <textarea id="comentarios" name="comentarios" placeholder="Motivo del ajuste, referencia de conteo físico, etc."></textarea>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <button type="submit" class="btn-procesar" id="btnProcesar" disabled>
+                    <span class="btn-text"><ion-icon name="checkmark-circle-outline"></ion-icon> Procesar Ajuste</span>
+                    <span class="spinner"></span>
+                </button>
+                <button type="button" class="btn-descargar-plantilla" onclick="descargarPlantilla()">
+                    <ion-icon name="download-outline"></ion-icon> Descargar Plantilla
+                </button>
+            </div>
+        </form>
+
+        <div class="formato-info">
+            <h4><ion-icon name="information-circle-outline"></ion-icon> Formato Esperado del CSV</h4>
+            <pre>SKU,Cantidad
+MAT-001,25
+MAT-002,10.5
+MAT-003,0</pre>
+            <p><strong>Columna 1:</strong> SKU del material (código exacto). <strong>Columna 2:</strong> Cantidad real actual (conteo físico). Las cantidades ingresadas reemplazarán el stock actual en la ubicación seleccionada. Si la cantidad es 0, se ajustará el stock a cero.</p>
+        </div>
+    </div>
+
+    <!-- Resultados -->
+    <div class="ajuste-card resultado-container" id="resultadoContainer">
+        <h2><ion-icon name="analytics-outline"></ion-icon> Resultado del Ajuste</h2>
+        
+        <div class="resultado-stats">
+            <div class="stat-card procesados">
+                <div class="stat-num" id="statProcesados">0</div>
+                <div class="stat-label">Procesados</div>
+            </div>
+            <div class="stat-card ajustados">
+                <div class="stat-num" id="statAjustados">0</div>
+                <div class="stat-label">Ajustados</div>
+            </div>
+            <div class="stat-card sin-cambio">
+                <div class="stat-num" id="statSinCambio">0</div>
+                <div class="stat-label">Sin Cambio</div>
+            </div>
+            <div class="stat-card errores">
+                <div class="stat-num" id="statErrores">0</div>
+                <div class="stat-label">Errores</div>
+            </div>
+        </div>
+
+        <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px;">
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>SKU</th>
+                        <th>Material</th>
+                        <th>Stock Sistema</th>
+                        <th>Conteo Físico</th>
+                        <th>Diferencia</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Historial -->
+    {% if historial %}
+    <div class="ajuste-card">
+        <h2><ion-icon name="time-outline"></ion-icon> Historial de Ajustes Recientes</h2>
+        {% for h in historial %}
+        <div class="historial-item">
+            <div class="hi-info">
+                <strong>Ajuste #{{ h.id }} — {{ h.ubicacion.nombre }}</strong>
+                <span class="hi-fecha">{{ h.fecha|date:"d/m/Y H:i" }}</span>
+            </div>
+            <div class="hi-stats">
+                <span style="color: #1d4ed8;">{{ h.total_procesados }} procesados</span>
+                <span style="color: #166534;">{{ h.total_ajustados }} ajustados</span>
+                <span style="color: #991b1b;">{{ h.total_errores }} errores</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const form = document.getElementById('formAjusteMasivo');
+    const fileInput = document.getElementById('archivo_csv');
+    const uploadZone = document.getElementById('uploadZone');
+    const fileSelected = document.getElementById('fileSelected');
+    const fileName = document.getElementById('fileName');
+    const btnProcesar = document.getElementById('btnProcesar');
+    const resultadoContainer = document.getElementById('resultadoContainer');
+
+    // File input handling
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            fileName.textContent = this.files[0].name;
+            fileSelected.style.display = 'flex';
+            uploadZone.style.display = 'none';
+            checkFormReady();
+        }
+    });
+
+    // Drag & drop
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            fileName.textContent = e.dataTransfer.files[0].name;
+            fileSelected.style.display = 'flex';
+            uploadZone.style.display = 'none';
+            checkFormReady();
+        }
+    });
+
+    // Reset file
+    fileSelected.addEventListener('click', () => {
+        fileInput.value = '';
+        fileSelected.style.display = 'none';
+        uploadZone.style.display = '';
+        checkFormReady();
+    });
+
+    function checkFormReady() {
+        const ubicacion = document.getElementById('ubicacion_id').value;
+        const hasFile = fileInput.files && fileInput.files.length > 0;
+        btnProcesar.disabled = !(ubicacion && hasFile);
+    }
+
+    document.getElementById('ubicacion_id').addEventListener('change', checkFormReady);
+
+    // Form submit
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        btnProcesar.classList.add('loading');
+        btnProcesar.disabled = true;
+
+        const formData = new FormData(form);
+
+        try {
+            const response = await fetch("{% url 'inventarios:api_ajuste_masivo_procesar' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                mostrarResultados(data);
+            } else {
+                alert(data.message || 'Error al procesar el ajuste.');
+            }
+        } catch (err) {
+            alert('Error de conexión: ' + err.message);
+        } finally {
+            btnProcesar.classList.remove('loading');
+            btnProcesar.disabled = false;
+        }
+    });
+
+    function mostrarResultados(data) {
+        document.getElementById('statProcesados').textContent = data.total_procesados;
+        document.getElementById('statAjustados').textContent = data.total_ajustados;
+        document.getElementById('statErrores').textContent = data.total_errores;
+        
+        const sinCambio = data.log.filter(l => l.status === 'sin_cambio').length;
+        document.getElementById('statSinCambio').textContent = sinCambio;
+
+        const tbody = document.getElementById('logTableBody');
+        tbody.innerHTML = '';
+
+        data.log.forEach(item => {
+            const tr = document.createElement('tr');
+            const badgeClass = item.status === 'ajustado' ? 'ajustado' : (item.status === 'error' ? 'error' : 'sin_cambio');
+            const statusLabel = item.status === 'ajustado' ? 'Ajustado' : (item.status === 'error' ? 'Error' : 'Sin cambio');
+            
+            tr.innerHTML = `
+                <td>${item.fila}</td>
+                <td><strong>${item.sku}</strong></td>
+                <td>${item.material || '-'}</td>
+                <td>${item.stock_sistema !== undefined ? item.stock_sistema : '-'}</td>
+                <td>${item.cantidad_conteo !== undefined ? item.cantidad_conteo : '-'}</td>
+                <td>${item.diferencia !== undefined ? (item.diferencia > 0 ? '+' : '') + item.diferencia : '-'}</td>
+                <td><span class="badge-status ${badgeClass}">${statusLabel}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        resultadoContainer.classList.add('visible');
+        resultadoContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Descargar plantilla
+    window.descargarPlantilla = function() {
+        const csv = 'SKU,Cantidad\nMAT-001,25\nMAT-002,10\n';
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'plantilla_ajuste_masivo.csv';
+        link.click();
+    };
+})();
+</script>
+{% endblock %}

@@ -3977,3 +3977,224 @@ def api_search_marcas(request):
     } for m in marcas]
 
     return JsonResponse({'results': results})
+
+
+@login_required
+def ajuste_masivo_view(request):
+    """
+    Vista para importar un archivo CSV con SKU y cantidades actuales
+    para realizar un ajuste masivo de inventario.
+    Solo accesible para usuarios del grupo Auditoria o superusuarios.
+    """
+    from django.db.models import Q
+    from .models import AjusteMasivoInventario
+
+    # Verificar pertenencia al grupo Auditoria
+    es_auditoria = request.user.groups.filter(name='Auditoria').exists() or request.user.is_superuser
+    if not es_auditoria:
+        messages.error(request, 'No tienes permiso para acceder a esta sección. Solo el perfil Auditoría puede realizar ajustes masivos.')
+        return redirect('inventarios:dashboard')
+
+    ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
+    historial = AjusteMasivoInventario.objects.filter(usuario=request.user).order_by('-fecha')[:20]
+
+    context = {
+        'ubicaciones': ubicaciones,
+        'historial': historial,
+        'active_tab': 'ajuste_masivo',
+        'title': 'Ajuste Masivo de Inventario',
+        'es_auditoria': es_auditoria,
+    }
+    return render(request, 'inventarios/ajuste_masivo.html', context)
+
+
+@login_required
+@csrf_exempt
+def api_ajuste_masivo_procesar(request):
+    """
+    Procesa un archivo CSV con SKU y cantidades para ajustar el inventario.
+    Formato esperado: SKU, Cantidad
+    La cantidad es la cantidad ACTUAL (conteo físico), se calcula la diferencia.
+    """
+    import csv
+    import io
+    from .models import AjusteMasivoInventario
+
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    # Verificar pertenencia al grupo Auditoria
+    es_auditoria = request.user.groups.filter(name='Auditoria').exists() or request.user.is_superuser
+    if not es_auditoria:
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+
+    ubicacion_id = request.POST.get('ubicacion_id')
+    archivo = request.FILES.get('archivo_csv')
+    comentarios = request.POST.get('comentarios', '')
+
+    if not ubicacion_id:
+        return JsonResponse({'status': 'error', 'message': 'Debe seleccionar una ubicación/bodega.'}, status=400)
+
+    if not archivo:
+        return JsonResponse({'status': 'error', 'message': 'Debe cargar un archivo CSV.'}, status=400)
+
+    try:
+        ubicacion = Ubicacion.objects.get(pk=ubicacion_id)
+    except Ubicacion.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Ubicación no encontrada.'}, status=404)
+
+    # Leer el CSV
+    try:
+        contenido = archivo.read().decode('utf-8-sig')
+        reader = csv.reader(io.StringIO(contenido))
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Error al leer el archivo: {str(e)}'}, status=400)
+
+    # Crear registro del ajuste masivo
+    ajuste = AjusteMasivoInventario.objects.create(
+        usuario=request.user,
+        ubicacion=ubicacion,
+        archivo_csv=archivo,
+        comentarios=comentarios,
+    )
+
+    log_resultado = []
+    total_procesados = 0
+    total_ajustados = 0
+    total_errores = 0
+
+    with transaction.atomic():
+        for row_num, row in enumerate(reader, start=1):
+            # Saltar header si existe
+            if row_num == 1:
+                # Detectar si la primera fila es un header
+                if row and row[0].strip().upper() in ['SKU', 'CODIGO', 'CÓDIGO', 'COD']:
+                    continue
+
+            if not row or len(row) < 2:
+                log_resultado.append({
+                    'fila': row_num,
+                    'sku': '',
+                    'status': 'error',
+                    'mensaje': 'Fila vacía o incompleta'
+                })
+                total_errores += 1
+                continue
+
+            sku = row[0].strip()
+            try:
+                cantidad_actual = Decimal(row[1].strip().replace(',', '.'))
+            except (InvalidOperation, ValueError):
+                log_resultado.append({
+                    'fila': row_num,
+                    'sku': sku,
+                    'status': 'error',
+                    'mensaje': f'Cantidad inválida: "{row[1].strip()}"'
+                })
+                total_errores += 1
+                continue
+
+            if cantidad_actual < 0:
+                log_resultado.append({
+                    'fila': row_num,
+                    'sku': sku,
+                    'status': 'error',
+                    'mensaje': 'La cantidad no puede ser negativa'
+                })
+                total_errores += 1
+                continue
+
+            # Buscar material por SKU
+            material = Material.objects.filter(sku=sku).first()
+            if not material:
+                log_resultado.append({
+                    'fila': row_num,
+                    'sku': sku,
+                    'status': 'error',
+                    'mensaje': 'Material no encontrado'
+                })
+                total_errores += 1
+                continue
+
+            total_procesados += 1
+
+            # Obtener stock actual en la ubicación
+            stock_record = StockRecord.objects.filter(
+                material=material,
+                ubicacion=ubicacion,
+                lote=None,
+                ubicacion_especifica=''
+            ).first()
+
+            stock_sistema = stock_record.cantidad if stock_record else Decimal('0.00')
+            diferencia = cantidad_actual - stock_sistema
+
+            if diferencia == 0:
+                log_resultado.append({
+                    'fila': row_num,
+                    'sku': sku,
+                    'material': material.nombre,
+                    'status': 'sin_cambio',
+                    'stock_sistema': float(stock_sistema),
+                    'cantidad_conteo': float(cantidad_actual),
+                    'diferencia': 0,
+                    'mensaje': 'Sin diferencia, no se ajustó'
+                })
+                continue
+
+            # Crear movimiento de ajuste
+            if diferencia > 0:
+                # Hay más material del que dice el sistema → entrada de ajuste
+                MovimientoInventario.objects.create(
+                    material=material,
+                    tipo='AJUSTE',
+                    cantidad=abs(diferencia),
+                    ubicacion_destino=ubicacion,
+                    usuario=request.user,
+                    estado='APROBADO',
+                    aprobado_por=request.user,
+                    fecha_aprobacion=timezone.now(),
+                    comentarios=f'Ajuste masivo #{ajuste.id} - Conteo físico: {cantidad_actual}, Sistema: {stock_sistema}'
+                )
+            else:
+                # Hay menos material del que dice el sistema → salida de ajuste
+                MovimientoInventario.objects.create(
+                    material=material,
+                    tipo='AJUSTE',
+                    cantidad=abs(diferencia),
+                    ubicacion_origen=ubicacion,
+                    usuario=request.user,
+                    estado='APROBADO',
+                    aprobado_por=request.user,
+                    fecha_aprobacion=timezone.now(),
+                    comentarios=f'Ajuste masivo #{ajuste.id} - Conteo físico: {cantidad_actual}, Sistema: {stock_sistema}'
+                )
+
+            total_ajustados += 1
+            log_resultado.append({
+                'fila': row_num,
+                'sku': sku,
+                'material': material.nombre,
+                'status': 'ajustado',
+                'stock_sistema': float(stock_sistema),
+                'cantidad_conteo': float(cantidad_actual),
+                'diferencia': float(diferencia),
+                'mensaje': f'Ajustado: {stock_sistema} → {cantidad_actual} (dif: {"+" if diferencia > 0 else ""}{diferencia})'
+            })
+
+    # Actualizar registro del ajuste masivo
+    ajuste.total_procesados = total_procesados
+    ajuste.total_ajustados = total_ajustados
+    ajuste.total_errores = total_errores
+    ajuste.log_resultado = log_resultado
+    ajuste.save()
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Ajuste masivo completado. {total_procesados} procesados, {total_ajustados} ajustados, {total_errores} errores.',
+        'ajuste_id': ajuste.id,
+        'total_procesados': total_procesados,
+        'total_ajustados': total_ajustados,
+        'total_errores': total_errores,
+        'log': log_resultado,
+    })

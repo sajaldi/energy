@@ -582,6 +582,30 @@ class DisponibilidadDiaria(models.Model):
         return f"{self.usuario.get_full_name()} - {self.fecha} {self.hora_inicio}-{self.hora_fin}"
 
 
+class AjusteMasivoInventario(models.Model):
+    """
+    Registra un ajuste masivo de inventario (importación por CSV).
+    Solo disponible para usuarios con perfil Auditoria.
+    """
+    usuario = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='ajustes_masivos')
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha del Ajuste")
+    ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='ajustes_masivos', verbose_name="Ubicación/Bodega")
+    archivo_csv = models.FileField(upload_to='inventarios/ajustes_masivos/', verbose_name="Archivo CSV")
+    total_procesados = models.PositiveIntegerField(default=0, verbose_name="Total Procesados")
+    total_ajustados = models.PositiveIntegerField(default=0, verbose_name="Total Ajustados")
+    total_errores = models.PositiveIntegerField(default=0, verbose_name="Total Errores")
+    comentarios = models.TextField(blank=True, null=True, verbose_name="Comentarios")
+    log_resultado = models.JSONField(default=list, blank=True, verbose_name="Log de Resultado")
+
+    class Meta:
+        verbose_name = "Ajuste Masivo de Inventario"
+        verbose_name_plural = "Ajustes Masivos de Inventario"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"Ajuste Masivo #{self.id} - {self.fecha.strftime('%d/%m/%Y %H:%M')} por {self.usuario.username}"
+
+
 class MaterialUtilizadoOT(models.Model):
     """
     Registra qué materiales se utilizaron en una Orden de Trabajo,

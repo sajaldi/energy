@@ -4068,6 +4068,9 @@ def tickets_dashboard_api(request):
                 falla_reportada__departamento_responsable=config.departamento_filtro
             )
     
+    # Excluir tickets internos de todas las estadísticas
+    ticket_qs = ticket_qs.filter(es_interno=False)
+    
     # Métricas globales
     metrics = ticket_qs.aggregate(
         total=Count('id'),

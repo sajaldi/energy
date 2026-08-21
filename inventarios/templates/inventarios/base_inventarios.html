@@ -1,4 +1,4 @@
-{% load i18n static %}
+{% load i18n static core_tags %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -219,6 +219,11 @@
         <a href="{% url 'inventarios:admin_catalogos' %}" class="{% if active_tab == 'admin_catalogos' %}active{% endif %}">
             <ion-icon name="settings-outline"></ion-icon> Admin Catálogos
         </a>
+        {% if request.user|has_group:"Auditoria" or request.user.is_superuser %}
+        <a href="{% url 'inventarios:ajuste_masivo' %}" class="{% if active_tab == 'ajuste_masivo' %}active{% endif %}">
+            <ion-icon name="document-text-outline"></ion-icon> Ajuste Masivo
+        </a>
+        {% endif %}
     </nav>
 
     <!-- Page Content -->
