@@ -4054,15 +4054,19 @@ def tickets_dashboard_api(request):
     
     config = DashboardConfig.get_active()
     
-    # Filtrar tickets por antigüedad
-    fecha_corte = timezone.now() - timedelta(days=config.dias_antiguedad)
-    ticket_qs = SolicitudTicket.objects.filter(fecha_solicitud__gte=fecha_corte)
-    
-    # Filtrar por departamento si se configuró
-    if config.departamento_filtro:
-        ticket_qs = ticket_qs.filter(
-            falla_reportada__departamento_responsable=config.departamento_filtro
-        )
+    # Si hay clusters seleccionados manualmente, las métricas se basan en los tickets de esos clusters
+    if not config.mostrar_todos_clusters and config.clusters.exists():
+        ticket_qs = SolicitudTicket.objects.filter(grupos__in=config.clusters.all()).distinct()
+    else:
+        # Filtrar tickets por antigüedad
+        fecha_corte = timezone.now() - timedelta(days=config.dias_antiguedad)
+        ticket_qs = SolicitudTicket.objects.filter(fecha_solicitud__gte=fecha_corte)
+        
+        # Filtrar por departamento si se configuró
+        if config.departamento_filtro:
+            ticket_qs = ticket_qs.filter(
+                falla_reportada__departamento_responsable=config.departamento_filtro
+            )
     
     # Métricas globales
     metrics = ticket_qs.aggregate(
