@@ -1,0 +1,281 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<style>
+    .config-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    .config-section {
+        background: var(--fiori-card-bg, #fff);
+        border: 1px solid var(--fiori-border, #d9d9d9);
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08);
+    }
+    .config-section h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0 0 1rem 0;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .config-section h3 i { color: #0070f2; }
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+    @media (max-width: 768px) {
+        .form-grid { grid-template-columns: 1fr; }
+    }
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label {
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: #32363a;
+    }
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group select {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-family: inherit;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #0070f2;
+        box-shadow: 0 0 0 2px rgba(0,112,242,0.1);
+    }
+    .checkbox-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+    }
+    .checkbox-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #0070f2;
+    }
+    .clusters-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 4px;
+        padding: 0.5rem;
+    }
+    .cluster-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #f3f4f6;
+        font-size: 0.83rem;
+    }
+    .cluster-option:last-child { border-bottom: none; }
+    .cluster-option:hover { background: #f8fafc; }
+    .cluster-option .meta {
+        color: #6a6d70;
+        font-size: 0.75rem;
+    }
+    .btn-row {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+    .btn-save {
+        padding: 0.6rem 1.5rem;
+        background: #0070f2;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .btn-save:hover { background: #0059c7; }
+    .btn-preview {
+        padding: 0.6rem 1.5rem;
+        background: #fff;
+        color: #0070f2;
+        border: 1px solid #0070f2;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        text-decoration: none;
+    }
+    .btn-preview:hover { background: #eff6ff; }
+    .search-clusters {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        margin-bottom: 0.75rem;
+    }
+</style>
+
+<div class="config-container">
+    <form method="post" action="{% url 'callcenter:dashboard_config' %}">
+        {% csrf_token %}
+
+        <!-- Sección: Identidad -->
+        <div class="config-section">
+            <h3><i class="fas fa-heading"></i> Identidad del Dashboard</h3>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label for="titulo_dashboard">Título</label>
+                    <input type="text" name="titulo_dashboard" id="titulo_dashboard" value="{{ config.titulo_dashboard }}">
+                </div>
+                <div class="form-group full">
+                    <label for="subtitulo_dashboard">Subtítulo</label>
+                    <input type="text" name="subtitulo_dashboard" id="subtitulo_dashboard" value="{{ config.subtitulo_dashboard }}">
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección: Métricas Visibles -->
+        <div class="config-section">
+            <h3><i class="fas fa-chart-line"></i> Métricas y Visualizaciones</h3>
+            <div class="checkbox-group">
+                <label class="checkbox-item">
+                    <input type="checkbox" name="mostrar_total_tickets" {% if config.mostrar_total_tickets %}checked{% endif %}>
+                    Total Tickets
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" name="mostrar_tickets_abiertos" {% if config.mostrar_tickets_abiertos %}checked{% endif %}>
+                    Tickets Abiertos
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" name="mostrar_tickets_cerrados" {% if config.mostrar_tickets_cerrados %}checked{% endif %}>
+                    Tickets Cerrados
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" name="mostrar_grafica_categorias" {% if config.mostrar_grafica_categorias %}checked{% endif %}>
+                    Gráfica por Categorías
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" name="mostrar_grafica_fallas" {% if config.mostrar_grafica_fallas %}checked{% endif %}>
+                    Gráfica Top Fallas
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" name="mostrar_tabla_recientes" {% if config.mostrar_tabla_recientes %}checked{% endif %}>
+                    Tabla Tickets Recientes
+                </label>
+            </div>
+        </div>
+
+        <!-- Sección: Filtros -->
+        <div class="config-section">
+            <h3><i class="fas fa-filter"></i> Filtros de Datos</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="departamento_filtro">Departamento</label>
+                    <select name="departamento_filtro" id="departamento_filtro">
+                        <option value="">— Todos los Departamentos —</option>
+                        {% for d in departamentos %}
+                        <option value="{{ d.id }}" {% if config.departamento_filtro_id == d.id %}selected{% endif %}>{{ d.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="dias_antiguedad">Días de Antigüedad</label>
+                    <input type="number" name="dias_antiguedad" id="dias_antiguedad" value="{{ config.dias_antiguedad }}" min="1" max="365">
+                </div>
+                <div class="form-group">
+                    <label for="intervalo_refresh">Intervalo de Refresco (segundos)</label>
+                    <input type="number" name="intervalo_refresh" id="intervalo_refresh" value="{{ config.intervalo_refresh }}" min="10" max="600">
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección: Clusters -->
+        <div class="config-section">
+            <h3><i class="fas fa-layer-group"></i> Clusters a Mostrar</h3>
+            <div class="form-grid" style="margin-bottom: 1rem;">
+                <label class="checkbox-item">
+                    <input type="checkbox" name="mostrar_todos_clusters" id="mostrar_todos_clusters" {% if config.mostrar_todos_clusters %}checked{% endif %} onchange="toggleClustersList()">
+                    Mostrar todos los clusters automáticamente
+                </label>
+                <div class="form-group">
+                    <label for="max_clusters">Máximo a Mostrar</label>
+                    <input type="number" name="max_clusters" id="max_clusters" value="{{ config.max_clusters }}" min="1" max="50">
+                </div>
+            </div>
+            <div id="clusters-manual-section">
+                <input type="text" class="search-clusters" placeholder="Buscar cluster por correlativo o descripción..." id="search-clusters" oninput="filterClusters()">
+                <div class="clusters-list" id="clusters-list">
+                    {% for c in clusters %}
+                    <label class="cluster-option">
+                        <input type="checkbox" name="clusters" value="{{ c.id }}" {% if c.id in selected_cluster_ids %}checked{% endif %}>
+                        <div>
+                            <strong>{{ c.correlativo }}</strong> — {{ c.descripcion|truncatewords:10 }}
+                            <div class="meta">{{ c.num_tickets }} tickets · {{ c.fecha|date:"d/m/Y" }}</div>
+                        </div>
+                    </label>
+                    {% empty %}
+                    <p style="padding: 1rem; color: #6a6d70; font-size: 0.85rem;">No hay clusters disponibles.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="btn-row">
+            <button type="submit" class="btn-save">
+                <i class="fas fa-save"></i> Guardar Configuración
+            </button>
+            <a href="{% url 'callcenter:tickets_dashboard_public' %}" target="_blank" class="btn-preview">
+                <i class="fas fa-external-link-alt"></i> Ver Dashboard Público
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleClustersList() {
+    const checked = document.getElementById('mostrar_todos_clusters').checked;
+    document.getElementById('clusters-manual-section').style.display = checked ? 'none' : '';
+}
+
+function filterClusters() {
+    const q = document.getElementById('search-clusters').value.toLowerCase();
+    const items = document.querySelectorAll('#clusters-list .cluster-option');
+    items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(q) ? '' : 'none';
+    });
+}
+
+// Initial state
+toggleClustersList();
+</script>
+{% endblock %}

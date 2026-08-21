@@ -922,3 +922,87 @@ class HistorialTicket(models.Model):
         verbose_name = "Historial de Ticket"
         verbose_name_plural = "Historial de Tickets"
         ordering = ['-creado_en']
+
+
+class DashboardConfig(models.Model):
+    """
+    Configuración para el dashboard público de tickets.
+    Define qué información se muestra y qué clusters se visualizan.
+    Singleton: solo existe una configuración activa a la vez.
+    """
+    nombre = models.CharField(max_length=100, default="Dashboard Principal", verbose_name="Nombre")
+    activo = models.BooleanField(default=True, verbose_name="Configuración Activa")
+    
+    # Qué métricas mostrar
+    mostrar_total_tickets = models.BooleanField(default=True, verbose_name="Mostrar Total Tickets")
+    mostrar_tickets_abiertos = models.BooleanField(default=True, verbose_name="Mostrar Tickets Abiertos")
+    mostrar_tickets_cerrados = models.BooleanField(default=True, verbose_name="Mostrar Tickets Cerrados")
+    mostrar_grafica_categorias = models.BooleanField(default=True, verbose_name="Mostrar Gráfica por Categorías")
+    mostrar_grafica_fallas = models.BooleanField(default=True, verbose_name="Mostrar Gráfica Top Fallas")
+    mostrar_tabla_recientes = models.BooleanField(default=True, verbose_name="Mostrar Tabla de Tickets Recientes")
+    
+    # Clusters a mostrar
+    clusters = models.ManyToManyField(
+        GrupoTicket,
+        blank=True,
+        related_name='dashboard_configs',
+        verbose_name="Clusters a Mostrar"
+    )
+    mostrar_todos_clusters = models.BooleanField(
+        default=False, 
+        verbose_name="Mostrar Todos los Clusters",
+        help_text="Si está activo, ignora la selección manual y muestra todos"
+    )
+    max_clusters = models.PositiveIntegerField(default=10, verbose_name="Máximo de Clusters a Mostrar")
+    
+    # Filtros de visualización
+    departamento_filtro = models.ForeignKey(
+        'core.Departamento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Filtrar por Departamento",
+        help_text="Dejar vacío para mostrar todos los departamentos"
+    )
+    dias_antiguedad = models.PositiveIntegerField(
+        default=30, 
+        verbose_name="Días de Antigüedad",
+        help_text="Mostrar tickets de los últimos N días"
+    )
+    
+    # Auto-refresh
+    intervalo_refresh = models.PositiveIntegerField(
+        default=60, 
+        verbose_name="Intervalo de Refresco (segundos)",
+        help_text="Cada cuántos segundos se actualiza el dashboard automáticamente"
+    )
+    
+    # Personalización visual
+    titulo_dashboard = models.CharField(
+        max_length=200, 
+        default="Dashboard de Tickets en Tiempo Real",
+        verbose_name="Título del Dashboard"
+    )
+    subtitulo_dashboard = models.CharField(
+        max_length=300,
+        default="Monitoreo en vivo de la operación",
+        blank=True,
+        verbose_name="Subtítulo"
+    )
+    
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.nombre} ({'Activo' if self.activo else 'Inactivo'})"
+
+    class Meta:
+        verbose_name = "Configuración de Dashboard"
+        verbose_name_plural = "Configuraciones de Dashboard"
+
+    @classmethod
+    def get_active(cls):
+        """Retorna la configuración activa, o crea una por defecto."""
+        config = cls.objects.filter(activo=True).first()
+        if not config:
+            config = cls.objects.create(activo=True)
+        return config

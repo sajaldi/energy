@@ -4020,3 +4020,246 @@ def institucion_fallas_por_servicio_api(request, pk):
     ).order_by('-total')[:15]
 
     return JsonResponse({'servicio': servicio, 'fallas': list(fallas)})
+
+
+# ============================================================
+# DASHBOARD PÚBLICO (Auto-Refresh) + CONFIGURACIÓN
+# ============================================================
+
+def tickets_dashboard_public_view(request):
+    """
+    Dashboard público de tickets (sin login requerido).
+    Solo muestra información según la configuración activa.
+    Se auto-refresca vía AJAX cada N segundos.
+    """
+    from .models import DashboardConfig
+    config = DashboardConfig.get_active()
+    
+    context = {
+        'config': config,
+        'title': config.titulo_dashboard,
+    }
+    return render(request, 'callcenter/tickets_dashboard_public.html', context)
+
+
+def tickets_dashboard_api(request):
+    """
+    API JSON que retorna los datos del dashboard según la configuración activa.
+    Llamado por el frontend cada N segundos para auto-refresh.
+    """
+    from .models import DashboardConfig, SolicitudTicket, GrupoTicket, FallaTicket
+    from django.db.models import Count, Q
+    from datetime import timedelta
+    from django.utils import timezone
+    
+    config = DashboardConfig.get_active()
+    
+    # Filtrar tickets por antigüedad
+    fecha_corte = timezone.now() - timedelta(days=config.dias_antiguedad)
+    ticket_qs = SolicitudTicket.objects.filter(fecha_solicitud__gte=fecha_corte)
+    
+    # Filtrar por departamento si se configuró
+    if config.departamento_filtro:
+        ticket_qs = ticket_qs.filter(
+            falla_reportada__departamento_responsable=config.departamento_filtro
+        )
+    
+    # Métricas globales
+    metrics = ticket_qs.aggregate(
+        total=Count('id'),
+        cerrados=Count('id', filter=Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)),
+    )
+    total_tickets = metrics['total'] or 0
+    tickets_cerrados = metrics['cerrados'] or 0
+    tickets_abiertos = total_tickets - tickets_cerrados
+    
+    data = {
+        'config': {
+            'titulo': config.titulo_dashboard,
+            'subtitulo': config.subtitulo_dashboard,
+            'intervalo_refresh': config.intervalo_refresh,
+            'mostrar_total_tickets': config.mostrar_total_tickets,
+            'mostrar_tickets_abiertos': config.mostrar_tickets_abiertos,
+            'mostrar_tickets_cerrados': config.mostrar_tickets_cerrados,
+            'mostrar_grafica_categorias': config.mostrar_grafica_categorias,
+            'mostrar_grafica_fallas': config.mostrar_grafica_fallas,
+            'mostrar_tabla_recientes': config.mostrar_tabla_recientes,
+        },
+        'metricas': {
+            'total': total_tickets,
+            'cerrados': tickets_cerrados,
+            'abiertos': tickets_abiertos,
+            'porcentaje_cierre': round((tickets_cerrados / total_tickets * 100), 1) if total_tickets > 0 else 0,
+        },
+    }
+    
+    # Gráfica 1: Tickets asignados por persona (responsable)
+    if config.mostrar_grafica_fallas:
+        por_responsable = ticket_qs.exclude(
+            responsable__isnull=True
+        ).exclude(responsable='').values('responsable').annotate(
+            total=Count('id')
+        ).order_by('-total')[:10]
+        data['top_fallas'] = {
+            'labels': [r['responsable'] for r in por_responsable],
+            'data': [r['total'] for r in por_responsable],
+            'titulo': 'Tickets por Responsable',
+        }
+    
+    # Gráfica 2: Por tipo de falla
+    if config.mostrar_grafica_categorias:
+        # Primero intentar con catálogo de fallas
+        por_falla = ticket_qs.filter(
+            falla_reportada__isnull=False
+        ).values('falla_reportada__nombre').annotate(
+            total=Count('id')
+        ).order_by('-total')[:8]
+        
+        if por_falla:
+            data['categorias'] = {
+                'labels': [f['falla_reportada__nombre'] for f in por_falla],
+                'data': [f['total'] for f in por_falla],
+                'titulo': 'Tickets por Tipo de Falla',
+            }
+        else:
+            # Fallback: clasificación de falla (texto libre)
+            por_clasificacion = ticket_qs.exclude(
+                falla_clasificacion__isnull=True
+            ).exclude(falla_clasificacion='').values('falla_clasificacion').annotate(
+                total=Count('id')
+            ).order_by('-total')[:8]
+            data['categorias'] = {
+                'labels': [c['falla_clasificacion'] for c in por_clasificacion],
+                'data': [c['total'] for c in por_clasificacion],
+                'titulo': 'Tickets por Clasificación de Falla',
+            }
+    
+    # Clusters
+    if config.mostrar_todos_clusters:
+        clusters_qs = GrupoTicket.objects.all()
+    else:
+        clusters_qs = config.clusters.all()
+    
+    if config.departamento_filtro:
+        clusters_qs = clusters_qs.filter(departamento=config.departamento_filtro)
+    
+    clusters_qs = clusters_qs.annotate(
+        num_tickets=Count('tickets'),
+        num_cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True)),
+        num_abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False))
+    ).order_by('-fecha')[:config.max_clusters]
+    
+    data['clusters'] = []
+    for c in clusters_qs:
+        data['clusters'].append({
+            'id': c.id,
+            'correlativo': c.correlativo,
+            'descripcion': c.descripcion[:80],
+            'fecha': c.fecha.strftime('%d/%m/%Y') if c.fecha else '-',
+            'num_tickets': c.num_tickets,
+            'num_cerrados': c.num_cerrados,
+            'num_abiertos': c.num_abiertos,
+            'porcentaje': round((c.num_cerrados / c.num_tickets * 100), 1) if c.num_tickets > 0 else 0,
+        })
+    
+    # Tickets recientes
+    if config.mostrar_tabla_recientes:
+        recientes = ticket_qs.select_related('falla_reportada', 'ubicacion').order_by('-fecha_solicitud')[:15]
+        data['tickets_recientes'] = []
+        for t in recientes:
+            data['tickets_recientes'].append({
+                'folio': t.folio or str(t.id_solicitud),
+                'solicitante': t.solicitante or '-',
+                'falla': t.falla_reportada.nombre if t.falla_reportada else (t.falla_descripcion or '-')[:40],
+                'ubicacion': str(t.ubicacion) if t.ubicacion else (t.area or '-'),
+                'fecha': t.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if t.fecha_solicitud else '-',
+                'cerrado': bool(t.fecha_cierre or t.cierre_enviado),
+            })
+    
+    return JsonResponse(data)
+
+
+@staff_member_required
+def dashboard_config_view(request):
+    """
+    Interfaz de configuración del dashboard público.
+    Permite seleccionar qué métricas, clusters y filtros se muestran.
+    """
+    from .models import DashboardConfig, GrupoTicket
+    from core.models import Departamento
+    from django.db.models import Count
+    
+    config = DashboardConfig.get_active()
+    
+    if request.method == 'POST':
+        # Guardar configuración
+        config.titulo_dashboard = request.POST.get('titulo_dashboard', config.titulo_dashboard)
+        config.subtitulo_dashboard = request.POST.get('subtitulo_dashboard', '')
+        config.mostrar_total_tickets = 'mostrar_total_tickets' in request.POST
+        config.mostrar_tickets_abiertos = 'mostrar_tickets_abiertos' in request.POST
+        config.mostrar_tickets_cerrados = 'mostrar_tickets_cerrados' in request.POST
+        config.mostrar_grafica_categorias = 'mostrar_grafica_categorias' in request.POST
+        config.mostrar_grafica_fallas = 'mostrar_grafica_fallas' in request.POST
+        config.mostrar_tabla_recientes = 'mostrar_tabla_recientes' in request.POST
+        config.mostrar_todos_clusters = 'mostrar_todos_clusters' in request.POST
+        config.max_clusters = int(request.POST.get('max_clusters', 10))
+        config.dias_antiguedad = int(request.POST.get('dias_antiguedad', 30))
+        config.intervalo_refresh = int(request.POST.get('intervalo_refresh', 60))
+        
+        depto_id = request.POST.get('departamento_filtro')
+        config.departamento_filtro_id = int(depto_id) if depto_id else None
+        
+        config.save()
+        
+        # Clusters seleccionados
+        cluster_ids = request.POST.getlist('clusters')
+        config.clusters.set(cluster_ids)
+        
+        messages.success(request, 'Configuración del dashboard guardada correctamente.')
+        return redirect('callcenter:dashboard_config')
+    
+    departamentos = Departamento.objects.all().order_by('nombre')
+    clusters = GrupoTicket.objects.annotate(
+        num_tickets=Count('tickets')
+    ).order_by('-fecha')[:50]
+    selected_cluster_ids = list(config.clusters.values_list('id', flat=True))
+    
+    context = {
+        'config': config,
+        'departamentos': departamentos,
+        'clusters': clusters,
+        'selected_cluster_ids': selected_cluster_ids,
+        'title': 'Configuración del Dashboard Público',
+    }
+    return render(request, 'callcenter/dashboard_config.html', context)
+
+
+@staff_member_required
+def dashboard_config_clusters_api(request):
+    """API para buscar clusters para la configuración del dashboard."""
+    from .models import GrupoTicket
+    from django.db.models import Count, Q
+    
+    q = request.GET.get('q', '')
+    clusters_qs = GrupoTicket.objects.annotate(
+        num_tickets=Count('tickets')
+    )
+    
+    if q:
+        clusters_qs = clusters_qs.filter(
+            Q(correlativo__icontains=q) | Q(descripcion__icontains=q)
+        )
+    
+    clusters_qs = clusters_qs.order_by('-fecha')[:20]
+    
+    results = []
+    for c in clusters_qs:
+        results.append({
+            'id': c.id,
+            'correlativo': c.correlativo,
+            'descripcion': c.descripcion[:60],
+            'num_tickets': c.num_tickets,
+            'fecha': c.fecha.strftime('%d/%m/%Y') if c.fecha else '-',
+        })
+    
+    return JsonResponse({'clusters': results})

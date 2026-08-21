@@ -72,6 +72,12 @@ urlpatterns = [
     path('cluster/create-manual-ajax/', views.create_cluster_manual_ajax, name='create_cluster_manual_ajax'),
     path('sync-sig/', views.trigger_sync_dashboard, name='trigger_sync_dashboard'),
     
+    # Dashboard Público (auto-refresh, sin login)
+    path('tickets_dashboard/', views.tickets_dashboard_public_view, name='tickets_dashboard_public'),
+    path('tickets_dashboard/api/', views.tickets_dashboard_api, name='tickets_dashboard_api'),
+    path('dashboard_config/', views.dashboard_config_view, name='dashboard_config'),
+    path('dashboard_config/api/clusters/', views.dashboard_config_clusters_api, name='dashboard_config_clusters_api'),
+    
     # Dashboard Instituciones
     path('instituciones/dashboard/', views.instituciones_dashboard_view, name='instituciones_dashboard'),
     path('instituciones/api/<int:pk>/', views.institucion_detail_api, name='institucion_detail_api'),
