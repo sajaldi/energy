@@ -4137,11 +4137,12 @@ def tickets_dashboard_api(request):
     # Clusters
     if config.mostrar_todos_clusters:
         clusters_qs = GrupoTicket.objects.all()
+        # Solo filtrar por depto cuando se muestran todos (automático)
+        if config.departamento_filtro:
+            clusters_qs = clusters_qs.filter(departamento=config.departamento_filtro)
     else:
+        # Selección manual: no filtrar por departamento
         clusters_qs = config.clusters.all()
-    
-    if config.departamento_filtro:
-        clusters_qs = clusters_qs.filter(departamento=config.departamento_filtro)
     
     clusters_qs = clusters_qs.annotate(
         num_tickets=Count('tickets'),
