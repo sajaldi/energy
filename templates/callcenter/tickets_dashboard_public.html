@@ -348,7 +348,32 @@
         </div>
     </div>
 
-    <!-- Slide 2: Tickets por Técnico Asignado -->
+    <!-- Slide 2: Campeón y Villano -->
+    <div class="slide" data-slide="ranking">
+        <div class="page-title">Ranking de Técnicos</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:3rem; max-width:1100px; margin:0 auto;">
+            <!-- Campeón -->
+            <div style="background:var(--fiori-card-bg); border:1px solid var(--fiori-border); padding:3rem; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.06); position:relative;">
+                <div style="position:absolute; top:0; left:0; right:0; height:5px; background:var(--fiori-success);"></div>
+                <div style="font-size:4rem; margin-bottom:1rem;">🏆</div>
+                <div style="font-size:0.85rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--fiori-success); font-weight:700; margin-bottom:0.75rem;">Campeón del Mes</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--fiori-text); margin-bottom:0.5rem;" id="champion-name">—</div>
+                <div style="font-size:3.5rem; font-weight:800; color:var(--fiori-success);" id="champion-pct">—</div>
+                <div style="font-size:0.9rem; color:var(--fiori-text-secondary); margin-top:0.5rem;" id="champion-detail">de cierre</div>
+            </div>
+            <!-- Villano -->
+            <div style="background:var(--fiori-card-bg); border:1px solid var(--fiori-border); padding:3rem; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.06); position:relative;">
+                <div style="position:absolute; top:0; left:0; right:0; height:5px; background:var(--fiori-error);"></div>
+                <div style="font-size:4rem; margin-bottom:1rem;">😈</div>
+                <div style="font-size:0.85rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--fiori-error); font-weight:700; margin-bottom:0.75rem;">Necesita Mejorar</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--fiori-text); margin-bottom:0.5rem;" id="villain-name">—</div>
+                <div style="font-size:3.5rem; font-weight:800; color:var(--fiori-error);" id="villain-pct">—</div>
+                <div style="font-size:0.9rem; color:var(--fiori-text-secondary); margin-top:0.5rem;" id="villain-detail">de cierre</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 3: Tickets por Técnico Asignado -->
     <div class="slide" data-slide="responsables">
         <div class="page-title">Tickets por Técnico Asignado</div>
         <div class="table-box">
@@ -485,27 +510,33 @@
             // Slide 1 always
             active.push(sl[0]);
 
-            // Slide 2: Por Responsable
-            if (data.por_responsable && data.por_responsable.length > 0) {
+            // Slide 2: Ranking (Campeón / Villano)
+            if (data.por_responsable && data.por_responsable.length >= 2) {
                 active.push(sl[1]);
+                drawRanking(data.por_responsable);
+            }
+
+            // Slide 3: Por Responsable
+            if (data.por_responsable && data.por_responsable.length > 0) {
+                active.push(sl[2]);
                 drawResponsables(data.por_responsable);
             }
 
-            // Slide 3: Tickets Abiertos
+            // Slide 4: Tickets Abiertos
             if (data.tickets_abiertos_list && data.tickets_abiertos_list.length > 0) {
-                active.push(sl[2]);
+                active.push(sl[3]);
                 drawAbiertos(data.tickets_abiertos_list);
             }
 
-            // Slide 4: Table (recientes)
+            // Slide 5: Table (recientes)
             if (cfg.mostrar_tabla_recientes && data.tickets_recientes && data.tickets_recientes.length > 0) {
-                active.push(sl[3]);
+                active.push(sl[4]);
                 drawTable(data.tickets_recientes);
             }
 
-            // Slide 5: Clusters
+            // Slide 6: Clusters
             if (data.clusters && data.clusters.length > 0) {
-                active.push(sl[4]);
+                active.push(sl[5]);
                 drawClusters(data.clusters);
             }
 
@@ -513,6 +544,29 @@
             if (idx >= active.length) idx = 0;
             sl.forEach(function(s) { s.classList.remove('active'); });
             if (active[idx]) active[idx].classList.add('active');
+        }
+
+        function drawRanking(responsables) {
+            // Calcular porcentaje para cada técnico (solo los que tienen al menos 1 ticket)
+            var ranked = responsables.filter(function(r) { return r.total > 0; }).map(function(r) {
+                return { nombre: r.nombre, total: r.total, cerrados: r.cerrados, pct: Math.round((r.cerrados / r.total) * 100) };
+            });
+            // Campeón: mayor porcentaje de cierre
+            ranked.sort(function(a, b) { return b.pct - a.pct; });
+            var champion = ranked[0];
+            // Villano: menor porcentaje (de los que tienen tickets asignados)
+            var villain = ranked[ranked.length - 1];
+
+            if (champion) {
+                document.getElementById('champion-name').textContent = champion.nombre;
+                document.getElementById('champion-pct').textContent = champion.pct + '%';
+                document.getElementById('champion-detail').textContent = champion.cerrados + ' de ' + champion.total + ' cerrados';
+            }
+            if (villain && villain.nombre !== champion.nombre) {
+                document.getElementById('villain-name').textContent = villain.nombre;
+                document.getElementById('villain-pct').textContent = villain.pct + '%';
+                document.getElementById('villain-detail').textContent = villain.cerrados + ' de ' + villain.total + ' cerrados';
+            }
         }
 
         function drawResponsables(responsables) {
