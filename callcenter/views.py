@@ -4191,6 +4191,7 @@ def tickets_dashboard_api(request):
     por_responsable = ticket_qs.filter(
         usuario_responsable__isnull=False
     ).values(
+        'usuario_responsable__id',
         'usuario_responsable__first_name',
         'usuario_responsable__last_name',
         'usuario_responsable__username'
@@ -4199,6 +4200,14 @@ def tickets_dashboard_api(request):
         abiertos=Count('id', filter=Q(fecha_cierre__isnull=True) & Q(cierre_enviado=False)),
         cerrados=Count('id', filter=Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)),
     ).order_by('-total')[:15]
+    
+    # Obtener fotos de TecnicoPuesto
+    from mantenimiento.models import TecnicoPuesto
+    user_ids = [r['usuario_responsable__id'] for r in por_responsable]
+    fotos_map = {}
+    for tp in TecnicoPuesto.objects.filter(user_id__in=user_ids, foto__isnull=False).exclude(foto=''):
+        fotos_map[tp.user_id] = tp.foto.url if tp.foto else None
+    
     data['por_responsable'] = []
     for r in por_responsable:
         nombre = f"{r['usuario_responsable__first_name']} {r['usuario_responsable__last_name']}".strip()
@@ -4209,6 +4218,7 @@ def tickets_dashboard_api(request):
             'total': r['total'],
             'abiertos': r['abiertos'],
             'cerrados': r['cerrados'],
+            'foto': fotos_map.get(r['usuario_responsable__id']),
         })
 
     data['tickets_abiertos_list'] = []

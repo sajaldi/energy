@@ -355,6 +355,7 @@
             <!-- Campeón -->
             <div style="background:var(--fiori-card-bg); border:1px solid var(--fiori-border); padding:3rem; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.06); position:relative;">
                 <div style="position:absolute; top:0; left:0; right:0; height:5px; background:var(--fiori-success);"></div>
+                <img id="champion-photo" src="" alt="" style="display:none; width:100px; height:100px; object-fit:cover; margin:0 auto 1rem; border:3px solid var(--fiori-success);">
                 <div style="font-size:4rem; margin-bottom:1rem;">🏆</div>
                 <div style="font-size:0.85rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--fiori-success); font-weight:700; margin-bottom:0.75rem;">Campeón del Mes</div>
                 <div style="font-size:1.8rem; font-weight:800; color:var(--fiori-text); margin-bottom:0.5rem;" id="champion-name">—</div>
@@ -364,6 +365,7 @@
             <!-- Villano -->
             <div style="background:var(--fiori-card-bg); border:1px solid var(--fiori-border); padding:3rem; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.06); position:relative;">
                 <div style="position:absolute; top:0; left:0; right:0; height:5px; background:var(--fiori-error);"></div>
+                <img id="villain-photo" src="" alt="" style="display:none; width:100px; height:100px; object-fit:cover; margin:0 auto 1rem; border:3px solid var(--fiori-error);">
                 <div style="font-size:4rem; margin-bottom:1rem;">😈</div>
                 <div style="font-size:0.85rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--fiori-error); font-weight:700; margin-bottom:0.75rem;">Necesita Mejorar</div>
                 <div style="font-size:1.8rem; font-weight:800; color:var(--fiori-text); margin-bottom:0.5rem;" id="villain-name">—</div>
@@ -549,7 +551,7 @@
         function drawRanking(responsables) {
             // Calcular porcentaje para cada técnico (solo los que tienen al menos 1 ticket)
             var ranked = responsables.filter(function(r) { return r.total > 0; }).map(function(r) {
-                return { nombre: r.nombre, total: r.total, cerrados: r.cerrados, pct: Math.round((r.cerrados / r.total) * 100) };
+                return { nombre: r.nombre, total: r.total, cerrados: r.cerrados, pct: Math.round((r.cerrados / r.total) * 100), foto: r.foto };
             });
             // Campeón: mayor porcentaje de cierre
             ranked.sort(function(a, b) { return b.pct - a.pct; });
@@ -561,11 +563,25 @@
                 document.getElementById('champion-name').textContent = champion.nombre;
                 document.getElementById('champion-pct').textContent = champion.pct + '%';
                 document.getElementById('champion-detail').textContent = champion.cerrados + ' de ' + champion.total + ' cerrados';
+                var champPhoto = document.getElementById('champion-photo');
+                if (champion.foto) {
+                    champPhoto.src = champion.foto;
+                    champPhoto.style.display = 'block';
+                } else {
+                    champPhoto.style.display = 'none';
+                }
             }
             if (villain && villain.nombre !== champion.nombre) {
                 document.getElementById('villain-name').textContent = villain.nombre;
                 document.getElementById('villain-pct').textContent = villain.pct + '%';
                 document.getElementById('villain-detail').textContent = villain.cerrados + ' de ' + villain.total + ' cerrados';
+                var villPhoto = document.getElementById('villain-photo');
+                if (villain.foto) {
+                    villPhoto.src = villain.foto;
+                    villPhoto.style.display = 'block';
+                } else {
+                    villPhoto.style.display = 'none';
+                }
             }
         }
 
