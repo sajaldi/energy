@@ -138,6 +138,8 @@ urlpatterns = [
 
     # Avisos Dashboard Kanban
     path('avisos/dashboard/', views.avisos_dashboard.avisos_kanban_dashboard, name='avisos_dashboard'),
+    path('avisos/dashboard/tv/', views.avisos_dashboard.avisos_tv_dashboard, name='avisos_tv_dashboard'),
+    path('avisos/dashboard/tv/api/', views.avisos_dashboard.avisos_tv_api, name='avisos_tv_api'),
     path('avisos/api/list/', views.avisos_dashboard.api_get_avisos, name='api_get_avisos'),
     path('avisos/api/update/<int:pk>/', views.avisos_dashboard.api_update_aviso_estado, name='api_update_aviso_estado'),
     path('avisos/api/create-ot/<int:pk>/', views.avisos_dashboard.api_aviso_create_ot, name='api_aviso_create_ot'),

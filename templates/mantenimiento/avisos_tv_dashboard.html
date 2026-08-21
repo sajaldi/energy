@@ -1,0 +1,378 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avisos de Mantenimiento — Live</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Artifakt Element';
+            src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Element%20Medium.woff2') format('woff2');
+            font-weight: 400; font-style: normal; font-display: swap;
+        }
+        @font-face {
+            font-family: 'Artifakt Element';
+            src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Legend%20Bold.woff2') format('woff2');
+            font-weight: 700; font-style: normal; font-display: swap;
+        }
+
+        :root {
+            --fiori-primary: #0070f2;
+            --fiori-bg: #eff2f5;
+            --fiori-card-bg: #ffffff;
+            --fiori-text: #32363a;
+            --fiori-text-secondary: #6a6d70;
+            --fiori-border: #d9d9d9;
+            --fiori-success: #107e3e;
+            --fiori-warning: #e9730c;
+            --fiori-error: #bb0000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Artifakt Element', 'Outfit', sans-serif;
+            background: var(--fiori-bg);
+            color: var(--fiori-text);
+        }
+
+        /* Shell Bar */
+        .shell-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 2.75rem;
+            background: #354a5f;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            z-index: 200;
+        }
+        .shell-bar-title { font-size: 0.85rem; font-weight: 600; color: #fff; }
+        .shell-bar-right { display: flex; align-items: center; gap: 1.5rem; }
+        .shell-nav { display: flex; gap: 5px; }
+        .shell-nav .dot {
+            width: 22px; height: 3px;
+            background: rgba(255,255,255,0.25);
+            cursor: pointer;
+            transition: background 0.3s, width 0.3s;
+        }
+        .shell-nav .dot.active { background: #fff; width: 34px; }
+        .shell-live {
+            display: flex; align-items: center; gap: 0.4rem;
+            font-size: 0.68rem; color: rgba(255,255,255,0.8);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .shell-live .dot-green {
+            width: 6px; height: 6px; background: #36db84;
+            animation: blink 2s infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .shell-time { font-size: 0.75rem; color: rgba(255,255,255,0.6); font-variant-numeric: tabular-nums; }
+
+        /* Progress */
+        .progress-track {
+            position: fixed; top: 2.75rem; left: 0; right: 0;
+            height: 3px; background: #d9d9d9; z-index: 199;
+        }
+        .progress-bar { height: 100%; width: 0%; background: var(--fiori-primary); transition: width 0.2s linear; }
+
+        /* Slides */
+        .slide {
+            position: fixed;
+            top: calc(2.75rem + 3px); left: 0; right: 0; bottom: 0;
+            display: flex; flex-direction: column;
+            justify-content: center;
+            padding: 2rem 3rem;
+            opacity: 0; visibility: hidden;
+            transition: opacity 0.5s ease;
+        }
+        .slide.active { opacity: 1; visibility: visible; }
+        .page-title { font-size: 1.25rem; font-weight: 700; color: var(--fiori-text); margin-bottom: 1.5rem; }
+
+        /* KPI Boxes */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+        }
+        .kpi-box {
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .kpi-box .stripe { position: absolute; top: 0; left: 0; right: 0; height: 5px; }
+        .kpi-box .kpi-icon { font-size: 2rem; margin-bottom: 1rem; }
+        .kpi-box .kpi-number { font-size: 5rem; font-weight: 800; line-height: 1; margin-bottom: 0.75rem; }
+        .kpi-box .kpi-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--fiori-text-secondary); font-weight: 600; }
+
+        .kpi-box.open .stripe { background: var(--fiori-error); }
+        .kpi-box.open .kpi-icon, .kpi-box.open .kpi-number { color: var(--fiori-error); }
+        .kpi-box.process .stripe { background: var(--fiori-warning); }
+        .kpi-box.process .kpi-icon, .kpi-box.process .kpi-number { color: var(--fiori-warning); }
+        .kpi-box.closed .stripe { background: var(--fiori-success); }
+        .kpi-box.closed .kpi-icon, .kpi-box.closed .kpi-number { color: var(--fiori-success); }
+        .kpi-box.total .stripe { background: var(--fiori-primary); }
+        .kpi-box.total .kpi-icon, .kpi-box.total .kpi-number { color: var(--fiori-primary); }
+
+        /* Prioridad boxes */
+        .prio-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .prio-box {
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            padding: 2rem 1.5rem;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .prio-box .prio-number { font-size: 3.5rem; font-weight: 800; line-height: 1; margin-bottom: 0.5rem; }
+        .prio-box .prio-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--fiori-text-secondary); font-weight: 600; }
+        .prio-box.baja .prio-number { color: #94a3b8; }
+        .prio-box.media .prio-number { color: var(--fiori-primary); }
+        .prio-box.alta .prio-number { color: var(--fiori-warning); }
+        .prio-box.critica .prio-number { color: var(--fiori-error); }
+
+        /* Table */
+        .table-box {
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            flex: 1; overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .fiori-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        .fiori-table th {
+            background: #f0f4f8; padding: 0.9rem 1.25rem;
+            text-align: left; font-weight: 600; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--fiori-text); border-bottom: 1px solid var(--fiori-border);
+        }
+        .fiori-table td { padding: 0.7rem 1.25rem; border-bottom: 1px solid #f0f0f0; }
+        .fiori-table tr:hover td { background: #fafbfc; }
+
+        /* Badges */
+        .badge-prio {
+            display: inline-block; padding: 0.2rem 0.6rem;
+            font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+        }
+        .badge-prio.BAJA { background: #f1f5f9; color: #475569; }
+        .badge-prio.MEDIA { background: #eff6ff; color: #1d4ed8; }
+        .badge-prio.ALTA { background: #fef3c7; color: #92400e; }
+        .badge-prio.CRITICA { background: #fee2e2; color: #991b1b; }
+
+        .badge-estado {
+            display: inline-block; padding: 0.2rem 0.6rem;
+            font-size: 0.68rem; font-weight: 700;
+        }
+        .badge-estado.ABIERTO { background: #fee2e2; color: #991b1b; }
+        .badge-estado.PROCESO { background: #fef3c7; color: #92400e; }
+
+        .badge-parado {
+            display: inline-block; padding: 0.15rem 0.5rem;
+            font-size: 0.65rem; font-weight: 700;
+            background: #991b1b; color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="shell-bar">
+        <span class="shell-bar-title">Avisos de Mantenimiento — Dashboard TV</span>
+        <div class="shell-bar-right">
+            <div class="shell-nav" id="shell-nav"></div>
+            <div class="shell-live"><span class="dot-green"></span> En vivo</div>
+            <span class="shell-time" id="shell-time">--:--</span>
+        </div>
+    </div>
+    <div class="progress-track"><div class="progress-bar" id="pbar"></div></div>
+
+    <!-- Slide 1: KPIs + Prioridades -->
+    <div class="slide active" data-slide="kpis">
+        <div class="page-title">Resumen de Avisos</div>
+        <div class="kpi-row">
+            <div class="kpi-box open">
+                <div class="stripe"></div>
+                <div class="kpi-icon"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="kpi-number" id="v-abiertos">0</div>
+                <div class="kpi-label">Abiertos</div>
+            </div>
+            <div class="kpi-box process">
+                <div class="stripe"></div>
+                <div class="kpi-icon"><i class="fas fa-wrench"></i></div>
+                <div class="kpi-number" id="v-proceso">0</div>
+                <div class="kpi-label">En Proceso</div>
+            </div>
+            <div class="kpi-box closed">
+                <div class="stripe"></div>
+                <div class="kpi-icon"><i class="fas fa-check-double"></i></div>
+                <div class="kpi-number" id="v-cerrados">0</div>
+                <div class="kpi-label">Cerrados</div>
+            </div>
+            <div class="kpi-box total">
+                <div class="stripe"></div>
+                <div class="kpi-icon"><i class="fas fa-clipboard-list"></i></div>
+                <div class="kpi-number" id="v-total">0</div>
+                <div class="kpi-label">Total</div>
+            </div>
+        </div>
+        <div class="prio-row">
+            <div class="prio-box baja">
+                <div class="prio-number" id="v-baja">0</div>
+                <div class="prio-label">Baja</div>
+            </div>
+            <div class="prio-box media">
+                <div class="prio-number" id="v-media">0</div>
+                <div class="prio-label">Media</div>
+            </div>
+            <div class="prio-box alta">
+                <div class="prio-number" id="v-alta">0</div>
+                <div class="prio-label">Alta</div>
+            </div>
+            <div class="prio-box critica">
+                <div class="prio-number" id="v-critica">0</div>
+                <div class="prio-label">Crítica</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 2: Tabla de avisos abiertos -->
+    <div class="slide" data-slide="table">
+        <div class="page-title">Avisos Pendientes</div>
+        <div class="table-box">
+            <table class="fiori-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Descripción</th>
+                        <th>Ubicación</th>
+                        <th>Responsable</th>
+                        <th>Prioridad</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-avisos"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+        var API = '{% url "mantenimiento:avisos_tv_api" %}';
+        var SLIDE_MS = 20000;
+        var REFRESH_MS = 30000;
+        var active = [];
+        var idx = 0;
+        var pStart = Date.now();
+        var lastUpdate = null;
+
+        function allSlides() { return Array.from(document.querySelectorAll('.slide')); }
+
+        function buildNav() {
+            var nav = document.getElementById('shell-nav');
+            nav.innerHTML = '';
+            active.forEach(function(_, i) {
+                var d = document.createElement('div');
+                d.className = 'dot' + (i === idx ? ' active' : '');
+                d.onclick = function() { goTo(i); };
+                nav.appendChild(d);
+            });
+        }
+
+        function goTo(i) {
+            allSlides().forEach(function(s) { s.classList.remove('active'); });
+            idx = i;
+            if (active[idx]) active[idx].classList.add('active');
+            document.querySelectorAll('.shell-nav .dot').forEach(function(d, j) {
+                d.classList.toggle('active', j === idx);
+            });
+            pStart = Date.now();
+        }
+
+        function next() {
+            if (active.length <= 1) return;
+            goTo((idx + 1) % active.length);
+        }
+
+        // Timer
+        setInterval(function() {
+            var elapsed = Date.now() - pStart;
+            var pct = Math.min((elapsed / SLIDE_MS) * 100, 100);
+            document.getElementById('pbar').style.width = pct + '%';
+            if (elapsed >= SLIDE_MS) next();
+        }, 200);
+
+        // Data refresh
+        setInterval(fetchData, REFRESH_MS);
+
+        // Clock
+        function clock() {
+            var n = new Date();
+            document.getElementById('shell-time').textContent = n.toLocaleTimeString('es-HN', {hour:'2-digit', minute:'2-digit'});
+        }
+        setInterval(clock, 30000);
+        clock();
+
+        function fetchData() {
+            fetch(API).then(function(r) { return r.json(); }).then(render).catch(function(e) { console.error(e); });
+        }
+
+        function render(data) {
+            // KPIs
+            document.getElementById('v-abiertos').textContent = data.estados.ABIERTO;
+            document.getElementById('v-proceso').textContent = data.estados.PROCESO;
+            document.getElementById('v-cerrados').textContent = data.estados.CERRADO;
+            document.getElementById('v-total').textContent = data.total;
+
+            // Prioridades
+            document.getElementById('v-baja').textContent = data.prioridades.BAJA;
+            document.getElementById('v-media').textContent = data.prioridades.MEDIA;
+            document.getElementById('v-alta').textContent = data.prioridades.ALTA;
+            document.getElementById('v-critica').textContent = data.prioridades.CRITICA;
+
+            // Table
+            var sl = allSlides();
+            active = [sl[0]];
+
+            if (data.avisos && data.avisos.length > 0) {
+                active.push(sl[1]);
+                var tbody = document.getElementById('tbody-avisos');
+                var html = '';
+                data.avisos.forEach(function(a) {
+                    var parado = a.equipo_parado ? ' <span class="badge-parado"><i class="fas fa-stop-circle"></i> PARADO</span>' : '';
+                    html += '<tr>' +
+                        '<td><strong>' + a.titulo + '</strong></td>' +
+                        '<td>' + a.descripcion + parado + '</td>' +
+                        '<td>' + a.ubicacion + '</td>' +
+                        '<td>' + a.responsable + '</td>' +
+                        '<td><span class="badge-prio ' + a.prioridad + '">' + a.prioridad + '</span></td>' +
+                        '<td><span class="badge-estado ' + a.estado + '">' + a.estado + '</span></td>' +
+                        '<td>' + a.fecha + '</td>' +
+                    '</tr>';
+                });
+                tbody.innerHTML = html;
+            }
+
+            buildNav();
+            if (idx >= active.length) idx = 0;
+            sl.forEach(function(s) { s.classList.remove('active'); });
+            if (active[idx]) active[idx].classList.add('active');
+
+            lastUpdate = data.last_update;
+        }
+
+        fetchData();
+    })();
+    </script>
+</body>
+</html>

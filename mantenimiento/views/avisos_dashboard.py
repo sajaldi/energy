@@ -193,3 +193,85 @@ def api_notify_responsable(request, pk):
         return JsonResponse({'status': 'success', 'message': 'Proceso de notificación iniciado.'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+# ============================================================
+# DASHBOARD TV - Avisos (auto-refresh, público, sin scroll)
+# ============================================================
+
+def avisos_tv_dashboard(request):
+    """
+    Dashboard de avisos optimizado para TV.
+    Sin login requerido. Auto-refresh cada 30 segundos.
+    """
+    return render(request, 'mantenimiento/avisos_tv_dashboard.html', {
+        'title': 'Avisos de Mantenimiento — Live',
+    })
+
+
+def avisos_tv_api(request):
+    """
+    API JSON para el dashboard TV de avisos.
+    Retorna conteos por estado, por prioridad, últimos avisos, y avisos abiertos.
+    """
+    from django.db.models import Count, Q
+    from ..models import Aviso
+
+    # Métricas por estado
+    estado_counts = Aviso.objects.values('estado').annotate(total=Count('id'))
+    estados = {'ABIERTO': 0, 'PROCESO': 0, 'CERRADO': 0, 'CANCELADO': 0}
+    for e in estado_counts:
+        estados[e['estado']] = e['total']
+
+    total = sum(estados.values())
+
+    # Por prioridad (solo abiertos + en proceso)
+    prioridad_counts = Aviso.objects.filter(
+        estado__in=['ABIERTO', 'PROCESO']
+    ).values('prioridad').annotate(total=Count('id'))
+    prioridades = {'BAJA': 0, 'MEDIA': 0, 'ALTA': 0, 'CRITICA': 0}
+    for p in prioridad_counts:
+        prioridades[p['prioridad']] = p['total']
+
+    # Por tipo
+    tipo_counts = Aviso.objects.filter(
+        estado__in=['ABIERTO', 'PROCESO']
+    ).values('tipo').annotate(total=Count('id')).order_by('-total')
+    tipos = [{'tipo': t['tipo'], 'total': t['total']} for t in tipo_counts]
+
+    # Avisos abiertos recientes (para la tabla)
+    abiertos = Aviso.objects.filter(
+        estado__in=['ABIERTO', 'PROCESO']
+    ).select_related('ubicacion', 'responsable', 'falla', 'departamento').order_by('-prioridad', '-creado_en')[:20]
+
+    avisos_list = []
+    for a in abiertos:
+        avisos_list.append({
+            'id': a.id,
+            'titulo': f'AV-{a.id}',
+            'descripcion': a.descripcion[:60],
+            'estado': a.estado,
+            'prioridad': a.prioridad,
+            'tipo': a.get_tipo_display(),
+            'ubicacion': a.ubicacion.nombre if a.ubicacion else '-',
+            'responsable': a.responsable.get_full_name() or a.responsable.username if a.responsable else 'Sin asignar',
+            'falla': a.falla.nombre if a.falla else '-',
+            'departamento': a.departamento.nombre if a.departamento else '-',
+            'fecha': a.creado_en.strftime('%d/%m/%Y %H:%M'),
+            'equipo_parado': a.equipo_parado or False,
+        })
+
+    # Último actualizado_en (para detectar cambios)
+    from django.utils import timezone
+    last_update = Aviso.objects.order_by('-actualizado_en').values_list('actualizado_en', flat=True).first()
+
+    data = {
+        'estados': estados,
+        'total': total,
+        'prioridades': prioridades,
+        'tipos': tipos,
+        'avisos': avisos_list,
+        'last_update': last_update.isoformat() if last_update else None,
+        'timestamp': timezone.now().isoformat(),
+    }
+    return JsonResponse(data)
