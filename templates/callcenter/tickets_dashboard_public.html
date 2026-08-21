@@ -348,7 +348,18 @@
         </div>
     </div>
 
-    <!-- Slide 2: Tickets Abiertos -->
+    <!-- Slide 2: Tickets por Responsable -->
+    <div class="slide" data-slide="responsables">
+        <div class="page-title">Tickets por Responsable</div>
+        <div class="table-box">
+            <table class="fiori-table">
+                <thead><tr><th>Responsable</th><th style="text-align:center;">Total</th><th style="text-align:center;">Abiertos</th><th style="text-align:center;">Cerrados</th></tr></thead>
+                <tbody id="tbody-responsables"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Slide 3: Tickets Abiertos -->
     <div class="slide" data-slide="abiertos">
         <div class="page-title">Tickets en Gestión (Abiertos)</div>
         <div class="table-box">
@@ -359,7 +370,7 @@
         </div>
     </div>
 
-    <!-- Slide 3: Table -->
+    <!-- Slide 4: Table -->
     <div class="slide" data-slide="table">
         <div class="page-title">Tickets Recientes</div>
         <div class="table-box">
@@ -370,7 +381,7 @@
         </div>
     </div>
 
-    <!-- Slide 4: Clusters -->
+    <!-- Slide 5: Clusters -->
     <div class="slide" data-slide="clusters">
         <div class="page-title">Clusters Activos</div>
         <div class="clusters-grid" id="clusters-grid"></div>
@@ -474,21 +485,27 @@
             // Slide 1 always
             active.push(sl[0]);
 
-            // Slide 2: Tickets Abiertos
-            if (data.tickets_abiertos_list && data.tickets_abiertos_list.length > 0) {
+            // Slide 2: Por Responsable
+            if (data.por_responsable && data.por_responsable.length > 0) {
                 active.push(sl[1]);
+                drawResponsables(data.por_responsable);
+            }
+
+            // Slide 3: Tickets Abiertos
+            if (data.tickets_abiertos_list && data.tickets_abiertos_list.length > 0) {
+                active.push(sl[2]);
                 drawAbiertos(data.tickets_abiertos_list);
             }
 
-            // Slide 3: Table (recientes)
+            // Slide 4: Table (recientes)
             if (cfg.mostrar_tabla_recientes && data.tickets_recientes && data.tickets_recientes.length > 0) {
-                active.push(sl[2]);
+                active.push(sl[3]);
                 drawTable(data.tickets_recientes);
             }
 
-            // Slide 4: Clusters
+            // Slide 5: Clusters
             if (data.clusters && data.clusters.length > 0) {
-                active.push(sl[3]);
+                active.push(sl[4]);
                 drawClusters(data.clusters);
             }
 
@@ -496,6 +513,15 @@
             if (idx >= active.length) idx = 0;
             sl.forEach(function(s) { s.classList.remove('active'); });
             if (active[idx]) active[idx].classList.add('active');
+        }
+
+        function drawResponsables(responsables) {
+            var tbody = document.getElementById('tbody-responsables');
+            var h = '';
+            responsables.forEach(function(r) {
+                h += '<tr><td><strong>' + r.nombre + '</strong></td><td style="text-align:center; font-weight:700; font-size:1.1rem;">' + r.total + '</td><td style="text-align:center; color:var(--fiori-warning); font-weight:700;">' + r.abiertos + '</td><td style="text-align:center; color:var(--fiori-success); font-weight:700;">' + r.cerrados + '</td></tr>';
+            });
+            tbody.innerHTML = h;
         }
 
         function drawAbiertos(tickets) {

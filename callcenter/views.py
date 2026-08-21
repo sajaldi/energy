@@ -4186,6 +4186,20 @@ def tickets_dashboard_api(request):
     abiertos_qs = ticket_qs.filter(
         fecha_cierre__isnull=True, cierre_enviado=False
     ).select_related('falla_reportada', 'ubicacion').order_by('-fecha_solicitud')[:20]
+
+    # Tickets por responsable
+    por_responsable = ticket_qs.exclude(
+        responsable__isnull=True
+    ).exclude(responsable='').values('responsable').annotate(
+        total=Count('id'),
+        abiertos=Count('id', filter=Q(fecha_cierre__isnull=True) & Q(cierre_enviado=False)),
+        cerrados=Count('id', filter=Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)),
+    ).order_by('-total')[:15]
+    data['por_responsable'] = [
+        {'nombre': r['responsable'], 'total': r['total'], 'abiertos': r['abiertos'], 'cerrados': r['cerrados']}
+        for r in por_responsable
+    ]
+
     data['tickets_abiertos_list'] = []
     for t in abiertos_qs:
         data['tickets_abiertos_list'].append({
