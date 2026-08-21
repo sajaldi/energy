@@ -106,4 +106,5 @@ urlpatterns = [
     # Ajuste Masivo (solo Auditoria)
     path('ajuste-masivo/', views.ajuste_masivo_view, name='ajuste_masivo'),
     path('api/ajuste-masivo/procesar/', views.api_ajuste_masivo_procesar, name='api_ajuste_masivo_procesar'),
+    path('api/ajuste-masivo/catalogo/', views.api_ajuste_masivo_catalogo, name='api_ajuste_masivo_catalogo'),
 ]

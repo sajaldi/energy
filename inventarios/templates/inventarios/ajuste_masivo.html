@@ -5,7 +5,7 @@
 {% block extrahead %}
 <style>
     .ajuste-container {
-        max-width: 1100px;
+        max-width: 1400px;
         margin: 0 auto;
         padding: 32px;
     }
@@ -19,6 +19,9 @@
         font-weight: 700;
         color: var(--text);
         margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
 
     .ajuste-header p {
@@ -29,9 +32,9 @@
     .ajuste-card {
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: var(--radius);
+        border-radius: 8px;
         padding: 28px;
-        box-shadow: var(--shadow);
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08);
         margin-bottom: 24px;
     }
 
@@ -50,6 +53,49 @@
         color: var(--primary);
     }
 
+    /* ─── TABS internos ─── */
+    .section-tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid var(--border);
+        margin-bottom: 24px;
+    }
+
+    .section-tabs button {
+        padding: 12px 24px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .section-tabs button:hover {
+        color: var(--primary);
+    }
+
+    .section-tabs button.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+        font-weight: 600;
+    }
+
+    .section-panel {
+        display: none;
+    }
+
+    .section-panel.active {
+        display: block;
+    }
+
+    /* ─── Formulario de Carga ─── */
     .form-group {
         margin-bottom: 18px;
     }
@@ -63,11 +109,12 @@
     }
 
     .form-group select,
-    .form-group textarea {
+    .form-group textarea,
+    .form-group input[type="text"] {
         width: 100%;
         padding: 10px 14px;
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: 4px;
         font-size: 0.88rem;
         color: var(--text);
         background: #fff;
@@ -75,7 +122,8 @@
     }
 
     .form-group select:focus,
-    .form-group textarea:focus {
+    .form-group textarea:focus,
+    .form-group input[type="text"]:focus {
         outline: none;
         border-color: var(--primary);
         box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.08);
@@ -88,7 +136,7 @@
 
     .upload-zone {
         border: 2px dashed var(--border);
-        border-radius: var(--radius);
+        border-radius: 8px;
         padding: 40px 20px;
         text-align: center;
         cursor: pointer;
@@ -138,11 +186,10 @@
         margin-top: 12px;
         font-size: 0.85rem;
         color: #166534;
+        cursor: pointer;
     }
 
-    .file-selected ion-icon {
-        font-size: 1.2rem;
-    }
+    .file-selected ion-icon { font-size: 1.2rem; }
 
     .btn-procesar {
         display: inline-flex;
@@ -152,29 +199,17 @@
         background: var(--primary);
         color: #fff;
         border: none;
-        border-radius: 6px;
+        border-radius: 4px;
         font-size: 0.88rem;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.15s;
     }
 
-    .btn-procesar:hover {
-        background: var(--primary-hover);
-        transform: translateY(-1px);
-    }
+    .btn-procesar:hover { background: var(--primary-hover); }
+    .btn-procesar:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-procesar ion-icon { font-size: 1.1rem; }
 
-    .btn-procesar:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-        transform: none;
-    }
-
-    .btn-procesar ion-icon {
-        font-size: 1.1rem;
-    }
-
-    /* Formato esperado */
     .formato-info {
         background: #eff6ff;
         border: 1px solid #bfdbfe;
@@ -207,18 +242,13 @@
         margin-top: 8px;
     }
 
-    /* Resultados */
-    .resultado-container {
-        display: none;
-    }
-
-    .resultado-container.visible {
-        display: block;
-    }
+    /* ─── Resultados del Ajuste ─── */
+    .resultado-container { display: none; }
+    .resultado-container.visible { display: block; }
 
     .resultado-stats {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 12px;
         margin-bottom: 20px;
     }
@@ -229,67 +259,17 @@
         text-align: center;
     }
 
-    .stat-card.procesados {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-    }
+    .stat-card.procesados { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .stat-card.ajustados { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .stat-card.errores { background: #fef2f2; border: 1px solid #fecaca; }
+    .stat-card.sin-cambio { background: #f8fafc; border: 1px solid #e2e8f0; }
 
-    .stat-card.ajustados {
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-    }
-
-    .stat-card.errores {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-    }
-
-    .stat-card.sin-cambio {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-    }
-
-    .stat-card .stat-num {
-        font-size: 1.5rem;
-        font-weight: 700;
-    }
-
+    .stat-card .stat-num { font-size: 1.5rem; font-weight: 700; }
     .stat-card.procesados .stat-num { color: #1d4ed8; }
     .stat-card.ajustados .stat-num { color: #166534; }
     .stat-card.errores .stat-num { color: #991b1b; }
     .stat-card.sin-cambio .stat-num { color: #475569; }
-
-    .stat-card .stat-label {
-        font-size: 0.75rem;
-        font-weight: 500;
-        color: var(--text-muted);
-        margin-top: 2px;
-    }
-
-    .log-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.82rem;
-    }
-
-    .log-table th {
-        background: #f8fafc;
-        padding: 10px 12px;
-        text-align: left;
-        font-weight: 600;
-        color: var(--text);
-        border-bottom: 2px solid var(--border);
-    }
-
-    .log-table td {
-        padding: 8px 12px;
-        border-bottom: 1px solid var(--border);
-        color: var(--text);
-    }
-
-    .log-table tr:hover td {
-        background: #f8fafc;
-    }
+    .stat-card .stat-label { font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin-top: 2px; }
 
     .badge-status {
         display: inline-flex;
@@ -304,7 +284,7 @@
     .badge-status.error { background: #fee2e2; color: #991b1b; }
     .badge-status.sin_cambio { background: #f1f5f9; color: #475569; }
 
-    /* Historial */
+    /* ─── Historial ─── */
     .historial-item {
         display: flex;
         align-items: center;
@@ -314,26 +294,10 @@
         font-size: 0.82rem;
     }
 
-    .historial-item:last-child {
-        border-bottom: none;
-    }
-
-    .historial-item .hi-info {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    .historial-item .hi-fecha {
-        color: var(--text-muted);
-        font-size: 0.75rem;
-    }
-
-    .historial-item .hi-stats {
-        display: flex;
-        gap: 10px;
-        font-size: 0.75rem;
-    }
+    .historial-item:last-child { border-bottom: none; }
+    .historial-item .hi-info { display: flex; flex-direction: column; gap: 2px; }
+    .historial-item .hi-fecha { color: var(--text-muted); font-size: 0.75rem; }
+    .historial-item .hi-stats { display: flex; gap: 10px; font-size: 0.75rem; }
 
     .spinner {
         display: none;
@@ -345,10 +309,7 @@
         animation: spin 0.6s linear infinite;
     }
 
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
+    @keyframes spin { to { transform: rotate(360deg); } }
     .btn-procesar.loading .spinner { display: inline-block; }
     .btn-procesar.loading .btn-text { display: none; }
 
@@ -359,7 +320,7 @@
         padding: 8px 16px;
         background: #fff;
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: 4px;
         font-size: 0.82rem;
         font-weight: 500;
         color: var(--text);
@@ -373,6 +334,250 @@
         color: var(--primary);
         background: var(--primary-light);
     }
+
+    /* ═══════════════════════════════════════════════════
+       CATÁLOGO — Estilo SAP Fiori
+       ═══════════════════════════════════════════════════ */
+    .catalogo-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+        padding: 12px 16px;
+        background: #f0f4f8;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+    }
+
+    .catalogo-toolbar .search-box {
+        flex: 1;
+        min-width: 220px;
+        position: relative;
+    }
+
+    .catalogo-toolbar .search-box input {
+        width: 100%;
+        padding: 9px 14px 9px 36px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 0.84rem;
+        background: #fff;
+        transition: border-color 0.15s;
+    }
+
+    .catalogo-toolbar .search-box input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(10, 110, 209, 0.08);
+    }
+
+    .catalogo-toolbar .search-box ion-icon {
+        position: absolute;
+        left: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1rem;
+        color: var(--text-muted);
+    }
+
+    .catalogo-toolbar select {
+        padding: 9px 12px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 0.82rem;
+        background: #fff;
+        color: var(--text);
+        min-width: 140px;
+    }
+
+    .catalogo-toolbar select:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+
+    .catalogo-toolbar .toolbar-count {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        font-weight: 500;
+        margin-left: auto;
+    }
+
+    /* Tabla SAP Fiori */
+    .sap-table-wrapper {
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .sap-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+    }
+
+    .sap-table thead th {
+        background: #f0f4f8;
+        padding: 11px 14px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.78rem;
+        color: var(--text);
+        border-bottom: 1px solid var(--border);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+        user-select: none;
+        cursor: default;
+    }
+
+    .sap-table tbody td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        color: var(--text);
+        vertical-align: middle;
+    }
+
+    .sap-table tbody tr:hover td {
+        background: #f8fbff;
+    }
+
+    .sap-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .sap-table .col-sku {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--primary);
+    }
+
+    .sap-table .col-nombre {
+        font-weight: 500;
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .sap-table .col-stock {
+        font-weight: 600;
+    }
+
+    .sap-table .col-stock.bajo {
+        color: #bb0000;
+    }
+
+    .sap-table .col-bodega {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .badge-cat {
+        display: inline-flex;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 0.72rem;
+        font-weight: 500;
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .badge-tipo {
+        display: inline-flex;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 0.72rem;
+        font-weight: 500;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    /* Paginación */
+    .paginacion {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .paginacion .pag-info { font-weight: 500; }
+
+    .paginacion .pag-buttons {
+        display: flex;
+        gap: 4px;
+    }
+
+    .paginacion .pag-buttons button {
+        padding: 6px 12px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #fff;
+        color: var(--text);
+        font-size: 0.78rem;
+        cursor: pointer;
+        transition: all 0.1s;
+    }
+
+    .paginacion .pag-buttons button:hover:not(:disabled) {
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+
+    .paginacion .pag-buttons button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .paginacion .pag-buttons button.active {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+    }
+
+    /* Loading */
+    .table-loading {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-muted);
+        font-size: 0.88rem;
+    }
+
+    .table-loading .loading-spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        margin: 0 auto 12px;
+    }
+
+    .table-empty {
+        text-align: center;
+        padding: 48px;
+        color: var(--text-muted);
+    }
+
+    .table-empty ion-icon {
+        font-size: 2.5rem;
+        opacity: 0.4;
+        margin-bottom: 8px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .ajuste-container { padding: 16px; }
+        .catalogo-toolbar { flex-direction: column; }
+        .catalogo-toolbar .search-box { min-width: 100%; }
+        .sap-table-wrapper { overflow-x: auto; }
+    }
 </style>
 {% endblock %}
 
@@ -380,131 +585,333 @@
 <div class="ajuste-container">
     <div class="ajuste-header">
         <h1><ion-icon name="document-text-outline"></ion-icon> Ajuste Masivo de Inventario</h1>
-        <p>Importe un archivo CSV con los SKU y las cantidades reales (conteo físico) para ajustar el inventario automáticamente.</p>
+        <p>Gestione el inventario desde auditoría: importe conteos físicos o consulte el catálogo completo de materiales.</p>
     </div>
 
-    <!-- Formulario de Carga -->
-    <div class="ajuste-card">
-        <h2><ion-icon name="cloud-upload-outline"></ion-icon> Cargar Archivo de Ajuste</h2>
-        
-        <form id="formAjusteMasivo" enctype="multipart/form-data">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="ubicacion_id">Ubicación / Bodega *</label>
-                <select id="ubicacion_id" name="ubicacion_id" required>
-                    <option value="">— Seleccionar ubicación —</option>
+    <!-- Tabs internos -->
+    <div class="section-tabs">
+        <button class="active" data-panel="panel-catalogo">
+            <ion-icon name="list-outline"></ion-icon> Catálogo de Materiales
+        </button>
+        <button data-panel="panel-importar">
+            <ion-icon name="cloud-upload-outline"></ion-icon> Importar Ajuste
+        </button>
+        <button data-panel="panel-historial">
+            <ion-icon name="time-outline"></ion-icon> Historial
+        </button>
+    </div>
+
+    <!-- ═══ PANEL: Catálogo ═══ -->
+    <div class="section-panel active" id="panel-catalogo">
+        <div class="ajuste-card" style="padding: 0; overflow: hidden;">
+            <!-- Toolbar SAP Fiori -->
+            <div class="catalogo-toolbar">
+                <div class="search-box">
+                    <ion-icon name="search-outline"></ion-icon>
+                    <input type="text" id="catSearch" placeholder="Buscar por SKU, nombre o descripción..." autocomplete="off">
+                </div>
+                <select id="catFilterCategoria">
+                    <option value="">Todas las categorías</option>
+                    {% for c in categorias %}
+                    <option value="{{ c.id }}">{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <select id="catFilterBodega">
+                    <option value="">Todas las bodegas</option>
                     {% for u in ubicaciones %}
                     <option value="{{ u.id }}">{{ u.nombre }}</option>
                     {% endfor %}
                 </select>
+                <select id="catFilterTipo">
+                    <option value="">Todos los tipos</option>
+                    {% for code, label in tipos_material %}
+                    <option value="{{ code }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <span class="toolbar-count" id="catCount"></span>
             </div>
 
-            <div class="form-group">
-                <label>Archivo CSV *</label>
-                <div class="upload-zone" id="uploadZone">
-                    <input type="file" id="archivo_csv" name="archivo_csv" accept=".csv,.txt" required>
-                    <ion-icon name="cloud-upload-outline"></ion-icon>
-                    <p>Arrastra tu archivo CSV aquí o haz clic para seleccionar</p>
-                    <span class="upload-hint">Formatos aceptados: .csv, .txt</span>
+            <!-- Tabla -->
+            <div class="sap-table-wrapper">
+                <table class="sap-table">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Material</th>
+                            <th>Categoría</th>
+                            <th>Tipo</th>
+                            <th>Unidad</th>
+                            <th style="text-align:right;">Stock</th>
+                            <th style="text-align:right;">Mínimo</th>
+                            <th>Bodega(s)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="catTableBody">
+                        <tr><td colspan="8" class="table-loading">
+                            <div class="loading-spinner"></div>
+                            Cargando catálogo...
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación -->
+            <div class="paginacion">
+                <span class="pag-info" id="pagInfo">—</span>
+                <div class="pag-buttons" id="pagButtons"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ PANEL: Importar Ajuste ═══ -->
+    <div class="section-panel" id="panel-importar">
+        <div class="ajuste-card">
+            <h2><ion-icon name="cloud-upload-outline"></ion-icon> Cargar Archivo de Ajuste</h2>
+            
+            <form id="formAjusteMasivo" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="ubicacion_id">Ubicación / Bodega *</label>
+                    <select id="ubicacion_id" name="ubicacion_id" required>
+                        <option value="">— Seleccionar ubicación —</option>
+                        {% for u in ubicaciones %}
+                        <option value="{{ u.id }}">{{ u.nombre }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="file-selected" id="fileSelected" style="display:none;">
-                    <ion-icon name="document-outline"></ion-icon>
-                    <span id="fileName"></span>
+
+                <div class="form-group">
+                    <label>Archivo CSV *</label>
+                    <div class="upload-zone" id="uploadZone">
+                        <input type="file" id="archivo_csv" name="archivo_csv" accept=".csv,.txt" required>
+                        <ion-icon name="cloud-upload-outline"></ion-icon>
+                        <p>Arrastra tu archivo CSV aquí o haz clic para seleccionar</p>
+                        <span class="upload-hint">Formatos aceptados: .csv, .txt</span>
+                    </div>
+                    <div class="file-selected" id="fileSelected" style="display:none;">
+                        <ion-icon name="document-outline"></ion-icon>
+                        <span id="fileName"></span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="comentarios">Comentarios (opcional)</label>
-                <textarea id="comentarios" name="comentarios" placeholder="Motivo del ajuste, referencia de conteo físico, etc."></textarea>
-            </div>
+                <div class="form-group">
+                    <label for="comentarios">Comentarios (opcional)</label>
+                    <textarea id="comentarios" name="comentarios" placeholder="Motivo del ajuste, referencia de conteo físico, etc."></textarea>
+                </div>
 
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <button type="submit" class="btn-procesar" id="btnProcesar" disabled>
-                    <span class="btn-text"><ion-icon name="checkmark-circle-outline"></ion-icon> Procesar Ajuste</span>
-                    <span class="spinner"></span>
-                </button>
-                <button type="button" class="btn-descargar-plantilla" onclick="descargarPlantilla()">
-                    <ion-icon name="download-outline"></ion-icon> Descargar Plantilla
-                </button>
-            </div>
-        </form>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <button type="submit" class="btn-procesar" id="btnProcesar" disabled>
+                        <span class="btn-text"><ion-icon name="checkmark-circle-outline"></ion-icon> Procesar Ajuste</span>
+                        <span class="spinner"></span>
+                    </button>
+                    <button type="button" class="btn-descargar-plantilla" onclick="descargarPlantilla()">
+                        <ion-icon name="download-outline"></ion-icon> Descargar Plantilla
+                    </button>
+                </div>
+            </form>
 
-        <div class="formato-info">
-            <h4><ion-icon name="information-circle-outline"></ion-icon> Formato Esperado del CSV</h4>
-            <pre>SKU,Cantidad
+            <div class="formato-info">
+                <h4><ion-icon name="information-circle-outline"></ion-icon> Formato Esperado del CSV</h4>
+                <pre>SKU,Cantidad
 MAT-001,25
 MAT-002,10.5
 MAT-003,0</pre>
-            <p><strong>Columna 1:</strong> SKU del material (código exacto). <strong>Columna 2:</strong> Cantidad real actual (conteo físico). Las cantidades ingresadas reemplazarán el stock actual en la ubicación seleccionada. Si la cantidad es 0, se ajustará el stock a cero.</p>
-        </div>
-    </div>
-
-    <!-- Resultados -->
-    <div class="ajuste-card resultado-container" id="resultadoContainer">
-        <h2><ion-icon name="analytics-outline"></ion-icon> Resultado del Ajuste</h2>
-        
-        <div class="resultado-stats">
-            <div class="stat-card procesados">
-                <div class="stat-num" id="statProcesados">0</div>
-                <div class="stat-label">Procesados</div>
-            </div>
-            <div class="stat-card ajustados">
-                <div class="stat-num" id="statAjustados">0</div>
-                <div class="stat-label">Ajustados</div>
-            </div>
-            <div class="stat-card sin-cambio">
-                <div class="stat-num" id="statSinCambio">0</div>
-                <div class="stat-label">Sin Cambio</div>
-            </div>
-            <div class="stat-card errores">
-                <div class="stat-num" id="statErrores">0</div>
-                <div class="stat-label">Errores</div>
+                <p><strong>Columna 1:</strong> SKU del material (código exacto). <strong>Columna 2:</strong> Cantidad real actual (conteo físico). Las cantidades ingresadas reemplazarán el stock actual en la ubicación seleccionada.</p>
             </div>
         </div>
 
-        <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px;">
-            <table class="log-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>SKU</th>
-                        <th>Material</th>
-                        <th>Stock Sistema</th>
-                        <th>Conteo Físico</th>
-                        <th>Diferencia</th>
-                        <th>Estado</th>
-                    </tr>
-                </thead>
-                <tbody id="logTableBody"></tbody>
-            </table>
+        <!-- Resultados -->
+        <div class="ajuste-card resultado-container" id="resultadoContainer">
+            <h2><ion-icon name="analytics-outline"></ion-icon> Resultado del Ajuste</h2>
+            
+            <div class="resultado-stats">
+                <div class="stat-card procesados">
+                    <div class="stat-num" id="statProcesados">0</div>
+                    <div class="stat-label">Procesados</div>
+                </div>
+                <div class="stat-card ajustados">
+                    <div class="stat-num" id="statAjustados">0</div>
+                    <div class="stat-label">Ajustados</div>
+                </div>
+                <div class="stat-card sin-cambio">
+                    <div class="stat-num" id="statSinCambio">0</div>
+                    <div class="stat-label">Sin Cambio</div>
+                </div>
+                <div class="stat-card errores">
+                    <div class="stat-num" id="statErrores">0</div>
+                    <div class="stat-label">Errores</div>
+                </div>
+            </div>
+
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px;">
+                <table class="sap-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>SKU</th>
+                            <th>Material</th>
+                            <th>Stock Sistema</th>
+                            <th>Conteo Físico</th>
+                            <th>Diferencia</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- Historial -->
-    {% if historial %}
-    <div class="ajuste-card">
-        <h2><ion-icon name="time-outline"></ion-icon> Historial de Ajustes Recientes</h2>
-        {% for h in historial %}
-        <div class="historial-item">
-            <div class="hi-info">
-                <strong>Ajuste #{{ h.id }} — {{ h.ubicacion.nombre }}</strong>
-                <span class="hi-fecha">{{ h.fecha|date:"d/m/Y H:i" }}</span>
+    <!-- ═══ PANEL: Historial ═══ -->
+    <div class="section-panel" id="panel-historial">
+        {% if historial %}
+        <div class="ajuste-card">
+            <h2><ion-icon name="time-outline"></ion-icon> Historial de Ajustes Recientes</h2>
+            {% for h in historial %}
+            <div class="historial-item">
+                <div class="hi-info">
+                    <strong>Ajuste #{{ h.id }} — {{ h.ubicacion.nombre }}</strong>
+                    <span class="hi-fecha">{{ h.fecha|date:"d/m/Y H:i" }}{% if h.comentarios %} · {{ h.comentarios|truncatewords:10 }}{% endif %}</span>
+                </div>
+                <div class="hi-stats">
+                    <span style="color: #1d4ed8;">{{ h.total_procesados }} procesados</span>
+                    <span style="color: #166534;">{{ h.total_ajustados }} ajustados</span>
+                    <span style="color: #991b1b;">{{ h.total_errores }} errores</span>
+                </div>
             </div>
-            <div class="hi-stats">
-                <span style="color: #1d4ed8;">{{ h.total_procesados }} procesados</span>
-                <span style="color: #166534;">{{ h.total_ajustados }} ajustados</span>
-                <span style="color: #991b1b;">{{ h.total_errores }} errores</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="ajuste-card">
+            <div class="table-empty">
+                <ion-icon name="time-outline"></ion-icon>
+                <p>No hay ajustes masivos registrados aún.</p>
             </div>
         </div>
-        {% endfor %}
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function() {
+    // ═══ TABS ═══
+    const tabBtns = document.querySelectorAll('.section-tabs button');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.panel).classList.add('active');
+        });
+    });
+
+    // ═══ CATÁLOGO ═══
+    let catCurrentPage = 1;
+    let catDebounce = null;
+
+    const catSearch = document.getElementById('catSearch');
+    const catFilterCategoria = document.getElementById('catFilterCategoria');
+    const catFilterBodega = document.getElementById('catFilterBodega');
+    const catFilterTipo = document.getElementById('catFilterTipo');
+
+    function loadCatalogo(page) {
+        catCurrentPage = page || 1;
+        const params = new URLSearchParams({
+            page: catCurrentPage,
+            per_page: 50,
+        });
+        
+        const q = catSearch.value.trim();
+        if (q) params.set('q', q);
+        if (catFilterCategoria.value) params.set('categoria', catFilterCategoria.value);
+        if (catFilterBodega.value) params.set('bodega', catFilterBodega.value);
+        if (catFilterTipo.value) params.set('tipo', catFilterTipo.value);
+
+        const tbody = document.getElementById('catTableBody');
+        tbody.innerHTML = '<tr><td colspan="8" class="table-loading"><div class="loading-spinner"></div>Cargando...</td></tr>';
+
+        fetch(`{% url 'inventarios:api_ajuste_masivo_catalogo' %}?${params.toString()}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    tbody.innerHTML = '<tr><td colspan="8" class="table-empty">Error al cargar datos.</td></tr>';
+                    return;
+                }
+
+                document.getElementById('catCount').textContent = `${data.total_items} materiales`;
+
+                if (data.items.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">
+                        <ion-icon name="search-outline"></ion-icon>
+                        <p>No se encontraron materiales con los filtros actuales.</p>
+                    </td></tr>`;
+                    document.getElementById('pagInfo').textContent = '—';
+                    document.getElementById('pagButtons').innerHTML = '';
+                    return;
+                }
+
+                tbody.innerHTML = data.items.map(item => `
+                    <tr>
+                        <td class="col-sku">${item.sku}</td>
+                        <td class="col-nombre" title="${item.nombre}">${item.nombre}</td>
+                        <td><span class="badge-cat">${item.categoria}</span></td>
+                        <td><span class="badge-tipo">${item.tipo}</span></td>
+                        <td>${item.unidad}</td>
+                        <td class="col-stock ${item.bajo_stock ? 'bajo' : ''}" style="text-align:right;">${item.stock_total}</td>
+                        <td style="text-align:right; color: var(--text-muted);">${item.stock_minimo}</td>
+                        <td class="col-bodega" title="${item.bodegas}">${item.bodegas}</td>
+                    </tr>
+                `).join('');
+
+                // Paginación
+                const start = (data.page - 1) * 50 + 1;
+                const end = Math.min(data.page * 50, data.total_items);
+                document.getElementById('pagInfo').textContent = `${start}–${end} de ${data.total_items}`;
+
+                let pagHtml = '';
+                if (data.has_prev) {
+                    pagHtml += `<button onclick="loadCatalogo(${data.page - 1})">← Anterior</button>`;
+                }
+
+                // Números de página
+                const maxPages = Math.min(data.total_pages, 7);
+                let startPage = Math.max(1, data.page - 3);
+                let endPage = Math.min(data.total_pages, startPage + maxPages - 1);
+                if (endPage - startPage < maxPages - 1) startPage = Math.max(1, endPage - maxPages + 1);
+
+                for (let i = startPage; i <= endPage; i++) {
+                    pagHtml += `<button class="${i === data.page ? 'active' : ''}" onclick="loadCatalogo(${i})">${i}</button>`;
+                }
+
+                if (data.has_next) {
+                    pagHtml += `<button onclick="loadCatalogo(${data.page + 1})">Siguiente →</button>`;
+                }
+                document.getElementById('pagButtons').innerHTML = pagHtml;
+            })
+            .catch(err => {
+                tbody.innerHTML = '<tr><td colspan="8" class="table-empty">Error de conexión.</td></tr>';
+            });
+    }
+
+    // Expose globally for pagination buttons
+    window.loadCatalogo = loadCatalogo;
+
+    // Event listeners con debounce
+    catSearch.addEventListener('input', () => {
+        clearTimeout(catDebounce);
+        catDebounce = setTimeout(() => loadCatalogo(1), 350);
+    });
+
+    catFilterCategoria.addEventListener('change', () => loadCatalogo(1));
+    catFilterBodega.addEventListener('change', () => loadCatalogo(1));
+    catFilterTipo.addEventListener('change', () => loadCatalogo(1));
+
+    // Cargar al iniciar
+    loadCatalogo(1);
+
+    // ═══ IMPORTAR AJUSTE ═══
     const form = document.getElementById('formAjusteMasivo');
     const fileInput = document.getElementById('archivo_csv');
     const uploadZone = document.getElementById('uploadZone');
@@ -513,7 +920,6 @@ MAT-003,0</pre>
     const btnProcesar = document.getElementById('btnProcesar');
     const resultadoContainer = document.getElementById('resultadoContainer');
 
-    // File input handling
     fileInput.addEventListener('change', function() {
         if (this.files.length > 0) {
             fileName.textContent = this.files[0].name;
@@ -523,14 +929,8 @@ MAT-003,0</pre>
         }
     });
 
-    // Drag & drop
-    uploadZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadZone.classList.add('dragover');
-    });
-    uploadZone.addEventListener('dragleave', () => {
-        uploadZone.classList.remove('dragover');
-    });
+    uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => { uploadZone.classList.remove('dragover'); });
     uploadZone.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadZone.classList.remove('dragover');
@@ -543,7 +943,6 @@ MAT-003,0</pre>
         }
     });
 
-    // Reset file
     fileSelected.addEventListener('click', () => {
         fileInput.value = '';
         fileSelected.style.display = 'none';
@@ -559,10 +958,8 @@ MAT-003,0</pre>
 
     document.getElementById('ubicacion_id').addEventListener('change', checkFormReady);
 
-    // Form submit
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
         btnProcesar.classList.add('loading');
         btnProcesar.disabled = true;
 
@@ -572,15 +969,13 @@ MAT-003,0</pre>
             const response = await fetch("{% url 'inventarios:api_ajuste_masivo_procesar' %}", {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-                }
+                headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') }
             });
-
             const data = await response.json();
-
             if (data.status === 'success') {
                 mostrarResultados(data);
+                // Refrescar catálogo
+                loadCatalogo(catCurrentPage);
             } else {
                 alert(data.message || 'Error al procesar el ajuste.');
             }
@@ -596,35 +991,30 @@ MAT-003,0</pre>
         document.getElementById('statProcesados').textContent = data.total_procesados;
         document.getElementById('statAjustados').textContent = data.total_ajustados;
         document.getElementById('statErrores').textContent = data.total_errores;
-        
         const sinCambio = data.log.filter(l => l.status === 'sin_cambio').length;
         document.getElementById('statSinCambio').textContent = sinCambio;
 
         const tbody = document.getElementById('logTableBody');
-        tbody.innerHTML = '';
-
-        data.log.forEach(item => {
-            const tr = document.createElement('tr');
+        tbody.innerHTML = data.log.map(item => {
             const badgeClass = item.status === 'ajustado' ? 'ajustado' : (item.status === 'error' ? 'error' : 'sin_cambio');
             const statusLabel = item.status === 'ajustado' ? 'Ajustado' : (item.status === 'error' ? 'Error' : 'Sin cambio');
-            
-            tr.innerHTML = `
+            return `<tr>
                 <td>${item.fila}</td>
-                <td><strong>${item.sku}</strong></td>
-                <td>${item.material || '-'}</td>
-                <td>${item.stock_sistema !== undefined ? item.stock_sistema : '-'}</td>
-                <td>${item.cantidad_conteo !== undefined ? item.cantidad_conteo : '-'}</td>
-                <td>${item.diferencia !== undefined ? (item.diferencia > 0 ? '+' : '') + item.diferencia : '-'}</td>
+                <td class="col-sku">${item.sku}</td>
+                <td>${item.material || '—'}</td>
+                <td style="text-align:right;">${item.stock_sistema !== undefined ? item.stock_sistema : '—'}</td>
+                <td style="text-align:right;">${item.cantidad_conteo !== undefined ? item.cantidad_conteo : '—'}</td>
+                <td style="text-align:right; font-weight:600; color:${item.diferencia > 0 ? '#166534' : item.diferencia < 0 ? '#991b1b' : 'inherit'}">
+                    ${item.diferencia !== undefined ? (item.diferencia > 0 ? '+' : '') + item.diferencia : '—'}
+                </td>
                 <td><span class="badge-status ${badgeClass}">${statusLabel}</span></td>
-            `;
-            tbody.appendChild(tr);
-        });
+            </tr>`;
+        }).join('');
 
         resultadoContainer.classList.add('visible');
         resultadoContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // Descargar plantilla
     window.descargarPlantilla = function() {
         const csv = 'SKU,Cantidad\nMAT-001,25\nMAT-002,10\n';
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

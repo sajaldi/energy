@@ -3997,10 +3997,13 @@ def ajuste_masivo_view(request):
 
     ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
     historial = AjusteMasivoInventario.objects.filter(usuario=request.user).order_by('-fecha')[:20]
+    categorias = CategoriaMaterial.objects.all().order_by('nombre')
 
     context = {
         'ubicaciones': ubicaciones,
         'historial': historial,
+        'categorias': categorias,
+        'tipos_material': Material.TIPO_MATERIAL_CHOICES,
         'active_tab': 'ajuste_masivo',
         'title': 'Ajuste Masivo de Inventario',
         'es_auditoria': es_auditoria,
@@ -4197,4 +4200,100 @@ def api_ajuste_masivo_procesar(request):
         'total_ajustados': total_ajustados,
         'total_errores': total_errores,
         'log': log_resultado,
+    })
+
+
+@login_required
+def api_ajuste_masivo_catalogo(request):
+    """
+    API paginada para listar todos los materiales con stock y bodega.
+    Soporta búsqueda por texto y filtros por categoría, bodega y tipo.
+    Solo accesible para usuarios del grupo Auditoria o superusuarios.
+    """
+    from django.db.models import Q, Sum, Prefetch
+    from django.core.paginator import Paginator
+
+    es_auditoria = request.user.groups.filter(name='Auditoria').exists() or request.user.is_superuser
+    if not es_auditoria:
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+
+    # Parámetros
+    search = request.GET.get('q', '').strip()
+    categoria_id = request.GET.get('categoria')
+    bodega_id = request.GET.get('bodega')
+    tipo = request.GET.get('tipo')
+    page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('per_page', 50))
+
+    qs = Material.objects.select_related('categoria', 'unidad_medida', 'marca').all()
+
+    # Filtros
+    if search:
+        qs = qs.filter(
+            Q(nombre__icontains=search) |
+            Q(sku__icontains=search) |
+            Q(descripcion__icontains=search)
+        )
+
+    if categoria_id:
+        qs = qs.filter(categoria_id=categoria_id)
+
+    if tipo:
+        qs = qs.filter(tipo_material=tipo)
+
+    if bodega_id:
+        qs = qs.filter(existencias__ubicacion_id=bodega_id, existencias__cantidad__gt=0).distinct()
+
+    qs = qs.order_by('nombre')
+
+    paginator = Paginator(qs, per_page)
+    page_obj = paginator.get_page(page)
+
+    # Obtener IDs de materiales en la página actual
+    materiales_page = list(page_obj)
+    material_ids = [m.id for m in materiales_page]
+
+    # Pre-cargar existencias agrupadas por material
+    from collections import defaultdict
+    stock_by_material = defaultdict(list)
+    existencias = StockRecord.objects.filter(
+        material_id__in=material_ids, cantidad__gt=0
+    ).select_related('ubicacion').values(
+        'material_id', 'ubicacion__nombre', 'cantidad'
+    )
+    for ex in existencias:
+        stock_by_material[ex['material_id']].append({
+            'bodega': ex['ubicacion__nombre'],
+            'cantidad': float(ex['cantidad']),
+        })
+
+    # Construir respuesta
+    items = []
+    for m in materiales_page:
+        bodegas = stock_by_material.get(m.id, [])
+        stock_total = sum(b['cantidad'] for b in bodegas)
+        bodegas_nombres = ', '.join(set(b['bodega'] for b in bodegas)) if bodegas else '—'
+
+        items.append({
+            'id': m.id,
+            'sku': m.sku,
+            'nombre': m.nombre,
+            'categoria': m.categoria.nombre if m.categoria else 'Sin categoría',
+            'tipo': m.get_tipo_material_display(),
+            'unidad': m.unidad_medida.abreviatura if m.unidad_medida else '—',
+            'stock_total': stock_total,
+            'stock_minimo': float(m.stock_minimo),
+            'bodegas': bodegas_nombres,
+            'bodegas_detalle': bodegas,
+            'bajo_stock': stock_total < float(m.stock_minimo) and float(m.stock_minimo) > 0,
+        })
+
+    return JsonResponse({
+        'status': 'success',
+        'items': items,
+        'page': page_obj.number,
+        'total_pages': paginator.num_pages,
+        'total_items': paginator.count,
+        'has_next': page_obj.has_next(),
+        'has_prev': page_obj.has_previous(),
     })
