@@ -530,7 +530,12 @@ def mobile_ot_finalizar(request, pk):
             elif paso.punto_medicion_codigo and activo_principal:
                 punto = activo_principal.puntos_medicion.filter(codigo=paso.punto_medicion_codigo).first()
             
-            paso.punto_vinculado = punto # Helper para el template
+            paso.punto_vinculado = punto
+            # Marcar si la última lectura NO es de hoy
+            if punto and punto.ultima_lectura and punto.ultima_lectura.fecha_lectura:
+                paso.lectura_desactualizada = punto.ultima_lectura.fecha_lectura.date() < timezone.now().date()
+            else:
+                paso.lectura_desactualizada = True
 
     # Obtener puntos de medición de los activos vinculados (los que NO están en el checklist)
     activos = ot.activos.all().prefetch_related('puntos_medicion')

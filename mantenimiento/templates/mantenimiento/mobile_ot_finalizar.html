@@ -388,10 +388,10 @@
                                         </div>
                                     {% elif paso.tipo_respuesta == 'NUMERICO' or paso.tipo_respuesta == 'MEDICION' %}
                                         {% if paso.punto_vinculado %}
-                                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding: 6px 10px; background: #eff6ff; border-left: 3px solid #0070f2; font-size: 12px; color: #0070f2; font-weight: 600;">
-                                            <ion-icon name="speedometer-outline"></ion-icon>
+                                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding: 6px 10px; background: {% if paso.lectura_desactualizada %}#fef3c7{% else %}#eff6ff{% endif %}; border-left: 3px solid {% if paso.lectura_desactualizada %}#e9730c{% else %}#0070f2{% endif %}; font-size: 12px; color: {% if paso.lectura_desactualizada %}#92400e{% else %}#0070f2{% endif %}; font-weight: 600;">
+                                            <ion-icon name="{% if paso.lectura_desactualizada %}warning-outline{% else %}speedometer-outline{% endif %}"></ion-icon>
                                             {{ paso.punto_vinculado.nombre }} ({{ paso.punto_vinculado.unidad }})
-                                            {% if paso.punto_vinculado.ultima_lectura %} — Última: {{ paso.punto_vinculado.ultima_lectura.valor }} el {{ paso.punto_vinculado.ultima_lectura.fecha_lectura|date:"d/m/Y H:i" }}{% endif %}
+                                            {% if paso.punto_vinculado.ultima_lectura %} — Última: {{ paso.punto_vinculado.ultima_lectura.valor }} el {{ paso.punto_vinculado.ultima_lectura.fecha_lectura|date:"d/m/Y H:i" }}{% if paso.lectura_desactualizada %} <span style="font-weight:800;">⚠ DESACTUALIZADO</span>{% endif %}{% else %} — Sin lecturas previas{% endif %}
                                         </div>
                                         {% endif %}
                                         <div class="fiori-form-group">
