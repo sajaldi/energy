@@ -951,9 +951,9 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 3600.0,  # Sincroniza tickets desde SIG GIA cada hora
         'kwargs': {'days': 1},  # Tickets del día actual
     },
-    'sync-tickets-automatico-cada-2-horas': {
+    'sync-tickets-automatico-cada-30-min': {
         'task': 'callcenter.tasks.sync_tickets_automatico_task',
-        'schedule': 7200.0,  # Sincroniza tickets automáticamente cada 2 horas (sin filtro de fechas)
+        'schedule': 1800.0,  # Sincroniza tickets automáticamente cada 30 minutos
     },
     # --- Riesgos de Negocio: Notificaciones periódicas (diarias a las 7:00 AM) ---
     'check-review-notifications-daily': {
