@@ -310,6 +310,7 @@
     <div class="shell-bar">
         <span class="shell-bar-title" id="shell-title">{{ config.titulo_dashboard }}</span>
         <div class="shell-bar-right">
+            <span class="shell-time" id="last-sync" style="font-size:0.68rem; color:rgba(255,255,255,0.5);">—</span>
             <div class="shell-nav" id="shell-nav"></div>
             <div class="shell-live"><span class="dot-green"></span> En vivo</div>
             <span class="shell-time" id="shell-time">--:--</span>
@@ -507,6 +508,10 @@
             document.getElementById('v-cerrados').textContent = fmt(m.cerrados);
             document.getElementById('v-abiertos').textContent = fmt(m.abiertos);
             document.getElementById('v-pct').textContent = m.porcentaje_cierre + '%';
+
+            // Actualizar timestamp
+            var now = new Date();
+            document.getElementById('last-sync').textContent = 'Actualizado: ' + now.toLocaleString('es-HN', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
 
             active = [];
             var sl = allSlides();
