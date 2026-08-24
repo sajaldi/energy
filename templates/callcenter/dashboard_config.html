@@ -217,6 +217,27 @@
             </div>
         </div>
 
+        <!-- Sección: Sincronización Automática -->
+        <div class="config-section">
+            <h3><i class="fas fa-sync-alt"></i> Sincronización Automática del Cluster</h3>
+            <p style="font-size: 0.8rem; color: #6a6d70; margin-bottom: 1rem;">Agrega automáticamente nuevos tickets al cluster seleccionado cada N minutos (usa la misma lógica del Wizard).</p>
+            <div class="form-grid">
+                <label class="checkbox-item">
+                    <input type="checkbox" name="auto_sync_enabled" {% if config.auto_sync_enabled %}checked{% endif %}>
+                    Activar sincronización automática
+                </label>
+                <div class="form-group">
+                    <label for="auto_sync_intervalo">Intervalo (minutos)</label>
+                    <input type="number" name="auto_sync_intervalo_minutos" id="auto_sync_intervalo" value="{{ config.auto_sync_intervalo_minutos }}" min="5" max="1440">
+                </div>
+            </div>
+            {% if config.auto_sync_last_run %}
+            <p style="font-size: 0.75rem; color: #6a6d70; margin-top: 0.75rem;">
+                <i class="fas fa-clock"></i> Última sincronización: {{ config.auto_sync_last_run|date:"d/m/Y H:i" }}
+            </p>
+            {% endif %}
+        </div>
+
         <!-- Sección: Clusters -->
         <div class="config-section">
             <h3><i class="fas fa-layer-group"></i> Clusters a Mostrar</h3>

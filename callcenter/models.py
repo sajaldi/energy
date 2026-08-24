@@ -990,6 +990,22 @@ class DashboardConfig(models.Model):
         verbose_name="Subtítulo"
     )
     
+    # Auto-sincronización del cluster
+    auto_sync_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Sincronización Automática",
+        help_text="Ejecuta el wizard de sincronización periódicamente para agregar nuevos tickets al cluster"
+    )
+    auto_sync_intervalo_minutos = models.PositiveIntegerField(
+        default=60,
+        verbose_name="Intervalo de Sincronización (minutos)",
+        help_text="Cada cuántos minutos se sincroniza el cluster automáticamente"
+    )
+    auto_sync_last_run = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="Última Sincronización Automática"
+    )
+    
     actualizado_en = models.DateTimeField(auto_now=True)
 
     def __str__(self):

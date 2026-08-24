@@ -4042,6 +4042,51 @@ def tickets_dashboard_public_view(request):
     return render(request, 'callcenter/tickets_dashboard_public.html', context)
 
 
+def _auto_sync_clusters(config):
+    """
+    Ejecuta la sincronización automática: busca tickets nuevos del departamento
+    configurado y los agrega a los clusters seleccionados.
+    """
+    from .models import SolicitudTicket, GrupoTicket, FallaTicket
+    from django.db.models import Q
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    try:
+        for cluster in config.clusters.all():
+            depto = cluster.departamento or config.departamento_filtro
+            if not depto:
+                continue
+            
+            # Buscar tickets del departamento en los últimos N días de antigüedad
+            fecha_corte = timezone.now() - timedelta(days=config.dias_antiguedad)
+            fallas_ids = FallaTicket.objects.filter(
+                departamento_responsable=depto
+            ).values_list('id', flat=True)
+            
+            # Tickets que coinciden pero NO están ya en el cluster
+            existing_ids = cluster.tickets.values_list('id', flat=True)
+            nuevos = SolicitudTicket.objects.filter(
+                falla_reportada_id__in=fallas_ids,
+                fecha_solicitud__gte=fecha_corte,
+                es_interno=False,
+            ).exclude(id__in=existing_ids)
+            
+            # Asignar responsable y agregar al cluster
+            tickets_to_add = []
+            for ticket in nuevos:
+                if not ticket.usuario_responsable and ticket.falla_reportada and ticket.falla_reportada.usuario_responsable:
+                    ticket.usuario_responsable = ticket.falla_reportada.usuario_responsable
+                    ticket.save(update_fields=['usuario_responsable'])
+                tickets_to_add.append(ticket)
+            
+            if tickets_to_add:
+                cluster.tickets.add(*tickets_to_add)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f'Auto-sync clusters error: {e}')
+
+
 def tickets_dashboard_api(request):
     """
     API JSON que retorna los datos del dashboard según la configuración activa.
@@ -4053,6 +4098,22 @@ def tickets_dashboard_api(request):
     from django.utils import timezone
     
     config = DashboardConfig.get_active()
+    
+    # Auto-sincronización del cluster si está habilitada
+    if config.auto_sync_enabled and not config.mostrar_todos_clusters and config.clusters.exists():
+        now = timezone.now()
+        should_sync = False
+        if not config.auto_sync_last_run:
+            should_sync = True
+        else:
+            elapsed = (now - config.auto_sync_last_run).total_seconds() / 60
+            if elapsed >= config.auto_sync_intervalo_minutos:
+                should_sync = True
+        
+        if should_sync:
+            _auto_sync_clusters(config)
+            config.auto_sync_last_run = now
+            config.save(update_fields=['auto_sync_last_run'])
     
     # Si hay clusters seleccionados manualmente, las métricas se basan en los tickets de esos clusters
     if not config.mostrar_todos_clusters and config.clusters.exists():
@@ -4264,6 +4325,10 @@ def dashboard_config_view(request):
         config.max_clusters = int(request.POST.get('max_clusters', 10))
         config.dias_antiguedad = int(request.POST.get('dias_antiguedad', 30))
         config.intervalo_refresh = int(request.POST.get('intervalo_refresh', 60))
+        
+        # Auto-sync
+        config.auto_sync_enabled = 'auto_sync_enabled' in request.POST
+        config.auto_sync_intervalo_minutos = int(request.POST.get('auto_sync_intervalo_minutos', 60))
         
         depto_id = request.POST.get('departamento_filtro')
         config.departamento_filtro_id = int(depto_id) if depto_id else None
