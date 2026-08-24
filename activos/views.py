@@ -5,6 +5,7 @@ from .forms import ActivoAdminForm
 from .models import VisorPlano, PinPlano, Activo
 import json
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from celery.result import AsyncResult
 from django.contrib.admin.views.decorators import staff_member_required
 from core.decorators import mobile_permission_required
@@ -1688,6 +1689,42 @@ def api_activo_fiori_crear_ot(request, pk):
         'message': f'OT #{ot.id} creada exitosamente.',
         'ot_id': ot.id
     })
+
+
+@staff_member_required
+@require_POST
+def api_crear_punto_medicion(request, pk):
+    """API para crear un nuevo punto de medición desde la vista Fiori."""
+    from activos.models.medicion import PuntoMedicion
+    import json
+    
+    activo = get_object_or_404(Activo, pk=pk)
+    
+    try:
+        data = json.loads(request.body)
+        nombre = data.get('nombre', '').strip()
+        unidad = data.get('unidad', '').strip()
+        
+        if not nombre or not unidad:
+            return JsonResponse({'status': 'error', 'message': 'Nombre y unidad son obligatorios.'}, status=400)
+        
+        punto = PuntoMedicion.objects.create(
+            activo=activo,
+            nombre=nombre,
+            codigo=data.get('codigo', '').strip() or None,
+            unidad=unidad,
+            es_acumulativo=data.get('es_acumulativo', False),
+            valor_objetivo=float(data['valor_objetivo']) if data.get('valor_objetivo') else None,
+            tolerancia=float(data['tolerancia']) if data.get('tolerancia') else None,
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Punto de medición "{punto.nombre}" creado correctamente.',
+            'punto_id': punto.id,
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 @staff_member_required

@@ -636,6 +636,12 @@
 
         <!-- MEASUREMENTS TAB (MAIN) -->
         <div id="measurements" class="tab-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <span style="font-size:0.9rem; font-weight:600; color:#475569;">Puntos de Medición</span>
+                <button onclick="openCrearPuntoModal()" style="background:#0070f2; color:#fff; border:none; padding:0.5rem 1rem; font-size:0.78rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:0.4rem; font-family:inherit;">
+                    <ion-icon name="add-circle-outline"></ion-icon> Nuevo Punto
+                </button>
+            </div>
             <div class="measurement-grid">
                 {% for p in puntos_data %}
                 <div class="measurement-card" onclick="openMeasurementDetail('{{ p.obj.id }}')">
@@ -1537,5 +1543,91 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal: Crear Punto de Medición -->
+    <div id="crearPuntoModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; display:none;" onclick="closeCrearPuntoModal(event)">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; width:480px; max-width:95%; box-shadow:0 8px 32px rgba(0,0,0,0.2);" onclick="event.stopPropagation()">
+            <div style="padding:1.25rem 1.5rem; border-bottom:1px solid #d9d9d9; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1rem; font-weight:700; color:#32363a;">Nuevo Punto de Medición</h3>
+                <button onclick="closeCrearPuntoModal()" style="background:none; border:none; font-size:1.25rem; cursor:pointer; color:#6a6d70;">&times;</button>
+            </div>
+            <div style="padding:1.5rem;">
+                <div style="display:grid; gap:1rem;">
+                    <div>
+                        <label style="font-size:0.78rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:0.25rem;">Nombre *</label>
+                        <input type="text" id="pm-nombre" placeholder="Ej: Horímetro Motor" style="width:100%; padding:0.5rem; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit;">
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div>
+                            <label style="font-size:0.78rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:0.25rem;">Unidad *</label>
+                            <input type="text" id="pm-unidad" placeholder="Ej: Hrs, Bar, °C" style="width:100%; padding:0.5rem; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:0.25rem;">Código (opcional)</label>
+                            <input type="text" id="pm-codigo" placeholder="Código corto" style="width:100%; padding:0.5rem; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit;">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div>
+                            <label style="font-size:0.78rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:0.25rem;">Valor Objetivo</label>
+                            <input type="number" id="pm-objetivo" step="0.01" placeholder="Opcional" style="width:100%; padding:0.5rem; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem; font-weight:600; color:#6a6d70; display:block; margin-bottom:0.25rem;">Tolerancia</label>
+                            <input type="number" id="pm-tolerancia" step="0.01" placeholder="Opcional" style="width:100%; padding:0.5rem; border:1px solid #d9d9d9; font-size:0.85rem; font-family:inherit;">
+                        </div>
+                    </div>
+                    <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; cursor:pointer;">
+                        <input type="checkbox" id="pm-acumulativo" style="width:16px; height:16px; accent-color:#0070f2;">
+                        Es acumulativo (ej: horímetro)
+                    </label>
+                </div>
+            </div>
+            <div style="padding:1rem 1.5rem; border-top:1px solid #d9d9d9; display:flex; justify-content:flex-end; gap:0.5rem;">
+                <button onclick="closeCrearPuntoModal()" style="padding:0.5rem 1.25rem; border:1px solid #d9d9d9; background:#fff; font-size:0.82rem; cursor:pointer; font-family:inherit;">Cancelar</button>
+                <button onclick="submitCrearPunto()" style="padding:0.5rem 1.25rem; border:none; background:#0070f2; color:#fff; font-size:0.82rem; cursor:pointer; font-weight:600; font-family:inherit;">Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function openCrearPuntoModal() {
+        document.getElementById('crearPuntoModal').style.display = 'block';
+    }
+    function closeCrearPuntoModal(e) {
+        if (e && e.target !== e.currentTarget) return;
+        document.getElementById('crearPuntoModal').style.display = 'none';
+    }
+    function submitCrearPunto() {
+        var nombre = document.getElementById('pm-nombre').value.trim();
+        var unidad = document.getElementById('pm-unidad').value.trim();
+        if (!nombre || !unidad) { alert('Nombre y Unidad son obligatorios.'); return; }
+
+        var payload = {
+            nombre: nombre,
+            unidad: unidad,
+            codigo: document.getElementById('pm-codigo').value.trim(),
+            es_acumulativo: document.getElementById('pm-acumulativo').checked,
+            valor_objetivo: document.getElementById('pm-objetivo').value || null,
+            tolerancia: document.getElementById('pm-tolerancia').value || null,
+        };
+
+        fetch('{% url "activos:api_crear_punto_medicion" activo.pk %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify(payload)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'success') {
+                closeCrearPuntoModal();
+                location.reload();
+            } else {
+                alert(data.message || 'Error al crear el punto.');
+            }
+        })
+        .catch(function(e) { alert('Error de conexión.'); });
+    }
+    </script>
 </body>
 </html>
