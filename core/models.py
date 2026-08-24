@@ -559,8 +559,8 @@ def _apply_nav_config(menus, config):
 
 class DashboardMedidorConfig(models.Model):
     """
-    Configuración del dashboard TV de medidores.
-    Define qué medidores mostrar y el intervalo de refresco.
+    Configuración del dashboard TV de puntos de medición.
+    Define qué puntos de medición mostrar y el intervalo de refresco.
     """
     nombre = models.CharField(max_length=100, default="Dashboard de Medidores", verbose_name="Nombre")
     activo = models.BooleanField(default=True)
@@ -568,13 +568,19 @@ class DashboardMedidorConfig(models.Model):
         Medidor,
         blank=True,
         related_name='dashboard_configs',
-        verbose_name="Medidores a Mostrar"
+        verbose_name="Medidores a Mostrar (legacy)"
+    )
+    puntos_medicion = models.ManyToManyField(
+        'activos.PuntoMedicion',
+        blank=True,
+        related_name='dashboard_configs',
+        verbose_name="Puntos de Medición a Mostrar"
     )
     intervalo_refresh = models.PositiveIntegerField(
         default=60,
         verbose_name="Intervalo de Refresco (segundos)"
     )
-    titulo = models.CharField(max_length=200, default="Monitoreo de Medidores", verbose_name="Título")
+    titulo = models.CharField(max_length=200, default="Monitoreo de Puntos de Medición", verbose_name="Título")
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:

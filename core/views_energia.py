@@ -298,45 +298,46 @@ def medidores_tv_dashboard(request):
 
 
 def medidores_tv_api(request):
-    """API JSON para el dashboard TV de medidores."""
-    from .models import DashboardMedidorConfig, Medidor, Consumo
-    from django.db.models import Max
+    """API JSON para el dashboard TV de puntos de medición."""
+    from .models import DashboardMedidorConfig
+    from activos.models.medicion import PuntoMedicion, DocumentoMedicion
     from django.utils import timezone as tz
-    from datetime import timedelta
 
     config = DashboardMedidorConfig.get_active()
-    medidores = config.medidores.all().select_related('unidad', 'tipo_medidor')
+    puntos = config.puntos_medicion.all().select_related('activo')
 
-    if not medidores.exists():
-        medidores = Medidor.objects.all().select_related('unidad', 'tipo_medidor')
+    if not puntos.exists():
+        puntos = PuntoMedicion.objects.all().select_related('activo')
 
     now = tz.now()
     resultados = []
 
-    for m in medidores:
-        # Último consumo
-        ultimo = Consumo.objects.filter(medidor=m).order_by('-fecha').first()
-        # Consumo de hace 24h para comparar
-        hace_24h = now - timedelta(hours=24)
-        anterior = Consumo.objects.filter(medidor=m, fecha__lte=hace_24h).order_by('-fecha').first()
+    for p in puntos:
+        # Última lectura
+        ultima = p.lecturas.first()  # ya ordenada por -fecha_lectura
+        valor = ultima.valor if ultima else None
+        fecha = ultima.fecha_lectura.strftime('%d/%m/%Y %H:%M') if ultima and ultima.fecha_lectura else '-'
 
-        valor_actual = ultimo.consumo if ultimo else 0
-        valor_anterior = anterior.consumo if anterior else 0
-
-        if m.tipo and m.tipo.strip().upper() == 'PUNTUAL':
-            # Puntual: valor directo
-            display = valor_actual
-        else:
-            # Acumulativo: diferencia
-            display = valor_actual - valor_anterior if valor_anterior else valor_actual
+        # Estado respecto al objetivo
+        estado = 'normal'
+        if p.valor_objetivo and valor is not None:
+            if p.tolerancia:
+                if abs(valor - p.valor_objetivo) > p.tolerancia:
+                    estado = 'alerta'
+            elif valor > p.valor_objetivo:
+                estado = 'alerta'
 
         resultados.append({
-            'id': m.id,
-            'nombre': m.nombre,
-            'valor': round(display, 2),
-            'unidad': m.unidad.simbolo if m.unidad else '',
-            'tipo': m.tipo_medidor.nombre if m.tipo_medidor else (m.tipo or '-'),
-            'ultima_lectura': ultimo.fecha.strftime('%d/%m/%Y %H:%M') if ultimo else '-',
+            'id': p.id,
+            'nombre': p.nombre,
+            'activo': p.activo.nombre if p.activo else '-',
+            'activo_codigo': p.activo.codigo_interno if p.activo else '-',
+            'valor': round(valor, 2) if valor is not None else None,
+            'unidad': p.unidad or '',
+            'es_acumulativo': p.es_acumulativo,
+            'valor_objetivo': p.valor_objetivo,
+            'estado': estado,
+            'ultima_lectura': fecha,
         })
 
     data = {
@@ -351,8 +352,9 @@ def medidores_tv_api(request):
 
 @staff_member_required
 def medidores_dashboard_config(request):
-    """Configurador del dashboard TV de medidores."""
-    from .models import DashboardMedidorConfig, Medidor
+    """Configurador del dashboard TV de puntos de medición."""
+    from .models import DashboardMedidorConfig
+    from activos.models.medicion import PuntoMedicion
     from django.contrib import messages
     from django.shortcuts import redirect
 
@@ -362,17 +364,17 @@ def medidores_dashboard_config(request):
         config.titulo = request.POST.get('titulo', config.titulo)
         config.intervalo_refresh = int(request.POST.get('intervalo_refresh', 60))
         config.save()
-        medidor_ids = request.POST.getlist('medidores')
-        config.medidores.set(medidor_ids)
+        punto_ids = request.POST.getlist('puntos_medicion')
+        config.puntos_medicion.set(punto_ids)
         messages.success(request, 'Configuración guardada correctamente.')
         return redirect('core:medidores_dashboard_config')
 
-    medidores_todos = Medidor.objects.all().order_by('nombre')
-    selected_ids = list(config.medidores.values_list('id', flat=True))
+    puntos_todos = PuntoMedicion.objects.all().select_related('activo').order_by('activo__nombre', 'nombre')
+    selected_ids = list(config.puntos_medicion.values_list('id', flat=True))
 
     return render(request, 'core/medidores_dashboard_config.html', {
         'config': config,
-        'medidores_todos': medidores_todos,
+        'puntos_todos': puntos_todos,
         'selected_ids': selected_ids,
-        'title': 'Configuración Dashboard Medidores',
+        'title': 'Configuración Dashboard Puntos de Medición',
     })

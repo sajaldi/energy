@@ -48,14 +48,14 @@
         </div>
 
         <div class="config-section">
-            <h3><i class="fas fa-tachometer-alt"></i> Medidores a Mostrar</h3>
+            <h3><i class="fas fa-tachometer-alt"></i> Puntos de Medición a Mostrar</h3>
             <p style="font-size: 0.8rem; color: #6a6d70; margin-bottom: 0.75rem;">Si no seleccionas ninguno, se muestran todos.</p>
-            <input type="text" class="search-input" placeholder="Buscar medidor..." oninput="filterMedidores(this.value)">
+            <input type="text" class="search-input" placeholder="Buscar punto de medición o activo..." oninput="filterMedidores(this.value)">
             <div class="medidores-list" id="medidores-list">
-                {% for m in medidores_todos %}
+                {% for p in puntos_todos %}
                 <label class="medidor-option">
-                    <input type="checkbox" name="medidores" value="{{ m.id }}" {% if m.id in selected_ids %}checked{% endif %}>
-                    {{ m.nombre }} <span style="color:#6a6d70; font-size:0.72rem;">{% if m.tipo_medidor %}({{ m.tipo_medidor }}){% endif %}</span>
+                    <input type="checkbox" name="puntos_medicion" value="{{ p.id }}" {% if p.id in selected_ids %}checked{% endif %}>
+                    <strong>{{ p.nombre }}</strong> <span style="color:#6a6d70; font-size:0.72rem;">— {{ p.activo.nombre }} ({{ p.unidad }})</span>
                 </label>
                 {% endfor %}
             </div>

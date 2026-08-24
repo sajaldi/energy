@@ -86,11 +86,13 @@
             var grid = document.getElementById('medidores-grid');
             var h = '';
             data.medidores.forEach(function(m) {
+                var valorDisplay = m.valor !== null ? m.valor.toLocaleString('es-HN', {minimumFractionDigits:2}) : '—';
+                var estadoColor = m.estado === 'alerta' ? '#bb0000' : 'var(--primary)';
                 h += '<div class="medidor-card">' +
-                    '<div class="stripe"></div>' +
+                    '<div class="stripe" style="background:' + estadoColor + ';"></div>' +
                     '<div class="name">' + m.nombre + '</div>' +
-                    '<div class="value">' + m.valor.toLocaleString('es-HN', {minimumFractionDigits:2}) + '<span class="unit">' + m.unidad + '</span></div>' +
-                    '<div class="tipo-badge">' + m.tipo + '</div>' +
+                    '<div class="value" style="color:' + estadoColor + ';">' + valorDisplay + '<span class="unit">' + m.unidad + '</span></div>' +
+                    '<div class="tipo-badge">' + m.activo_codigo + ' — ' + m.activo + '</div>' +
                     '<div class="meta"><i class="fas fa-clock"></i> ' + m.ultima_lectura + '</div>' +
                 '</div>';
             });
