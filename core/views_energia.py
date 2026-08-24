@@ -8,6 +8,7 @@ import json
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Sum, Count, Q
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -280,3 +281,98 @@ def dashboard_energia(request):
     }
 
     return render(request, 'core/dashboard_energia.html', context)
+
+
+# ============================================================
+# DASHBOARD TV MEDIDORES
+# ============================================================
+
+def medidores_tv_dashboard(request):
+    """Dashboard TV de medidores (público, sin login)."""
+    from .models import DashboardMedidorConfig
+    config = DashboardMedidorConfig.get_active()
+    return render(request, 'core/medidores_tv_dashboard.html', {
+        'config': config,
+        'title': config.titulo,
+    })
+
+
+def medidores_tv_api(request):
+    """API JSON para el dashboard TV de medidores."""
+    from .models import DashboardMedidorConfig, Medidor, Consumo
+    from django.db.models import Max
+    from django.utils import timezone as tz
+    from datetime import timedelta
+
+    config = DashboardMedidorConfig.get_active()
+    medidores = config.medidores.all().select_related('unidad', 'tipo_medidor')
+
+    if not medidores.exists():
+        medidores = Medidor.objects.all().select_related('unidad', 'tipo_medidor')
+
+    now = tz.now()
+    resultados = []
+
+    for m in medidores:
+        # Último consumo
+        ultimo = Consumo.objects.filter(medidor=m).order_by('-fecha').first()
+        # Consumo de hace 24h para comparar
+        hace_24h = now - timedelta(hours=24)
+        anterior = Consumo.objects.filter(medidor=m, fecha__lte=hace_24h).order_by('-fecha').first()
+
+        valor_actual = ultimo.consumo if ultimo else 0
+        valor_anterior = anterior.consumo if anterior else 0
+
+        if m.tipo and m.tipo.strip().upper() == 'PUNTUAL':
+            # Puntual: valor directo
+            display = valor_actual
+        else:
+            # Acumulativo: diferencia
+            display = valor_actual - valor_anterior if valor_anterior else valor_actual
+
+        resultados.append({
+            'id': m.id,
+            'nombre': m.nombre,
+            'valor': round(display, 2),
+            'unidad': m.unidad.simbolo if m.unidad else '',
+            'tipo': m.tipo_medidor.nombre if m.tipo_medidor else (m.tipo or '-'),
+            'ultima_lectura': ultimo.fecha.strftime('%d/%m/%Y %H:%M') if ultimo else '-',
+        })
+
+    data = {
+        'titulo': config.titulo,
+        'intervalo_refresh': config.intervalo_refresh,
+        'medidores': resultados,
+        'total_medidores': len(resultados),
+        'timestamp': now.isoformat(),
+    }
+    return JsonResponse(data)
+
+
+@staff_member_required
+def medidores_dashboard_config(request):
+    """Configurador del dashboard TV de medidores."""
+    from .models import DashboardMedidorConfig, Medidor
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    config = DashboardMedidorConfig.get_active()
+
+    if request.method == 'POST':
+        config.titulo = request.POST.get('titulo', config.titulo)
+        config.intervalo_refresh = int(request.POST.get('intervalo_refresh', 60))
+        config.save()
+        medidor_ids = request.POST.getlist('medidores')
+        config.medidores.set(medidor_ids)
+        messages.success(request, 'Configuración guardada correctamente.')
+        return redirect('core:medidores_dashboard_config')
+
+    medidores_todos = Medidor.objects.all().order_by('nombre')
+    selected_ids = list(config.medidores.values_list('id', flat=True))
+
+    return render(request, 'core/medidores_dashboard_config.html', {
+        'config': config,
+        'medidores_todos': medidores_todos,
+        'selected_ids': selected_ids,
+        'title': 'Configuración Dashboard Medidores',
+    })

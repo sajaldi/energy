@@ -1,0 +1,105 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config.titulo }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        @font-face { font-family:'Artifakt Element'; src:url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Element%20Medium.woff2') format('woff2'); font-weight:400; font-display:swap; }
+        @font-face { font-family:'Artifakt Element'; src:url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Legend%20Bold.woff2') format('woff2'); font-weight:700; font-display:swap; }
+
+        :root { --primary:#0070f2; --bg:#eff2f5; --card:#fff; --text:#32363a; --muted:#6a6d70; --border:#d9d9d9; --success:#107e3e; --warning:#e9730c; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html,body { height:100%; overflow:hidden; font-family:'Artifakt Element','Outfit',sans-serif; background:var(--bg); color:var(--text); }
+
+        .shell-bar { position:fixed; top:0; left:0; right:0; height:2.75rem; background:#354a5f; display:flex; align-items:center; justify-content:space-between; padding:0 2rem; z-index:200; }
+        .shell-bar-title { font-size:0.85rem; font-weight:600; color:#fff; }
+        .shell-bar-right { display:flex; align-items:center; gap:1.5rem; }
+        .shell-live { display:flex; align-items:center; gap:0.4rem; font-size:0.68rem; color:rgba(255,255,255,0.8); text-transform:uppercase; letter-spacing:1px; }
+        .shell-live .dot-green { width:6px; height:6px; background:#36db84; animation:blink 2s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .shell-time { font-size:0.75rem; color:rgba(255,255,255,0.6); }
+
+        .content { padding:3.75rem 3rem 2rem; height:100vh; display:flex; flex-direction:column; }
+        .page-title { font-size:1.5rem; font-weight:700; margin-bottom:1.5rem; }
+
+        .medidores-grid {
+            flex:1;
+            display:grid;
+            grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));
+            gap:1.25rem;
+            align-content:start;
+        }
+        .medidor-card {
+            background:var(--card);
+            border:1px solid var(--border);
+            padding:1.5rem;
+            box-shadow:0 2px 8px rgba(0,0,0,0.06);
+            position:relative;
+        }
+        .medidor-card .stripe { position:absolute; top:0; left:0; right:0; height:4px; background:var(--primary); }
+        .medidor-card .name { font-size:0.85rem; font-weight:600; color:var(--text); margin-bottom:0.5rem; }
+        .medidor-card .value { font-size:2.8rem; font-weight:800; color:var(--primary); line-height:1; }
+        .medidor-card .unit { font-size:1rem; font-weight:400; color:var(--muted); margin-left:0.3rem; }
+        .medidor-card .meta { font-size:0.72rem; color:var(--muted); margin-top:0.5rem; }
+        .medidor-card .tipo-badge { display:inline-block; font-size:0.65rem; background:#f0f4f8; color:var(--muted); padding:0.15rem 0.5rem; font-weight:600; margin-top:0.4rem; }
+    </style>
+</head>
+<body>
+    <div class="shell-bar">
+        <span class="shell-bar-title" id="shell-title">{{ config.titulo }}</span>
+        <div class="shell-bar-right">
+            <span class="shell-time" id="last-update">—</span>
+            <div class="shell-live"><span class="dot-green"></span> En vivo</div>
+            <span class="shell-time" id="shell-time">--:--</span>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="page-title" id="page-title">{{ config.titulo }}</div>
+        <div class="medidores-grid" id="medidores-grid"></div>
+    </div>
+
+    <script>
+    (function() {
+        var API = '{% url "core:medidores_tv_api" %}';
+        var refreshMs = {{ config.intervalo_refresh }} * 1000;
+
+        function clock() {
+            var n = new Date();
+            document.getElementById('shell-time').textContent = n.toLocaleTimeString('es-HN', {hour:'2-digit', minute:'2-digit'});
+        }
+        setInterval(clock, 30000); clock();
+
+        function fetchData() {
+            fetch(API).then(function(r){return r.json();}).then(render).catch(function(e){console.error(e);});
+        }
+
+        function render(data) {
+            document.getElementById('shell-title').textContent = data.titulo;
+            document.getElementById('page-title').textContent = data.titulo;
+            document.getElementById('last-update').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-HN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+            var grid = document.getElementById('medidores-grid');
+            var h = '';
+            data.medidores.forEach(function(m) {
+                h += '<div class="medidor-card">' +
+                    '<div class="stripe"></div>' +
+                    '<div class="name">' + m.nombre + '</div>' +
+                    '<div class="value">' + m.valor.toLocaleString('es-HN', {minimumFractionDigits:2}) + '<span class="unit">' + m.unidad + '</span></div>' +
+                    '<div class="tipo-badge">' + m.tipo + '</div>' +
+                    '<div class="meta"><i class="fas fa-clock"></i> ' + m.ultima_lectura + '</div>' +
+                '</div>';
+            });
+            grid.innerHTML = h;
+        }
+
+        setInterval(fetchData, refreshMs);
+        fetchData();
+    })();
+    </script>
+</body>
+</html>

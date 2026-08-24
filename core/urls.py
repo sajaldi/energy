@@ -47,4 +47,9 @@ urlpatterns = [
 
     # Dashboard Energetico
     path('dashboard-energia/', views_energia.dashboard_energia, name='dashboard_energia'),
+    
+    # Dashboard TV Medidores
+    path('medidores/dashboard-tv/', views_energia.medidores_tv_dashboard, name='medidores_tv_dashboard'),
+    path('medidores/dashboard-tv/api/', views_energia.medidores_tv_api, name='medidores_tv_api'),
+    path('medidores/dashboard-config/', views_energia.medidores_dashboard_config, name='medidores_dashboard_config'),
 ]

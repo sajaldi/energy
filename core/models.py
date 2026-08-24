@@ -555,3 +555,38 @@ def _apply_nav_config(menus, config):
     return result
 
 
+
+
+class DashboardMedidorConfig(models.Model):
+    """
+    Configuración del dashboard TV de medidores.
+    Define qué medidores mostrar y el intervalo de refresco.
+    """
+    nombre = models.CharField(max_length=100, default="Dashboard de Medidores", verbose_name="Nombre")
+    activo = models.BooleanField(default=True)
+    medidores = models.ManyToManyField(
+        Medidor,
+        blank=True,
+        related_name='dashboard_configs',
+        verbose_name="Medidores a Mostrar"
+    )
+    intervalo_refresh = models.PositiveIntegerField(
+        default=60,
+        verbose_name="Intervalo de Refresco (segundos)"
+    )
+    titulo = models.CharField(max_length=200, default="Monitoreo de Medidores", verbose_name="Título")
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Config Dashboard Medidores"
+        verbose_name_plural = "Config Dashboard Medidores"
+
+    def __str__(self):
+        return self.nombre
+
+    @classmethod
+    def get_active(cls):
+        config = cls.objects.filter(activo=True).first()
+        if not config:
+            config = cls.objects.create(activo=True)
+        return config
