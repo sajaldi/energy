@@ -1755,9 +1755,12 @@
                                 </div>
                             </div>
                             <div class="form-group" style="margin-top: 0.75rem; ${p.tipo_respuesta === 'MEDICION' ? '' : 'display:none;'}">
-                                <label>Punto de Medición (código o ID)</label>
-                                <input type="text" class="form-control s-punto-medicion" value="${p.punto_medicion_id || ''}" placeholder="ID del punto de medición vinculado" style="height: 42px; border-radius: 8px;">
-                                ${p.punto_medicion_nombre ? '<small style="color:#6a6d70;">Vinculado: ' + p.punto_medicion_nombre + '</small>' : ''}
+                                <label>Punto de Medición</label>
+                                <div style="position:relative;">
+                                    <input type="text" class="form-control s-punto-search" placeholder="Buscar punto de medición..." style="height: 42px; border-radius: 8px;" oninput="searchPuntoMedicion(this)" value="${p.punto_medicion_nombre || ''}">
+                                    <input type="hidden" class="s-punto-medicion" value="${p.punto_medicion_id || ''}">
+                                    <div class="punto-search-results" style="display:none; position:absolute; top:44px; left:0; right:0; background:#fff; border:1px solid #d9d9d9; max-height:200px; overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                                </div>
                             </div>
                             ${mediaHtml}
                         </div>
@@ -1857,8 +1860,12 @@
                         </div>
                     </div>
                     <div class="form-group" style="margin-top: 0.75rem; display:none;">
-                        <label>Punto de Medición (ID)</label>
-                        <input type="text" class="form-control s-punto-medicion" placeholder="ID del punto de medición" style="height: 42px; border-radius: 8px;">
+                        <label>Punto de Medición</label>
+                        <div style="position:relative;">
+                            <input type="text" class="form-control s-punto-search" placeholder="Buscar punto de medición..." style="height: 42px; border-radius: 8px;" oninput="searchPuntoMedicion(this)">
+                            <input type="hidden" class="s-punto-medicion" value="">
+                            <div class="punto-search-results" style="display:none; position:absolute; top:44px; left:0; right:0; background:#fff; border:1px solid #d9d9d9; max-height:200px; overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                        </div>
                     </div>
                     <div style="margin-top: 1rem; font-size: 0.75rem; color: #94a3b8; font-style: italic;">(Guarda los pasos para habilitar la carga de archivos)</div>
                 </div>
@@ -1923,6 +1930,46 @@
                 if (pmField) {
                     pmField.closest('.form-group').style.display = e.target.value === 'MEDICION' ? '' : 'none';
                 }
+            }
+        });
+
+        // Autocomplete search for Punto de Medición
+        let searchTimeout = null;
+        function searchPuntoMedicion(input) {
+            const q = input.value.trim();
+            const container = input.parentElement.querySelector('.punto-search-results');
+            if (q.length < 2) { container.style.display = 'none'; return; }
+
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function() {
+                fetch('/activos/api/puntos-medicion/search/?q=' + encodeURIComponent(q))
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.results.length) {
+                            container.innerHTML = '<div style="padding:0.75rem; color:#6a6d70; font-size:0.82rem;">Sin resultados</div>';
+                        } else {
+                            container.innerHTML = data.results.map(r =>
+                                `<div style="padding:0.6rem 0.75rem; cursor:pointer; font-size:0.82rem; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f0f4f8'" onmouseout="this.style.background=''" onclick="selectPuntoMedicion(this, ${r.id}, '${r.display.replace(/'/g, "\\'")}')">
+                                    <strong>${r.nombre}</strong> <span style="color:#6a6d70;">— ${r.codigo_activo} (${r.unidad})</span>
+                                </div>`
+                            ).join('');
+                        }
+                        container.style.display = 'block';
+                    });
+            }, 300);
+        }
+
+        function selectPuntoMedicion(el, id, display) {
+            const wrapper = el.closest('.form-group');
+            wrapper.querySelector('.s-punto-search').value = display;
+            wrapper.querySelector('.s-punto-medicion').value = id;
+            wrapper.querySelector('.punto-search-results').style.display = 'none';
+        }
+
+        // Close search results on click outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.classList.contains('s-punto-search')) {
+                document.querySelectorAll('.punto-search-results').forEach(el => el.style.display = 'none');
             }
         });
 

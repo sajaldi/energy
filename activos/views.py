@@ -1772,6 +1772,32 @@ def api_crear_lectura(request, punto_id):
 
 
 @staff_member_required
+def api_search_puntos_medicion(request):
+    """API de búsqueda de puntos de medición por nombre o activo."""
+    from activos.models.medicion import PuntoMedicion
+    from django.db.models import Q
+    
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+    
+    puntos = PuntoMedicion.objects.filter(
+        Q(nombre__icontains=q) | Q(activo__nombre__icontains=q) | Q(activo__codigo_interno__icontains=q) | Q(codigo__icontains=q)
+    ).select_related('activo')[:15]
+    
+    results = [{
+        'id': p.id,
+        'nombre': p.nombre,
+        'activo': p.activo.nombre if p.activo else '-',
+        'codigo_activo': p.activo.codigo_interno if p.activo else '-',
+        'unidad': p.unidad,
+        'display': f"{p.nombre} — {p.activo.codigo_interno if p.activo else ''} ({p.unidad})",
+    } for p in puntos]
+    
+    return JsonResponse({'results': results})
+
+
+@staff_member_required
 @mobile_permission_required('mi_planta')
 def fiori_explorer_view(request, ubicacion_id=None):
     """
