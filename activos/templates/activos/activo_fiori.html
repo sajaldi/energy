@@ -893,7 +893,7 @@
         };
 
         let activeChart = null;
-        let currentPointId = null;
+        var currentPointId = null;
         let currentMode = 'absolute'; // 'absolute' o 'delta'
         let currentGroup = 'raw';    // 'raw', 'week', 'month', 'year'
 
@@ -1609,8 +1609,6 @@
     </div>
 
     <script>
-    var currentPointId = null;
-
     function openCrearPuntoModal() {
         document.getElementById('crearPuntoModal').style.display = 'block';
     }
@@ -1649,21 +1647,9 @@
         .catch(function(e) { alert('Error de conexión.'); });
     }
 
-    // Capturar el ID del punto cuando se abre el modal de detalle
-    var _origOpenMD = typeof openMeasurementDetail === 'function' ? openMeasurementDetail : null;
-    document.addEventListener('DOMContentLoaded', function() {
-        // Monkey-patch: guardar el ID del punto actual al abrir el detalle
-        var origOpen = window.openMeasurementDetail;
-        if (origOpen) {
-            window.openMeasurementDetail = function(id) {
-                currentPointId = id;
-                origOpen(id);
-            };
-        }
-    });
-
     function submitNuevaLectura() {
-        if (!currentPointId) { alert('No se detectó el punto. Cierra y vuelve a abrir.'); return; }
+        // currentPointId is set by openMeasurementDetail in the main script (var = global)
+        if (!currentPointId) { alert('Abre un punto de medición primero.'); return; }
         var valor = document.getElementById('new-lectura-valor').value;
         if (!valor) { alert('El valor es obligatorio.'); return; }
 
