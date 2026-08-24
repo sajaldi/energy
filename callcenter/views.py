@@ -4042,6 +4042,45 @@ def tickets_dashboard_public_view(request):
     return render(request, 'callcenter/tickets_dashboard_public.html', context)
 
 
+def dashboard_control_view(request):
+    """
+    Control remoto del dashboard (accesible vía QR desde el celular).
+    Permite cambiar slide, forzar sync, pausar/reanudar el carrusel.
+    """
+    from .models import DashboardConfig
+    config = DashboardConfig.get_active()
+    return render(request, 'callcenter/dashboard_control.html', {
+        'config': config,
+        'title': 'Control del Dashboard',
+    })
+
+
+@require_POST
+@csrf_exempt
+def tickets_dashboard_command(request):
+    """
+    API para enviar comandos al dashboard (desde el control remoto).
+    Almacena el comando en cache para que el TV lo lea en el siguiente poll.
+    """
+    from django.core.cache import cache
+    import json
+    
+    try:
+        data = json.loads(request.body)
+        command = data.get('command')  # 'next', 'prev', 'goto', 'pause', 'resume', 'sync', 'refresh'
+        payload = data.get('payload', {})
+        
+        cache.set('dashboard_tv_command', {
+            'command': command,
+            'payload': payload,
+            'timestamp': __import__('time').time(),
+        }, timeout=30)  # Expira en 30s si el TV no lo lee
+        
+        return JsonResponse({'status': 'ok', 'command': command})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
 def _auto_sync_clusters(config):
     """
     Ejecuta la sincronización automática: busca tickets nuevos del departamento
@@ -4295,6 +4334,13 @@ def tickets_dashboard_api(request):
             'ubicacion': str(t.ubicacion) if t.ubicacion else (t.area or '-'),
             'fecha': t.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if t.fecha_solicitud else '-',
         })
+    
+    # Incluir comando pendiente del control remoto (si existe)
+    from django.core.cache import cache
+    pending_cmd = cache.get('dashboard_tv_command')
+    if pending_cmd:
+        data['command'] = pending_cmd
+        cache.delete('dashboard_tv_command')  # Consumir el comando
     
     return JsonResponse(data)
 

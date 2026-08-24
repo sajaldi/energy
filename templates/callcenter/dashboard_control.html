@@ -1,0 +1,199 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Control Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #f7f7f7;
+            color: #32363a;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .header h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        .header p {
+            font-size: 0.8rem;
+            color: #6a6d70;
+        }
+        .status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            font-size: 0.78rem;
+            color: #107e3e;
+        }
+        .status .dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            background: #107e3e;
+            border-radius: 50%;
+            margin-right: 0.3rem;
+            animation: blink 2s infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 1.25rem 0.5rem;
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #32363a;
+            cursor: pointer;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn:active {
+            background: #0070f2;
+            color: #fff;
+            border-color: #0070f2;
+            transform: scale(0.95);
+        }
+        .btn i { font-size: 1.5rem; }
+        .btn.primary {
+            background: #0070f2;
+            color: #fff;
+            border-color: #0070f2;
+        }
+        .btn.success {
+            background: #107e3e;
+            color: #fff;
+            border-color: #107e3e;
+        }
+        .btn.warning {
+            background: #e9730c;
+            color: #fff;
+            border-color: #e9730c;
+        }
+        .btn.full { grid-column: 1 / -1; }
+
+        .slide-nav {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        .slide-btn {
+            padding: 0.6rem 1rem;
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .slide-btn:active, .slide-btn.active {
+            background: #0070f2;
+            color: #fff;
+            border-color: #0070f2;
+        }
+
+        .log {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            padding: 1rem;
+            font-size: 0.72rem;
+            color: #6a6d70;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .log-entry { padding: 0.2rem 0; border-bottom: 1px solid #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fas fa-gamepad"></i> Control del Dashboard</h1>
+        <p>{{ config.titulo_dashboard }}</p>
+    </div>
+
+    <div class="status">
+        <span class="dot"></span> Conectado al TV
+    </div>
+
+    <!-- Navegación de slides -->
+    <div class="slide-nav">
+        <button class="slide-btn" onclick="sendCmd('goto', {slide: 0})">KPIs</button>
+        <button class="slide-btn" onclick="sendCmd('goto', {slide: 1})">Ranking</button>
+        <button class="slide-btn" onclick="sendCmd('goto', {slide: 2})">Técnicos</button>
+        <button class="slide-btn" onclick="sendCmd('goto', {slide: 3})">Abiertos</button>
+        <button class="slide-btn" onclick="sendCmd('goto', {slide: 4})">Recientes</button>
+        <button class="slide-btn" onclick="sendCmd('goto', {slide: 5})">Clusters</button>
+    </div>
+
+    <!-- Controles principales -->
+    <div class="controls">
+        <button class="btn" onclick="sendCmd('prev')">
+            <i class="fas fa-chevron-left"></i> Anterior
+        </button>
+        <button class="btn primary" onclick="sendCmd('pause')">
+            <i class="fas fa-pause"></i> Pausar
+        </button>
+        <button class="btn" onclick="sendCmd('next')">
+            <i class="fas fa-chevron-right"></i> Siguiente
+        </button>
+        <button class="btn success" onclick="sendCmd('resume')">
+            <i class="fas fa-play"></i> Reanudar
+        </button>
+        <button class="btn warning" onclick="sendCmd('sync')">
+            <i class="fas fa-sync-alt"></i> Sincronizar
+        </button>
+        <button class="btn" onclick="sendCmd('refresh')">
+            <i class="fas fa-redo"></i> Refrescar
+        </button>
+    </div>
+
+    <!-- Log -->
+    <div class="log" id="log">
+        <div class="log-entry">Listo para enviar comandos...</div>
+    </div>
+
+    <script>
+    var CMD_URL = '{% url "callcenter:tickets_dashboard_command" %}';
+
+    function sendCmd(command, payload) {
+        fetch(CMD_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: command, payload: payload || {} })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            addLog('✓ ' + command + (payload ? ' (' + JSON.stringify(payload) + ')' : ''));
+        })
+        .catch(function(e) {
+            addLog('✗ Error: ' + e.message);
+        });
+    }
+
+    function addLog(msg) {
+        var log = document.getElementById('log');
+        var now = new Date().toLocaleTimeString('es-HN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+        log.innerHTML = '<div class="log-entry">[' + now + '] ' + msg + '</div>' + log.innerHTML;
+    }
+    </script>
+</body>
+</html>

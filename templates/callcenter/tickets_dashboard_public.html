@@ -316,6 +316,12 @@
             <span class="shell-time" id="shell-time">--:--</span>
         </div>
     </div>
+
+    <!-- QR Control Remoto -->
+    <div id="qr-corner" style="position:fixed; bottom:1.5rem; right:1.5rem; z-index:201; background:#fff; padding:0.5rem; border:1px solid #d9d9d9; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        <img id="qr-img" src="" alt="QR" style="width:80px; height:80px; display:block;">
+        <div style="font-size:0.55rem; text-align:center; color:#6a6d70; margin-top:0.2rem;">Control Remoto</div>
+    </div>
     <div class="progress-track"><div class="progress-bar" id="pbar"></div></div>
 
     <!-- Slide 1: KPIs -->
@@ -429,6 +435,7 @@
         var idx = 0;
         var pStart = Date.now();
         var prevTotal = null;
+        var paused = false;
 
         function allSlides() { return Array.from(document.querySelectorAll('.slide')); }
 
@@ -460,6 +467,7 @@
 
         // Simple timer — no requestAnimationFrame to reduce GPU on TV
         setInterval(function() {
+            if (paused) return;
             var elapsed = Date.now() - pStart;
             var pct = Math.min((elapsed / SLIDE_MS) * 100, 100);
             document.getElementById('pbar').style.width = pct + '%';
@@ -555,6 +563,29 @@
             if (idx >= active.length) idx = 0;
             sl.forEach(function(s) { s.classList.remove('active'); });
             if (active[idx]) active[idx].classList.add('active');
+
+            // Procesar comando del control remoto
+            if (data.command) {
+                handleCommand(data.command);
+            }
+        }
+
+        function handleCommand(cmd) {
+            switch(cmd.command) {
+                case 'next': next(); break;
+                case 'prev':
+                    if (active.length <= 1) break;
+                    goTo((idx - 1 + active.length) % active.length);
+                    break;
+                case 'goto':
+                    var target = cmd.payload && cmd.payload.slide !== undefined ? cmd.payload.slide : 0;
+                    if (target < active.length) goTo(target);
+                    break;
+                case 'pause': paused = true; break;
+                case 'resume': paused = false; pStart = Date.now(); break;
+                case 'sync':
+                case 'refresh': fetchData(); break;
+            }
         }
 
         function drawRanking(responsables) {
@@ -677,6 +708,12 @@
             });
             g.innerHTML = h;
         }
+
+        // ===== QR Code for control remote =====
+        (function() {
+            var controlUrl = window.location.origin + '/callcenter/dashboard_control/';
+            document.getElementById('qr-img').src = 'https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=' + encodeURIComponent(controlUrl);
+        })();
 
         fetchData();
     })();

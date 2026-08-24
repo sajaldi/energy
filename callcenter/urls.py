@@ -75,8 +75,10 @@ urlpatterns = [
     # Dashboard Público (auto-refresh, sin login)
     path('tickets_dashboard/', views.tickets_dashboard_public_view, name='tickets_dashboard_public'),
     path('tickets_dashboard/api/', views.tickets_dashboard_api, name='tickets_dashboard_api'),
+    path('tickets_dashboard/command/', views.tickets_dashboard_command, name='tickets_dashboard_command'),
     path('dashboard_config/', views.dashboard_config_view, name='dashboard_config'),
     path('dashboard_config/api/clusters/', views.dashboard_config_clusters_api, name='dashboard_config_clusters_api'),
+    path('dashboard_control/', views.dashboard_control_view, name='dashboard_control'),
     
     # Dashboard Instituciones
     path('instituciones/dashboard/', views.instituciones_dashboard_view, name='instituciones_dashboard'),
