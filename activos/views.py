@@ -1728,6 +1728,50 @@ def api_crear_punto_medicion(request, pk):
 
 
 @staff_member_required
+@require_POST
+def api_crear_lectura(request, punto_id):
+    """API para registrar una nueva lectura en un punto de medición."""
+    from activos.models.medicion import PuntoMedicion, DocumentoMedicion
+    from django.utils import timezone
+    import json
+    
+    punto = get_object_or_404(PuntoMedicion, pk=punto_id)
+    
+    try:
+        data = json.loads(request.body)
+        valor = data.get('valor')
+        
+        if valor is None or valor == '':
+            return JsonResponse({'status': 'error', 'message': 'El valor es obligatorio.'}, status=400)
+        
+        fecha_str = data.get('fecha')
+        if fecha_str:
+            from datetime import datetime
+            fecha = datetime.fromisoformat(fecha_str)
+            if timezone.is_naive(fecha):
+                fecha = timezone.make_aware(fecha)
+        else:
+            fecha = timezone.now()
+        
+        lectura = DocumentoMedicion.objects.create(
+            punto=punto,
+            activo=punto.activo,
+            valor=float(valor),
+            fecha_lectura=fecha,
+            tecnico=request.user,
+            observaciones=data.get('observaciones', '').strip() or None,
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Lectura de {lectura.valor} {punto.unidad} registrada.',
+            'lectura_id': lectura.id,
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
 @mobile_permission_required('mi_planta')
 def fiori_explorer_view(request, ubicacion_id=None):
     """

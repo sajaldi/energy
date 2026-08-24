@@ -115,6 +115,7 @@ urlpatterns = [
     path('activo/<int:pk>/fiori/save/', views.api_activo_fiori_save, name='api_activo_fiori_save'),
     path('activo/<int:pk>/fiori/crear-ot/', views.api_activo_fiori_crear_ot, name='api_activo_fiori_crear_ot'),
     path('activo/<int:pk>/fiori/crear-punto-medicion/', views.api_crear_punto_medicion, name='api_crear_punto_medicion'),
+    path('punto-medicion/<int:punto_id>/crear-lectura/', views.api_crear_lectura, name='api_crear_lectura'),
     path('fiori-explorer/', views.fiori_explorer_view, name='fiori_explorer'),
     path('fiori-explorer/<int:ubicacion_id>/', views.fiori_explorer_view, name='fiori_explorer_at'),
     
