@@ -1743,6 +1743,7 @@
                                         <option value="INSTRUCCION" ${p.tipo_respuesta === 'INSTRUCCION' ? 'selected' : ''}>ℹ️ Instrucción / Informativo</option>
                                         <option value="CHECK" ${p.tipo_respuesta === 'CHECK' ? 'selected' : ''}>✅ Checkbox (Sí/No)</option>
                                         <option value="NUMERICO" ${p.tipo_respuesta === 'NUMERICO' ? 'selected' : ''}>🔢 Valor Numérico</option>
+                                        <option value="MEDICION" ${p.tipo_respuesta === 'MEDICION' ? 'selected' : ''}>📊 Punto de Medición</option>
                                         <option value="TEXTO" ${p.tipo_respuesta === 'TEXTO' ? 'selected' : ''}>📝 Texto Libre</option>
                                         <option value="FOTO" ${p.tipo_respuesta === 'FOTO' ? 'selected' : ''}>📷 Registro Fotográfico</option>
                                         <option value="HEADER" ${p.tipo_respuesta === 'HEADER' ? 'selected' : ''}>🚩 ENCABEZADO DE GRUPO</option>
@@ -1752,6 +1753,11 @@
                                     <label>Referencia / Verificación</label>
                                     <input type="text" class="form-control s-verif" value="${p.verificacion || ''}" placeholder="Ej: Medir 120V" style="height: 42px; border-radius: 8px;">
                                 </div>
+                            </div>
+                            <div class="form-group" style="margin-top: 0.75rem; ${p.tipo_respuesta === 'MEDICION' ? '' : 'display:none;'}">
+                                <label>Punto de Medición (código o ID)</label>
+                                <input type="text" class="form-control s-punto-medicion" value="${p.punto_medicion_id || ''}" placeholder="ID del punto de medición vinculado" style="height: 42px; border-radius: 8px;">
+                                ${p.punto_medicion_nombre ? '<small style="color:#6a6d70;">Vinculado: ' + p.punto_medicion_nombre + '</small>' : ''}
                             </div>
                             ${mediaHtml}
                         </div>
@@ -1839,6 +1845,7 @@
                                 <option value="INSTRUCCION">ℹ️ Instrucción / Informativo</option>
                                 <option value="CHECK">✅ Checkbox (Sí/No)</option>
                                 <option value="NUMERICO" selected>🔢 Valor Numérico</option>
+                                <option value="MEDICION">📊 Punto de Medición</option>
                                 <option value="TEXTO">📝 Texto Libre</option>
                                 <option value="FOTO">📷 Registro Fotográfico</option>
                                 <option value="HEADER">🚩 ENCABEZADO DE GRUPO</option>
@@ -1848,6 +1855,10 @@
                             <label>Referencia / Verificación</label>
                             <input type="text" class="form-control s-verif" placeholder="Ej: Valor esperado" style="height: 42px; border-radius: 8px;">
                         </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 0.75rem; display:none;">
+                        <label>Punto de Medición (ID)</label>
+                        <input type="text" class="form-control s-punto-medicion" placeholder="ID del punto de medición" style="height: 42px; border-radius: 8px;">
                     </div>
                     <div style="margin-top: 1rem; font-size: 0.75rem; color: #94a3b8; font-style: italic;">(Guarda los pasos para habilitar la carga de archivos)</div>
                 </div>
@@ -1867,7 +1878,8 @@
                 id: row.dataset.id || null,
                 descripcion: row.querySelector('.s-desc').value,
                 tipo_respuesta: row.querySelector('.s-tipo').value,
-                verificacion: row.querySelector('.s-verif').value
+                verificacion: row.querySelector('.s-verif').value,
+                punto_medicion_id: row.querySelector('.s-punto-medicion') ? row.querySelector('.s-punto-medicion').value || null : null
             }));
 
             if (rLoader && !isSilent) rLoader.style.display = 'flex';
@@ -1901,6 +1913,18 @@
                     if (rLoader && !isSilent) rLoader.style.display = 'none';
                 });
         }
+
+        // Toggle punto de medición field visibility when type changes
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('s-tipo')) {
+                var row = e.target.closest('.step-row-edit');
+                if (!row) return;
+                var pmField = row.querySelector('.s-punto-medicion');
+                if (pmField) {
+                    pmField.closest('.form-group').style.display = e.target.value === 'MEDICION' ? '' : 'none';
+                }
+            }
+        });
 
         function setSelectByText(id, text) {
             const select = document.getElementById(id);

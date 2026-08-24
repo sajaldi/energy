@@ -372,12 +372,14 @@ def rutina_detail_api(request, pk):
                         'rango_min': p.rango_min,
                         'rango_max': p.rango_max,
                         'unidad_medida': p.unidad_medida,
+                        'punto_medicion_id': p.punto_medicion_exacto_id,
+                        'punto_medicion_nombre': str(p.punto_medicion_exacto) if p.punto_medicion_exacto else None,
                         'media': [
                             {'id': m.id, 'url': m.archivo.url, 'tipo': m.tipo, 'descripcion': m.descripcion}
                             for m in p.media_files.all().order_by('orden')
                         ]
                     }
-                    for p in rutina.pasos.prefetch_related('media_files').all().order_by('orden')
+                    for p in rutina.pasos.prefetch_related('media_files').select_related('punto_medicion_exacto').all().order_by('orden')
                 ]
             },
             'historial': history_data
@@ -592,6 +594,10 @@ def rutina_pasos_save_api(request):
                 paso.verificacion = p_data.get('verificacion', '')
                 paso.tipo_respuesta = p_data.get('tipo_respuesta', 'INSTRUCCION')
                 paso.unidad_medida = p_data.get('unidad_medida', '')
+                
+                # Punto de medición vinculado
+                punto_id = p_data.get('punto_medicion_id')
+                paso.punto_medicion_exacto_id = int(punto_id) if punto_id else None
                 
                 # Campos numéricos
                 try:
