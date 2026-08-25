@@ -5,7 +5,7 @@
 import * as Network from 'expo-network';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE = 'http://10.30.1.11:8000'; // IP local del servidor Django
+const API_BASE = 'https://softcom.ccg.hn'; // Producción
 
 async function getToken(): Promise<string | null> {
   return AsyncStorage.getItem('auth_token');
