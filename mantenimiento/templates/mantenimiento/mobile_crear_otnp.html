@@ -348,13 +348,14 @@
 
                     <div class="fiori-form-group">
                         <label class="fiori-label">Equipo de Técnicos (Opcional)</label>
-                        <select name="tecnicos" id="tecnicos-multi" class="fiori-select fiori-multi-select" multiple>
+                        <div id="tecnicos-checkboxes" style="max-height:200px; overflow-y:auto; border:1px solid #d9d9d9; padding:8px;">
                             {% for p in personales %}
-                            <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}">
+                            <label style="display:flex; align-items:center; gap:8px; padding:8px 4px; border-bottom:1px solid #f0f0f0; font-size:13px; cursor:pointer;" class="tecnico-check-item" data-empresa-id="{{ p.empresa_id|default:'' }}">
+                                <input type="checkbox" name="tecnicos" value="{{ p.id }}" style="width:18px; height:18px; accent-color:#0070f2;">
                                 {{ p.nombre }} {{ p.apellido }}
-                            </option>
+                            </label>
                             {% endfor %}
-                        </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -630,13 +631,15 @@
         }
 
         function filterTecnicosByEmpresa(empresaId) {
-            var options = document.querySelectorAll('#tecnicos-multi option');
-            options.forEach(function(opt) {
+            var items = document.querySelectorAll('#tecnicos-checkboxes .tecnico-check-item');
+            items.forEach(function(item) {
                 if (!empresaId) {
-                    opt.style.display = '';
+                    item.style.display = '';
                 } else {
-                    opt.style.display = (opt.dataset.empresaId == empresaId) ? '' : 'none';
-                    if (opt.style.display === 'none') opt.selected = false;
+                    item.style.display = (item.dataset.empresaId == empresaId) ? '' : 'none';
+                    if (item.style.display === 'none') {
+                        item.querySelector('input').checked = false;
+                    }
                 }
             });
         }
