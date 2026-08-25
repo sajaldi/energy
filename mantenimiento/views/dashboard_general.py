@@ -158,6 +158,25 @@ def ordenes_lista_view(request):
     # Filtro de rango de fechas
     fecha_desde = request.GET.get('fecha_desde', '')
     fecha_hasta = request.GET.get('fecha_hasta', '')
+    
+    # Validar que las fechas tengan un año razonable (>= 2020)
+    if fecha_desde:
+        try:
+            from datetime import datetime as dt
+            parsed = dt.strptime(fecha_desde, '%Y-%m-%d')
+            if parsed.year < 2020:
+                fecha_desde = ''
+        except (ValueError, TypeError):
+            fecha_desde = ''
+    if fecha_hasta:
+        try:
+            from datetime import datetime as dt
+            parsed = dt.strptime(fecha_hasta, '%Y-%m-%d')
+            if parsed.year < 2020:
+                fecha_hasta = ''
+        except (ValueError, TypeError):
+            fecha_hasta = ''
+    
     if fecha_desde:
         ordenes = ordenes.filter(inicio_programado__date__gte=fecha_desde)
     if fecha_hasta:
