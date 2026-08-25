@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adjuntos - Ticket {{ ticket.folio }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Artifakt Element';
+            src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Element%20Medium.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Artifakt Element';
+            src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Legend%20Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        :root {
+            --fiori-primary: #0070f2;
+            --fiori-bg: #eff2f5;
+            --fiori-card-bg: #ffffff;
+            --fiori-text: #32363a;
+            --fiori-text-secondary: #6a6d70;
+            --fiori-border: #d9d9d9;
+            --fiori-success: #107e3e;
+            --fiori-error: #bb0000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Artifakt Element', 'Outfit', sans-serif;
+            background: var(--fiori-bg);
+            color: var(--fiori-text);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: #354a5f;
+            color: white;
+            padding: 20px 24px;
+            border-bottom: 4px solid var(--fiori-primary);
+        }
+
+        .header-content {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .header .subtitle {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px 16px;
+        }
+
+        .info-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            border-radius: 0.5rem;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08);
+        }
+
+        .info-bar .count {
+            font-size: 0.9rem;
+            color: var(--fiori-text-secondary);
+        }
+
+        .info-bar .count strong {
+            color: var(--fiori-text);
+            font-size: 1.1rem;
+        }
+
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .file-card {
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            transition: all 0.2s ease;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08);
+            text-decoration: none;
+            color: var(--fiori-text);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .file-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+            border-color: var(--fiori-primary);
+        }
+
+        .file-preview {
+            height: 160px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-bottom: 1px solid var(--fiori-border);
+        }
+
+        .file-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .file-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .file-preview .file-icon {
+            font-size: 3rem;
+            opacity: 0.7;
+        }
+
+        .file-preview .file-icon.pdf { color: #bb0000; }
+        .file-preview .file-icon.doc { color: #2b579a; }
+        .file-preview .file-icon.xls { color: #217346; }
+        .file-preview .file-icon.generic { color: var(--fiori-text-secondary); }
+
+        .file-info {
+            padding: 12px 14px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .file-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            word-break: break-all;
+            line-height: 1.3;
+        }
+
+        .file-desc {
+            font-size: 0.75rem;
+            color: var(--fiori-text-secondary);
+        }
+
+        .file-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: auto;
+            padding-top: 8px;
+        }
+
+        .file-type-badge {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: #e7f0f7;
+            color: var(--fiori-primary);
+        }
+
+        .file-type-badge.pdf { background: #fee2e2; color: #991b1b; }
+        .file-type-badge.doc { background: #dbeafe; color: #1e40af; }
+        .file-type-badge.xls { background: #dcfce7; color: #166534; }
+        .file-type-badge.img { background: #fef3c7; color: #92400e; }
+        .file-type-badge.vid { background: #ede9fe; color: #5b21b6; }
+
+        .file-size {
+            font-size: 0.7rem;
+            color: var(--fiori-text-secondary);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 24px;
+            font-size: 0.75rem;
+            color: var(--fiori-text-secondary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            border-radius: 0.5rem;
+        }
+
+        .empty-state .icon { font-size: 3rem; opacity: 0.4; margin-bottom: 12px; }
+        .empty-state p { color: var(--fiori-text-secondary); }
+
+        @media (max-width: 600px) {
+            .file-grid { grid-template-columns: 1fr; }
+            .info-bar { flex-direction: column; gap: 8px; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>📎 Archivos Adjuntos del Ticket</h1>
+            <div class="subtitle">{{ ticket.servicio|default:"Servicio" }} — {{ ticket.solicitud_descripcion|default:""|truncatechars:80 }}</div>
+            <div class="badge">FOLIO: {{ ticket.folio }}</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="info-bar">
+            <div class="count">
+                <strong>{{ total }}</strong> archivo{{ total|pluralize:"s" }} adjunto{{ total|pluralize:"s" }}
+            </div>
+            <div style="font-size: 0.8rem; color: var(--fiori-text-secondary);">
+                Haga clic en cualquier archivo para abrirlo
+            </div>
+        </div>
+
+        {% if adjuntos %}
+        <div class="file-grid">
+            {% for adj in adjuntos %}
+            <a href="{{ adj.url }}" target="_blank" class="file-card">
+                <div class="file-preview">
+                    {% if adj.tipo == "jpg" or adj.tipo == "jpeg" or adj.tipo == "png" or adj.tipo == "gif" or adj.tipo == "webp" %}
+                        <img src="{{ adj.url }}" alt="{{ adj.descripcion }}">
+                    {% elif adj.tipo == "mp4" or adj.tipo == "webm" %}
+                        <video src="{{ adj.url }}" muted></video>
+                    {% elif adj.tipo == "pdf" %}
+                        <div class="file-icon pdf">📄</div>
+                    {% elif adj.tipo == "doc" or adj.tipo == "docx" %}
+                        <div class="file-icon doc">📝</div>
+                    {% elif adj.tipo == "xls" or adj.tipo == "xlsx" %}
+                        <div class="file-icon xls">📊</div>
+                    {% else %}
+                        <div class="file-icon generic">📁</div>
+                    {% endif %}
+                </div>
+                <div class="file-info">
+                    <div class="file-name">{{ adj.nombre }}</div>
+                    {% if adj.descripcion %}
+                    <div class="file-desc">{{ adj.descripcion }}</div>
+                    {% endif %}
+                    <div class="file-meta">
+                        {% if adj.tipo == "pdf" %}
+                            <span class="file-type-badge pdf">PDF</span>
+                        {% elif adj.tipo == "doc" or adj.tipo == "docx" %}
+                            <span class="file-type-badge doc">{{ adj.tipo|upper }}</span>
+                        {% elif adj.tipo == "xls" or adj.tipo == "xlsx" %}
+                            <span class="file-type-badge xls">{{ adj.tipo|upper }}</span>
+                        {% elif adj.tipo == "jpg" or adj.tipo == "jpeg" or adj.tipo == "png" or adj.tipo == "gif" or adj.tipo == "webp" %}
+                            <span class="file-type-badge img">{{ adj.tipo|upper }}</span>
+                        {% elif adj.tipo == "mp4" or adj.tipo == "webm" %}
+                            <span class="file-type-badge vid">{{ adj.tipo|upper }}</span>
+                        {% else %}
+                            <span class="file-type-badge">{{ adj.tipo|upper }}</span>
+                        {% endif %}
+                        {% if adj.size %}
+                            <span class="file-size">
+                                {% if adj.size > 1048576 %}
+                                    {{ adj.size|floatformat:0|divisibleby:1048576 }} MB
+                                {% elif adj.size > 1024 %}
+                                    {{ adj.size|divisibleby:1024 }} KB
+                                {% else %}
+                                    {{ adj.size }} B
+                                {% endif %}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">📂</div>
+            <p>No hay archivos adjuntos para este ticket.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="footer">
+        SoftCoM-CCG — Sistema de Gestión de Tickets
+    </div>
+</body>
+</html>

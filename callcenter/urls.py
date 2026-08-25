@@ -84,5 +84,8 @@ urlpatterns = [
     path('instituciones/dashboard/', views.instituciones_dashboard_view, name='instituciones_dashboard'),
     path('instituciones/api/<int:pk>/', views.institucion_detail_api, name='institucion_detail_api'),
     path('instituciones/api/<int:pk>/fallas/', views.institucion_fallas_por_servicio_api, name='institucion_fallas_api'),
+
+    # Vista pública de adjuntos del ticket (accesible desde correo)
+    path('ticket/<str:ticket_id>/adjuntos/', views.ticket_adjuntos_public_view, name='ticket_adjuntos_public'),
 ]
 

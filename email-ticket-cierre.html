@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+/* Estilo SAP Fiori (Tema Quartz/Horizon) */
+body { font-family: "72", "72full", Arial, Helvetica, sans-serif; background-color: #edeff0; margin: 0; padding: 0; color: #32363a;}
+.wrapper { padding: 30px 10px; }
+.card { max-width: 650px; margin: 0 auto; background-color: #ffffff; border: 1px solid #d9d9d9; border-radius: 0.5rem; overflow: hidden; box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.1); }
+/* Header SAP Shell Bar */
+.header { background-color: #354a5f; color: #ffffff; padding: 24px; border-bottom: 4px solid #0854a0; text-align: left;}
+.header h1 { margin: 0; font-size: 1.25rem; font-weight: bold; text-transform: none; letter-spacing: normal;}
+.badge { background-color: #e7f0f7; color: #0854a0; display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; margin-top: 12px; font-weight: bold; border: 1px solid #0854a0;}
+.content { padding: 32px; }
+.greeting { font-size: 1.125rem; font-weight: bold; color: #32363a; margin-bottom: 8px;}
+/* Section Headers Fiori Style */
+.section-header { font-size: 0.875rem; font-weight: bold; color: #6a6d70; background-color: #f7f7f7; padding: 8px 12px; margin-top: 24px; margin-bottom: 16px; border-left: 4px solid #0854a0;}
+.label { display: block; font-size: 0.75rem; color: #6a6d70; margin-bottom: 4px; text-transform: none;}
+.value { display: block; font-size: 0.9rem; color: #32363a; font-weight: normal; margin-bottom: 12px;}
+/* Fiori Block Text / Text Area */
+.block-text { background-color: #fafafa; border: 1px solid #d9d9d9; border-radius: 4px; padding: 16px; color: #32363a; font-size: 0.9rem; line-height: 1.5; }
+.footer { background-color: #f7f7f7; padding: 20px; text-align: center; font-size: 0.75rem; color: #6a6d70; border-top: 1px solid #d9d9d9;}
+/* SAP Semantic Buttons */
+.btn-container { text-align: center; margin-top: 32px; }
+.button { background-color: #0854a0; color: #ffffff !important; padding: 10px 24px; text-decoration: none; border-radius: 4px; font-weight: normal; font-size: 0.875rem; display: inline-block; border: 1px solid #0854a0; margin: 4px;}
+.button-secondary { background-color: #ffffff; color: #0854a0 !important; padding: 10px 24px; text-decoration: none; border-radius: 4px; font-weight: normal; font-size: 0.875rem; display: inline-block; border: 1px solid #0854a0; margin: 4px;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="card">
+
+<div class="header">
+    <h1>Ticket Finalizado</h1>
+    <div class="badge">FOLIO: @{triggerBody()?['folio']}</div>
+</div>
+
+<div class="content">
+    <div class="greeting">Estimada MAO,</div>
+    <p style="font-size: 0.9rem;">La solicitud de servicio ha sido completada. Resumen detallado de la gestión:</p>
+
+    <div class="section-header">📍 Clasificación del Servicio</div>
+    <table width="100%"><tr>
+        <td><span class="label">Servicio</span><span class="value">@{triggerBody()?['servicio']}</span></td>
+    </tr></table>
+
+    <div class="section-header">🏢 Ubicación</div>
+    <table width="100%"><tr>
+        <td width="33%"><span class="label">Nivel</span><span class="value">@{triggerBody()?['nivel_piso']}</span></td>
+        <td width="33%"><span class="label">Edificio</span><span class="value">@{triggerBody()?['grupo_torre']}</span></td>
+        <td width="33%"><span class="label">Unidad Funcional</span><span class="value">@{triggerBody()?['unidad_funcional']}</span></td>
+    </tr></table>
+
+    <div class="section-header">📝 Detalle de la Solicitud</div>
+    <div style="margin-bottom: 20px;">
+        <span class="label">Descripción Original</span>
+        <div class="block-text">@{triggerBody()?['descripcion_original']}</div>
+    </div>
+
+    <div class="section-header">📋 Resolución</div>
+    <div style="margin-bottom: 20px;">
+        <span class="label">Diagnóstico</span>
+        <div class="block-text">@{triggerBody()?['diagnostico']}</div>
+    </div>
+    <div style="margin-bottom: 20px;">
+        <span class="label">Actividad Realizada</span>
+        <div class="block-text">@{triggerBody()?['actividades']}</div>
+    </div>
+
+    <div class="section-header">⚠️ Observaciones Adicionales</div>
+    <div class="block-text">@{triggerBody()?['observaciones']}</div>
+
+    <div class="section-header">🕒 Información de Cierre</div>
+    <table width="100%">
+        <tr><td colspan="2"><span class="label">Atendido por</span><span class="value">@{triggerBody()?['cerrado_por_nombre']}</span></td></tr>
+        <tr>
+            <td width="50%" style="padding-top:10px;"><span class="label">Fecha Apertura</span><span class="value">@{triggerBody()?['fecha_apertura']}</span></td>
+            <td width="50%" style="padding-top:10px;"><span class="label">Fecha Cierre</span><span class="value">@{triggerBody()?['fecha_cierre']}</span></td>
+        </tr>
+    </table>
+
+    <!-- Botones de Acción -->
+    <div class="btn-container">
+        <a href="@{triggerBody()?['pdf_url']}" class="button">📋 Ver Reporte Técnico Completo</a>
+        <a href="@{triggerBody()?['adjuntos_url']}" class="button-secondary">📎 Ver Archivos Adjuntos</a>
+    </div>
+</div>
+
+<div class="footer">Este es un mensaje automático generado por el SoftCoM-CCG.</div>
+
+</div>
+</div>
+</body>
+</html>

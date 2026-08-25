@@ -281,6 +281,7 @@ def send_ticket_to_power_automate_view(request, ticket_id):
         "actividades": (ticket.actividades or "").replace('\n', ' '),
         "observaciones": (ticket.observaciones or "").replace('\n', ' '),
         "pdf_url": str(pdf_url),
+        "adjuntos_url": f"{request.build_absolute_uri('/')[:-1]}/callcenter/ticket/{ticket_id}/adjuntos/",
         "tiempo_total_min": int(tiempo_total),
         "cerrado_por_nombre": str(request.user.get_full_name() or request.user.username),
         "telefono_usuario": "Admin Panel",
@@ -4433,3 +4434,35 @@ def dashboard_config_clusters_api(request):
         })
     
     return JsonResponse({'clusters': results})
+
+
+def ticket_adjuntos_public_view(request, ticket_id):
+    """
+    Vista pública (sin login) que muestra todos los archivos adjuntos de un ticket
+    como una carpeta de archivos. Se usa en el correo de cierre para que el receptor
+    pueda visualizar/descargar evidencias sin necesidad de autenticarse.
+    """
+    ticket_id = int(str(ticket_id).replace(',', ''))
+    ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
+    evidencias = EvidenciaTicket.objects.filter(ticket=ticket, archivo__isnull=False).exclude(archivo='').order_by('-id')
+
+    adjuntos = []
+    for ev in evidencias:
+        try:
+            file_name = ev.archivo.name.split('/')[-1] if '/' in ev.archivo.name else ev.archivo.name
+            ext = file_name.split('.')[-1].lower() if '.' in file_name else ''
+            adjuntos.append({
+                'nombre': file_name,
+                'url': ev.archivo.url,
+                'tipo': ext,
+                'descripcion': ev.descripcion or '',
+                'size': ev.archivo.size if ev.archivo else 0,
+            })
+        except Exception:
+            pass
+
+    return render(request, 'callcenter/ticket_adjuntos_public.html', {
+        'ticket': ticket,
+        'adjuntos': adjuntos,
+        'total': len(adjuntos),
+    })
