@@ -619,12 +619,26 @@
             document.getElementById('empresa-selected-name').textContent = nombre;
             document.getElementById('empresa-selected').style.display = 'block';
             document.getElementById('empresa-results').style.display = 'none';
+            filterTecnicosByEmpresa(id);
         }
         function clearEmpresa() {
             document.getElementById('empresa-value').value = 'none';
             document.getElementById('empresa-search').value = '';
             document.getElementById('empresa-search').style.display = '';
             document.getElementById('empresa-selected').style.display = 'none';
+            filterTecnicosByEmpresa(null);
+        }
+
+        function filterTecnicosByEmpresa(empresaId) {
+            var options = document.querySelectorAll('#tecnicos-multi option');
+            options.forEach(function(opt) {
+                if (!empresaId) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = (opt.dataset.empresaId == empresaId) ? '' : 'none';
+                    if (opt.style.display === 'none') opt.selected = false;
+                }
+            });
         }
 
         // Cerrar resultados al click fuera
