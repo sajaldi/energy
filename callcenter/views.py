@@ -288,7 +288,7 @@ def send_ticket_to_power_automate_view(request, ticket_id):
         "actividades": (ticket.actividades or "").replace('\n', ' '),
         "observaciones": (ticket.observaciones or "").replace('\n', ' '),
         "pdf_url": str(pdf_url),
-        "adjuntos_url": f"{request.build_absolute_uri('/')[:-1]}/callcenter/ticket/{ticket_id}/adjuntos/",
+        "adjuntos_url": f"{settings.SITE_URL.rstrip('/')}/callcenter/ticket/{ticket_id}/adjuntos/",
         "tiempo_total_min": int(tiempo_total),
         "cerrado_por_nombre": str(request.user.get_full_name() or request.user.username),
         "telefono_usuario": "Admin Panel",
