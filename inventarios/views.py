@@ -544,20 +544,21 @@ def cart_checkout(request):
                     estado=estado_inicial
                 )
 
-                # Crear los movimientos asociados
-                for item in items_to_process:
-                    qty = Decimal(str(item['quantity']))
-                    MovimientoInventario.objects.create(
-                        solicitud=solicitud,
-                        material=item['material'],
-                        tipo='SALIDA',
-                        cantidad=qty,
-                        cantidad_solicitada=qty, # Capturar pedido original
-                        ubicacion_origen=ubicacion,
-                        orden_trabajo=ot,
-                        fecha_aprobacion=None,
-                        usuario=request.user,
-                        comentarios=comentarios
+                # Crear los movimientos asociados (no para borradores)
+                if not es_borrador:
+                    for item in items_to_process:
+                        qty = Decimal(str(item['quantity']))
+                        MovimientoInventario.objects.create(
+                            solicitud=solicitud,
+                            material=item['material'],
+                            tipo='SALIDA',
+                            cantidad=qty,
+                            cantidad_solicitada=qty,
+                            ubicacion_origen=ubicacion,
+                            orden_trabajo=ot,
+                            fecha_aprobacion=None,
+                            usuario=request.user,
+                            comentarios=comentarios
                     )
             
             # Notificaciones (solo si no es borrador)
