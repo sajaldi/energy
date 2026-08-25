@@ -40,6 +40,7 @@ urlpatterns = [
     path('mobile/pedidos/<int:pk>/', views.mobile_detalle_pedido, name='mobile_detalle_pedido'),
     path('mobile/crear-solicitud/', mobile_crear_solicitud, name='mobile_crear_solicitud'),
     path('api/crear-ot-rapida/', views.api_crear_ot_rapida, name='api_crear_ot_rapida'),
+    path('api/solicitudes/<int:pk>/enviar-borrador/', views.api_enviar_borrador, name='api_enviar_borrador'),
     path('mobile/catalog/', views.mobile_catalog, name='mobile_catalog'),
     path('mobile/gestion-salidas/', views.mobile_gestion_salidas_view, name='mobile_gestion_salidas'),
     path('mobile/devolucion/', views.mobile_devolucion_view, name='mobile_devolucion'),

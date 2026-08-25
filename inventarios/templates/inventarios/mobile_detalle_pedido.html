@@ -35,6 +35,8 @@
         .status-tag { font-size: 0.875rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 2rem; display: inline-block; }
         .tag-ENTREGADO { background: #e7f4e9; color: var(--sapSuccessColor); }
         .tag-PENDIENTE { background: #fff4e5; color: var(--sapWarningColor); }
+        .tag-BORRADOR { background: #f1f5f9; color: #475569; }
+        .tag-PENDIENTE_AUTORIZACION { background: #eff6ff; color: #1d4ed8; }
         .tag-RECHAZADO { background: #ffebeb; color: var(--sapErrorColor); }
         .section-title { font-size: 1rem; font-weight: 700; color: var(--sapTextColor); padding: 1rem 1rem 0.5rem 1rem; background: transparent; }
         .fiori-card { background: white; margin: 0 0.5rem 0.5rem 0.5rem; border-radius: 0.25rem; border: 1px solid #d9d9d9; box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08); overflow: hidden; }
@@ -143,6 +145,14 @@
         {% if pedido.estado == 'PENDIENTE_AUTORIZACION' %}
         <div style="text-align:center; margin:16px 0;">
             <button onclick="resendWebhook()" style="background:none; border:1px solid #cbd5e1; border-radius:8px; padding:12px 20px; color:#64748b; font-weight:600; font-size:14px; cursor:pointer;"><ion-icon name="refresh-outline" style="vertical-align:middle;"></ion-icon> Reenviar solicitud (webhook)</button>
+        </div>
+        {% endif %}
+
+        {% if pedido.estado == 'BORRADOR' %}
+        <div style="padding:16px; text-align:center;">
+            <button onclick="enviarBorrador()" style="background:var(--sapPrimaryColor); color:white; border:none; padding:14px 32px; font-size:1rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <ion-icon name="paper-plane-outline"></ion-icon> Enviar Solicitud
+            </button>
         </div>
         {% endif %}
     </div>
@@ -336,6 +346,32 @@
                 });
                 const d = await r.json();
                 Swal.fire({ icon: d.status === 'success' ? 'success' : 'error', title: d.status === 'success' ? 'Enviado' : 'Error', text: d.message });
+            } catch(e) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red' });
+            }
+        }
+
+        async function enviarBorrador() {
+            const result = await Swal.fire({
+                title: '¿Enviar solicitud?',
+                text: 'El borrador se enviará para su procesamiento.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, enviar',
+                confirmButtonColor: '#0064d1'
+            });
+            if (!result.isConfirmed) return;
+            try {
+                const r = await fetch(`/inventarios/api/solicitudes/{{ pedido.id }}/enviar-borrador/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+                });
+                const d = await r.json();
+                if (d.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Enviada', text: d.message }).then(() => location.reload());
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: d.message });
+                }
             } catch(e) {
                 Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red' });
             }

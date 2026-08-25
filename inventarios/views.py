@@ -990,6 +990,61 @@ def api_crear_ot_rapida(request):
 
 
 @login_required
+@require_POST
+def api_enviar_borrador(request, pk):
+    """Cambia una solicitud de BORRADOR a PENDIENTE y dispara notificaciones."""
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
+    
+    if solicitud.estado != 'BORRADOR':
+        return JsonResponse({'status': 'error', 'message': 'Solo se pueden enviar solicitudes en borrador.'}, status=400)
+    
+    if not solicitud.ubicacion_origen:
+        return JsonResponse({'status': 'error', 'message': 'Seleccione una bodega de origen antes de enviar.'}, status=400)
+    
+    # Determinar estado
+    jefe = getattr(request.user, 'perfil', None) and getattr(request.user.perfil, 'responsable', None)
+    solicitud.estado = 'PENDIENTE_AUTORIZACION' if jefe else 'PENDIENTE'
+    solicitud.save()
+    
+    # Crear movimientos si no existen
+    from decimal import Decimal
+    if not solicitud.items.filter(tipo='SALIDA').exists():
+        for item in solicitud.items.all():
+            MovimientoInventario.objects.create(
+                solicitud=solicitud,
+                material=item.material,
+                tipo='SALIDA',
+                cantidad=item.cantidad_solicitada or item.cantidad,
+                cantidad_solicitada=item.cantidad_solicitada or item.cantidad,
+                ubicacion_origen=solicitud.ubicacion_origen,
+                orden_trabajo=solicitud.orden_trabajo,
+                usuario=request.user,
+            )
+    
+    # Notificaciones
+    if solicitud.estado == 'PENDIENTE_AUTORIZACION':
+        try:
+            from .utils_ntfy import notificar_pendiente_aprobacion
+            notificar_pendiente_aprobacion(solicitud)
+        except Exception:
+            pass
+    else:
+        try:
+            from .utils_ntfy import notificar_nueva_solicitud
+            notificar_nueva_solicitud(solicitud)
+        except Exception:
+            pass
+    
+    try:
+        from .utils_n8n import notify_powerautomate_solicitud
+        notify_powerautomate_solicitud(solicitud)
+    except Exception:
+        pass
+    
+    return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} enviada correctamente.'})
+
+
+@login_required
 @mobile_permission_required('logistica')
 def mobile_inventario_dashboard(request):
     """
