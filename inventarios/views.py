@@ -507,14 +507,18 @@ def cart_checkout(request):
             if ajax_mode: return JsonResponse({'status': 'error', 'message': 'No hay materiales seleccionados.'}, status=400)
             messages.error(request, "El carrito está vacío.")
             return redirect('inventarios:cart_detail')
-            
-        if not ubicacion_id:
+        
+        # Para borradores, la ubicación no es obligatoria
+        estado_solicitado = data.get('estado', '')
+        es_borrador = estado_solicitado == 'BORRADOR'
+        
+        if not ubicacion_id and not es_borrador:
             if ajax_mode: return JsonResponse({'status': 'error', 'message': 'Selecciona una ubicación de origen.'}, status=400)
             messages.error(request, "Debes seleccionar una ubicación de origen.")
             return redirect('inventarios:cart_detail')
 
         try:
-            ubicacion = get_object_or_404(Ubicacion, id=ubicacion_id)
+            ubicacion = Ubicacion.objects.filter(id=ubicacion_id).first() if ubicacion_id else None
             ot = OrdenTrabajo.objects.filter(id=ot_id).first() if ot_id else None
             edificio = Ubicacion.objects.filter(id=edificio_id).first() if edificio_id else None
             nivel = Ubicacion.objects.filter(id=nivel_id).first() if nivel_id else None
@@ -524,8 +528,7 @@ def cart_checkout(request):
                 jefe = getattr(request.user, 'perfil', None) and getattr(request.user.perfil, 'responsable', None)
                 
                 # Si se pide guardar como borrador, respetar ese estado
-                estado_solicitado = data.get('estado', '')
-                if estado_solicitado == 'BORRADOR':
+                if es_borrador:
                     estado_inicial = 'BORRADOR'
                 else:
                     estado_inicial = 'PENDIENTE_AUTORIZACION' if jefe else 'PENDIENTE'
