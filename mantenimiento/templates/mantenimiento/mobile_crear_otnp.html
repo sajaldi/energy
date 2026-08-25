@@ -318,24 +318,32 @@
                 <div class="card-content">
                     <div class="fiori-form-group">
                         <label class="fiori-label">Líder Responsable</label>
-                        <select name="tecnico" id="tecnico-select" class="fiori-select" onchange="autoSelectEmpresa(this)">
-                            <option value="none">-- Seleccione Responsable --</option>
-                            {% for p in personales %}
-                                <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}">
-                                    {{ p.nombre }} {{ p.apellido }}
-                                </option>
-                            {% endfor %}
-                        </select>
+                        <input type="hidden" name="tecnico" id="tecnico-value" value="none">
+                        <div style="position:relative;">
+                            <input type="text" id="tecnico-search" class="fiori-select" placeholder="Buscar líder..." autocomplete="off" oninput="filterLider(this.value)" onfocus="showLiderResults()">
+                            <div id="tecnico-selected" style="display:none; margin-top:6px; padding:8px 12px; background:#e8f4fd; border:1px solid #b3d7f2; font-size:13px; display:none;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <strong id="tecnico-selected-name"></strong>
+                                    <button type="button" onclick="clearLider()" style="border:none; background:none; color:#bb0000; font-size:18px; cursor:pointer;"><ion-icon name="close-circle"></ion-icon></button>
+                                </div>
+                            </div>
+                            <div id="tecnico-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #d9d9d9; max-height:200px; overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                        </div>
                     </div>
 
                     <div class="fiori-form-group">
                         <label class="fiori-label">Empresa Ejecutora</label>
-                        <select name="empresa_responsable" id="empresa-select" class="fiori-select" onchange="filterTecnicosByEmpresa()">
-                            <option value="none">-- Seleccione Empresa --</option>
-                            {% for e in empresas %}
-                            <option value="{{ e.id }}">{{ e.nombre }}</option>
-                            {% endfor %}
-                        </select>
+                        <input type="hidden" name="empresa_responsable" id="empresa-value" value="none">
+                        <div style="position:relative;">
+                            <input type="text" id="empresa-search" class="fiori-select" placeholder="Buscar empresa..." autocomplete="off" oninput="filterEmpresa(this.value)" onfocus="showEmpresaResults()">
+                            <div id="empresa-selected" style="display:none; margin-top:6px; padding:8px 12px; background:#e8f4fd; border:1px solid #b3d7f2; font-size:13px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <strong id="empresa-selected-name"></strong>
+                                    <button type="button" onclick="clearEmpresa()" style="border:none; background:none; color:#bb0000; font-size:18px; cursor:pointer;"><ion-icon name="close-circle"></ion-icon></button>
+                                </div>
+                            </div>
+                            <div id="empresa-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #d9d9d9; max-height:200px; overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                        </div>
                     </div>
 
                     <div class="fiori-form-group">
@@ -549,10 +557,81 @@
                 });
             });
         }
-        function autoSelectEmpresa(el) {
-            const eId = el.options[el.selectedIndex].dataset.empresaId;
-            if (eId && (depSelect.value === 'none' || !depSelect.value)) { depSelect.value = eId; filterTecnicosByEmpresa(); }
+        function autoSelectEmpresa(el) {}
+
+        // === Búsqueda de Líder Responsable ===
+        const _lideres = [
+            {% for p in personales %}
+            { id: {{ p.id }}, nombre: '{{ p.nombre|escapejs }} {{ p.apellido|escapejs }}', empresa_id: '{{ p.empresa_id|default:"" }}' },
+            {% endfor %}
+        ];
+        const _empresas = [
+            {% for e in empresas %}
+            { id: {{ e.id }}, nombre: '{{ e.nombre|escapejs }}' },
+            {% endfor %}
+        ];
+
+        function filterLider(q) {
+            q = q.toLowerCase();
+            const results = _lideres.filter(l => l.nombre.toLowerCase().includes(q)).slice(0, 10);
+            const container = document.getElementById('tecnico-results');
+            if (!q || q.length < 1) { container.style.display = 'none'; return; }
+            container.innerHTML = results.map(l =>
+                `<div style="padding:10px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f0f4f8'" onmouseout="this.style.background=''" onclick="selectLider(${l.id}, '${l.nombre.replace(/'/g,"\\'")}', '${l.empresa_id}')">${l.nombre}</div>`
+            ).join('') || '<div style="padding:10px; color:#6a6d70; font-size:12px;">Sin resultados</div>';
+            container.style.display = 'block';
         }
+        function showLiderResults() { filterLider(document.getElementById('tecnico-search').value); }
+        function selectLider(id, nombre, empresaId) {
+            document.getElementById('tecnico-value').value = id;
+            document.getElementById('tecnico-search').style.display = 'none';
+            document.getElementById('tecnico-selected-name').textContent = nombre;
+            document.getElementById('tecnico-selected').style.display = 'block';
+            document.getElementById('tecnico-results').style.display = 'none';
+            // Auto-seleccionar empresa
+            if (empresaId) {
+                const emp = _empresas.find(e => e.id == empresaId);
+                if (emp) selectEmpresa(emp.id, emp.nombre);
+            }
+        }
+        function clearLider() {
+            document.getElementById('tecnico-value').value = 'none';
+            document.getElementById('tecnico-search').value = '';
+            document.getElementById('tecnico-search').style.display = '';
+            document.getElementById('tecnico-selected').style.display = 'none';
+        }
+
+        // === Búsqueda de Empresa ===
+        function filterEmpresa(q) {
+            q = q.toLowerCase();
+            const results = _empresas.filter(e => e.nombre.toLowerCase().includes(q)).slice(0, 10);
+            const container = document.getElementById('empresa-results');
+            if (!q || q.length < 1) { container.style.display = 'none'; return; }
+            container.innerHTML = results.map(e =>
+                `<div style="padding:10px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f0f4f8'" onmouseout="this.style.background=''" onclick="selectEmpresa(${e.id}, '${e.nombre.replace(/'/g,"\\'")}')"> ${e.nombre}</div>`
+            ).join('') || '<div style="padding:10px; color:#6a6d70; font-size:12px;">Sin resultados</div>';
+            container.style.display = 'block';
+        }
+        function showEmpresaResults() { filterEmpresa(document.getElementById('empresa-search').value); }
+        function selectEmpresa(id, nombre) {
+            document.getElementById('empresa-value').value = id;
+            document.getElementById('empresa-search').style.display = 'none';
+            document.getElementById('empresa-selected-name').textContent = nombre;
+            document.getElementById('empresa-selected').style.display = 'block';
+            document.getElementById('empresa-results').style.display = 'none';
+        }
+        function clearEmpresa() {
+            document.getElementById('empresa-value').value = 'none';
+            document.getElementById('empresa-search').value = '';
+            document.getElementById('empresa-search').style.display = '';
+            document.getElementById('empresa-selected').style.display = 'none';
+        }
+
+        // Cerrar resultados al click fuera
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#tecnico-search, #tecnico-results')) document.getElementById('tecnico-results').style.display = 'none';
+            if (!e.target.closest('#empresa-search, #empresa-results')) document.getElementById('empresa-results').style.display = 'none';
+        });
 
         // Submit
         document.getElementById('otnp-form').onsubmit = function(e) {
