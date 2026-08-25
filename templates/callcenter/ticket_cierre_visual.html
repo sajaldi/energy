@@ -578,8 +578,23 @@
                         {% if ev.archivo %}
                             {% if ev.archivo.url|lower|slice:"-4:" == ".mp4" or ev.archivo.url|lower|slice:"-5:" == ".webm" %}
                                 <video src="{{ ev.archivo.url }}" style="width: 100%; height: 100%; object-fit: cover;" controls></video>
-                            {% else %}
+                            {% elif ev.archivo.url|lower|slice:"-4:" == ".pdf" %}
+                                <a href="{{ ev.archivo.url }}" target="_blank" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f9fa; text-decoration: none; color: var(--sap-text);">
+                                    <i class="ph ph-file-pdf" style="font-size: 3rem; color: #bb0000;"></i>
+                                    <span style="font-size: 11px; margin-top: 8px; text-align: center; padding: 0 8px; word-break: break-all;">{{ ev.archivo.name|truncatechars:30 }}</span>
+                                </a>
+                            {% elif ev.archivo.url|lower|slice:"-4:" == ".doc" or ev.archivo.url|lower|slice:"-5:" == ".docx" or ev.archivo.url|lower|slice:"-4:" == ".xls" or ev.archivo.url|lower|slice:"-5:" == ".xlsx" %}
+                                <a href="{{ ev.archivo.url }}" target="_blank" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f9fa; text-decoration: none; color: var(--sap-text);">
+                                    <i class="ph ph-file-doc" style="font-size: 3rem; color: #0070f2;"></i>
+                                    <span style="font-size: 11px; margin-top: 8px; text-align: center; padding: 0 8px; word-break: break-all;">{{ ev.archivo.name|truncatechars:30 }}</span>
+                                </a>
+                            {% elif ev.archivo.url|lower|slice:"-4:" == ".jpg" or ev.archivo.url|lower|slice:"-5:" == ".jpeg" or ev.archivo.url|lower|slice:"-4:" == ".png" or ev.archivo.url|lower|slice:"-4:" == ".gif" or ev.archivo.url|lower|slice:"-5:" == ".webp" %}
                                 <img src="{{ ev.archivo.url }}" alt="{{ ev.descripcion }}">
+                            {% else %}
+                                <a href="{{ ev.archivo.url }}" target="_blank" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f9fa; text-decoration: none; color: var(--sap-text);">
+                                    <i class="ph ph-file" style="font-size: 3rem; color: #6a6d70;"></i>
+                                    <span style="font-size: 11px; margin-top: 8px; text-align: center; padding: 0 8px; word-break: break-all;">{{ ev.archivo.name|truncatechars:30 }}</span>
+                                </a>
                             {% endif %}
                             <button type="button" class="btn-delete-ev" data-id="{{ ev.id|unlocalize }}" onclick="deleteEvidence(this.dataset.id)"><i class="ph ph-trash"></i></button>
                         {% endif %}
@@ -612,9 +627,9 @@
                 {% endfor %}
                 <div class="evidence-box add-evidence-box" onclick="document.getElementById('file-upload').click()" 
                      style="aspect-ratio: 1; justify-content: center; align-items: center; border: 2px dashed var(--sap-border); background: transparent; border-radius: var(--sap-radius);">
-                    <i class="ph ph-camera" style="font-size: 2rem;"></i>
+                    <i class="ph ph-upload-simple" style="font-size: 2rem;"></i>
                     <span style="font-size: 12px;">Subir Evidencia</span>
-                    <span style="font-size: 10px; opacity: 0.7; font-weight: 400;">(o arrastra y pega aquí)</span>
+                    <span style="font-size: 10px; opacity: 0.7; font-weight: 400;">(imágenes, videos, PDF, docs)</span>
                 </div>
             </div>
 
@@ -623,7 +638,7 @@
                 <div class="drop-overlay-content" style="border-radius: var(--sap-radius);">
                     <i class="ph ph-cloud-arrow-up"></i>
                     <h3>¡Suelta para Subir!</h3>
-                    <p>Solo imágenes y videos permitidos</p>
+                    <p>Imágenes, videos, PDF y documentos</p>
                 </div>
             </div>
 
@@ -700,14 +715,31 @@
     async function uploadFiles(files) {
         if (!files.length) return;
         
-        // Validation: Only Images and Videos
-        const validFiles = Array.from(files).filter(file => {
-            return file.type.startsWith('image/') || file.type.startsWith('video/');
-        });
+        // Validation: block dangerous extensions only
+        const blockedExtensions = ['.exe', '.bat', '.cmd', '.msi', '.scr', '.ps1', '.vbs', '.js'];
+        const maxSize = 50 * 1024 * 1024; // 50 MB
+        const validFiles = [];
+        const rejected = [];
 
-        if (validFiles.length === 0) {
-            Swal.fire({ icon: 'error', title: 'Archivo no permitido', text: 'Solo puedes subir imágenes o videos.' });
+        for (const file of Array.from(files)) {
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (blockedExtensions.includes(ext)) {
+                rejected.push(`${file.name} (tipo no permitido)`);
+            } else if (file.size > maxSize) {
+                rejected.push(`${file.name} (excede 50 MB)`);
+            } else {
+                validFiles.push(file);
+            }
+        }
+
+        if (rejected.length > 0 && validFiles.length === 0) {
+            Swal.fire({ icon: 'error', title: 'Archivos no permitidos', html: rejected.join('<br>') });
             return;
+        }
+        if (rejected.length > 0) {
+            // Some files rejected but others are valid, notify and continue
+            Swal.fire({ icon: 'warning', title: 'Algunos archivos omitidos', html: rejected.join('<br>'), timer: 3000, showConfirmButton: false });
+            await new Promise(r => setTimeout(r, 1500));
         }
 
         Swal.fire({ 
