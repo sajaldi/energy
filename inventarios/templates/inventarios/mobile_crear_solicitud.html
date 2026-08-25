@@ -655,43 +655,14 @@
             };
 
             window.crearOtRapida = function() {
+                // Abrir la interfaz completa de crear OT en nueva pestaña
+                window.open('/mantenimiento/app/ot/crear-no-programada/', '_blank');
                 Swal.fire({
-                    title: 'Crear Orden de Trabajo',
-                    html: '<input id="swal-ot-desc" class="swal2-input" placeholder="Descripción breve de la OT" style="font-size:14px;">',
-                    showCancelButton: true,
-                    confirmButtonText: 'Crear',
-                    cancelButtonText: 'Cancelar',
-                    confirmButtonColor: '#107e3e',
-                    preConfirm: () => {
-                        const desc = document.getElementById('swal-ot-desc').value.trim();
-                        if (!desc) { Swal.showValidationMessage('La descripción es obligatoria'); return false; }
-                        return desc;
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        $.ajax({
-                            url: '/inventarios/api/crear-ot-rapida/',
-                            method: 'POST',
-                            contentType: 'application/json',
-                            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-                            data: JSON.stringify({ descripcion: result.value }),
-                            success: function(data) {
-                                if (data.status === 'success') {
-                                    $('#orden_trabajo').val(data.ot_id);
-                                    $('#ot-search').hide();
-                                    $('#btn-crear-ot-rapida').hide();
-                                    $('#ot-selected-code').text(data.ot_codigo);
-                                    $('#ot-selected-name').text(data.ot_descripcion);
-                                    $('#ot-selected').show();
-                                    toggleDescRequired();
-                                    Swal.fire({ icon: 'success', title: 'OT Creada', text: data.ot_codigo, timer: 2000, showConfirmButton: false });
-                                } else {
-                                    Swal.fire('Error', data.message, 'error');
-                                }
-                            },
-                            error: function() { Swal.fire('Error', 'No se pudo crear la OT.', 'error'); }
-                        });
-                    }
+                    icon: 'info',
+                    title: 'Crear OT',
+                    html: 'Se abrió el formulario de <b>Nueva OT</b> en otra pestaña.<br><br>Una vez creada, búscala aquí por su código.',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#0070f2',
                 });
             };
 
