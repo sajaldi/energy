@@ -213,20 +213,27 @@ def send_ticket_to_power_automate_view(request, ticket_id):
     # 0. ValidaciÃ³n de campos obligatorios (Backend de seguridad)
     missing = []
     if not ticket.fecha_cierre: missing.append("Fecha Cierre")
-    if not ticket.diagnostico: missing.append("DiagnÃ³stico")
+    if not ticket.diagnostico: missing.append("Diagnóstico")
     if not ticket.actividades: missing.append("Actividades")
     if not ticket.observaciones: missing.append("Observaciones")
     
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     if missing:
-        messages.error(request, f"No se puede enviar el cierre. Faltan campos: {', '.join(missing)}")
+        msg = f"No se puede enviar el cierre. Faltan campos: {', '.join(missing)}"
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': msg}, status=400)
+        messages.error(request, msg)
         return redirect('admin:callcenter_solicitudticket_change', ticket_id)
 
-    # 1. Generar/Actualizar PDF automÃ¡ticamente antes de enviar
+    # 1. Generar/Actualizar PDF automáticamente antes de enviar
     try:
         pdf_url = save_ticket_pdf_helper(ticket, request=request)
     except Exception as e:
         logger.error(f"Error generando PDF para Power Automate: {e}")
-        pdf_url = "Error en generaciÃ³n"
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': f'Error generando PDF: {str(e)}'}, status=500)
+        pdf_url = "Error en generación"
 
     # 2. Calcular Tiempo Total Min
     tiempo_total = 0
@@ -298,14 +305,20 @@ def send_ticket_to_power_automate_view(request, ticket_id):
         if response.status_code in [200, 202]:
             ticket.cierre_enviado = True
             ticket.save(update_fields=['cierre_enviado'])
-            # Disparar sync SIG solo despuÃ©s de notificaciÃ³n exitosa
+            # Disparar sync SIG solo después de notificación exitosa
             from .tasks import sync_single_ticket_task
             sync_single_ticket_task.delay(ticket.id)
+            if is_ajax:
+                return JsonResponse({'success': True, 'message': 'Ticket enviado exitosamente a Power Automate.'})
             messages.success(request, "Ticket enviado exitosamente a Power Automate.")
         else:
-            messages.warning(request, f"Power Automate respondiÃ³ con error {response.status_code}")
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': f'Power Automate respondió con error {response.status_code}'}, status=502)
+            messages.warning(request, f"Power Automate respondió con error {response.status_code}")
     except Exception as e:
         logger.error(f"Error conectando a Power Automate: {e}")
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': f'Error al conectar con Power Automate: {str(e)}'}, status=500)
         messages.error(request, f"Error al conectar con Power Automate: {str(e)}")
 
     return redirect('admin:callcenter_solicitudticket_change', ticket_id)

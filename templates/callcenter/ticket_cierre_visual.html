@@ -864,19 +864,35 @@
         // Primero guardamos el progreso actual
         await saveProgress(true);
 
-        // Redirigimos a la acción de envío que ya tiene toda la lógica de PDF + Power Automate
-        // y que también valida campos obligatorios en el backend.
         const sendUrl = "../enviar-power-automate/";
         
-        // Reutilizamos el Swal de carga
         Swal.fire({
             title: 'Notificando Cierre...',
             html: 'Generando PDF y enviando reporte. Por favor espera.',
             allowOutsideClick: false,
             didOpen: () => Swal.showLoading()
         });
-        
-        window.location.href = sendUrl;
+
+        try {
+            const resp = await fetch(sendUrl, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await resp.json();
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Cierre Notificado!',
+                    html: data.message || 'El reporte fue enviado exitosamente.',
+                    timer: 2500,
+                    showConfirmButton: false
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'No se pudo completar el envío.' });
+            }
+        } catch (e) {
+            Swal.fire({ icon: 'error', title: 'Error de conexión', text: 'No se pudo conectar al servidor. Intenta de nuevo.' });
+        }
     }
 
 
