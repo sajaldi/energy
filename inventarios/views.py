@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
+from django.views.decorators.http import require_POST
 from decimal import Decimal, InvalidOperation
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
@@ -939,6 +940,43 @@ def mobile_crear_solicitud(request):
         'ordenes_recientes': ordenes_recientes,
         'title': 'Nueva Solicitud'
     })
+
+
+@login_required
+@require_POST
+def api_crear_ot_rapida(request):
+    """Crea una OT rápida desde la solicitud de material (sin ubicación/activos)."""
+    from mantenimiento.models import OrdenTrabajo
+    from django.utils import timezone
+    from datetime import timedelta
+    import json
+    
+    try:
+        data = json.loads(request.body)
+        descripcion = data.get('descripcion', '').strip()
+        if not descripcion:
+            return JsonResponse({'status': 'error', 'message': 'La descripción es obligatoria.'}, status=400)
+        
+        ot = OrdenTrabajo.objects.create(
+            tipo='CORRECTIVA',
+            estado='EJECUCION',
+            prioridad='MEDIA',
+            tecnico=request.user,
+            descripcion_corta=descripcion,
+            inicio_programado=timezone.now(),
+            fin_programado=timezone.now() + timedelta(hours=4),
+            notas=f"Creada desde solicitud de material por {request.user.get_full_name() or request.user.username}"
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'ot_id': ot.id,
+            'ot_codigo': ot.codigo_de_orden or f'OT-{ot.id}',
+            'ot_descripcion': descripcion,
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
 
 @login_required
 @mobile_permission_required('logistica')
