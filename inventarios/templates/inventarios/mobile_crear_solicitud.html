@@ -475,8 +475,11 @@
         </div>
     </div>
 
-    <div class="sticky-footer">
-        <button type="button" class="btn btn-primary" id="btn-submit">
+    <div class="sticky-footer" style="display:flex; gap:8px;">
+        <button type="button" class="btn" id="btn-guardar" style="flex:1; background:#fff; color:#0070f2; border:2px solid #0070f2; font-weight:700;">
+            <ion-icon name="save-outline"></ion-icon> Guardar Borrador
+        </button>
+        <button type="button" class="btn btn-primary" id="btn-submit" style="flex:1;">
             <ion-icon name="paper-plane-outline"></ion-icon> Enviar Solicitud
         </button>
     </div>
@@ -897,32 +900,53 @@
                     confirmButtonText: 'Sí, enviar'
                 }).then(r => {
                     if (r.isConfirmed) {
-                        const itemsArr = Array.from(window.selectedItems.values()).map(it => ({ material_id: it.id, cantidad: it.cantidad }));
-                        $.ajax({
-                            url: '{% url "inventarios:cart_checkout" %}',
-                            method: 'POST',
-                            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-                            data: {
-                                ubicacion_origen: ubicacionId,
-                                edificio_destino: edificioId,
-                                nivel_destino: nivelId,
-                                orden_trabajo: otId,
-                                comentarios: comentarios,
-                                ajax_mode: 'true',
-                                items_json: JSON.stringify(itemsArr)
-                            },
-                            success: (res) => {
-                                Swal.fire('¡Éxito!', res.message, 'success').then(() => {
-                                    window.location.href = '{% url "inventarios:mobile_lista_pedidos" %}';
-                                });
-                            },
-                            error: (xhr) => {
-                                Swal.fire('Error', 'No se pudo enviar la solicitud.', 'error');
-                            }
-                        });
+                        submitSolicitud('PENDIENTE');
                     }
                 });
             });
+
+            // Guardar como borrador (sin validaciones estrictas)
+            $('#btn-guardar').click(function() {
+                if (window.selectedItems.size === 0) {
+                    Swal.fire('Sin materiales', 'Agregue al menos un material para guardar.', 'warning');
+                    return;
+                }
+                submitSolicitud('BORRADOR');
+            });
+
+            function submitSolicitud(estado) {
+                const ubicacionId = $('#ubicacion_origen').val();
+                const otId = $('#orden_trabajo').val();
+                const comentarios = $('#comentarios').val().trim();
+                const edificioId = $('#edificio_destino').val();
+                const nivelId = $('#nivel_destino').val();
+                const itemsArr = Array.from(window.selectedItems.values()).map(it => ({ material_id: it.id, cantidad: it.cantidad }));
+
+                $.ajax({
+                    url: '{% url "inventarios:cart_checkout" %}',
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                    data: {
+                        ubicacion_origen: ubicacionId,
+                        edificio_destino: edificioId,
+                        nivel_destino: nivelId,
+                        orden_trabajo: otId,
+                        comentarios: comentarios,
+                        estado: estado,
+                        ajax_mode: 'true',
+                        items_json: JSON.stringify(itemsArr)
+                    },
+                    success: (res) => {
+                        const msg = estado === 'BORRADOR' ? 'Borrador guardado correctamente.' : res.message;
+                        Swal.fire('¡Éxito!', msg, 'success').then(() => {
+                            window.location.href = '{% url "inventarios:mobile_lista_pedidos" %}';
+                        });
+                    },
+                    error: (xhr) => {
+                        Swal.fire('Error', 'No se pudo procesar la solicitud.', 'error');
+                    }
+                });
+            }
         });
     </script>
 </body>

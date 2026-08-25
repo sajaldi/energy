@@ -5,6 +5,7 @@ from decimal import Decimal
 
 class SolicitudMaterial(models.Model):
     ESTADO_CHOICES = [
+        ('BORRADOR', 'Borrador'),
         ('PENDIENTE_AUTORIZACION', 'Pendiente de Autorización'),
         ('PENDIENTE', 'Pendiente'),
         ('ENTREGADO', 'Entregado / Completado'),

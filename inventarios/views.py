@@ -522,7 +522,13 @@ def cart_checkout(request):
             with transaction.atomic():
                 # Verificar si el usuario tiene un jefe inmediato
                 jefe = getattr(request.user, 'perfil', None) and getattr(request.user.perfil, 'responsable', None)
-                estado_inicial = 'PENDIENTE_AUTORIZACION' if jefe else 'PENDIENTE'
+                
+                # Si se pide guardar como borrador, respetar ese estado
+                estado_solicitado = data.get('estado', '')
+                if estado_solicitado == 'BORRADOR':
+                    estado_inicial = 'BORRADOR'
+                else:
+                    estado_inicial = 'PENDIENTE_AUTORIZACION' if jefe else 'PENDIENTE'
 
                 # Crear la cabecera de la orden
                 solicitud = SolicitudMaterial.objects.create(
@@ -551,22 +557,23 @@ def cart_checkout(request):
                         comentarios=comentarios
                     )
             
-            # Notificaciones
-            if estado_inicial == 'PENDIENTE_AUTORIZACION':
-                # Push notification al canal de aprobación
-                try:
-                    from .utils_ntfy import notificar_pendiente_aprobacion
-                    notificar_pendiente_aprobacion(solicitud)
-                    print(f"[DEBUG] ntfy aprobación enviado para solicitud #{solicitud.id}")
-                except Exception as e:
-                    print(f"[DEBUG] Error ntfy aprobación: {e}")
-            else:
-                # Push notification vía ntfy al almacén
-                from .utils_ntfy import notificar_nueva_solicitud
-                notificar_nueva_solicitud(solicitud)
-            # Webhook a Power Automate
-            from .utils_n8n import notify_powerautomate_solicitud
-            notify_powerautomate_solicitud(solicitud)
+            # Notificaciones (solo si no es borrador)
+            if estado_inicial != 'BORRADOR':
+                if estado_inicial == 'PENDIENTE_AUTORIZACION':
+                    # Push notification al canal de aprobación
+                    try:
+                        from .utils_ntfy import notificar_pendiente_aprobacion
+                        notificar_pendiente_aprobacion(solicitud)
+                        print(f"[DEBUG] ntfy aprobación enviado para solicitud #{solicitud.id}")
+                    except Exception as e:
+                        print(f"[DEBUG] Error ntfy aprobación: {e}")
+                else:
+                    # Push notification vía ntfy al almacén
+                    from .utils_ntfy import notificar_nueva_solicitud
+                    notificar_nueva_solicitud(solicitud)
+                # Webhook a Power Automate
+                from .utils_n8n import notify_powerautomate_solicitud
+                notify_powerautomate_solicitud(solicitud)
             # Limpiar carrito solo si venimos de la vista de carrito
             if not items_json:
                 Cart(request).clear()
