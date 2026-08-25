@@ -590,9 +590,17 @@ def mobile_ot_finalizar(request, pk):
                 if paso.tipo_respuesta == 'MEDICION' and valor_num and not no_aplica:
                     punto = getattr(paso, 'punto_vinculado', None)
                     if punto:
+                        fecha_lectura_str = request.POST.get(f'paso_{paso.id}_fecha')
+                        fecha_lectura = None
+                        if fecha_lectura_str:
+                            try:
+                                fecha_lectura = timezone.make_aware(datetime.fromisoformat(fecha_lectura_str))
+                            except:
+                                fecha_lectura = None
                         DocumentoMedicion.objects.create(
                             punto=punto,
                             valor=float(valor_num),
+                            fecha_lectura=fecha_lectura,
                             tecnico=request.user,
                             orden_trabajo=ot,
                             observaciones=f"Capturado vía checklist OT #{ot.id}"

@@ -399,6 +399,12 @@
                                                 <input type="number" step="any" name="paso_{{ paso.id }}_num" class="fiori-input" value="{{ paso.resultado.valor_numerico|default:'' }}" placeholder="0.00" style="flex: 1;">
                                                 <span style="font-size: 13px; font-weight: 700; color: var(--sap-brand-color);">{{ paso.unidad_medida|default:'' }}</span>
                                             </div>
+                                            {% if paso.tipo_respuesta == 'MEDICION' %}
+                                            <div style="margin-top: 8px;">
+                                                <label style="font-size: 11px; font-weight: 600; color: var(--sap-text-muted);">Fecha de lectura</label>
+                                                <input type="datetime-local" name="paso_{{ paso.id }}_fecha" class="fiori-input" style="height: 36px; font-size: 12px; margin-top: 2px;">
+                                            </div>
+                                            {% endif %}
                                             {% if paso.rango_min is not None or paso.rango_max is not None %}
                                             <div style="font-size: 10px; color: var(--sap-text-muted); font-weight: 600; margin-left: 4px;">
                                                 Rango esperado: {{ paso.rango_min|default:"min" }} - {{ paso.rango_max|default:"max" }}
