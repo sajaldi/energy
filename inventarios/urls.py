@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from .views import mobile_crear_solicitud
 from .api_materials import api_list_materials, api_list_categories, api_master_sync, api_precios_historicos, api_create_material, api_material_detail, api_material_update, api_search_codigos_exoneracion, api_export_materials_excel
+from .api_mobile_sync import api_mobile_login, api_mobile_master_sync, api_mobile_push_operations, api_mobile_inventory_counts
 
 app_name = 'inventarios'
 
@@ -41,6 +42,12 @@ urlpatterns = [
     path('mobile/crear-solicitud/', mobile_crear_solicitud, name='mobile_crear_solicitud'),
     path('api/crear-ot-rapida/', views.api_crear_ot_rapida, name='api_crear_ot_rapida'),
     path('api/solicitudes/<int:pk>/enviar-borrador/', views.api_enviar_borrador, name='api_enviar_borrador'),
+    
+    # Mobile App Sync APIs
+    path('api/auth/login/', api_mobile_login, name='api_mobile_login'),
+    path('api/mobile-sync/master/', api_mobile_master_sync, name='api_mobile_master_sync'),
+    path('api/mobile-sync/push/', api_mobile_push_operations, name='api_mobile_push_operations'),
+    path('api/mobile-sync/inventory-counts/', api_mobile_inventory_counts, name='api_mobile_inventory_counts'),
     path('mobile/catalog/', views.mobile_catalog, name='mobile_catalog'),
     path('mobile/gestion-salidas/', views.mobile_gestion_salidas_view, name='mobile_gestion_salidas'),
     path('mobile/devolucion/', views.mobile_devolucion_view, name='mobile_devolucion'),
