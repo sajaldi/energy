@@ -781,6 +781,7 @@
                     descripcion: mat.descripcion || '',
                     image_url: mat.image_url || '',
                     unidad: mat.unidad,
+                    stock: mat.stock || 0,
                     cantidad: 1
                 });
                 renderItems();
@@ -802,10 +803,14 @@
                 let html = '';
                 window.selectedItems.forEach(item => {
                     const itemDesc = item.descripcion ? `<div style="font-size:11px; color:#888; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.descripcion.substring(0, 50)}${item.descripcion.length > 50 ? '...' : ''}</div>` : '';
+                    const stockColor = item.stock > 0 ? '#107e3e' : '#bb0000';
                     html += `
                         <div class="item-row" data-id="${item.id}">
                             <div class="item-main">
-                                <img src="${item.image_url}" alt="" style="width:44px; height:44px; border-radius:4px; object-fit:cover; margin-right:10px; flex-shrink:0; background:#f0f4f8;" onerror="this.style.display='none'">
+                                <div style="min-width:50px; text-align:center; margin-right:10px;">
+                                    <div style="font-size:1.8rem; font-weight:800; color:${stockColor}; line-height:1;">${item.stock}</div>
+                                    <div style="font-size:9px; color:#6a6d70; text-transform:uppercase; font-weight:600;">stock</div>
+                                </div>
                                 <div style="flex:1; min-width:0;">
                                     <div style="font-weight:700; font-size:15px;">${item.nombre}</div>
                                     <div style="font-size:11px; color:#666;">${item.sku} · ${item.unidad}</div>
