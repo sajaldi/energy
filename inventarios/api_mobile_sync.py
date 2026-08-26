@@ -89,7 +89,7 @@ def api_mobile_master_sync(request):
     materiales = Material.objects.select_related('unidad_medida', 'categoria').all()
     materials_data = []
     for m in materiales:
-        stock_total = sum(sr.cantidad for sr in m.stock_records.all())
+        stock_total = sum(sr.cantidad for sr in m.existencias.all())
         materials_data.append({
             'id': m.id,
             'nombre': m.nombre,
@@ -99,7 +99,7 @@ def api_mobile_master_sync(request):
             'categoria': m.categoria.nombre if m.categoria else '',
             'imagen_url': m.imagen.url if m.imagen else '',
             'stock_total': float(stock_total),
-            'updated_at': m.actualizado_en.isoformat() if hasattr(m, 'actualizado_en') and m.actualizado_en else '',
+            'updated_at': m.actualizado_en.isoformat() if m.actualizado_en else '',
         })
     
     # Ubicaciones (bodegas y almacenes)
