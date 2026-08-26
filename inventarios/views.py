@@ -517,6 +517,19 @@ def cart_checkout(request):
             messages.error(request, "Debes seleccionar una ubicación de origen.")
             return redirect('inventarios:cart_detail')
 
+        # Validar materiales técnicos: requieren OT vinculada
+        if not es_borrador and not ot_id:
+            materiales_tecnicos = [i for i in items_to_process if getattr(i.get('material') if isinstance(i, dict) else i, 'es_tecnico', False)]
+            if not materiales_tecnicos:
+                # También checar en caso de que items_to_process tenga objetos del cart
+                materiales_tecnicos = [i for i in items_to_process if isinstance(i, dict) and i.get('material') and i['material'].es_tecnico]
+            if materiales_tecnicos:
+                nombres = ", ".join([i['material'].nombre if isinstance(i, dict) else i.material.nombre for i in materiales_tecnicos[:3]])
+                msg = f'Los siguientes materiales son técnicos y requieren una Orden de Trabajo vinculada: {nombres}'
+                if ajax_mode: return JsonResponse({'status': 'error', 'message': msg}, status=400)
+                messages.error(request, msg)
+                return redirect('inventarios:cart_detail')
+
         try:
             ubicacion = Ubicacion.objects.filter(id=ubicacion_id).first() if ubicacion_id else None
             ot = OrdenTrabajo.objects.filter(id=ot_id).first() if ot_id else None

@@ -124,6 +124,12 @@ class Material(models.Model):
         help_text="Activar para materiales de ingreso que no deben afectar inventario (ej. compra de agua, servicios, etc.)"
     )
 
+    es_tecnico = models.BooleanField(
+        default=False,
+        verbose_name="Material Técnico",
+        help_text="Si está activo, al despachar este material se debe vincular obligatoriamente con una Orden de Trabajo."
+    )
+
     codigo_exoneracion = models.ForeignKey(
         'presupuestos.CodigoExoneracion',
         on_delete=models.SET_NULL,

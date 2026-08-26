@@ -272,9 +272,9 @@ class MaterialAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/inventarios/material/change_list.html'
     change_form_template = 'admin/inventarios/material/change_form.html'
     resource_class = MaterialResource
-    list_display = ('sku', 'nombre', 'categoria', 'tipo_material', 'unidad_medida', 'peso', 'get_stock_total', 'tiene_imagen', 'no_afecta_stock')
+    list_display = ('sku', 'nombre', 'categoria', 'tipo_material', 'unidad_medida', 'peso', 'get_stock_total', 'tiene_imagen', 'es_tecnico', 'no_afecta_stock')
     search_fields = ('nombre', 'sku')
-    list_filter = ('categoria', 'tipo_material', 'unidad_medida', 'no_afecta_stock')
+    list_filter = ('categoria', 'tipo_material', 'unidad_medida', 'es_tecnico', 'no_afecta_stock')
     list_select_related = ('categoria', 'marca')
     filter_horizontal = ('departamentos',)
     inlines = [StockRecordInline, MaterialUsoEnOTInline]
@@ -284,8 +284,8 @@ class MaterialAdmin(ImportExportModelAdmin):
             'fields': ('sku', 'nombre', 'marca', 'descripcion', 'categoria', 'unidad_medida', 'tipo_material')
         }),
         ('Precio y Stock', {
-            'fields': ('precio_estimado', 'stock_minimo', 'no_afecta_stock'),
-            'description': 'Marque "No afecta stock" para materiales de servicio/gasto que no deben registrar inventario.'
+            'fields': ('precio_estimado', 'stock_minimo', 'es_tecnico', 'no_afecta_stock'),
+            'description': 'Marque "Material Técnico" para exigir vinculación con OT al despachar. Marque "No afecta stock" para materiales de servicio/gasto.'
         }),
         ('Dimensiones', {
             'fields': ('alto', 'ancho', 'peso', 'profundidad'),
