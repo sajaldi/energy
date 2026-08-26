@@ -1058,7 +1058,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
 
 
     inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline, AuditoriasActivoInline]
-    readonly_fields = ('mt_mtbf', 'mt_total_downtime', 'historial_paradas_table', 'ultima_auditoria_display', 'get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'tickets_asociados', 'crear_aviso_link', 'get_puntos_medicion_summary')
+    readonly_fields = ('mt_mtbf', 'mt_total_downtime', 'historial_paradas_table', 'ultima_auditoria_display', 'get_marca', 'get_categoria_display', 'get_ubicacion_ruta', 'get_modelo_img', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'tickets_asociados', 'crear_aviso_link', 'get_puntos_medicion_summary')
     actions = ['export_admin_action', 'export_direct_xlsx', 'export_streaming_csv', 'limpiar_todo_el_inventario']
 
     @admin.action(description="BORRADO RÁPIDO: Eliminar selección actual (evita error de límites)")
@@ -1735,6 +1735,12 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             return obj.modelo.categoria.nombre
         return "—"
 
+    @admin.display(description="Categoría (del Modelo)")
+    def get_categoria_display(self, obj):
+        if obj.modelo and obj.modelo.categoria:
+            return obj.modelo.categoria.nombre
+        return "— Sin categoría asignada al modelo —"
+
     @admin.display(description="Código de Plano", ordering='plano__nombre')
     def get_plano_codigo(self, obj):
         if obj.plano:
@@ -1798,6 +1804,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             'fields': (
                 ('familia', 'modelo'),
                 ('get_marca', 'serie'),
+                'get_categoria_display',
                 'referencia',
                 'padre',
                 'get_modelo_img'
