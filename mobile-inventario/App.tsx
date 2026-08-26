@@ -20,7 +20,6 @@ const Tab = createBottomTabNavigator();
 function MainTabs() {
   return (
     <>
-      <SyncBar />
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ color, size }) => {
@@ -45,6 +44,7 @@ function MainTabs() {
         <Tab.Screen name="Inventario" component={InventoryScreen} options={{ title: 'Conteo' }} />
         <Tab.Screen name="Transferir" component={TransferScreen} options={{ title: 'Transferir' }} />
       </Tab.Navigator>
+      <SyncBar />
     </>
   );
 }
