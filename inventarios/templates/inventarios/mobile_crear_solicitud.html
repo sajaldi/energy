@@ -866,8 +866,8 @@
                         lastResults.forEach((m, index) => {
                             const mid = String(m.id);
                             const isAdded = window.selectedItems.has(mid);
-                            const allowedStyle = m.is_allowed ? '' : 'opacity:0.5; filter:grayscale(1);';
-                            const disabledAttr = m.is_allowed ? '' : 'data-disabled="true"';
+                            const allowedStyle = '';
+                            const approvalBadge = !m.is_allowed ? '<p style="font-size:10px; color:#e9730c; margin:2px 0 0;">⚠️ Requiere aprobación del departamento responsable</p>' : '';
                             const addedBadge = isAdded ? '<span style="background:#0a6ed1; color:white; font-size:9px; padding:2px 6px; border-radius:2px; margin-left:6px;">✓ Añadido</span>' : '';
                             const iconName = isAdded ? 'checkmark-circle' : 'add-circle';
                             const iconColor = isAdded ? '#2b7d2b' : '#0a6ed1';
@@ -875,7 +875,7 @@
                             const descSnippet = m.descripcion ? `<p style="font-size:11px; margin:2px 0 0; color:#888; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.descripcion.substring(0, 60)}${m.descripcion.length > 60 ? '...' : ''}</p>` : '';
                             
                             html += `
-                                <div class="material-item" data-index="${index}" style="border:1px solid #e8eaed; border-radius:4px; margin-bottom:8px; display:flex; padding:12px; align-items:center; cursor:pointer; ${allowedStyle}" ${disabledAttr}>
+                                <div class="material-item" data-index="${index}" data-needs-approval="${!m.is_allowed}" style="border:1px solid #e8eaed; border-radius:4px; margin-bottom:8px; display:flex; padding:12px; align-items:center; cursor:pointer; ${allowedStyle}">
                                     <img src="${m.image_url}" alt="" style="width:48px; height:48px; border-radius:6px; object-fit:cover; margin-right:12px; flex-shrink:0; background:#f0f4f8;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                                     <div style="width:48px; height:48px; background:#f0f4f8; border-radius:6px; display:none; align-items:center; justify-content:center; margin-right:12px; flex-shrink:0;">
                                         <ion-icon name="cube-outline" style="font-size:22px; color:#8a9bb5;"></ion-icon>
@@ -884,7 +884,7 @@
                                         <p style="font-size:14px; margin:0; font-weight:700;">${m.nombre}${addedBadge}</p>
                                         <p style="font-size:11px; margin:0; color:#666; margin-top:2px;">${m.sku} | Stock: ${m.stock}${stockWarning}</p>
                                         ${descSnippet}
-                                        ${!m.is_allowed ? '<p style="font-size:10px; color:#bb0000; margin:2px 0 0;">No autorizado para tu depto.</p>' : ''}
+                                        ${approvalBadge}
                                     </div>
                                     <ion-icon name="${iconName}" style="color:${iconColor}; font-size:30px; pointer-events:none; flex-shrink:0;"></ion-icon>
                                 </div>
@@ -902,13 +902,14 @@
             // Click en material — bind al drawer, NO al document
             $drawer.on('click', '.material-item', function(e) {
                 e.preventDefault();
-                if ($(this).attr('data-disabled') === 'true') {
-                    Swal.fire('Restringido', 'No autorizado para tu departamento.', 'error');
-                    return;
-                }
                 const index = parseInt($(this).attr('data-index'));
                 const mat = lastResults[index];
                 if (!mat) return;
+
+                // Si requiere aprobación, advertir pero permitir agregar
+                if ($(this).attr('data-needs-approval') === 'true') {
+                    Swal.fire({ toast: true, position: 'top', icon: 'warning', title: 'Requiere aprobación del depto. responsable', showConfirmButton: false, timer: 2000 });
+                }
 
                 const mid = String(mat.id);
                 if (window.selectedItems.has(mid)) {
