@@ -4479,3 +4479,31 @@ def ticket_adjuntos_public_view(request, ticket_id):
         'adjuntos': adjuntos,
         'total': len(adjuntos),
     })
+
+
+@staff_member_required
+def get_departamentos_responsables_ajax(request):
+    """
+    Retorna la lista de departamentos que tienen un responsable asignado,
+    para la funcionalidad de reasignación rápida de tickets.
+    """
+    from core.models import Departamento
+
+    deptos = Departamento.objects.filter(
+        responsable__isnull=False
+    ).select_related('responsable').order_by('nombre')
+
+    # Colores para los avatares
+    colores = ['#6c5ce7', '#0070f2', '#e9730c', '#107e3e', '#bb0000', '#00b894', '#e17055', '#0984e3', '#fdcb6e', '#636e72']
+
+    result = []
+    for i, d in enumerate(deptos):
+        result.append({
+            'id': d.id,
+            'nombre': d.nombre,
+            'responsable_id': d.responsable_id,
+            'responsable_nombre': d.responsable.get_full_name() or d.responsable.username,
+            'color': colores[i % len(colores)],
+        })
+
+    return JsonResponse(result, safe=False)

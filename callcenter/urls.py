@@ -87,5 +87,8 @@ urlpatterns = [
 
     # Vista pública de adjuntos del ticket (accesible desde correo)
     path('ticket/<str:ticket_id>/adjuntos/', views.ticket_adjuntos_public_view, name='ticket_adjuntos_public'),
+    
+    # API departamentos con responsable (para reasignación)
+    path('api/departamentos-responsables/', views.get_departamentos_responsables_ajax, name='get_departamentos_responsables'),
 ]
 
