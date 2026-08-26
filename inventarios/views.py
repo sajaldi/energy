@@ -584,13 +584,35 @@ def cart_checkout(request):
             # Notificaciones (solo si no es borrador)
             if estado_inicial != 'BORRADOR':
                 if estado_inicial == 'PENDIENTE_AUTORIZACION':
-                    # Push notification al canal de aprobación
-                    try:
+                    # Determinar quién debe aprobar:
+                    # 1. Si algún material tiene departamentos permitidos → notificar a los aprobadores de salida de esos departamentos
+                    # 2. Si no, notificar al jefe directo (flujo original)
+                    from core.models import PerfilUsuario as PU
+                    materiales_ids = [i['material'].id for i in items_to_process]
+                    from .models import Material as MatModel
+                    deptos_con_aprobadores = set()
+                    for mat in MatModel.objects.filter(id__in=materiales_ids).prefetch_related('departamentos'):
+                        for depto in mat.departamentos.all():
+                            deptos_con_aprobadores.add(depto.id)
+                    
+                    if deptos_con_aprobadores:
+                        # Buscar aprobadores de salida en esos departamentos
+                        aprobadores = PU.objects.filter(
+                            departamento_id__in=deptos_con_aprobadores,
+                            aprobador_salidas=True
+                        ).select_related('usuario')
+                        
+                        if aprobadores.exists():
+                            from .utils_ntfy import notificar_aprobadores_salida
+                            notificar_aprobadores_salida(solicitud, aprobadores)
+                        else:
+                            # Fallback: jefe directo
+                            from .utils_ntfy import notificar_pendiente_aprobacion
+                            notificar_pendiente_aprobacion(solicitud)
+                    else:
+                        # Sin departamentos restringidos → jefe directo
                         from .utils_ntfy import notificar_pendiente_aprobacion
                         notificar_pendiente_aprobacion(solicitud)
-                        print(f"[DEBUG] ntfy aprobación enviado para solicitud #{solicitud.id}")
-                    except Exception as e:
-                        print(f"[DEBUG] Error ntfy aprobación: {e}")
                 else:
                     # Push notification vía ntfy al almacén
                     from .utils_ntfy import notificar_nueva_solicitud
