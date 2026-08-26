@@ -154,12 +154,15 @@ def api_mobile_push_operations(request):
             
             try:
                 material = Material.objects.get(id=payload.get('material_id'))
+                location_id = payload.get('location_id')
+                ubicacion = Ubicacion.objects.filter(id=location_id).first() if location_id else None
                 
                 if tipo == 'SALIDA':
                     MovimientoInventario.objects.create(
                         material=material,
                         tipo='SALIDA',
                         cantidad=Decimal(str(payload.get('cantidad', 0))),
+                        ubicacion_origen=ubicacion,
                         usuario=user,
                         estado='APROBADO',
                         fecha_movimiento=payload.get('timestamp', timezone.now()),
@@ -172,6 +175,7 @@ def api_mobile_push_operations(request):
                         material=material,
                         tipo='ENTRADA',
                         cantidad=Decimal(str(payload.get('cantidad', 0))),
+                        ubicacion_destino=ubicacion,
                         usuario=user,
                         estado='APROBADO',
                         fecha_movimiento=payload.get('timestamp', timezone.now()),
@@ -184,25 +188,15 @@ def api_mobile_push_operations(request):
                     destino = Ubicacion.objects.filter(id=payload.get('destino_id')).first()
                     cantidad = Decimal(str(payload.get('cantidad', 0)))
                     
-                    # Salida del origen
                     MovimientoInventario.objects.create(
                         material=material,
-                        tipo='SALIDA',
+                        tipo='TRASLADO',
                         cantidad=cantidad,
                         ubicacion_origen=origen,
-                        usuario=user,
-                        estado='APROBADO',
-                        comentarios=f"Transferencia a {payload.get('destino_nombre', '')} (app móvil)",
-                    )
-                    # Entrada al destino
-                    MovimientoInventario.objects.create(
-                        material=material,
-                        tipo='ENTRADA',
-                        cantidad=cantidad,
                         ubicacion_destino=destino,
                         usuario=user,
                         estado='APROBADO',
-                        comentarios=f"Transferencia desde {payload.get('origen_nombre', '')} (app móvil)",
+                        comentarios=f"Transferencia {payload.get('origen_nombre', '')} → {payload.get('destino_nombre', '')} (app móvil)",
                     )
                     synced_ids.append(op_id)
                     
@@ -245,14 +239,18 @@ def api_mobile_inventory_counts(request):
             if not material:
                 continue
             
+            ubicacion = Ubicacion.objects.filter(id=location_id).first() if location_id else None
             diferencia = Decimal(str(cantidad_contada)) - Decimal(str(cantidad_sistema or 0))
             
             if diferencia != 0:
-                tipo = 'AJUSTE'
+                # Positivo = hay más de lo esperado (entrada)
+                # Negativo = hay menos de lo esperado (salida)
                 MovimientoInventario.objects.create(
                     material=material,
-                    tipo=tipo,
+                    tipo='AJUSTE',
                     cantidad=abs(diferencia),
+                    ubicacion_origen=ubicacion if diferencia < 0 else None,
+                    ubicacion_destino=ubicacion if diferencia > 0 else None,
                     usuario=user,
                     estado='APROBADO',
                     comentarios=f"Ajuste por inventario físico (app móvil). Sistema: {cantidad_sistema}, Contado: {cantidad_contada}",
