@@ -26,6 +26,8 @@ class SolicitudMaterial(models.Model):
     comentarios_solicitud = models.TextField(blank=True, null=True)
     comentarios_almacen = models.TextField(blank=True, null=True)
     
+    entregar_a = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_recibidas', verbose_name="Entregar A")
+    
     fecha_entrega = models.DateTimeField(null=True, blank=True)
     entregado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_despachadas')
 

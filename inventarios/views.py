@@ -471,6 +471,7 @@ def cart_checkout(request):
         comentarios = data.get('comentarios', '')
         edificio_id = data.get('edificio_destino')
         nivel_id = data.get('nivel_destino')
+        entregar_a_id = data.get('entregar_a')
         
         items_to_process = []
         
@@ -535,6 +536,11 @@ def cart_checkout(request):
             ot = OrdenTrabajo.objects.filter(id=ot_id).first() if ot_id else None
             edificio = Ubicacion.objects.filter(id=edificio_id).first() if edificio_id else None
             nivel = Ubicacion.objects.filter(id=nivel_id).first() if nivel_id else None
+            entregar_a_user = None
+            if entregar_a_id:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                entregar_a_user = User.objects.filter(id=entregar_a_id).first()
             
             with transaction.atomic():
                 # Verificar si el usuario tiene un jefe inmediato
@@ -553,6 +559,7 @@ def cart_checkout(request):
                     ubicacion_origen=ubicacion,
                     edificio_destino=edificio,
                     nivel_destino=nivel,
+                    entregar_a=entregar_a_user,
                     comentarios_solicitud=comentarios,
                     estado=estado_inicial
                 )
