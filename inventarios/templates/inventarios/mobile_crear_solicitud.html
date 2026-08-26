@@ -390,8 +390,16 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label>Orden de Trabajo <span style="color:var(--sap-error); font-weight:700;">*</span></label>
+            <div class="form-group" style="margin-bottom: 8px;">
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px 12px; background:#f8fafc; border:1px solid var(--sap-border); border-radius:4px;">
+                    <input type="checkbox" id="chk-no-tecnica" style="width:18px; height:18px; accent-color:var(--sapPrimaryColor); cursor:pointer;">
+                    <span style="font-size:13px; font-weight:600; color:var(--sap-text);">Solicitud No Técnica</span>
+                    <span style="font-size:11px; color:var(--sap-text-sub); margin-left:auto;">No requiere Orden de Trabajo</span>
+                </label>
+            </div>
+
+            <div class="form-group" id="ot-section">
+                <label>Orden de Trabajo <span id="ot-required-star" style="color:var(--sap-error); font-weight:700;">*</span></label>
                 <input type="hidden" id="orden_trabajo" value="">
                 <div style="position:relative;">
                     <div style="display:flex; gap:8px;">
@@ -529,6 +537,19 @@
             let html5QrScanner = null;
             let currentCategoryId = "";
             let lastResults = [];
+            let isNoTecnica = false;
+
+            // Toggle "Solicitud No Técnica"
+            $('#chk-no-tecnica').on('change', function() {
+                isNoTecnica = $(this).is(':checked');
+                if (isNoTecnica) {
+                    $('#ot-section').slideUp(200);
+                    $('#orden_trabajo').val('');
+                    clearOT();
+                } else {
+                    $('#ot-section').slideDown(200);
+                }
+            });
 
             window.openSelector = function() {
                 $('#selectorOverlay').addClass('active');
@@ -890,6 +911,12 @@
                     return;
                 }
                 if (!otId && !comentarios) {
+                    // Si es no técnica, solo requiere comentarios
+                    if (isNoTecnica) {
+                        Swal.fire('Descripción requerida', 'Debe escribir un motivo/descripción para solicitudes no técnicas.', 'warning');
+                        $('#comentarios').focus();
+                        return;
+                    }
                     // Verificar si hay materiales técnicos
                     const tecnicos = Array.from(window.selectedItems.values()).filter(i => i.es_tecnico);
                     if (tecnicos.length > 0) {
@@ -908,7 +935,7 @@
                     return;
                 }
                 // Validar materiales técnicos incluso si hay comentarios pero no OT
-                if (!otId) {
+                if (!otId && !isNoTecnica) {
                     const tecnicos = Array.from(window.selectedItems.values()).filter(i => i.es_tecnico);
                     if (tecnicos.length > 0) {
                         const nombres = tecnicos.slice(0, 3).map(t => t.nombre).join(', ');
