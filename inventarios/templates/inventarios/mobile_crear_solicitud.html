@@ -785,7 +785,8 @@
                     image_url: mat.image_url || '',
                     unidad: mat.unidad,
                     stock: mat.stock || 0,
-                    cantidad: 1
+                    cantidad: 1,
+                    es_tecnico: mat.es_tecnico || false
                 });
                 renderItems();
 
@@ -807,6 +808,7 @@
                 window.selectedItems.forEach(item => {
                     const itemDesc = item.descripcion ? `<div style="font-size:11px; color:#888; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.descripcion.substring(0, 50)}${item.descripcion.length > 50 ? '...' : ''}</div>` : '';
                     const stockColor = item.stock > 0 ? '#107e3e' : '#bb0000';
+                    const tecnicoBadge = item.es_tecnico ? '<span style="display:inline-block; background:#fef3c7; color:#92400e; font-size:9px; font-weight:700; padding:1px 6px; border-radius:3px; margin-left:6px;">⚙️ TÉCNICO</span>' : '';
                     html += `
                         <div class="item-row" data-id="${item.id}">
                             <div class="item-main">
@@ -815,7 +817,7 @@
                                     <div style="font-size:9px; color:#6a6d70; text-transform:uppercase; font-weight:600;">stock</div>
                                 </div>
                                 <div style="flex:1; min-width:0;">
-                                    <div style="font-weight:700; font-size:15px;">${item.nombre}</div>
+                                    <div style="font-weight:700; font-size:15px;">${item.nombre}${tecnicoBadge}</div>
                                     <div style="font-size:11px; color:#666;">${item.sku} · ${item.unidad}</div>
                                     ${itemDesc}
                                 </div>
@@ -888,9 +890,37 @@
                     return;
                 }
                 if (!otId && !comentarios) {
-                    Swal.fire('Orden de Trabajo requerida', 'Debe seleccionar o crear una Orden de Trabajo para vincular la solicitud.', 'warning');
-                    $('#ot-search').focus();
+                    // Verificar si hay materiales técnicos
+                    const tecnicos = Array.from(window.selectedItems.values()).filter(i => i.es_tecnico);
+                    if (tecnicos.length > 0) {
+                        const nombres = tecnicos.slice(0, 3).map(t => t.nombre).join(', ');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Orden de Trabajo requerida',
+                            html: `Los siguientes materiales son <strong>técnicos</strong> y requieren vincularse con una OT:<br><br><em>${nombres}</em>${tecnicos.length > 3 ? ` y ${tecnicos.length - 3} más...` : ''}`,
+                            confirmButtonText: 'Entendido'
+                        });
+                        $('#ot-search').focus();
+                        return;
+                    }
+                    Swal.fire('Descripción requerida', 'Si no vincula una OT, debe escribir un motivo/descripción.', 'warning');
+                    $('#comentarios').focus();
                     return;
+                }
+                // Validar materiales técnicos incluso si hay comentarios pero no OT
+                if (!otId) {
+                    const tecnicos = Array.from(window.selectedItems.values()).filter(i => i.es_tecnico);
+                    if (tecnicos.length > 0) {
+                        const nombres = tecnicos.slice(0, 3).map(t => t.nombre).join(', ');
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Orden de Trabajo obligatoria',
+                            html: `Los siguientes materiales son <strong>técnicos</strong> y requieren vincularse con una OT:<br><br><em>${nombres}</em>${tecnicos.length > 3 ? ` y ${tecnicos.length - 3} más...` : ''}`,
+                            confirmButtonText: 'Entendido'
+                        });
+                        $('#ot-search').focus();
+                        return;
+                    }
                 }
                 
                 Swal.fire({
