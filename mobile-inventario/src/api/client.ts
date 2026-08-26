@@ -43,7 +43,7 @@ async function apiRequest(endpoint: string, options: RequestInit = {}): Promise<
 
 // ===== AUTH =====
 export async function login(username: string, password: string): Promise<string> {
-  const data = await apiRequest('/api/auth/login/', {
+  const data = await apiRequest('/inventarios/api/auth/login/', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   });
