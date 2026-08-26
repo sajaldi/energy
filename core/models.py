@@ -255,6 +255,11 @@ class PerfilUsuario(models.Model):
         default=dict, blank=True, verbose_name="Configuración de navegación",
         help_text='{"hidden_menus": ["Mantenimiento"], "custom_menus": [{"name": "Mis Links", "icon": "fas fa-star", "color": "#f59e0b", "columns": [{"heading": "", "items": [{"name": "Link", "url": "/url/"}]}]}]}',
     )
+    aprobador_salidas = models.BooleanField(
+        default=False,
+        verbose_name="Aprobador de Salidas",
+        help_text="Si está activo, este usuario puede aprobar solicitudes de material de su departamento."
+    )
 
     def __str__(self):
         return f"Perfil de {self.usuario.username}"
