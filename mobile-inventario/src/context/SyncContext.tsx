@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { isOnline, fetchMasterData, pushOperations } from '../api/client';
-import { upsertMaterials, upsertLocations, upsertStockRecords, getPendingOperations, markOperationSynced, setLastSync } from '../db/database';
+import { isOnline, fetchMasterData, pushOperations, pushInventoryCounts } from '../api/client';
+import { upsertMaterials, upsertLocations, upsertStockRecords, getPendingOperations, markOperationSynced, setLastSync, getUnsyncedCounts, markCountsSynced } from '../db/database';
 
 interface SyncState {
   isSyncing: boolean;
@@ -25,7 +25,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   const refreshPendingCount = useCallback(async () => {
     const ops = await getPendingOperations();
-    setPendingCount(ops.length);
+    const counts = await getUnsyncedCounts();
+    setPendingCount(ops.length + counts.length);
   }, []);
 
   const syncAll = useCallback(async () => {
@@ -46,6 +47,24 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           for (const id of result.synced) {
             await markOperationSynced(id);
           }
+        }
+      }
+
+      // 1.5. Push pending inventory counts
+      const unsyncedCounts = await getUnsyncedCounts();
+      if (unsyncedCounts.length > 0) {
+        const countsPayload = unsyncedCounts.map(c => ({
+          id: c.id,
+          session_id: c.session_id,
+          material_id: c.material_id,
+          location_id: c.location_id,
+          cantidad_sistema: c.cantidad_sistema,
+          cantidad_contada: c.cantidad_contada,
+          diferencia: c.diferencia,
+        }));
+        const countResult = await pushInventoryCounts(countsPayload);
+        if (countResult.status === 'success' || countResult.success) {
+          await markCountsSynced(unsyncedCounts.map((c: any) => c.id));
         }
       }
 

@@ -188,3 +188,18 @@ export async function setLastSync(timestamp: string): Promise<void> {
     [timestamp]
   );
 }
+
+// ===== INVENTORY COUNTS SYNC =====
+export async function getUnsyncedCounts(): Promise<any[]> {
+  const database = await getDb();
+  return database.getAllAsync(
+    `SELECT ic.*, m.nombre as material_nombre, m.sku FROM inventory_counts ic JOIN materials m ON ic.material_id = m.id WHERE ic.synced = 0 ORDER BY ic.created_at`
+  );
+}
+
+export async function markCountsSynced(ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  const database = await getDb();
+  const placeholders = ids.map(() => '?').join(',');
+  await database.runAsync(`UPDATE inventory_counts SET synced = 1 WHERE id IN (${placeholders})`, ids);
+}
