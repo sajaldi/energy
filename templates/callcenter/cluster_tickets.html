@@ -1275,17 +1275,38 @@
 
             if (!selectedDepto) return;
 
-            // Asignar el responsable del departamento al ticket
+            // Pedir motivo de reasignación
+            const { value: motivo } = await Swal.fire({
+                title: 'Motivo de Reasignación',
+                input: 'textarea',
+                inputPlaceholder: '¿Por qué se reasigna este ticket?',
+                inputAttributes: { 'aria-label': 'Motivo de reasignación' },
+                showCancelButton: true,
+                confirmButtonText: 'Reasignar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0070f2',
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) return 'Debes indicar un motivo de reasignación';
+                }
+            });
+
+            if (!motivo) return;
+
+            // Llamar al endpoint de reasignación que asigna + guarda comentario + notifica
             try {
-                const assignUrl = `{% url 'callcenter:assign_ticket_user' 0 %}`.replace('0', ticketId);
-                const res = await fetch(assignUrl, {
+                Swal.fire({ title: 'Reasignando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const res = await fetch(`/callcenter/ticket/${ticketId}/reasignar-departamento/`, {
                     method: 'POST',
                     headers: { 
                         'X-CSRFToken': '{{ csrf_token }}',
                         'X-Requested-With': 'XMLHttpRequest',
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ user_id: selectedDepto.userId })
+                    body: JSON.stringify({
+                        user_id: selectedDepto.userId,
+                        departamento_nombre: selectedDepto.deptoNombre,
+                        motivo: motivo
+                    })
                 });
                 const data = await res.json();
                 if (data.success) {

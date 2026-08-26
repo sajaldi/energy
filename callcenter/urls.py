@@ -90,5 +90,6 @@ urlpatterns = [
     
     # API departamentos con responsable (para reasignación)
     path('api/departamentos-responsables/', views.get_departamentos_responsables_ajax, name='get_departamentos_responsables'),
+    path('ticket/<str:ticket_id>/reasignar-departamento/', views.reasignar_ticket_departamento_ajax, name='reasignar_ticket_departamento'),
 ]
 

@@ -4507,3 +4507,91 @@ def get_departamentos_responsables_ajax(request):
         })
 
     return JsonResponse(result, safe=False)
+
+
+@csrf_exempt
+@staff_member_required
+def reasignar_ticket_departamento_ajax(request, ticket_id):
+    """
+    Reasigna un ticket al responsable de un departamento.
+    - Asigna el usuario_responsable del ticket
+    - Guarda el motivo como comentario interno
+    - Envía notificación vía Power Automate (URL_REASIGNACION_TICKET)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Solo POST'}, status=405)
+
+    ticket_id = int(str(ticket_id).replace(',', ''))
+    ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'success': False, 'message': 'JSON inválido'}, status=400)
+
+    user_id = data.get('user_id')
+    departamento_nombre = data.get('departamento_nombre', '')
+    motivo = data.get('motivo', '').strip()
+
+    if not user_id:
+        return JsonResponse({'success': False, 'message': 'Falta user_id'}, status=400)
+    if not motivo:
+        return JsonResponse({'success': False, 'message': 'Falta motivo de reasignación'}, status=400)
+
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    nuevo_responsable = get_object_or_404(User, id=user_id)
+
+    # Guardar responsable anterior para el log
+    anterior = ticket.usuario_responsable
+    anterior_nombre = anterior.get_full_name() or str(anterior) if anterior else 'Sin asignar'
+
+    # 1. Asignar nuevo responsable
+    ticket.usuario_responsable = nuevo_responsable
+    
+    # 2. Guardar motivo como comentario interno
+    comentario_previo = ticket.comentarios_internos or ''
+    timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
+    usuario_accion = request.user.get_full_name() or request.user.username
+    nuevo_comentario = f"[{timestamp}] REASIGNADO por {usuario_accion} → {departamento_nombre}\nMotivo: {motivo}"
+    
+    if comentario_previo.strip():
+        ticket.comentarios_internos = f"{nuevo_comentario}\n---\n{comentario_previo}"
+    else:
+        ticket.comentarios_internos = nuevo_comentario
+
+    ticket.save()
+
+    # 3. Registrar en historial
+    add_historial(
+        ticket, 'REASIGNADO',
+        usuario=request.user,
+        descripcion=f"Reasignado de {anterior_nombre} → {nuevo_responsable.get_full_name()} ({departamento_nombre}). Motivo: {motivo}"
+    )
+
+    # 4. Enviar notificación a Power Automate si la URL está configurada
+    pa_url = getattr(settings, 'URL_REASIGNACION_TICKET', '')
+    if pa_url:
+        payload = {
+            "folio": str(ticket.folio or ticket.id_solicitud),
+            "servicio": str(ticket.servicio or ""),
+            "descripcion": (ticket.solicitud_descripcion or "")[:200],
+            "departamento_destino": departamento_nombre,
+            "responsable_destino": nuevo_responsable.get_full_name() or nuevo_responsable.username,
+            "email_destino": nuevo_responsable.email or "",
+            "responsable_anterior": anterior_nombre,
+            "motivo": motivo,
+            "reasignado_por": usuario_accion,
+            "fecha_reasignacion": timestamp,
+            "url_ticket": f"{settings.SITE_URL.rstrip('/')}/callcenter/ticket/{ticket_id}/cierre-visual/"
+        }
+        try:
+            resp = requests.post(pa_url, json=payload, timeout=15)
+            logger.info(f"Reasignación PA: ticket {ticket.folio} → {departamento_nombre} (status={resp.status_code})")
+        except Exception as e:
+            logger.warning(f"Error enviando reasignación a Power Automate: {e}")
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Ticket reasignado a {nuevo_responsable.get_full_name()} ({departamento_nombre})'
+    })
