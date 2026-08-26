@@ -1028,7 +1028,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
 
 
     
-    list_display = ('nombre', 'ver_en_fiori', 'codigo_interno', 'mt_mtbf', 'mt_total_downtime', 'epc', 'descripcion', 'ultima_auditoria_display', 'get_marca_modelo', 'serie', 'get_plano_codigo', 'referencia', 'get_ubicacion_ruta')
+    list_display = ('nombre', 'ver_en_fiori', 'codigo_interno', 'get_categoria', 'mt_mtbf', 'mt_total_downtime', 'epc', 'descripcion', 'ultima_auditoria_display', 'get_marca_modelo', 'serie', 'get_plano_codigo', 'referencia', 'get_ubicacion_ruta')
     list_filter = (
         NombreStartsWithFilter,
         ActivoFaltantesFilter, 
@@ -1728,6 +1728,12 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
         marca = obj.modelo.marca.nombre if obj.modelo and obj.modelo.marca else (obj.marca_legacy or "---")
         modelo = obj.modelo.nombre if obj.modelo else (obj.modelo_legacy or "---")
         return f"{marca} -> {modelo}"
+
+    @admin.display(description="Categoría", ordering='modelo__categoria__nombre')
+    def get_categoria(self, obj):
+        if obj.modelo and obj.modelo.categoria:
+            return obj.modelo.categoria.nombre
+        return "—"
 
     @admin.display(description="Código de Plano", ordering='plano__nombre')
     def get_plano_codigo(self, obj):
