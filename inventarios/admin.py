@@ -281,11 +281,11 @@ class MaterialAdmin(ImportExportModelAdmin):
     readonly_fields = ('imagen_preview',)
     fieldsets = [
         (None, {
-            'fields': ('sku', 'nombre', 'marca', 'descripcion', 'categoria', 'unidad_medida', 'tipo_material')
+            'fields': ('sku', 'nombre', 'marca', 'descripcion', 'categoria', 'unidad_medida', 'tipo_material', 'es_tecnico')
         }),
         ('Precio y Stock', {
-            'fields': ('precio_estimado', 'stock_minimo', 'es_tecnico', 'no_afecta_stock'),
-            'description': 'Marque "Material Técnico" para exigir vinculación con OT al despachar. Marque "No afecta stock" para materiales de servicio/gasto.'
+            'fields': ('precio_estimado', 'stock_minimo', 'no_afecta_stock'),
+            'description': 'Marque "No afecta stock" para materiales de servicio/gasto que no deben registrar inventario.'
         }),
         ('Dimensiones', {
             'fields': ('alto', 'ancho', 'peso', 'profundidad'),
