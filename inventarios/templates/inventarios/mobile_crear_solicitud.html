@@ -679,14 +679,64 @@
             };
 
             window.crearOtRapida = function() {
-                // Abrir la interfaz completa de crear OT en nueva pestaña
-                window.open('/mantenimiento/app/ot/crear-no-programada/', '_blank');
+                // Limpiar posible OT anterior en localStorage
+                localStorage.removeItem('ot_creada_id');
+                localStorage.removeItem('ot_creada_codigo');
+
+                // Abrir la interfaz de crear OT en nueva pestaña
+                window.open('/mantenimiento/app/ot/crear-no-programada/?callback=solicitud', '_blank');
+                
                 Swal.fire({
                     icon: 'info',
-                    title: 'Crear OT',
-                    html: 'Se abrió el formulario de <b>Nueva OT</b> en otra pestaña.<br><br>Una vez creada, búscala aquí por su código.',
-                    confirmButtonText: 'Entendido',
-                    confirmButtonColor: '#0070f2',
+                    title: 'Creando OT...',
+                    html: 'Se abrió el formulario de <b>Nueva OT</b> en otra pestaña.<br><br>Cuando la guardes, se vinculará automáticamente aquí.',
+                    confirmButtonText: 'Ya la creé, vincular',
+                    showCancelButton: true,
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#107e3e',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Intentar leer la OT del localStorage
+                        const otId = localStorage.getItem('ot_creada_id');
+                        const otCodigo = localStorage.getItem('ot_creada_codigo');
+                        if (otId && otCodigo) {
+                            $('#orden_trabajo').val(otId);
+                            $('#ot-search').hide();
+                            $('#ot-selected-code').text(otCodigo);
+                            $('#ot-selected-name').text('(Recién creada)');
+                            $('#ot-selected').show();
+                            $('#btn-crear-ot-rapida').hide();
+                            toggleDescRequired();
+                            localStorage.removeItem('ot_creada_id');
+                            localStorage.removeItem('ot_creada_codigo');
+                            Swal.fire({ toast: true, position: 'top', icon: 'success', title: `OT ${otCodigo} vinculada`, showConfirmButton: false, timer: 1500 });
+                        } else {
+                            Swal.fire({
+                                icon: 'info',
+                                title: 'OT no detectada',
+                                html: 'No se detectó la OT automáticamente. Puedes buscarla por código en el campo de búsqueda.',
+                                confirmButtonText: 'OK'
+                            });
+                        }
+                    }
+                });
+
+                // Escuchar cambios en localStorage (cuando la otra pestaña guarda la OT)
+                window.addEventListener('storage', function otListener(e) {
+                    if (e.key === 'ot_creada_id' && e.newValue) {
+                        const otId = e.newValue;
+                        const otCodigo = localStorage.getItem('ot_creada_codigo') || 'OT Nueva';
+                        $('#orden_trabajo').val(otId);
+                        $('#ot-search').hide();
+                        $('#ot-selected-code').text(otCodigo);
+                        $('#ot-selected-name').text('(Recién creada)');
+                        $('#ot-selected').show();
+                        $('#btn-crear-ot-rapida').hide();
+                        toggleDescRequired();
+                        Swal.close();
+                        Swal.fire({ toast: true, position: 'top', icon: 'success', title: `OT ${otCodigo} vinculada`, showConfirmButton: false, timer: 1500 });
+                        window.removeEventListener('storage', otListener);
+                    }
                 });
             };
 

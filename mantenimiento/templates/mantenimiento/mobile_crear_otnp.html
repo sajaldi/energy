@@ -661,8 +661,21 @@
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    Swal.fire({ title:'¡Éxito!', text:`Orden ${data.codigo} creada`, icon:'success', confirmButtonColor:'#0a6ed1'})
-                        .then(() => window.location.href = `/mantenimiento/app/ot/${data.ot_id}/`);
+                    // Guardar en localStorage para que la pestaña de solicitud lo detecte
+                    try {
+                        localStorage.setItem('ot_creada_id', data.ot_id);
+                        localStorage.setItem('ot_creada_codigo', data.codigo);
+                    } catch(e) {}
+                    
+                    // Si venimos desde la solicitud (callback), cerrar pestaña
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('callback') === 'solicitud') {
+                        Swal.fire({ title:'¡OT Creada!', text:`Orden ${data.codigo} creada. Vuelve a la solicitud para continuar.`, icon:'success', confirmButtonColor:'#0a6ed1', confirmButtonText:'Cerrar pestaña'})
+                            .then(() => window.close());
+                    } else {
+                        Swal.fire({ title:'¡Éxito!', text:`Orden ${data.codigo} creada`, icon:'success', confirmButtonColor:'#0a6ed1'})
+                            .then(() => window.location.href = `/mantenimiento/app/ot/${data.ot_id}/`);
+                    }
                 } else { Swal.fire('Error', data.message, 'error'); btn.disabled = false; btn.innerText = 'Crear Orden'; }
             }).catch(() => { Swal.fire('Error', 'Conexión fallida', 'error'); btn.disabled = false; });
         };
