@@ -824,3 +824,23 @@ def generar_embeddings_tickets(self, batch_size=100, limit=5000):
 
     return {'current': procesados, 'total': total, 'percent': 100,
             'status': f'✅ {procesados}/{total} tickets vectorizados.'}
+
+
+@shared_task(name='callcenter.tasks.notify_reasignacion_power_automate')
+def notify_reasignacion_power_automate(payload):
+    """
+    Envía la notificación de reasignación de ticket a Power Automate en segundo plano.
+    """
+    import requests
+    pa_url = getattr(settings, 'URL_REASIGNACION_TICKET', '')
+    if not pa_url:
+        logger.warning("URL_REASIGNACION_TICKET no configurada, omitiendo notificación de reasignación.")
+        return {"status": "skipped", "reason": "URL not configured"}
+
+    try:
+        resp = requests.post(pa_url, json=payload, timeout=30)
+        logger.info(f"Reasignación PA: folio={payload.get('folio')} → {payload.get('departamento_destino')} (status={resp.status_code})")
+        return {"status": "success", "status_code": resp.status_code}
+    except Exception as e:
+        logger.error(f"Error enviando reasignación a Power Automate: {e}")
+        return {"status": "error", "message": str(e)}

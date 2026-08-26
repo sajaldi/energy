@@ -4569,27 +4569,22 @@ def reasignar_ticket_departamento_ajax(request, ticket_id):
         descripcion=f"Reasignado de {anterior_nombre} → {nuevo_responsable.get_full_name()} ({departamento_nombre}). Motivo: {motivo}"
     )
 
-    # 4. Enviar notificación a Power Automate si la URL está configurada
-    pa_url = getattr(settings, 'URL_REASIGNACION_TICKET', '')
-    if pa_url:
-        payload = {
-            "folio": str(ticket.folio or ticket.id_solicitud),
-            "servicio": str(ticket.servicio or ""),
-            "descripcion": (ticket.solicitud_descripcion or "")[:200],
-            "departamento_destino": departamento_nombre,
-            "responsable_destino": nuevo_responsable.get_full_name() or nuevo_responsable.username,
-            "email_destino": nuevo_responsable.email or "",
-            "responsable_anterior": anterior_nombre,
-            "motivo": motivo,
-            "reasignado_por": usuario_accion,
-            "fecha_reasignacion": timestamp,
-            "url_ticket": f"{settings.SITE_URL.rstrip('/')}/callcenter/ticket/{ticket_id}/cierre-visual/"
-        }
-        try:
-            resp = requests.post(pa_url, json=payload, timeout=15)
-            logger.info(f"Reasignación PA: ticket {ticket.folio} → {departamento_nombre} (status={resp.status_code})")
-        except Exception as e:
-            logger.warning(f"Error enviando reasignación a Power Automate: {e}")
+    # 4. Enviar notificación a Power Automate en segundo plano (Celery)
+    from .tasks import notify_reasignacion_power_automate
+    payload = {
+        "folio": str(ticket.folio or ticket.id_solicitud),
+        "servicio": str(ticket.servicio or ""),
+        "descripcion": (ticket.solicitud_descripcion or "")[:200],
+        "departamento_destino": departamento_nombre,
+        "responsable_destino": nuevo_responsable.get_full_name() or nuevo_responsable.username,
+        "email_destino": nuevo_responsable.email or "",
+        "responsable_anterior": anterior_nombre,
+        "motivo": motivo,
+        "reasignado_por": usuario_accion,
+        "fecha_reasignacion": timestamp,
+        "url_ticket": f"{settings.SITE_URL.rstrip('/')}/callcenter/ticket/{ticket_id}/cierre-visual/"
+    }
+    notify_reasignacion_power_automate.delay(payload)
 
     return JsonResponse({
         'success': True,
