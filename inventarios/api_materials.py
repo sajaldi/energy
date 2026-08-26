@@ -185,7 +185,8 @@ def api_list_materials(request):
             'tipo_material': m.get_tipo_material_display() if hasattr(m, 'get_tipo_material_display') else m.tipo_material,
             'image_url': image_url,
             'is_allowed': is_allowed,
-            'bodegas': unique_bodegas
+            'bodegas': unique_bodegas,
+            'es_tecnico': m.es_tecnico,
         })
         
     return JsonResponse({

@@ -642,12 +642,13 @@
                 data.results.forEach(m => {
                     const isSelected = selectedMaterials.has(m.id);
                     grid.append(`
-                        <div class="material-card ${isSelected ? 'selected' : ''}" data-id="${m.id}" data-name="${m.nombre}" data-sku="${m.sku}" data-unit="${m.unidad}">
+                        <div class="material-card ${isSelected ? 'selected' : ''}" data-id="${m.id}" data-name="${m.nombre}" data-sku="${m.sku}" data-unit="${m.unidad}" data-tecnico="${m.es_tecnico ? '1' : '0'}">
                             <img src="${m.image_url}" class="material-image">
                             <div class="material-name">${m.nombre}</div>
                             <div class="material-sku">SKU: ${m.sku}</div>
                             <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 4px;">Unidad: <strong>${m.unidad}</strong></div>
                             <div class="material-stock">Disponible: ${m.stock}</div>
+                            ${m.es_tecnico ? '<div style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; margin-top: 4px; font-weight: 600; text-align: center;">⚙️ Técnico</div>' : ''}
                             <button type="button" class="btn-custom btn-primary add-item-btn" style="width: 100%; margin-top: 12px; justify-content: center; padding: 8px;">
                                 ${isSelected ? '✓ Agregado' : '＋ Agregar'}
                             </button>
@@ -660,12 +661,13 @@
                     const name = $(this).data('name');
                     const sku = $(this).data('sku');
                     const unit = $(this).data('unit');
+                    const esTecnico = $(this).data('tecnico') === 1 || $(this).data('tecnico') === '1';
 
                     if (selectedMaterials.has(id)) {
                         selectedMaterials.delete(id);
                         $(this).removeClass('selected').find('.add-item-btn').html('＋ Agregar');
                     } else {
-                        selectedMaterials.set(id, { id, name, sku, unit, quantity: 1 });
+                        selectedMaterials.set(id, { id, name, sku, unit, quantity: 1, es_tecnico: esTecnico });
                         $(this).addClass('selected').find('.add-item-btn').html('✓ Agregado');
                     }
                     renderItems();
@@ -753,6 +755,21 @@
 
             const otId = $('#selectedOtId').val();
             const comentarios = $('#comentarios').val();
+
+            // Validar materiales técnicos: requieren OT
+            if (!otId) {
+                const tecnicos = Array.from(selectedMaterials.values()).filter(i => i.es_tecnico);
+                if (tecnicos.length > 0) {
+                    const nombres = tecnicos.slice(0, 3).map(t => t.name).join(', ');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Orden de Trabajo requerida',
+                        html: `Los siguientes materiales son <strong>técnicos</strong> y requieren vincularse con una OT:<br><br><em>${nombres}</em>${tecnicos.length > 3 ? ` y ${tecnicos.length - 3} más...` : ''}`,
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
+            }
 
             const itemsArr = Array.from(selectedMaterials.values()).map(item => ({
                 material_id: item.id,
