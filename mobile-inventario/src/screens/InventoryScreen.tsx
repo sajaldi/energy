@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { addInventoryCount, getCountsBySession, getWarehouseLocations, getMaterialsByLocation, searchCatalogForLocation, createMaterialLocal } from '../db/database';
 import { useSync } from '../context/SyncContext';
 
@@ -28,6 +29,27 @@ export default function InventoryScreen() {
   const [nuevaUnidad, setNuevaUnidad] = useState('Unidad');
   const [nuevoCodBarras, setNuevoCodBarras] = useState('');
   const [savingMat, setSavingMat] = useState(false);
+
+  // Scanner de código de barras
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanned, setScanned] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const abrirScanner = async () => {
+    if (!permission?.granted) {
+      const res = await requestPermission();
+      if (!res.granted) { Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara para escanear.'); return; }
+    }
+    setScanned(false);
+    setScannerOpen(true);
+  };
+
+  const onBarcodeScanned = ({ data }: { data: string }) => {
+    if (scanned) return;
+    setScanned(true);
+    setNuevoCodBarras(data);
+    setScannerOpen(false);
+  };
 
   const crearMaterialNuevo = async () => {
     if (!nuevoNombre.trim()) { Alert.alert('Error', 'Ingresa el nombre del material'); return; }
@@ -181,7 +203,12 @@ export default function InventoryScreen() {
           <Text style={styles.countName}>Nuevo Material</Text>
           <Text style={styles.countSku}>Se crea offline y se sincroniza con conexión.</Text>
           <TextInput style={styles.newInput} placeholder="Nombre del material *" value={nuevoNombre} onChangeText={setNuevoNombre} autoFocus />
-          <TextInput style={styles.newInput} placeholder="Código de barras (opcional)" value={nuevoCodBarras} onChangeText={setNuevoCodBarras} />
+          <View style={styles.barcodeRow}>
+            <TextInput style={[styles.newInput, { flex: 1, marginBottom: 0 }]} placeholder="Código de barras (opcional)" value={nuevoCodBarras} onChangeText={setNuevoCodBarras} />
+            <TouchableOpacity style={styles.scanBtn} onPress={abrirScanner}>
+              <Ionicons name="barcode-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
           <TextInput style={styles.newInput} placeholder="Unidad (ej. Unidad, Metro, Litro)" value={nuevaUnidad} onChangeText={setNuevaUnidad} />
           <TouchableOpacity style={[styles.countBtn, savingMat && { opacity: 0.6 }]} onPress={crearMaterialNuevo} disabled={savingMat}>
             <Ionicons name="add-circle" size={20} color="#fff" />
@@ -291,6 +318,34 @@ export default function InventoryScreen() {
           />
         </>
       )}
+
+      {/* Modal del Scanner de código de barras */}
+      <Modal visible={scannerOpen} animationType="slide" onRequestClose={() => setScannerOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          {permission?.granted ? (
+            <CameraView
+              style={{ flex: 1 }}
+              barcodeScannerSettings={{ barcodeTypes: ['qr', 'ean13', 'ean8', 'code128', 'code39', 'upc_a', 'upc_e'] }}
+              onBarcodeScanned={scanned ? undefined : onBarcodeScanned}
+            />
+          ) : (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ color: '#fff' }}>Sin permiso de cámara</Text>
+            </View>
+          )}
+          <View style={{ position: 'absolute', bottom: 60, left: 0, right: 0, alignItems: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', backgroundColor: 'rgba(0,0,0,0.6)', padding: 12 }}>
+              Apunta al código de barras
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 50, right: 20, backgroundColor: 'rgba(0,0,0,0.6)', padding: 10, borderRadius: 20 }}
+            onPress={() => setScannerOpen(false)}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -330,4 +385,6 @@ const styles = StyleSheet.create({
   newInput: { borderWidth: 1, borderColor: '#d9d9d9', padding: 12, fontSize: 16, marginBottom: 10 },
   createMatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, marginBottom: 8 },
   createMatText: { color: '#0070f2', fontWeight: '600', fontSize: 13 },
+  barcodeRow: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'stretch' },
+  scanBtn: { backgroundColor: '#0070f2', paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center' },
 });
