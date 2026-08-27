@@ -398,11 +398,12 @@ def requisicion_upsert(request, pk=None):
                 articulo_formset.save()
                 # Save ISV directly from POST to avoid full form validation
                 isv_value = request.POST.get('isv')
-                if isv_value is not None:
+                if isv_value is not None and str(isv_value).strip() != '':
+                    from decimal import InvalidOperation
                     try:
-                        instance.isv = Decimal(isv_value.replace(',', ''))
+                        instance.isv = Decimal(str(isv_value).replace(',', '').strip())
                         instance.save(update_fields=['isv'])
-                    except (ValueError, TypeError):
+                    except (ValueError, TypeError, InvalidOperation):
                         pass
                 success = True
             else:
