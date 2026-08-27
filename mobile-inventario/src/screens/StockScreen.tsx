@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { searchMaterials, getStockByMaterial } from '../db/database';
 import { useSync } from '../context/SyncContext';
 
@@ -10,6 +11,11 @@ export default function StockScreen() {
   const [selected, setSelected] = useState<any>(null);
   const [stockDetail, setStockDetail] = useState<any[]>([]);
   const { syncAll, lastSync } = useSync();
+
+  // Scanner
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanned, setScanned] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
 
   useEffect(() => {
     if (query.length >= 2) {
@@ -25,12 +31,39 @@ export default function StockScreen() {
     setStockDetail(stock);
   };
 
+  const abrirScanner = async () => {
+    if (!permission?.granted) {
+      const res = await requestPermission();
+      if (!res.granted) { Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara para escanear.'); return; }
+    }
+    setScanned(false);
+    setScannerOpen(true);
+  };
+
+  const onBarcodeScanned = async ({ data }: { data: string }) => {
+    if (scanned) return;
+    setScanned(true);
+    setScannerOpen(false);
+    const mats = await searchMaterials(data);
+    if (mats.length === 1) {
+      selectMaterial(mats[0]);
+    } else if (mats.length > 1) {
+      setQuery(data);
+      setResults(mats);
+    } else {
+      Alert.alert('No encontrado', `Código "${data}" no coincide con ningún material del catálogo local.`);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Search */}
       <View style={styles.searchRow}>
         <Ionicons name="search-outline" size={20} color="#6a6d70" />
-        <TextInput style={styles.searchInput} placeholder="Buscar material..." value={query} onChangeText={setQuery} />
+        <TextInput style={styles.searchInput} placeholder="Buscar material o escanear..." value={query} onChangeText={setQuery} />
+        <TouchableOpacity onPress={abrirScanner}>
+          <Ionicons name="barcode-outline" size={24} color="#0070f2" />
+        </TouchableOpacity>
       </View>
 
       {/* Sync button */}
@@ -73,6 +106,34 @@ export default function StockScreen() {
           ListEmptyComponent={query.length >= 2 ? <Text style={styles.empty}>Sin resultados</Text> : null}
         />
       )}
+
+      {/* Modal del Scanner */}
+      <Modal visible={scannerOpen} animationType="slide" onRequestClose={() => setScannerOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          {permission?.granted ? (
+            <CameraView
+              style={{ flex: 1 }}
+              barcodeScannerSettings={{ barcodeTypes: ['qr', 'ean13', 'ean8', 'code128', 'code39', 'upc_a', 'upc_e'] }}
+              onBarcodeScanned={scanned ? undefined : onBarcodeScanned}
+            />
+          ) : (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ color: '#fff' }}>Sin permiso de cámara</Text>
+            </View>
+          )}
+          <View style={{ position: 'absolute', bottom: 60, left: 0, right: 0, alignItems: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', backgroundColor: 'rgba(0,0,0,0.6)', padding: 12 }}>
+              Apunta al código de barras
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 50, right: 20, backgroundColor: 'rgba(0,0,0,0.6)', padding: 10, borderRadius: 20 }}
+            onPress={() => setScannerOpen(false)}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }
