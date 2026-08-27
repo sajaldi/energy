@@ -33,22 +33,42 @@ export default function InventoryScreen() {
   // Scanner de código de barras
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanned, setScanned] = useState(false);
+  const [scanMode, setScanMode] = useState<'create' | 'search'>('create');
   const [permission, requestPermission] = useCameraPermissions();
 
-  const abrirScanner = async () => {
+  const abrirScanner = async (mode: 'create' | 'search') => {
     if (!permission?.granted) {
       const res = await requestPermission();
       if (!res.granted) { Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara para escanear.'); return; }
     }
+    setScanMode(mode);
     setScanned(false);
     setScannerOpen(true);
   };
 
-  const onBarcodeScanned = ({ data }: { data: string }) => {
+  const onBarcodeScanned = async ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
-    setNuevoCodBarras(data);
     setScannerOpen(false);
+
+    if (scanMode === 'create') {
+      setNuevoCodBarras(data);
+      return;
+    }
+
+    // Modo búsqueda: buscar el material por código de barras / sku en la ubicación
+    if (!selectedLocation) return;
+    setQuery(data);
+    const mats = await searchCatalogForLocation(selectedLocation.id, data);
+    if (mats.length === 1) {
+      setSelectedMaterial(mats[0]);
+      setMaterials([]);
+    } else if (mats.length > 1) {
+      setMaterials(mats);
+    } else {
+      setMaterials([]);
+      Alert.alert('No encontrado', `Código "${data}" no coincide con ningún material. Puedes crearlo con el botón "Crear material nuevo".`);
+    }
   };
 
   const crearMaterialNuevo = async () => {
@@ -205,7 +225,7 @@ export default function InventoryScreen() {
           <TextInput style={styles.newInput} placeholder="Nombre del material *" value={nuevoNombre} onChangeText={setNuevoNombre} autoFocus />
           <View style={styles.barcodeRow}>
             <TextInput style={[styles.newInput, { flex: 1, marginBottom: 0 }]} placeholder="Código de barras (opcional)" value={nuevoCodBarras} onChangeText={setNuevoCodBarras} />
-            <TouchableOpacity style={styles.scanBtn} onPress={abrirScanner}>
+            <TouchableOpacity style={styles.scanBtn} onPress={() => abrirScanner('create')}>
               <Ionicons name="barcode-outline" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -225,11 +245,13 @@ export default function InventoryScreen() {
           <View style={styles.searchRow}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar cualquier material del catálogo..."
+              placeholder="Buscar material o escanear..."
               value={query}
               onChangeText={buscarEnUbicacion}
             />
-            <Ionicons name="search" size={20} color="#0070f2" style={{ alignSelf: 'center', marginLeft: 8 }} />
+            <TouchableOpacity onPress={() => abrirScanner('search')} style={{ justifyContent: 'center', paddingHorizontal: 6 }}>
+              <Ionicons name="barcode-outline" size={24} color="#0070f2" />
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity style={styles.createMatBtn} onPress={() => setCreating(true)}>
