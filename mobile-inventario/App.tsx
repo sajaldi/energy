@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initDatabase } from './src/db/database';
 import { SyncProvider } from './src/context/SyncContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -65,13 +66,15 @@ export default function App() {
   if (!dbReady) return null;
 
   return (
-    <AuthProvider>
-      <SyncProvider>
-        <NavigationContainer>
-          <StatusBar style="light" />
-          <AppContent />
-        </NavigationContainer>
-      </SyncProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <SyncProvider>
+          <NavigationContainer>
+            <StatusBar style="light" />
+            <AppContent />
+          </NavigationContainer>
+        </SyncProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
