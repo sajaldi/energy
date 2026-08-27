@@ -272,8 +272,8 @@ class MaterialAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/inventarios/material/change_list.html'
     change_form_template = 'admin/inventarios/material/change_form.html'
     resource_class = MaterialResource
-    list_display = ('sku', 'nombre', 'categoria', 'tipo_material', 'unidad_medida', 'peso', 'get_stock_total', 'tiene_imagen', 'es_tecnico', 'no_afecta_stock')
-    search_fields = ('nombre', 'sku')
+    list_display = ('sku', 'nombre', 'codigo_barras', 'categoria', 'tipo_material', 'unidad_medida', 'peso', 'get_stock_total', 'tiene_imagen', 'es_tecnico', 'no_afecta_stock')
+    search_fields = ('nombre', 'sku', 'codigo_barras')
     list_filter = ('categoria', 'tipo_material', 'unidad_medida', 'es_tecnico', 'no_afecta_stock')
     list_select_related = ('categoria', 'marca')
     filter_horizontal = ('departamentos',)
@@ -281,7 +281,7 @@ class MaterialAdmin(ImportExportModelAdmin):
     readonly_fields = ('imagen_preview',)
     fieldsets = [
         (None, {
-            'fields': ('sku', 'nombre', 'marca', 'descripcion', 'categoria', 'unidad_medida', 'tipo_material', 'es_tecnico')
+            'fields': ('sku', 'codigo_barras', 'nombre', 'marca', 'descripcion', 'categoria', 'unidad_medida', 'tipo_material', 'es_tecnico')
         }),
         ('Precio y Stock', {
             'fields': ('precio_estimado', 'stock_minimo', 'no_afecta_stock'),

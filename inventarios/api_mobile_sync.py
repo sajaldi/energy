@@ -94,6 +94,7 @@ def api_mobile_master_sync(request):
             'id': m.id,
             'nombre': m.nombre,
             'sku': m.sku or '',
+            'codigo_barras': m.codigo_barras or '',
             'descripcion': m.descripcion or '',
             'unidad': m.unidad_medida.nombre if m.unidad_medida else 'Unidad',
             'categoria': m.categoria.nombre if m.categoria else '',
@@ -146,14 +147,64 @@ def api_mobile_push_operations(request):
         data = json.loads(request.body)
         operations = data.get('operations', [])
         synced_ids = []
+        material_id_map = {}  # temp_id (negativo) -> id real creado
         
+        from .models import UnidadMedida, CategoriaMaterial
+        import uuid as _uuid
+
         for op in operations:
             op_id = op.get('id')
             tipo = op.get('tipo')
             payload = op.get('payload', {})
-            
+
             try:
-                material = Material.objects.get(id=payload.get('material_id'))
+                # --- CREAR MATERIAL OFFLINE ---
+                if tipo == 'CREAR_MATERIAL':
+                    nombre = (payload.get('nombre') or '').strip()
+                    if not nombre:
+                        continue
+                    sku = (payload.get('sku') or '').strip() or f"MAT-{_uuid.uuid4().hex[:8].upper()}"
+                    if Material.objects.filter(sku=sku).exists():
+                        sku = f"MAT-{_uuid.uuid4().hex[:8].upper()}"
+                    unidad_obj = None
+                    if payload.get('unidad'):
+                        unidad_obj = UnidadMedida.objects.filter(nombre__iexact=str(payload['unidad'])).first()
+                    if not unidad_obj:
+                        unidad_obj = UnidadMedida.objects.first()
+                    nuevo = Material.objects.create(
+                        nombre=nombre,
+                        sku=sku,
+                        codigo_barras=(payload.get('codigo_barras') or '').strip() or None,
+                        unidad_medida=unidad_obj,
+                        descripcion=(payload.get('descripcion') or '').strip(),
+                    )
+                    # Mapear el id temporal (negativo del cliente) al real
+                    temp_id = payload.get('temp_id')
+                    if temp_id is not None:
+                        material_id_map[str(temp_id)] = nuevo.id
+                    synced_ids.append(op_id)
+                    continue
+
+                # --- EDITAR MATERIAL OFFLINE ---
+                if tipo == 'EDITAR_MATERIAL':
+                    mat = Material.objects.filter(id=payload.get('material_id')).first()
+                    if mat:
+                        if payload.get('nombre'):
+                            mat.nombre = payload['nombre'].strip()
+                        if 'codigo_barras' in payload:
+                            mat.codigo_barras = (payload.get('codigo_barras') or '').strip() or None
+                        if 'descripcion' in payload:
+                            mat.descripcion = (payload.get('descripcion') or '').strip()
+                        mat.save()
+                    synced_ids.append(op_id)
+                    continue
+
+                # --- MOVIMIENTOS DE STOCK ---
+                # Resolver material_id (puede ser temporal si fue creado offline)
+                raw_mat_id = payload.get('material_id')
+                if str(raw_mat_id) in material_id_map:
+                    raw_mat_id = material_id_map[str(raw_mat_id)]
+                material = Material.objects.get(id=raw_mat_id)
                 location_id = payload.get('location_id')
                 ubicacion = Ubicacion.objects.filter(id=location_id).first() if location_id else None
                 
@@ -204,7 +255,7 @@ def api_mobile_push_operations(request):
                 print(f"[MOBILE SYNC] Error procesando op {op_id}: {e}")
                 continue
         
-        return JsonResponse({'status': 'success', 'synced': synced_ids, 'total': len(synced_ids)})
+        return JsonResponse({'status': 'success', 'synced': synced_ids, 'total': len(synced_ids), 'material_id_map': material_id_map})
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
@@ -318,6 +369,7 @@ def api_mobile_create_material(request):
     material = Material.objects.create(
         nombre=nombre,
         sku=sku,
+        codigo_barras=(data.get('codigo_barras') or '').strip() or None,
         unidad_medida=unidad_obj,
         categoria=categoria_obj,
         precio_estimado=precio,
@@ -328,12 +380,56 @@ def api_mobile_create_material(request):
         'id': material.id,
         'nombre': material.nombre,
         'sku': material.sku,
+        'codigo_barras': material.codigo_barras or '',
         'descripcion': material.descripcion or '',
         'unidad': material.unidad_medida.nombre if material.unidad_medida else 'Unidad',
         'categoria': material.categoria.nombre if material.categoria else '',
         'imagen_url': '',
         'stock_total': 0,
         'updated_at': material.actualizado_en.isoformat() if material.actualizado_en else '',
+    })
+
+
+@csrf_exempt
+@require_POST
+def api_mobile_update_material(request, material_id):
+    """
+    Actualiza datos de un material desde la app móvil (nombre, código de barras, descripción, unidad).
+    """
+    from .models import UnidadMedida
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+
+    material = Material.objects.filter(id=material_id).first()
+    if not material:
+        return JsonResponse({'error': 'Material no encontrado'}, status=404)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    if 'nombre' in data and data['nombre'].strip():
+        material.nombre = data['nombre'].strip()
+    if 'codigo_barras' in data:
+        material.codigo_barras = (data.get('codigo_barras') or '').strip() or None
+    if 'descripcion' in data:
+        material.descripcion = (data.get('descripcion') or '').strip()
+    if data.get('unidad'):
+        unidad_obj = UnidadMedida.objects.filter(nombre__iexact=str(data['unidad'])).first()
+        if unidad_obj:
+            material.unidad_medida = unidad_obj
+
+    material.save()
+
+    return JsonResponse({
+        'id': material.id,
+        'nombre': material.nombre,
+        'sku': material.sku,
+        'codigo_barras': material.codigo_barras or '',
+        'descripcion': material.descripcion or '',
+        'unidad': material.unidad_medida.nombre if material.unidad_medida else 'Unidad',
     })
 
 

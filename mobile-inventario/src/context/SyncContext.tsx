@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { isOnline, fetchMasterData, pushOperations, pushInventoryCounts } from '../api/client';
-import { upsertMaterials, upsertLocations, upsertStockRecords, getPendingOperations, markOperationSynced, setLastSync, getUnsyncedCounts, markCountsSynced } from '../db/database';
+import { upsertMaterials, upsertLocations, upsertStockRecords, getPendingOperations, markOperationSynced, setLastSync, getUnsyncedCounts, markCountsSynced, remapMaterialId } from '../db/database';
 
 interface SyncState {
   isSyncing: boolean;
@@ -46,6 +46,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         if (result.synced) {
           for (const id of result.synced) {
             await markOperationSynced(id);
+          }
+        }
+        // Remapear IDs temporales de materiales creados offline
+        if (result.material_id_map) {
+          for (const [tempId, realId] of Object.entries(result.material_id_map)) {
+            await remapMaterialId(Number(tempId), Number(realId));
           }
         }
       }

@@ -87,6 +87,7 @@ class UnidadMedida(models.Model):
 class Material(models.Model):
     nombre = models.CharField(max_length=200, db_index=True, verbose_name="Nombre del Material")
     sku = models.CharField(max_length=50, unique=True, db_index=True, verbose_name="SKU / Código Interno")
+    codigo_barras = models.CharField(max_length=100, blank=True, null=True, db_index=True, verbose_name="Código de Barras", help_text="Código de barras físico del producto (EAN, UPC, etc.)")
     marca = models.ForeignKey('activos.Marca', on_delete=models.SET_NULL, null=True, blank=True, related_name='materiales', verbose_name="Marca")
     descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
     categoria = models.ForeignKey(CategoriaMaterial, on_delete=models.SET_NULL, null=True, blank=True, related_name='materiales', verbose_name="Categoría")
