@@ -138,6 +138,29 @@ export async function getStockByMaterial(materialId: number): Promise<any[]> {
   );
 }
 
+// Materiales con existencia en una ubicación específica (para conteo por ubicación)
+export async function getMaterialsByLocation(locationId: number, query: string = ''): Promise<any[]> {
+  const database = await getDb();
+  const like = `%${query}%`;
+  return database.getAllAsync(
+    `SELECT m.id, m.nombre, m.sku, m.unidad, sr.cantidad AS stock_ubicacion, sr.location_id
+     FROM stock_records sr
+     JOIN materials m ON sr.material_id = m.id
+     WHERE sr.location_id = ?
+       AND (m.nombre LIKE ? OR m.sku LIKE ?)
+     ORDER BY m.nombre`,
+    [locationId, like, like]
+  );
+}
+
+// Solo ubicaciones tipo bodega/almacén
+export async function getWarehouseLocations(): Promise<any[]> {
+  const database = await getDb();
+  return database.getAllAsync(
+    `SELECT * FROM locations ORDER BY nombre`
+  );
+}
+
 // ===== PENDING OPERATIONS (Offline Queue) =====
 export async function addPendingOperation(tipo: string, payload: object): Promise<void> {
   const database = await getDb();
