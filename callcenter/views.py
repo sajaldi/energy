@@ -2813,10 +2813,12 @@ def ticket_detail_ajax(request, ticket_id):
     tiempos = []
     for ta in ticket.tiempos_acordados.all().order_by('-creado_en')[:5]:
         tiempos.append({
+            'id': ta.id,
             'folio': str(ta.folio_ta) if hasattr(ta, 'folio_ta') else f"TA-{ta.id}",
-            'fecha_limite': ta.fecha_solucion_final.strftime('%d/%m/%Y %H:%M') if ta.fecha_solucion_final else 'â€”',
+            'fecha_limite': ta.fecha_solucion_final.strftime('%d/%m/%Y %H:%M') if ta.fecha_solucion_final else '—',
             'motivo': (ta.motivo_extension or '')[:120],
-            'creado_en': ta.creado_en.strftime('%d/%m/%Y %H:%M') if ta.creado_en else 'â€”',
+            'creado_en': ta.creado_en.strftime('%d/%m/%Y %H:%M') if ta.creado_en else '—',
+            'url': f'/callcenter/app/tiempo-acordado/{ta.id}/',
         })
 
     # RestricciÃ³n de acceso

@@ -1493,14 +1493,22 @@
                     emptyEl.style.display = 'none';
                     d.tiempos_acordados.forEach(ta => {
                         const card = document.createElement('div');
-                        card.style.cssText = 'background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0078d4; border-radius: 0; padding: 14px 18px; margin-bottom: 12px;';
+                        card.style.cssText = 'background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0078d4; border-radius: 0; padding: 14px 18px; margin-bottom: 12px; cursor: pointer; transition: background 0.15s, box-shadow 0.15s;';
+                        card.onmouseenter = () => { card.style.background = '#eff6ff'; card.style.boxShadow = '0 2px 8px rgba(0,120,212,0.15)'; };
+                        card.onmouseleave = () => { card.style.background = '#f8fafc'; card.style.boxShadow = 'none'; };
+                        if (ta.url) {
+                            card.onclick = () => window.open(ta.url, '_blank');
+                        }
                         card.innerHTML = `
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                <span style="font-weight:700;color:#0078d4;font-size:0.95rem;">${ta.folio}</span>
+                                <span style="font-weight:700;color:#0078d4;font-size:0.95rem;"><i class="ph ph-calendar-check"></i> ${ta.folio}</span>
                                 <span style="font-size:0.75rem;color:#64748b;">Límite: <b>${ta.fecha_limite}</b></span>
                             </div>
                             <div style="font-size:0.85rem;color:#475569;line-height:1.5;">${ta.motivo || '—'}</div>
-                            <div style="font-size:0.72rem;color:#94a3b8;margin-top:6px;">Creado: ${ta.creado_en}</div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+                                <span style="font-size:0.72rem;color:#94a3b8;">Creado: ${ta.creado_en}</span>
+                                ${ta.url ? '<span style="font-size:0.72rem;color:#0078d4;font-weight:600;">Abrir <i class="ph ph-arrow-square-out"></i></span>' : ''}
+                            </div>
                         `;
                         list.appendChild(card);
                     });
