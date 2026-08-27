@@ -883,14 +883,14 @@ def mobile_dashboard(request):
             tickets_abiertos=_Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True))
         ).order_by('-fecha')
         clusters_count = clusters_qs.count()
-        clusters_departamento = list(clusters_qs[:8])
+        clusters_departamento = list(clusters_qs[:3])
     elif request.user.is_superuser:
         clusters_qs = GrupoTicket.objects.annotate(
             num_tickets=_Count('tickets'),
             tickets_abiertos=_Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True))
         ).order_by('-fecha')
         clusters_count = clusters_qs.count()
-        clusters_departamento = list(clusters_qs[:8])
+        clusters_departamento = list(clusters_qs[:3])
 
     # Requisiciones (solo se consulta si el usuario tiene acceso financiero)
     total_requisiciones = 0

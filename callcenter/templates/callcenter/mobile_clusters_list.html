@@ -1,0 +1,89 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Clusters de Tickets</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        :root {
+            --sap-shell: #354a5f;
+            --sap-bg: #f3f5f7;
+            --sap-text: #32363a;
+            --sap-sub: #6a6d70;
+            --sap-primary: #0064d1;
+            --sap-border: #d9d9d9;
+            --sap-warning: #e9730c;
+            --sap-success: #107e3e;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        body { font-family: '72', 'Outfit', sans-serif; background: var(--sap-bg); color: var(--sap-text); padding-bottom: 40px; }
+        .header { background: var(--sap-shell); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.12); }
+        .back-btn { font-size: 24px; color: #fff; background: none; border: none; cursor: pointer; display: flex; text-decoration: none; }
+        .header h1 { font-size: 16px; font-weight: 500; flex: 1; }
+        .search-wrap { padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--sap-border); position: sticky; top: 48px; z-index: 90; }
+        .search-box { display: flex; align-items: center; gap: 8px; background: var(--sap-bg); border: 1px solid var(--sap-border); border-radius: 4px; padding: 10px 12px; }
+        .search-box input { flex: 1; border: none; background: none; font-size: 15px; outline: none; }
+        .list { padding: 12px 16px; }
+        .cluster-card { background: #fff; border: 1px solid var(--sap-border); border-left: 4px solid var(--sap-primary); border-radius: 4px; padding: 16px; margin-bottom: 12px; text-decoration: none; color: var(--sap-text); display: block; transition: transform 0.1s, box-shadow 0.1s; }
+        .cluster-card:active { transform: scale(0.98); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .cluster-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .cluster-code { font-size: 16px; font-weight: 700; color: var(--sap-primary); }
+        .cluster-desc { font-size: 13px; color: var(--sap-text); line-height: 1.4; margin-bottom: 10px; }
+        .cluster-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+        .badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; border: 1px solid currentColor; }
+        .badge-warn { background: #fffbeb; color: #b45309; }
+        .badge-ok { background: #f0fdf4; color: #16a34a; }
+        .badge-count { background: #eff6ff; color: #0064d1; }
+        .empty { text-align: center; padding: 60px 20px; color: var(--sap-sub); }
+        .empty ion-icon { font-size: 48px; opacity: 0.4; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/app/" class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></a>
+        <h1>Clusters de Tickets</h1>
+    </div>
+
+    <div class="search-wrap">
+        <form method="get" class="search-box">
+            <ion-icon name="search-outline" style="color: var(--sap-sub); font-size: 18px;"></ion-icon>
+            <input type="text" name="q" value="{{ query }}" placeholder="Buscar cluster o descripción..." autocomplete="off">
+        </form>
+        {% if user_dept %}
+        <div style="font-size: 11px; color: var(--sap-sub); margin-top: 8px;">
+            <ion-icon name="business-outline" style="vertical-align: middle;"></ion-icon>
+            Departamento: <strong>{{ user_dept.nombre }}</strong>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="list">
+        {% for cluster in clusters %}
+        <a href="{% url 'callcenter:mobile_cluster_detalle' cluster.id %}" class="cluster-card">
+            <div class="cluster-head">
+                <span class="cluster-code"><ion-icon name="albums-outline" style="vertical-align: middle;"></ion-icon> {{ cluster.correlativo }}</span>
+                <ion-icon name="chevron-forward-outline" style="color: #ccc; font-size: 20px;"></ion-icon>
+            </div>
+            <div class="cluster-desc">{{ cluster.descripcion|truncatechars:90 }}</div>
+            <div class="cluster-meta">
+                <span class="badge badge-count">{{ cluster.num_tickets }} ticket{{ cluster.num_tickets|pluralize }}</span>
+                {% if cluster.tickets_abiertos > 0 %}
+                <span class="badge badge-warn">{{ cluster.tickets_abiertos }} abierto{{ cluster.tickets_abiertos|pluralize }}</span>
+                {% else %}
+                <span class="badge badge-ok">Completado</span>
+                {% endif %}
+            </div>
+        </a>
+        {% empty %}
+        <div class="empty">
+            <ion-icon name="albums-outline"></ion-icon>
+            <p>No hay clusters {% if query %}que coincidan con la búsqueda{% else %}en tu departamento{% endif %}.</p>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

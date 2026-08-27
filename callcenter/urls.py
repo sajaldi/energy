@@ -43,6 +43,8 @@ urlpatterns = [
     path('api/webhook/correo-cierre-callback/', views.webhook_correo_cierre_callback, name='webhook_correo_cierre_callback'),
     path('ticket/<str:ticket_id>/verify-correo-cierre/', views.verify_correo_cierre_ajax, name='verify_correo_cierre'),
     path('app/ticket/<int:pk>/', views.mobile_ticket_detalle_view, name='mobile_ticket_detalle'),
+    path('app/clusters/', views.mobile_clusters_list_view, name='mobile_clusters_list'),
+    path('app/cluster/<int:cluster_id>/', views.mobile_cluster_detalle_view, name='mobile_cluster_detalle'),
     path('ticket/<str:ticket_id>/exportar-pdf/', views.exportar_solicitudticket_pdf, name='exportar_solicitudticket_pdf'),
     
     # Tiempo Acordado Module

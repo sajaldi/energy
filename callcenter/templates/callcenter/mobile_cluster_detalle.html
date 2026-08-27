@@ -1,0 +1,103 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>{{ cluster.correlativo }}</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        :root {
+            --sap-shell: #354a5f;
+            --sap-bg: #f3f5f7;
+            --sap-text: #32363a;
+            --sap-sub: #6a6d70;
+            --sap-primary: #0064d1;
+            --sap-border: #d9d9d9;
+            --sap-warning: #e9730c;
+            --sap-success: #107e3e;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        body { font-family: '72', 'Outfit', sans-serif; background: var(--sap-bg); color: var(--sap-text); padding-bottom: 40px; }
+        .header { background: var(--sap-shell); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.12); }
+        .back-btn { font-size: 24px; color: #fff; background: none; border: none; cursor: pointer; display: flex; text-decoration: none; }
+        .header h1 { font-size: 16px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cluster-summary { background: #fff; padding: 16px; border-bottom: 1px solid var(--sap-border); }
+        .cluster-summary .desc { font-size: 13px; color: var(--sap-sub); line-height: 1.4; margin-bottom: 12px; }
+        .stats { display: flex; gap: 10px; }
+        .stat { flex: 1; text-align: center; background: var(--sap-bg); border-radius: 6px; padding: 10px; }
+        .stat .num { font-size: 22px; font-weight: 800; }
+        .stat .lbl { font-size: 10px; text-transform: uppercase; color: var(--sap-sub); font-weight: 600; }
+        .search-wrap { padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--sap-border); position: sticky; top: 48px; z-index: 90; }
+        .search-box { display: flex; align-items: center; gap: 8px; background: var(--sap-bg); border: 1px solid var(--sap-border); border-radius: 4px; padding: 10px 12px; }
+        .search-box input { flex: 1; border: none; background: none; font-size: 15px; outline: none; }
+        .list { padding: 12px 16px; }
+        .ticket-card { background: #fff; border: 1px solid var(--sap-border); border-radius: 4px; padding: 14px; margin-bottom: 10px; text-decoration: none; color: var(--sap-text); display: block; border-left: 4px solid var(--sap-primary); }
+        .ticket-card:active { transform: scale(0.98); }
+        .ticket-card.cerrado { border-left-color: var(--sap-success); }
+        .ticket-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+        .ticket-folio { font-size: 15px; font-weight: 700; color: var(--sap-primary); }
+        .ticket-sol { font-size: 12px; color: var(--sap-sub); }
+        .ticket-desc { font-size: 13px; color: var(--sap-text); line-height: 1.4; margin: 6px 0; }
+        .ticket-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+        .ticket-fecha { font-size: 11px; color: var(--sap-sub); }
+        .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; border: 1px solid currentColor; }
+        .badge-open { background: #fffbeb; color: #b45309; }
+        .badge-closed { background: #f0fdf4; color: #16a34a; }
+        .empty { text-align: center; padding: 50px 20px; color: var(--sap-sub); }
+        .empty ion-icon { font-size: 44px; opacity: 0.4; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{% url 'callcenter:mobile_clusters_list' %}" class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></a>
+        <h1>{{ cluster.correlativo }}</h1>
+    </div>
+
+    <div class="cluster-summary">
+        <div class="desc">{{ cluster.descripcion }}</div>
+        <div class="stats">
+            <div class="stat"><div class="num" style="color: var(--sap-primary);">{{ total }}</div><div class="lbl">Total</div></div>
+            <div class="stat"><div class="num" style="color: var(--sap-warning);">{{ abiertos }}</div><div class="lbl">Abiertos</div></div>
+            <div class="stat"><div class="num" style="color: var(--sap-success);">{{ cerrados }}</div><div class="lbl">Cerrados</div></div>
+        </div>
+    </div>
+
+    <div class="search-wrap">
+        <form method="get" class="search-box">
+            <ion-icon name="search-outline" style="color: var(--sap-sub); font-size: 18px;"></ion-icon>
+            <input type="text" name="q" value="{{ query }}" placeholder="Buscar ticket, folio o solicitante..." autocomplete="off">
+        </form>
+    </div>
+
+    <div class="list">
+        {% for ticket in tickets %}
+        <a href="{% url 'callcenter:mobile_ticket_detalle' ticket.id %}" class="ticket-card {% if ticket.fecha_cierre %}cerrado{% endif %}">
+            <div class="ticket-head">
+                <div>
+                    <div class="ticket-folio">{{ ticket.folio|default:ticket.id_solicitud }}</div>
+                    <div class="ticket-sol">{{ ticket.solicitante|default:"Sin solicitante" }}</div>
+                </div>
+                {% if ticket.fecha_cierre %}
+                <span class="badge badge-closed">CERRADO</span>
+                {% else %}
+                <span class="badge badge-open">ABIERTO</span>
+                {% endif %}
+            </div>
+            <div class="ticket-desc">{{ ticket.solicitud_descripcion|truncatechars:90|default:"(Sin descripción)" }}</div>
+            <div class="ticket-foot">
+                <span class="ticket-fecha"><ion-icon name="calendar-outline" style="vertical-align: middle;"></ion-icon> {{ ticket.fecha_solicitud|date:"d/m/Y H:i" }}</span>
+                <ion-icon name="chevron-forward-outline" style="color: #ccc; font-size: 18px;"></ion-icon>
+            </div>
+        </a>
+        {% empty %}
+        <div class="empty">
+            <ion-icon name="ticket-outline"></ion-icon>
+            <p>No hay tickets {% if query %}que coincidan{% else %}en este cluster{% endif %}.</p>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

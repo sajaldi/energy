@@ -4592,3 +4592,74 @@ def reasignar_ticket_departamento_ajax(request, ticket_id):
         'success': True,
         'message': f'Ticket reasignado a {nuevo_responsable.get_full_name()} ({departamento_nombre})'
     })
+
+
+@login_required
+def mobile_clusters_list_view(request):
+    """
+    Lista móvil de clusters de tickets filtrados por el departamento del usuario.
+    """
+    from django.db.models import Count, Q as _Q
+    user_dept = None
+    if hasattr(request.user, 'perfil'):
+        user_dept = request.user.perfil.departamento
+
+    clusters_qs = GrupoTicket.objects.annotate(
+        num_tickets=Count('tickets'),
+        tickets_abiertos=Count('tickets', filter=_Q(tickets__fecha_cierre__isnull=True))
+    ).order_by('-fecha')
+
+    if user_dept and not request.user.is_superuser:
+        clusters_qs = clusters_qs.filter(departamento=user_dept)
+
+    # Búsqueda opcional
+    q = request.GET.get('q', '').strip()
+    if q:
+        clusters_qs = clusters_qs.filter(
+            _Q(correlativo__icontains=q) | _Q(descripcion__icontains=q)
+        )
+
+    return render(request, 'callcenter/mobile_clusters_list.html', {
+        'clusters': clusters_qs,
+        'user_dept': user_dept,
+        'query': q,
+        'title': 'Clusters de Tickets',
+    })
+
+
+@login_required
+def mobile_cluster_detalle_view(request, cluster_id):
+    """
+    Detalle móvil de un cluster: muestra los tickets que contiene.
+    """
+    from django.db.models import Q as _Q
+    cluster = get_object_or_404(
+        GrupoTicket.objects.select_related('departamento'),
+        id=cluster_id
+    )
+
+    tickets = cluster.tickets.select_related(
+        'usuario_responsable', 'ubicacion'
+    ).order_by('-fecha_solicitud')
+
+    # Búsqueda dentro del cluster
+    q = request.GET.get('q', '').strip()
+    if q:
+        search_q = _Q(folio__icontains=q) | _Q(solicitante__icontains=q) | _Q(solicitud_descripcion__icontains=q)
+        if q.isdigit():
+            search_q |= _Q(id_solicitud=q)
+        tickets = tickets.filter(search_q)
+
+    total = cluster.tickets.count()
+    abiertos = cluster.tickets.filter(fecha_cierre__isnull=True).count()
+    cerrados = total - abiertos
+
+    return render(request, 'callcenter/mobile_cluster_detalle.html', {
+        'cluster': cluster,
+        'tickets': tickets,
+        'total': total,
+        'abiertos': abiertos,
+        'cerrados': cerrados,
+        'query': q,
+        'title': cluster.correlativo,
+    })
