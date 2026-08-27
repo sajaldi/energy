@@ -212,13 +212,13 @@ export async function getMaterialsByLocation(locationId: number, query: string =
   const database = await getDb();
   const like = `%${query}%`;
   return database.getAllAsync(
-    `SELECT m.id, m.nombre, m.sku, m.unidad, sr.cantidad AS stock_ubicacion, sr.location_id
+    `SELECT m.id, m.nombre, m.sku, m.codigo_barras, m.unidad, sr.cantidad AS stock_ubicacion, sr.location_id
      FROM stock_records sr
      JOIN materials m ON sr.material_id = m.id
      WHERE sr.location_id = ?
-       AND (m.nombre LIKE ? OR m.sku LIKE ?)
+       AND (m.nombre LIKE ? OR m.sku LIKE ? OR m.codigo_barras LIKE ?)
      ORDER BY m.nombre`,
-    [locationId, like, like]
+    [locationId, like, like, like]
   );
 }
 
@@ -228,15 +228,15 @@ export async function searchCatalogForLocation(locationId: number, query: string
   const database = await getDb();
   const like = `%${query}%`;
   return database.getAllAsync(
-    `SELECT m.id, m.nombre, m.sku, m.unidad,
+    `SELECT m.id, m.nombre, m.sku, m.codigo_barras, m.unidad,
             COALESCE(sr.cantidad, 0) AS stock_ubicacion,
             ? AS location_id
      FROM materials m
      LEFT JOIN stock_records sr ON sr.material_id = m.id AND sr.location_id = ?
-     WHERE m.nombre LIKE ? OR m.sku LIKE ?
+     WHERE m.nombre LIKE ? OR m.sku LIKE ? OR m.codigo_barras LIKE ?
      ORDER BY (sr.cantidad IS NULL), m.nombre
      LIMIT 50`,
-    [locationId, locationId, like, like]
+    [locationId, locationId, like, like, like]
   );
 }
 
