@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { addInventoryCount, getCountsBySession, getWarehouseLocations, getMaterialsByLocation } from '../db/database';
+import { addInventoryCount, getCountsBySession, getWarehouseLocations, getMaterialsByLocation, searchCatalogForLocation } from '../db/database';
 import { useSync } from '../context/SyncContext';
 
 export default function InventoryScreen() {
@@ -47,8 +47,15 @@ export default function InventoryScreen() {
   const buscarEnUbicacion = async (text: string) => {
     setQuery(text);
     if (!selectedLocation) return;
-    const mats = await getMaterialsByLocation(selectedLocation.id, text);
-    setMaterials(mats);
+    if (text.trim().length === 0) {
+      // Sin texto: mostrar solo los que tienen stock en la ubicación
+      const mats = await getMaterialsByLocation(selectedLocation.id);
+      setMaterials(mats);
+    } else {
+      // Con texto: buscar en TODO el catálogo (permite agregar nuevos a la ubicación)
+      const mats = await searchCatalogForLocation(selectedLocation.id, text);
+      setMaterials(mats);
+    }
   };
 
   const registrarConteo = async () => {
@@ -68,8 +75,9 @@ export default function InventoryScreen() {
     await refreshPendingCount();
     setSelectedMaterial(null);
     setCantidadContada('');
-    // Refrescar materiales de la ubicación
-    const mats = await getMaterialsByLocation(selectedLocation.id, query);
+    setQuery('');
+    // Refrescar materiales de la ubicación (los que tienen stock)
+    const mats = await getMaterialsByLocation(selectedLocation.id);
     setMaterials(mats);
     Alert.alert('Registrado', 'Conteo guardado. Se sincronizará con conexión.');
   };
@@ -140,12 +148,16 @@ export default function InventoryScreen() {
           <View style={styles.searchRow}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar material en esta ubicación..."
+              placeholder="Buscar cualquier material del catálogo..."
               value={query}
               onChangeText={buscarEnUbicacion}
             />
             <Ionicons name="search" size={20} color="#0070f2" style={{ alignSelf: 'center', marginLeft: 8 }} />
           </View>
+
+          {query.trim().length === 0 && (
+            <Text style={styles.hintText}>Mostrando materiales con existencia. Busca para agregar cualquier otro material a esta ubicación.</Text>
+          )}
 
           <FlatList
             data={materials}
@@ -157,7 +169,7 @@ export default function InventoryScreen() {
                   <Text style={styles.itemSku}>{item.sku}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.stockBig}>{item.stock_ubicacion}</Text>
+                  <Text style={[styles.stockBig, item.stock_ubicacion == 0 ? { color: '#94a3b8' } : null]}>{item.stock_ubicacion}</Text>
                   <Text style={styles.itemSku}>sistema</Text>
                 </View>
               </TouchableOpacity>
@@ -165,7 +177,9 @@ export default function InventoryScreen() {
             ListEmptyComponent={
               <View style={styles.empty}>
                 <Ionicons name="cube-outline" size={40} color="#ccc" />
-                <Text style={{ color: '#94a3b8', marginTop: 8 }}>Sin materiales en esta ubicación.</Text>
+                <Text style={{ color: '#94a3b8', marginTop: 8 }}>
+                  {query.trim().length > 0 ? 'No se encontraron materiales.' : 'Sin materiales con existencia. Busca para agregar.'}
+                </Text>
               </View>
             }
           />
@@ -257,4 +271,5 @@ const styles = StyleSheet.create({
   historyItem: { flexDirection: 'row', backgroundColor: '#fff', padding: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   empty: { alignItems: 'center', padding: 40 },
   countsBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdf4', padding: 12, marginTop: 12 },
+  hintText: { fontSize: 11, color: '#94a3b8', marginBottom: 8, fontStyle: 'italic' },
 });

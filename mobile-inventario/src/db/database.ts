@@ -138,7 +138,7 @@ export async function getStockByMaterial(materialId: number): Promise<any[]> {
   );
 }
 
-// Materiales con existencia en una ubicación específica (para conteo por ubicación)
+// Materiales con existencia en una ubicación específica (vista inicial de conteo)
 export async function getMaterialsByLocation(locationId: number, query: string = ''): Promise<any[]> {
   const database = await getDb();
   const like = `%${query}%`;
@@ -150,6 +150,24 @@ export async function getMaterialsByLocation(locationId: number, query: string =
        AND (m.nombre LIKE ? OR m.sku LIKE ?)
      ORDER BY m.nombre`,
     [locationId, like, like]
+  );
+}
+
+// Busca en TODO el catálogo, mostrando el stock que tiene en la ubicación (0 si no tiene).
+// Permite agregar materiales que aún no existen en esa ubicación.
+export async function searchCatalogForLocation(locationId: number, query: string = ''): Promise<any[]> {
+  const database = await getDb();
+  const like = `%${query}%`;
+  return database.getAllAsync(
+    `SELECT m.id, m.nombre, m.sku, m.unidad,
+            COALESCE(sr.cantidad, 0) AS stock_ubicacion,
+            ? AS location_id
+     FROM materials m
+     LEFT JOIN stock_records sr ON sr.material_id = m.id AND sr.location_id = ?
+     WHERE m.nombre LIKE ? OR m.sku LIKE ?
+     ORDER BY (sr.cantidad IS NULL), m.nombre
+     LIMIT 50`,
+    [locationId, locationId, like, like]
   );
 }
 
