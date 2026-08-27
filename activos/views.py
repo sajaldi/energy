@@ -1148,8 +1148,14 @@ def mobile_busqueda_activos(request):
                 Q(institucion__nombre__icontains=query)
             ).select_related('ticket', 'institucion', 'enlace')[:10]
 
-        # Buscar Tickets de Call Center (NUEVO) - Solo si tiene acceso a Mis Avisos
-        if 'mis_avisos' in secciones:
+        # Buscar Tickets de Call Center
+        # Disponible si el usuario tiene acceso a 'mis_avisos' o 'tickets',
+        # o si ninguna de esas secciones está configurada (fallback para no ocultarlos).
+        from core.models import ElementoApp as _ElementoApp
+        _claves_ticket = {'mis_avisos', 'tickets'}
+        _existe_config_tickets = _ElementoApp.objects.filter(clave__in=_claves_ticket, activo=True).exists()
+        _puede_ver_tickets = bool(_claves_ticket & secciones) or not _existe_config_tickets
+        if _puede_ver_tickets:
             search_q = Q(folio__icontains=query) | Q(solicitante__icontains=query) | Q(solicitud_descripcion__icontains=query)
             if query.isdigit():
                 search_q |= Q(id_solicitud=query)
