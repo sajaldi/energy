@@ -568,6 +568,39 @@
                 </div>
             </div>
             {% endif %}
+
+            <!-- CLUSTERS DE TICKETS POR DEPARTAMENTO -->
+            {% if clusters_departamento %}
+            <div class="fiori-card" style="margin-top: 16px;">
+                <div style="padding: 12px 16px; border-bottom: 1px solid var(--sap-border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin:0; font-size: 14px; font-weight: 700;">
+                        <ion-icon name="albums-outline" style="vertical-align: middle; color: var(--sap-brand-color);"></ion-icon>
+                        Clusters de Tickets{% if user_dept %} · {{ user_dept.nombre }}{% endif %}
+                    </h3>
+                    <span style="font-size: 11px; color: var(--sap-text-muted); font-weight: 600;">{{ clusters_count }}</span>
+                </div>
+                <div class="fiori-list">
+                    {% for cluster in clusters_departamento %}
+                    <a href="{% url 'callcenter:cluster_tickets' cluster.id %}" class="fiori-list-item">
+                        <div class="item-icon" style="background: #eff6ff; color: #0078d4;">
+                            <ion-icon name="albums-outline"></ion-icon>
+                        </div>
+                        <div class="item-content">
+                            <h4>{{ cluster.correlativo }}
+                                {% if cluster.tickets_abiertos > 0 %}
+                                <span class="fiori-badge fiori-badge-warning">{{ cluster.tickets_abiertos }} abierto{{ cluster.tickets_abiertos|pluralize }}</span>
+                                {% else %}
+                                <span class="fiori-badge fiori-badge-success">Completado</span>
+                                {% endif %}
+                            </h4>
+                            <p>{{ cluster.descripcion|truncatechars:50 }} · {{ cluster.num_tickets }} ticket{{ cluster.num_tickets|pluralize }}</p>
+                        </div>
+                        <ion-icon name="chevron-forward-outline" style="color: #ccc;"></ion-icon>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <!-- CATALOG FEED -->

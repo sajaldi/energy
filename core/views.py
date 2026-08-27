@@ -870,6 +870,28 @@ def mobile_dashboard(request):
             departamento=user_dept
         ).exclude(estatus='COMPLETADO').select_related('ticket', 'institucion', 'enlace').order_by('fecha_solucion_final')[:5]
 
+    # Clusters de Tickets del departamento del usuario (NUEVO)
+    from callcenter.models import GrupoTicket
+    from django.db.models import Count as _Count
+    clusters_departamento = []
+    clusters_count = 0
+    if user_dept:
+        clusters_qs = GrupoTicket.objects.filter(
+            departamento=user_dept
+        ).annotate(
+            num_tickets=_Count('tickets'),
+            tickets_abiertos=_Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True))
+        ).order_by('-fecha')
+        clusters_count = clusters_qs.count()
+        clusters_departamento = list(clusters_qs[:8])
+    elif request.user.is_superuser:
+        clusters_qs = GrupoTicket.objects.annotate(
+            num_tickets=_Count('tickets'),
+            tickets_abiertos=_Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True))
+        ).order_by('-fecha')
+        clusters_count = clusters_qs.count()
+        clusters_departamento = list(clusters_qs[:8])
+
     # Requisiciones (solo se consulta si el usuario tiene acceso financiero)
     total_requisiciones = 0
     from core.models import ElementoApp
@@ -921,6 +943,9 @@ def mobile_dashboard(request):
         'pedidos_pendientes_count': pedidos_pendientes_count,
         'tiempos_acordados_count': tiempos_acordados_count,
         'mis_tiempos_acordados': mis_tiempos_acordados,
+        'clusters_departamento': clusters_departamento,
+        'clusters_count': clusters_count,
+        'user_dept': user_dept,
         'total_requisiciones': total_requisiciones,
         'secciones': secciones_permitidas,
         'today': today,
