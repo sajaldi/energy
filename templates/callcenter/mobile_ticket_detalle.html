@@ -384,7 +384,34 @@
         {% endif %}
 
         {% if tiempos_acordados %}
-        ...
+        <div class="section-title">
+            <ion-icon name="calendar-outline"></ion-icon> Tiempos Acordados ({{ tiempos_acordados|length }})
+        </div>
+        {% for ta in tiempos_acordados %}
+        <a href="{% url 'callcenter:mobile_detalle_tiempo_acordado' ta.id %}" class="timeline-card" style="display: block; text-decoration: none; color: inherit;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 700; color: var(--primary); font-size: 15px;">
+                    {% if ta.folio_ta %}{{ ta.folio_ta }}{% else %}TA-{{ ta.id }}{% endif %}
+                </span>
+                {% if ta.estatus %}
+                <span class="badge-status" style="background: #eff6ff; color: #1d4ed8; border-color: #1d4ed8; font-size: 10px;">{{ ta.get_estatus_display|default:ta.estatus }}</span>
+                {% endif %}
+            </div>
+            {% if ta.fecha_solucion_final %}
+            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">
+                <ion-icon name="time-outline" style="vertical-align: middle;"></ion-icon>
+                Límite: <strong>{{ ta.fecha_solucion_final|date:"d/m/Y H:i" }}</strong>
+            </div>
+            {% endif %}
+            {% if ta.motivo_extension %}
+            <div style="font-size: 13px; color: var(--text-color); line-height: 1.4;">{{ ta.motivo_extension|truncatechars:120 }}</div>
+            {% endif %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                <span style="font-size: 11px; color: var(--text-muted);">Creado: {{ ta.creado_en|date:"d/m/Y H:i" }}</span>
+                <span style="font-size: 11px; color: var(--primary); font-weight: 600;">Abrir <ion-icon name="arrow-forward-outline" style="vertical-align: middle;"></ion-icon></span>
+            </div>
+        </a>
+        {% endfor %}
         {% endif %}
 
         <!-- Restricción de Acceso -->
