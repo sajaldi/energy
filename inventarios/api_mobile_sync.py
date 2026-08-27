@@ -263,3 +263,87 @@ def api_mobile_inventory_counts(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
+
+
+@csrf_exempt
+@require_POST
+def api_mobile_create_material(request):
+    """
+    Crea un material nuevo desde la app móvil (autenticado por token).
+    POST { "nombre": "...", "sku": "...", "unidad": "...", "categoria_id": ... }
+    Returns el material creado con el mismo formato del master sync.
+    """
+    import uuid
+    from .models import CategoriaMaterial, UnidadMedida
+
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    nombre = (data.get('nombre') or '').strip()
+    if not nombre:
+        return JsonResponse({'error': 'El nombre es requerido.'}, status=400)
+
+    sku = (data.get('sku') or '').strip()
+    if not sku:
+        sku = f"MAT-{uuid.uuid4().hex[:8].upper()}"
+
+    if Material.objects.filter(sku=sku).exists():
+        return JsonResponse({'error': f'El SKU "{sku}" ya existe.'}, status=400)
+
+    # Unidad de medida (por nombre o id)
+    unidad_obj = None
+    unidad_val = data.get('unidad')
+    if unidad_val:
+        unidad_obj = UnidadMedida.objects.filter(nombre__iexact=str(unidad_val)).first()
+    if not unidad_obj:
+        unidad_obj = UnidadMedida.objects.first()  # fallback
+
+    # Categoría opcional
+    categoria_obj = None
+    cat_id = data.get('categoria_id')
+    if cat_id:
+        categoria_obj = CategoriaMaterial.objects.filter(id=cat_id).first()
+
+    try:
+        precio = float(data.get('precio_estimado') or 0)
+    except (ValueError, TypeError):
+        precio = 0
+
+    material = Material.objects.create(
+        nombre=nombre,
+        sku=sku,
+        unidad_medida=unidad_obj,
+        categoria=categoria_obj,
+        precio_estimado=precio,
+        descripcion=(data.get('descripcion') or '').strip(),
+    )
+
+    return JsonResponse({
+        'id': material.id,
+        'nombre': material.nombre,
+        'sku': material.sku,
+        'descripcion': material.descripcion or '',
+        'unidad': material.unidad_medida.nombre if material.unidad_medida else 'Unidad',
+        'categoria': material.categoria.nombre if material.categoria else '',
+        'imagen_url': '',
+        'stock_total': 0,
+        'updated_at': material.actualizado_en.isoformat() if material.actualizado_en else '',
+    })
+
+
+@csrf_exempt
+@require_GET
+def api_mobile_categorias(request):
+    """Lista de categorías de material para la app móvil."""
+    from .models import CategoriaMaterial
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    cats = CategoriaMaterial.objects.all().order_by('nombre').values('id', 'nombre')
+    return JsonResponse({'categorias': list(cats)})

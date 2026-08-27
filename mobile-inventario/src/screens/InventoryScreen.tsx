@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { addInventoryCount, getCountsBySession, getWarehouseLocations, getMaterialsByLocation, searchCatalogForLocation } from '../db/database';
+import { addInventoryCount, getCountsBySession, getWarehouseLocations, getMaterialsByLocation, searchCatalogForLocation, upsertMaterials } from '../db/database';
+import { createMaterial, isOnline } from '../api/client';
 import { useSync } from '../context/SyncContext';
 
 export default function InventoryScreen() {
@@ -21,6 +22,34 @@ export default function InventoryScreen() {
   // Conteos
   const [counts, setCounts] = useState<any[]>([]);
   const { refreshPendingCount } = useSync();
+
+  // Crear material
+  const [creating, setCreating] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevaUnidad, setNuevaUnidad] = useState('Unidad');
+  const [savingMat, setSavingMat] = useState(false);
+
+  const crearMaterialNuevo = async () => {
+    if (!nuevoNombre.trim()) { Alert.alert('Error', 'Ingresa el nombre del material'); return; }
+    const online = await isOnline();
+    if (!online) { Alert.alert('Sin conexión', 'Necesitas conexión para crear un material nuevo.'); return; }
+    setSavingMat(true);
+    try {
+      const mat = await createMaterial({ nombre: nuevoNombre.trim(), unidad: nuevaUnidad.trim() });
+      // Guardar en SQLite local
+      await upsertMaterials([mat]);
+      // Seleccionarlo para contar (con stock 0 en esta ubicación)
+      setSelectedMaterial({ id: mat.id, nombre: mat.nombre, sku: mat.sku, unidad: mat.unidad, stock_ubicacion: 0 });
+      setCreating(false);
+      setNuevoNombre('');
+      setNuevaUnidad('Unidad');
+      Alert.alert('Material creado', `${mat.nombre} (${mat.sku}) creado. Ahora registra su conteo.`);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'No se pudo crear el material.');
+    } finally {
+      setSavingMat(false);
+    }
+  };
 
   useEffect(() => {
     loadLocations();
@@ -143,7 +172,24 @@ export default function InventoryScreen() {
         <Text style={styles.locHeaderText}>{selectedLocation?.nombre}</Text>
       </View>
 
-      {!selectedMaterial && (
+      {/* Formulario crear material nuevo */}
+      {creating && !selectedMaterial && (
+        <View style={styles.countCard}>
+          <Text style={styles.countName}>Nuevo Material</Text>
+          <Text style={styles.countSku}>Se creará y quedará disponible para contar.</Text>
+          <TextInput style={styles.newInput} placeholder="Nombre del material *" value={nuevoNombre} onChangeText={setNuevoNombre} autoFocus />
+          <TextInput style={styles.newInput} placeholder="Unidad (ej. Unidad, Metro, Litro)" value={nuevaUnidad} onChangeText={setNuevaUnidad} />
+          <TouchableOpacity style={[styles.countBtn, savingMat && { opacity: 0.6 }]} onPress={crearMaterialNuevo} disabled={savingMat}>
+            <Ionicons name="add-circle" size={20} color="#fff" />
+            <Text style={styles.countBtnText}>{savingMat ? 'Creando...' : 'Crear Material'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { setCreating(false); setNuevoNombre(''); }}>
+            <Text style={styles.cancelText}>Cancelar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!selectedMaterial && !creating && (
         <>
           <View style={styles.searchRow}>
             <TextInput
@@ -154,6 +200,11 @@ export default function InventoryScreen() {
             />
             <Ionicons name="search" size={20} color="#0070f2" style={{ alignSelf: 'center', marginLeft: 8 }} />
           </View>
+
+          <TouchableOpacity style={styles.createMatBtn} onPress={() => setCreating(true)}>
+            <Ionicons name="add-circle-outline" size={18} color="#0070f2" />
+            <Text style={styles.createMatText}>Crear material nuevo</Text>
+          </TouchableOpacity>
 
           {query.trim().length === 0 && (
             <Text style={styles.hintText}>Mostrando materiales con existencia. Busca para agregar cualquier otro material a esta ubicación.</Text>
@@ -272,4 +323,7 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', padding: 40 },
   countsBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdf4', padding: 12, marginTop: 12 },
   hintText: { fontSize: 11, color: '#94a3b8', marginBottom: 8, fontStyle: 'italic' },
+  newInput: { borderWidth: 1, borderColor: '#d9d9d9', padding: 12, fontSize: 16, marginBottom: 10 },
+  createMatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, marginBottom: 8 },
+  createMatText: { color: '#0070f2', fontWeight: '600', fontSize: 13 },
 });

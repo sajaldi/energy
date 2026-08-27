@@ -76,4 +76,16 @@ export async function pushInventoryCounts(counts: any[]): Promise<any> {
   });
 }
 
+// ===== MATERIALS =====
+export async function createMaterial(payload: { nombre: string; sku?: string; unidad?: string; categoria_id?: number; descripcion?: string; }): Promise<any> {
+  return apiRequest('/inventarios/api/mobile-sync/create-material/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchCategorias(): Promise<{ categorias: any[] }> {
+  return apiRequest('/inventarios/api/mobile-sync/categorias/');
+}
+
 export { isOnline };
