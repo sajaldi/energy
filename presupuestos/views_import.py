@@ -425,8 +425,20 @@ def requisicion_upsert(request, pk=None):
 
                 if has_files:
                     if documento_formset_is_valid:
-                        documento_formset.save()
-                    is_valid_and_continue = True
+                        try:
+                            documento_formset.save()
+                        except Exception as e:
+                            import logging
+                            logging.getLogger(__name__).error(
+                                f"Error guardando documentos de requisición {getattr(instance, 'pk', '?')}: {e}",
+                                exc_info=True
+                            )
+                            messages.error(request, f"Error al guardar el documento: {e}. Verifica el archivo e intenta de nuevo.")
+                            is_valid_and_continue = False
+                        else:
+                            is_valid_and_continue = True
+                    else:
+                        is_valid_and_continue = True
                 else:
                     messages.error(request, "Debe cargar al menos un documento para continuar.")
 
