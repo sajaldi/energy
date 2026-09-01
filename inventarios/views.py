@@ -75,20 +75,23 @@ def crear_solicitud_dashboard(request):
     from django.db.models import Q
     ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
     categorias = CategoriaMaterial.objects.all().order_by('nombre')
+    edificios = Ubicacion.objects.filter(tipo='EDIFICIO').order_by('nombre')
     
     # Obtener OTs activas para el buscador inicial
     # Las demás se buscan vía AJAX
     ordenes_recientes = OrdenTrabajo.objects.filter(
         estado__in=['PROGRAMADA', 'EJECUCION']
-    ).order_by('-id')[:5]
+    ).order_by('-id')[:10]
 
+    # Clon exacto del formulario móvil (mismo template y contexto)
     context = {
         'ubicaciones': ubicaciones,
         'categorias': categorias,
+        'edificios': edificios,
         'ordenes_recientes': ordenes_recientes,
-        'title': 'Crear Solicitud de Materiales'
+        'title': 'Nueva Solicitud'
     }
-    return render(request, 'inventarios/crear_solicitud.html', context)
+    return render(request, 'inventarios/mobile_crear_solicitud.html', context)
 @login_required
 def registrar_salida_view(request):
     """
@@ -468,6 +471,7 @@ def cart_checkout(request):
         
         ubicacion_id = data.get('ubicacion_origen')
         ot_id = data.get('orden_trabajo')
+        ticket_id = data.get('ticket')
         comentarios = data.get('comentarios', '')
         edificio_id = data.get('edificio_destino')
         nivel_id = data.get('nivel_destino')
@@ -518,15 +522,15 @@ def cart_checkout(request):
             messages.error(request, "Debes seleccionar una ubicación de origen.")
             return redirect('inventarios:cart_detail')
 
-        # Validar materiales técnicos: requieren OT vinculada
-        if not es_borrador and not ot_id:
+        # Validar materiales técnicos: requieren una OT o un Ticket vinculado
+        if not es_borrador and not ot_id and not ticket_id:
             materiales_tecnicos = [i for i in items_to_process if getattr(i.get('material') if isinstance(i, dict) else i, 'es_tecnico', False)]
             if not materiales_tecnicos:
                 # También checar en caso de que items_to_process tenga objetos del cart
                 materiales_tecnicos = [i for i in items_to_process if isinstance(i, dict) and i.get('material') and i['material'].es_tecnico]
             if materiales_tecnicos:
                 nombres = ", ".join([i['material'].nombre if isinstance(i, dict) else i.material.nombre for i in materiales_tecnicos[:3]])
-                msg = f'Los siguientes materiales son técnicos y requieren una Orden de Trabajo vinculada: {nombres}'
+                msg = f'Los siguientes materiales son técnicos y requieren una Orden de Trabajo o un Ticket vinculado: {nombres}'
                 if ajax_mode: return JsonResponse({'status': 'error', 'message': msg}, status=400)
                 messages.error(request, msg)
                 return redirect('inventarios:cart_detail')
@@ -534,6 +538,10 @@ def cart_checkout(request):
         try:
             ubicacion = Ubicacion.objects.filter(id=ubicacion_id).first() if ubicacion_id else None
             ot = OrdenTrabajo.objects.filter(id=ot_id).first() if ot_id else None
+            ticket = None
+            if ticket_id:
+                from callcenter.models import SolicitudTicket
+                ticket = SolicitudTicket.objects.filter(id=ticket_id).first()
             edificio = Ubicacion.objects.filter(id=edificio_id).first() if edificio_id else None
             nivel = Ubicacion.objects.filter(id=nivel_id).first() if nivel_id else None
             entregar_a_user = None
@@ -556,6 +564,7 @@ def cart_checkout(request):
                 solicitud = SolicitudMaterial.objects.create(
                     usuario=request.user,
                     orden_trabajo=ot,
+                    ticket=ticket,
                     ubicacion_origen=ubicacion,
                     edificio_destino=edificio,
                     nivel_destino=nivel,

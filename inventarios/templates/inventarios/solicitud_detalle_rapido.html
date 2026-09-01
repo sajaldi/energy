@@ -286,12 +286,12 @@ function saveEdit() {
         var q = this.value.trim();
         if (q.length < 2) { results.style.display = 'none'; return; }
         timer = setTimeout(function() {
-            fetch('/callcenter/api/buscar-tickets/?q=' + encodeURIComponent(q))
+            fetch('/callcenter/api/search-tickets-autocomplete/?q=' + encodeURIComponent(q))
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 var items = data.results || [];
                 if (!items.length) { results.innerHTML = '<div style="padding:8px 12px; color:#94a3b8; font-size:0.8rem;">Sin resultados</div>'; }
-                else { results.innerHTML = items.map(function(t) { return '<div style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f5f5f5; font-size:0.82rem;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'\'" onclick="pickTicket(\'' + t.id + '\',\'' + (t.folio || t.text || '').replace(/'/g, "\\'") + '\')">' + (t.folio || t.text) + ' - ' + (t.descripcion || '').substring(0, 40) + '</div>'; }).join(''); }
+                else { results.innerHTML = items.map(function(t) { var label = t.folio || ('ID ' + t.id_solicitud); return '<div style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f5f5f5; font-size:0.82rem;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'\'" onclick="pickTicket(\'' + t.id + '\',\'' + label.replace(/'/g, "\\'") + '\')">' + label + ' - ' + (t.full_description || '').substring(0, 40) + '</div>'; }).join(''); }
                 results.style.display = '';
             })
             .catch(function() { results.innerHTML = '<div style="padding:8px 12px; color:#94a3b8; font-size:0.8rem;">Error de búsqueda</div>'; results.style.display = ''; });

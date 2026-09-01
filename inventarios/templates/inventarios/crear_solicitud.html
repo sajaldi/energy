@@ -368,13 +368,43 @@
                         </select>
                     </div>
 
-                    <div class="form-group" style="position: relative;">
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label class="form-label">Vincular Solicitud A</label>
+                        <div style="display: inline-flex; background: #f1f5f9; border-radius: 8px; padding: 4px; gap: 4px;">
+                            <button type="button" class="vinculo-tab active" data-target="ot" style="padding: 8px 18px; border: none; background: white; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
+                                <ion-icon name="construct-outline" style="vertical-align: middle;"></ion-icon> Orden de Trabajo
+                            </button>
+                            <button type="button" class="vinculo-tab" data-target="ticket" style="padding: 8px 18px; border: none; background: transparent; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">
+                                <ion-icon name="headset-outline" style="vertical-align: middle;"></ion-icon> Ticket de Servicio
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group vinculo-panel" id="panel-ot" style="position: relative; grid-column: 1 / -1;">
                         <label class="form-label">Orden de Trabajo Relacionada</label>
+                        <div style="display: flex; gap: 10px; align-items: flex-start;">
+                            <div style="position: relative; flex: 1;">
+                                <input type="text" id="otSearch" class="form-control" placeholder="🔍 Buscar OT por código o descripción..."
+                                    autocomplete="off">
+                                <input type="hidden" id="selectedOtId">
+                                <div id="otResults"
+                                    style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border); border-radius: 0 0 12px 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); display: none; z-index: 100; max-height: 250px; overflow-y: auto;">
+                                </div>
+                            </div>
+                            <button type="button" class="btn-custom" id="btn-crear-ot-rapida"
+                                style="background: var(--success); color: white; white-space: nowrap;">
+                                <ion-icon name="add-circle-outline"></ion-icon> Crear OT
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group vinculo-panel" id="panel-ticket" style="position: relative; grid-column: 1 / -1; display: none;">
+                        <label class="form-label">Ticket de Solicitud de Servicio (Callcenter)</label>
                         <div style="position: relative;">
-                            <input type="text" id="otSearch" class="form-control" placeholder="🔍 Buscar OT..."
+                            <input type="text" id="ticketSearch" class="form-control" placeholder="🔍 Buscar ticket por folio, ID o descripción..."
                                 autocomplete="off">
-                            <input type="hidden" id="selectedOtId">
-                            <div id="otResults"
+                            <input type="hidden" id="selectedTicketId">
+                            <div id="ticketResults"
                                 style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border); border-radius: 0 0 12px 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); display: none; z-index: 100; max-height: 250px; overflow-y: auto;">
                             </div>
                         </div>
@@ -495,6 +525,91 @@
         const otResults = $('#otResults');
         let otTimeout = null;
 
+        // --- Búsqueda de Tickets ---
+        const ticketSearch = $('#ticketSearch');
+        const selectedTicketId = $('#selectedTicketId');
+        const ticketResults = $('#ticketResults');
+        let ticketTimeout = null;
+
+        // --- Toggle entre vincular a OT o a Ticket ---
+        $('.vinculo-tab').on('click', function () {
+            const target = $(this).data('target');
+            $('.vinculo-tab').removeClass('active').css({ background: 'transparent', color: 'var(--text-muted)', 'box-shadow': 'none' });
+            $(this).addClass('active').css({ background: 'white', color: 'var(--primary)', 'box-shadow': '0 1px 2px rgba(0,0,0,0.06)' });
+
+            if (target === 'ot') {
+                $('#panel-ot').show();
+                $('#panel-ticket').hide();
+                // Limpiar selección de ticket al cambiar de modo
+                selectedTicketId.val('');
+                ticketSearch.val('').css({ 'font-weight': '', color: '' });
+            } else {
+                $('#panel-ticket').show();
+                $('#panel-ot').hide();
+                // Limpiar selección de OT al cambiar de modo
+                selectedOtId.val('');
+                otSearch.val('').css({ 'font-weight': '', color: '' });
+            }
+        });
+
+        // Auto-fill Ticket from URL param ?ticket=ID
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const ticketParam = urlParams.get('ticket');
+            if (ticketParam) {
+                // Cambiar a la pestaña de ticket
+                $('.vinculo-tab[data-target="ticket"]').trigger('click');
+                selectedTicketId.val(ticketParam);
+                ticketSearch.val('Ticket #' + ticketParam).css('font-weight', '700').css('color', 'var(--primary)');
+            }
+        })();
+
+        ticketSearch.on('input', function () {
+            clearTimeout(ticketTimeout);
+            const q = $(this).val().trim();
+            if (q.length < 2) {
+                ticketResults.hide();
+                selectedTicketId.val('');
+                return;
+            }
+            ticketTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/callcenter/api/search-tickets-autocomplete/?q=${encodeURIComponent(q)}`);
+                    const data = await res.json();
+                    if (data.results && data.results.length > 0) {
+                        let html = '';
+                        data.results.forEach(t => {
+                            const titulo = t.folio || ('ID ' + t.id_solicitud);
+                            const desc = (t.full_description || '').substring(0, 60);
+                            html += `<div class="ticket-item-row" data-id="${t.id}" data-label="${titulo}"
+                                         style="padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f1f5f9;">
+                                        <div style="font-weight: 700; color: var(--text-main);">${titulo}</div>
+                                        <div style="font-size: 0.8rem; color: var(--text-muted);">${desc}${desc.length >= 60 ? '…' : ''}</div>
+                                        <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">${t.ubicacion || ''} · ${t.reportado_por || ''}</div>
+                                    </div>`;
+                        });
+                        ticketResults.html(html).show();
+
+                        $('.ticket-item-row').on('click', function () {
+                            const id = $(this).data('id');
+                            const label = $(this).data('label');
+                            selectedTicketId.val(id);
+                            ticketSearch.val(label).css('font-weight', '700').css('color', 'var(--primary)');
+                            ticketResults.hide();
+                            // Autocompletar comentarios con la descripción del ticket
+                            const comentarios = document.getElementById('comentarios');
+                            const desc = $(this).find('div').eq(1).text();
+                            if (comentarios && !comentarios.value && desc) {
+                                comentarios.value = 'Ticket ' + label + ' - ' + desc;
+                            }
+                        });
+                    } else {
+                        ticketResults.html('<div style="padding:12px 16px; color:#94a3b8; font-size:0.85rem;">Sin resultados</div>').show();
+                    }
+                } catch (e) { console.error(e); }
+            }, 300);
+        });
+
         // Auto-fill OT from URL param ?ot=ID
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -559,6 +674,77 @@
                     }
                 } catch (e) { console.error(e); }
             }, 300);
+        });
+
+        // --- Crear OT rápida desde esta misma vista ---
+        function getCookie(name) {
+            let value = null;
+            if (document.cookie) {
+                document.cookie.split(';').forEach(c => {
+                    c = c.trim();
+                    if (c.startsWith(name + '=')) value = decodeURIComponent(c.substring(name.length + 1));
+                });
+            }
+            return value;
+        }
+
+        // Vincular una OT recién creada (mismo comportamiento que la vista móvil)
+        function vincularOtCreada(otId, otCodigo) {
+            $('.vinculo-tab[data-target="ot"]').trigger('click');
+            selectedOtId.val(otId);
+            otSearch.val(otCodigo).css('font-weight', '700').css('color', 'var(--primary)');
+            otResults.hide();
+        }
+
+        // Crear OT: abre el formulario completo de OT en una nueva pestaña
+        // y auto-vincula al guardarse (vía localStorage), igual que en móvil.
+        $('#btn-crear-ot-rapida').on('click', function () {
+            // Limpiar posible OT anterior en localStorage
+            localStorage.removeItem('ot_creada_id');
+            localStorage.removeItem('ot_creada_codigo');
+
+            // Abrir la interfaz de crear OT en nueva pestaña
+            window.open('/mantenimiento/app/ot/crear-no-programada/?callback=solicitud', '_blank');
+
+            Swal.fire({
+                icon: 'info',
+                title: 'Creando OT...',
+                html: 'Se abrió el formulario de <b>Nueva OT</b> en otra pestaña.<br><br>Cuando la guardes, se vinculará automáticamente aquí.',
+                confirmButtonText: 'Ya la creé, vincular',
+                showCancelButton: true,
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#107e3e',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const otId = localStorage.getItem('ot_creada_id');
+                    const otCodigo = localStorage.getItem('ot_creada_codigo');
+                    if (otId && otCodigo) {
+                        vincularOtCreada(otId, otCodigo);
+                        localStorage.removeItem('ot_creada_id');
+                        localStorage.removeItem('ot_creada_codigo');
+                        Swal.fire({ toast: true, position: 'top', icon: 'success', title: `OT ${otCodigo} vinculada`, showConfirmButton: false, timer: 1500 });
+                    } else {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'OT no detectada',
+                            html: 'No se detectó la OT automáticamente. Puedes buscarla por código en el campo de búsqueda.',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                }
+            });
+
+            // Escuchar cambios en localStorage (cuando la otra pestaña guarda la OT)
+            window.addEventListener('storage', function otListener(e) {
+                if (e.key === 'ot_creada_id' && e.newValue) {
+                    const otId = e.newValue;
+                    const otCodigo = localStorage.getItem('ot_creada_codigo') || 'OT Nueva';
+                    vincularOtCreada(otId, otCodigo);
+                    Swal.close();
+                    Swal.fire({ toast: true, position: 'top', icon: 'success', title: `OT ${otCodigo} vinculada`, showConfirmButton: false, timer: 1500 });
+                    window.removeEventListener('storage', otListener);
+                }
+            });
         });
 
         // --- Selector de Materiales ---
@@ -754,17 +940,18 @@
             }
 
             const otId = $('#selectedOtId').val();
+            const ticketId = $('#selectedTicketId').val();
             const comentarios = $('#comentarios').val();
 
-            // Validar materiales técnicos: requieren OT
-            if (!otId) {
+            // Validar materiales técnicos: requieren OT o Ticket
+            if (!otId && !ticketId) {
                 const tecnicos = Array.from(selectedMaterials.values()).filter(i => i.es_tecnico);
                 if (tecnicos.length > 0) {
                     const nombres = tecnicos.slice(0, 3).map(t => t.name).join(', ');
                     Swal.fire({
                         icon: 'warning',
-                        title: 'Orden de Trabajo requerida',
-                        html: `Los siguientes materiales son <strong>técnicos</strong> y requieren vincularse con una OT:<br><br><em>${nombres}</em>${tecnicos.length > 3 ? ` y ${tecnicos.length - 3} más...` : ''}`,
+                        title: 'Vínculo requerido',
+                        html: `Los siguientes materiales son <strong>técnicos</strong> y requieren vincularse con una Orden de Trabajo o un Ticket de Servicio:<br><br><em>${nombres}</em>${tecnicos.length > 3 ? ` y ${tecnicos.length - 3} más...` : ''}`,
                         confirmButtonText: 'Entendido'
                     });
                     return;
@@ -797,6 +984,7 @@
                             body: new URLSearchParams({
                                 'ubicacion_origen': ubicacionId,
                                 'orden_trabajo': otId,
+                                'ticket': ticketId,
                                 'comentarios': comentarios,
                                 'ajax_mode': 'true',
                                 'items_json': JSON.stringify(itemsArr)
