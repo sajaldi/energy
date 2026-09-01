@@ -654,6 +654,7 @@ class Requisicion(models.Model):
         ('DIFERIDO', 'Diferido'),
         ('CREDITO', 'A Plazos / Crédito'),
         ('CONTRA_ENTREGA', 'Contra Entrega'),
+        ('PLAN_PAGO', 'Plan de Pago'),
     )
     forma_pago = models.CharField(
         max_length=20,
@@ -1228,6 +1229,7 @@ class OrdenCompra(models.Model):
         ('DIFERIDO', 'Diferido'),
         ('CREDITO', 'A Plazos / Crédito'),
         ('CONTRA_ENTREGA', 'Contra Entrega'),
+        ('PLAN_PAGO', 'Plan de Pago'),
     )
     forma_pago = models.CharField(
         max_length=20,
@@ -1236,6 +1238,17 @@ class OrdenCompra(models.Model):
         verbose_name="Forma de Pago",
         help_text="Forma de pago heredada de la requisición."
     )
+    TIPO_CONTRATO_CHOICES = (
+        ('SUMINISTRO_INSTALACION', 'Suministro e Instalación'),
+        ('CONTRATO_SERVICIO', 'Contrato de Servicio'),
+    )
+    tipo_contrato = models.CharField(
+        max_length=30,
+        choices=TIPO_CONTRATO_CHOICES,
+        blank=True, null=True,
+        verbose_name="Tipo de Contrato"
+    )
+
     doc_factura = models.BooleanField(default=False, verbose_name="Factura")
     doc_estimacion = models.BooleanField(default=False, verbose_name="Estimación")
     doc_respaldo = models.BooleanField(default=False, verbose_name="Respaldo")
@@ -1290,6 +1303,30 @@ class OrdenCompraArticulo(models.Model):
     class Meta:
         verbose_name = "Artículo de Orden de Compra"
         verbose_name_plural = "Artículos de Órdenes de Compra"
+
+
+class HitoPagoOrdenCompra(models.Model):
+    """
+    Hito de un Plan de Pago asociado a una Orden de Compra.
+    Se usa cuando la forma de pago es 'Plan de Pago': permite desglosar el total
+    de la OC en montos (Anticipo, Hito 1, Hito 2, etc.).
+    """
+    orden_compra = models.ForeignKey(
+        OrdenCompra, on_delete=models.CASCADE,
+        related_name='hitos_pago', verbose_name="Orden de Compra"
+    )
+    concepto = models.CharField(max_length=150, verbose_name="Concepto / Hito")
+    porcentaje = models.DecimalField(max_digits=6, decimal_places=2, default=0, verbose_name="Porcentaje (%)")
+    monto = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Monto")
+    orden = models.PositiveIntegerField(default=0, verbose_name="Orden")
+
+    def __str__(self):
+        return f"{self.concepto} - {self.monto}"
+
+    class Meta:
+        verbose_name = "Hito de Plan de Pago"
+        verbose_name_plural = "Hitos de Plan de Pago"
+        ordering = ['orden', 'id']
 
 
 class FamiliaItem(models.Model):

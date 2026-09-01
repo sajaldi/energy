@@ -46,6 +46,7 @@ urlpatterns = [
     path('requisiciones/<uuid:pk>/solicitar-informacion/', views_import.requisicion_solicitar_informacion, name='requisicion_solicitar_informacion'),
     path('requisiciones/<uuid:pk>/reenviar-informacion/', views_import.requisicion_reenviar_informacion, name='requisicion_reenviar_informacion'),
     path('ordenes-compra/<int:pk>/detalle/', views_import.detalle_orden_compra, name='orden_compra_detalle'),
+    path('proveedor/<int:pk>/actualizar/', views_import.actualizar_proveedor_ajax, name='proveedor_actualizar'),
     path('ordenes-compra/<int:pk>/actualizar/', views_import.actualizar_orden_compra, name='orden_compra_actualizar'),
     path('webhook/', views_webhook.requisicion_webhook_update, name='requisicion_webhook_update'),
     path('webhook/dynamics-sync/', views_webhook.dynamics_sync_webhook, name='dynamics_sync_webhook'),

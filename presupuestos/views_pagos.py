@@ -222,19 +222,28 @@ def detalle_solicitud_pago(request, pk):
 
     es_procura = request.user.groups.filter(name__in=['Procura', 'PROCURA', 'Procura_Tecnica', 'PROCURA_TECNICA']).exists()
 
-    # Mapa de requisición -> primera OC asociada (para menú contextual)
+    # Mapa de requisición -> OCs asociadas (visible para TODOS; editable solo por Procura)
     req_oc_map = {}
-    if es_procura:
-        from .models import OrdenCompra
-        req_ids = set()
-        for prov_data in items_por_proveedor.values():
-            for item in prov_data['lista_items']:
-                req_ids.add(str(item.requisicion.pk))
+    from .models import OrdenCompra
+    req_ids = set()
+    for prov_data in items_por_proveedor.values():
+        for item in prov_data['lista_items']:
+            req_ids.add(str(item.requisicion.pk))
+    if req_ids:
         ocs = OrdenCompra.objects.filter(
             requisicion_id__in=req_ids
-        ).values_list('requisicion_id', 'id')
-        for req_id, oc_id in ocs:
-            req_oc_map[str(req_id)] = oc_id
+        ).select_related('proveedor').order_by('fecha_creacion')
+        for oc in ocs:
+            key = str(oc.requisicion_id)
+            req_oc_map.setdefault(key, []).append({
+                'id': oc.id,
+                'numero_oc': oc.numero_oc,
+                'tipo_documento': oc.tipo_documento,
+                'estado': oc.estado,
+                'estado_display': oc.get_estado_display(),
+                'total': float(oc.total or 0),
+                'proveedor': oc.proveedor.nombre if oc.proveedor else '',
+            })
 
     context = {
         'solicitud': solicitud,

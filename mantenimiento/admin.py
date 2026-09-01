@@ -280,8 +280,8 @@ from portalsub.models import PerfilContratista
 class EmpresaResource(resources.ModelResource):
     class Meta:
         model = Empresa
-        fields = ('id', 'nombre', 'descripcion', 'activo', 'dynamics_guid', 'creado_en')
-        export_order = ('id', 'nombre', 'dynamics_guid', 'descripcion', 'activo', 'creado_en')
+        fields = ('id', 'numero_proveedor', 'nombre', 'rtn', 'domicilio', 'contacto', 'telefono', 'email', 'descripcion', 'activo', 'dynamics_guid', 'creado_en')
+        export_order = ('id', 'numero_proveedor', 'nombre', 'rtn', 'domicilio', 'contacto', 'telefono', 'email', 'dynamics_guid', 'descripcion', 'activo', 'creado_en')
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ('id',)
@@ -320,16 +320,16 @@ class PerfilContratistaInline(admin.TabularInline):
 @admin.register(Empresa)
 class EmpresaAdmin(ImportExportModelAdmin):
     resource_class = EmpresaResource
-    list_display = ('nombre', 'contacto', 'telefono', 'activo', 'ver_status_documentacion', 'creado_en')
-    search_fields = ('nombre', 'dynamics_guid', 'contacto', 'email')
+    list_display = ('numero_proveedor', 'nombre', 'rtn', 'contacto', 'telefono', 'email', 'activo', 'ver_status_documentacion', 'creado_en')
+    search_fields = ('nombre', 'numero_proveedor', 'rtn', 'dynamics_guid', 'contacto', 'email')
     list_filter = ('activo',)
     inlines = [DocumentoEmpresaInline, PersonalInline, PerfilContratistaInline]
     fieldsets = (
         (None, {
-            'fields': ('nombre', 'descripcion', 'activo')
+            'fields': ('numero_proveedor', 'nombre', 'rtn', 'descripcion', 'activo')
         }),
         ('Información de Contacto', {
-            'fields': ('contacto', 'telefono', 'email'),
+            'fields': ('contacto', 'telefono', 'email', 'domicilio'),
         }),
         ('Integración', {
             'fields': ('dynamics_guid',),

@@ -1354,6 +1354,7 @@
                             {% endwith %}
                         </td>
                         <td style="text-align: center; white-space: nowrap;">
+                            <span class="oc-chips" data-req-id="{{ item.requisicion.pk }}" style="display:inline-flex; gap:4px; vertical-align:middle;"></span>
                             <button onclick="openRequisitionModal('{{ item.requisicion.pk }}')"
                                 title="Ver detalle de requisición"
                                 style="color: var(--text-muted); opacity: 0.7; background: none; border: none; cursor: pointer; padding: 0.25rem;">
@@ -2072,8 +2073,80 @@
             e.stopPropagation();
         }
 
-        // Mapa de requisiciones que ya tienen Orden de Compra
+        // Mapa de requisiciones -> lista de Órdenes de Compra asociadas
         const reqOcMap = JSON.parse('{{ req_oc_map_json|escapejs }}' || '{}');
+        const ES_PROCURA = {% if es_procura %}true{% else %}false{% endif %};
+
+        // Devuelve la lista de OCs de una requisición (o [] si no tiene)
+        function ocsDeRequisicion(reqId) {
+            const v = reqOcMap[String(reqId)];
+            return Array.isArray(v) ? v : (v ? [v] : []);
+        }
+
+        // Pinta los chips de OC asociadas en cada fila de requisición (visible para todos)
+        function renderOcChips() {
+            document.querySelectorAll('.oc-chips').forEach(function(cont) {
+                const reqId = cont.getAttribute('data-req-id');
+                const ocs = ocsDeRequisicion(reqId);
+                if (ocs.length === 0) { cont.innerHTML = ''; return; }
+                let html = '';
+                ocs.forEach(function(oc) {
+                    const title = 'OC ' + oc.numero_oc + (oc.proveedor ? (' · ' + oc.proveedor) : '') +
+                        ' · L ' + (oc.total || 0).toLocaleString('es-HN', {minimumFractionDigits: 2}) +
+                        ' · ' + (oc.estado_display || oc.estado || '') + (ES_PROCURA ? ' (clic para editar)' : ' (clic para ver)');
+                    html += '<button type="button" onclick="onOcChipClick(\'' + oc.id + '\', \'' + reqId + '\')" title="' + title.replace(/"/g, '&quot;') + '" ' +
+                        'style="background:#eef4fb; border:1px solid #0070f2; color:#0070f2; font-size:0.68rem; font-weight:700; padding:2px 8px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:3px;">' +
+                        '<i class="ph ph-file-text"></i>' + oc.numero_oc + '</button>';
+                });
+                cont.innerHTML = html;
+            });
+        }
+
+        function onOcChipClick(ocId, reqId) {
+            if (ES_PROCURA && typeof openOcModal === 'function') {
+                openOcModal('edit', ocId);
+            } else {
+                verOcSoloLectura(ocId);
+            }
+        }
+
+        // Vista de solo lectura de la OC (para usuarios sin permiso de edición)
+        async function verOcSoloLectura(ocId) {
+            try {
+                const resp = await fetch('/presupuestos/ordenes-compra/' + ocId + '/detalle/');
+                const result = await resp.json();
+                if (!result.success) {
+                    Swal.fire('No disponible', result.message || 'No se pudo cargar la orden de compra.', 'info');
+                    return;
+                }
+                const d = result.data;
+                let arts = '';
+                (d.articulos || []).forEach(function(a) {
+                    arts += '<tr><td style="text-align:left; padding:4px 8px; border-bottom:1px solid #eee;">' + (a.descripcion || '-') + '</td>' +
+                        '<td style="text-align:center; padding:4px 8px; border-bottom:1px solid #eee;">' + (a.cantidad || 0) + '</td>' +
+                        '<td style="text-align:right; padding:4px 8px; border-bottom:1px solid #eee;">L ' + (a.costo_unitario || 0).toLocaleString('es-HN', {minimumFractionDigits: 2}) + '</td>' +
+                        '<td style="text-align:right; padding:4px 8px; border-bottom:1px solid #eee;">L ' + (a.subtotal || 0).toLocaleString('es-HN', {minimumFractionDigits: 2}) + '</td></tr>';
+                });
+                Swal.fire({
+                    title: 'Orden de Compra ' + d.numero_oc,
+                    width: 720,
+                    html: '<div style="text-align:left; font-size:0.85rem;">' +
+                        '<p style="margin:4px 0;"><b>Proveedor:</b> ' + (d.proveedor_nombre || '—') + '</p>' +
+                        '<p style="margin:4px 0;"><b>Tipo:</b> ' + (d.tipo_documento || '—') + ' &nbsp; <b>Estado:</b> ' + (d.estado || '—') + '</p>' +
+                        '<p style="margin:4px 0;"><b>Forma de pago:</b> ' + (d.forma_pago_display || d.forma_pago || '—') + '</p>' +
+                        '<table style="width:100%; border-collapse:collapse; margin-top:8px;">' +
+                        '<thead><tr style="background:#f0f4f8;"><th style="text-align:left; padding:6px 8px;">Descripción</th><th style="padding:6px 8px;">Cant.</th><th style="padding:6px 8px; text-align:right;">P/U</th><th style="padding:6px 8px; text-align:right;">Subtotal</th></tr></thead>' +
+                        '<tbody>' + arts + '</tbody></table>' +
+                        '<p style="margin:10px 0 0; text-align:right; font-weight:700;">Total: L ' + (d.total || 0).toLocaleString('es-HN', {minimumFractionDigits: 2}) + '</p>' +
+                        '</div>',
+                    confirmButtonText: 'Cerrar'
+                });
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo cargar la orden de compra.', 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderOcChips);
 
         function showRequisitionContextMenu(e, reqId, itemId, reqTotal, currentAmount) {
             e.preventDefault();
@@ -2087,7 +2160,7 @@
             const ocLabel = document.getElementById('ctx-oc-label');
             const ocIcon = document.getElementById('ctx-oc-icon');
             if (ocLabel && ocIcon) {
-                if (reqOcMap[reqId]) {
+                if (ocsDeRequisicion(reqId).length > 0) {
                     ocLabel.textContent = 'Editar Orden de Compra';
                     ocIcon.className = 'ph ph-pencil-simple';
                 } else {
@@ -2115,10 +2188,10 @@
             if (!currentCtxRequisitionId) return;
             hideContextMenus();
 
-            const ocId = reqOcMap[currentCtxRequisitionId];
-            if (ocId) {
-                // Editar OC existente
-                openOcModal('edit', ocId);
+            const ocs = ocsDeRequisicion(currentCtxRequisitionId);
+            if (ocs.length > 0) {
+                // Editar la primera OC existente
+                openOcModal('edit', ocs[0].id);
             } else {
                 // Generar nueva OC
                 openOcModal('create', currentCtxRequisitionId);
@@ -2129,6 +2202,18 @@
         let ocModalReqId = null;
         let ocModalOcId = null;
         let ocArticulosData = [];
+        let ocFormaPago = '';
+        let ocProveedoresData = [];
+        let ocHitosPago = [];
+        const OCC_LOGO_URL = "{% static 'activos/img/logo_operadora_cc.png' %}";
+        // Datos del emisor según tipo de documento
+        const EMISOR_POR_TIPO = {
+            'OC': {
+                nombre: 'OPERADORA CC SA DE CV',
+                rtn: '0801 9019 137058',
+                direccion: 'Centro Cívico Gubernamental, Boulevard Juan Pablo II,<br>Esquina República de Corea, Tegucigalpa MDC, Honduras, C.A.<br>Tel. +504 22 42 78 11 EXT 10100 - 10110'
+            }
+        };
 
         function closeOcModal(e) {
             if (e && e.target !== e.currentTarget) return;
@@ -2139,6 +2224,9 @@
             ocModalMode = mode;
             const overlay = document.getElementById('oc-modal-overlay');
             overlay.style.display = 'flex';
+
+            // El botón "Guardar" (sin cerrar) solo aplica en modo edición
+            document.getElementById('oc-btn-save-keep').style.display = (mode === 'edit') ? 'inline-flex' : 'none';
 
             if (mode === 'create') {
                 ocModalReqId = id;
@@ -2197,6 +2285,9 @@
 
         function populateOcModalCreate(data) {
             document.getElementById('oc-modal-subtitle').textContent = data.requisicion.numero + ' — ' + data.requisicion.asunto;
+            ocFormaPago = data.requisicion.forma_pago_display || 'No especificada';
+            document.getElementById('oc-forma-pago').value = data.requisicion.forma_pago || 'CONTADO';
+            ocHitosPago = [];
             document.getElementById('oc-tipo-doc').value = 'OC';
             document.getElementById('oc-fecha-entrega').value = '';
             document.getElementById('oc-notas').value = '';
@@ -2206,6 +2297,7 @@
             document.getElementById('oc-doc-garantia').checked = false;
 
             // Proveedores
+            ocProveedoresData = data.proveedores || [];
             const provSelect = document.getElementById('oc-proveedor');
             provSelect.innerHTML = '<option value="">— Seleccionar —</option>';
             data.proveedores.forEach(function(p) {
@@ -2215,14 +2307,46 @@
                 if (data.requisicion.proveedor_id && p.id === data.requisicion.proveedor_id) opt.selected = true;
                 provSelect.appendChild(opt);
             });
+            renderProveedorInfo();
 
             // Artículos
             ocArticulosData = data.articulos;
             renderOcArticulos(data.articulos);
+
+            // Nuevos campos de cabecera
+            poblarCentrosCosto(data.centros_costo || [], null);
+            document.getElementById('oc-numero').value = '';
+            document.getElementById('oc-numero').placeholder = 'Se generará automáticamente';
+            document.getElementById('oc-tipo-contrato').value = '';
+            document.getElementById('oc-referencia').value = (data.requisicion.numero || '') + ' — ' + (data.requisicion.asunto || '');
+
+            // Plan de pago (mostrar si aplica)
+            togglePlanPago();
+        }
+
+        function poblarCentrosCosto(lista, selectedId) {
+            const sel = document.getElementById('oc-centro-costo');
+            sel.innerHTML = '<option value="">— Sin asignar —</option>';
+            (lista || []).forEach(function(cc) {
+                const opt = document.createElement('option');
+                opt.value = cc.id;
+                opt.textContent = cc.nombre;
+                if (selectedId && String(cc.id) === String(selectedId)) opt.selected = true;
+                sel.appendChild(opt);
+            });
         }
 
         function populateOcModalEdit(data) {
             document.getElementById('oc-modal-subtitle').textContent = data.numero_oc + ' — ' + data.requisicion_numero;
+            let fp = data.forma_pago_display || 'No especificada';
+            if (data.credito && data.credito_dias) {
+                fp += ' (' + data.credito_dias + ' días)';
+            } else if (data.anticipo && data.anticipo_porcentaje) {
+                fp += ' (' + data.anticipo_porcentaje + '%)';
+            }
+            ocFormaPago = fp;
+            document.getElementById('oc-forma-pago').value = data.forma_pago || 'CONTADO';
+            ocHitosPago = (data.hitos_pago || []).map(function(h) { return { concepto: h.concepto, porcentaje: h.porcentaje, monto: h.monto }; });
             document.getElementById('oc-tipo-doc').value = data.tipo_documento;
             document.getElementById('oc-fecha-entrega').value = data.fecha_entrega_estimada || '';
             document.getElementById('oc-notas').value = data.notas || '';
@@ -2232,6 +2356,7 @@
             document.getElementById('oc-doc-garantia').checked = data.doc_garantia;
 
             // Proveedores
+            ocProveedoresData = data.proveedores || [];
             const provSelect = document.getElementById('oc-proveedor');
             provSelect.innerHTML = '<option value="">— Seleccionar —</option>';
             data.proveedores.forEach(function(p) {
@@ -2241,10 +2366,197 @@
                 if (p.id === data.proveedor_id) opt.selected = true;
                 provSelect.appendChild(opt);
             });
+            renderProveedorInfo();
 
             // Artículos
             ocArticulosData = data.articulos;
             renderOcArticulosEdit(data.articulos);
+
+            // Nuevos campos de cabecera
+            poblarCentrosCosto(data.centros_costo || [], data.centro_costo_id);
+            document.getElementById('oc-numero').value = data.numero_oc || '';
+            document.getElementById('oc-tipo-contrato').value = data.tipo_contrato || '';
+            document.getElementById('oc-referencia').value = (data.requisicion_numero || '') + ' — ' + (data.requisicion_asunto || '');
+
+            // Plan de pago (mostrar si aplica)
+            togglePlanPago();
+        }
+
+        function getProveedorSeleccionado() {
+            const val = document.getElementById('oc-proveedor').value;
+            if (!val) return null;
+            return ocProveedoresData.find(function(p) { return String(p.id) === String(val); }) || null;
+        }
+
+        function renderProveedorInfo() {
+            const panel = document.getElementById('oc-proveedor-info');
+            const prov = getProveedorSeleccionado();
+            if (!prov) {
+                panel.style.display = 'none';
+                return;
+            }
+            document.getElementById('oc-prov-numero').textContent = prov.numero_proveedor || '—';
+            document.getElementById('oc-prov-rtn').textContent = prov.rtn || '—';
+            document.getElementById('oc-prov-contacto').textContent = prov.contacto || '—';
+            document.getElementById('oc-prov-telefono').textContent = prov.telefono || '—';
+            document.getElementById('oc-prov-email').textContent = prov.email || '—';
+            document.getElementById('oc-prov-domicilio').textContent = prov.domicilio || '—';
+            panel.style.display = '';
+        }
+
+        // ---- Plan de Pago (Hitos) ----
+        function ocParseMoneda(txt) {
+            if (!txt) return 0;
+            return parseFloat(String(txt).replace(/[^0-9.-]/g, '')) || 0;
+        }
+
+        function getOcTotalActual() {
+            return ocParseMoneda(document.getElementById('oc-total-display').textContent);
+        }
+
+        // Reparte 100% de forma equitativa entre n hitos (el último absorbe el redondeo)
+        function repartirPorcentajesEquitativos() {
+            const n = ocHitosPago.length;
+            if (n === 0) return;
+            const base = Math.floor((100 / n) * 100) / 100; // 2 decimales
+            let acum = 0;
+            ocHitosPago.forEach(function(h, i) {
+                if (i === n - 1) {
+                    h.porcentaje = Math.round((100 - acum) * 100) / 100;
+                } else {
+                    h.porcentaje = base;
+                    acum += base;
+                }
+            });
+        }
+
+        // Formas de pago que usan la tabla de hitos
+        function formaUsaHitos(v) {
+            return v === 'PLAN_PAGO' || v === 'ANTICIPO' || v === 'DIFERIDO';
+        }
+
+        function togglePlanPago() {
+            const panel = document.getElementById('oc-plan-pago');
+            const usaHitos = formaUsaHitos(document.getElementById('oc-forma-pago').value);
+            if (!usaHitos) {
+                panel.style.display = 'none';
+                return;
+            }
+            // Si no hay hitos definidos, cargar los de por defecto con % equitativo
+            if (!ocHitosPago || ocHitosPago.length === 0) {
+                ocHitosPago = [
+                    { concepto: 'Anticipo', porcentaje: 0, monto: 0 },
+                    { concepto: 'Hito 1', porcentaje: 0, monto: 0 },
+                    { concepto: 'Hito 2', porcentaje: 0, monto: 0 },
+                    { concepto: 'Hito 3', porcentaje: 0, monto: 0 },
+                ];
+                repartirPorcentajesEquitativos();
+                aplicarPorcentajesAMontos();
+            }
+            panel.style.display = '';
+            renderHitosPago();
+        }
+
+        // Calcula el monto de cada hito según su % sobre el total de la OC
+        function aplicarPorcentajesAMontos() {
+            const total = getOcTotalActual();
+            ocHitosPago.forEach(function(h) {
+                h.monto = Math.round((total * (parseFloat(h.porcentaje) || 0) / 100) * 100) / 100;
+            });
+        }
+
+        function renderHitosPago() {
+            const tbody = document.getElementById('oc-plan-pago-tbody');
+            let html = '';
+            ocHitosPago.forEach(function(h, i) {
+                html += '<tr style="border-bottom:1px solid #f0f0f0;">' +
+                    '<td style="padding:0.5rem 1.25rem;"><input type="text" value="' + (h.concepto || '').replace(/"/g, '&quot;') + '" data-hidx="' + i + '" data-hfield="concepto" oninput="onHitoInput(this)" style="width:100%; border:1px solid #d9d9d9; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;"></td>' +
+                    '<td style="padding:0.5rem 1rem; text-align:right;"><div style="display:flex; align-items:center; justify-content:flex-end; gap:2px;"><input type="number" value="' + (h.porcentaje || 0) + '" min="0" max="100" step="0.01" data-hidx="' + i + '" data-hfield="porcentaje" oninput="onHitoInput(this)" style="width:75px; text-align:right; border:1px solid #d9d9d9; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;"><span style="color:#6a6d70;">%</span></div></td>' +
+                    '<td style="padding:0.5rem 1rem; text-align:right;"><input type="number" value="' + (h.monto || 0) + '" min="0" step="0.01" data-hidx="' + i + '" data-hfield="monto" oninput="onHitoInput(this)" style="width:150px; text-align:right; border:1px solid #d9d9d9; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;"></td>' +
+                    '<td style="padding:0.5rem 1rem; text-align:center;"><button type="button" onclick="removeHitoPago(' + i + ')" title="Eliminar" style="background:none; border:none; color:#bb0000; cursor:pointer; font-size:1.1rem; line-height:1;"><i class="ph ph-trash"></i></button></td>' +
+                '</tr>';
+            });
+            tbody.innerHTML = html;
+            recalcPlanPago();
+        }
+
+        function onHitoInput(inp) {
+            const i = parseInt(inp.dataset.hidx, 10);
+            const field = inp.dataset.hfield;
+            if (!ocHitosPago[i]) return;
+            const total = getOcTotalActual();
+            // Importante: NO re-renderizar toda la tabla aquí (destruye el input activo
+            // y provoca pérdida de foco). Solo actualizamos el dato y el campo hermano.
+            const row = inp.closest('tr');
+            if (field === 'porcentaje') {
+                ocHitosPago[i].porcentaje = parseFloat(inp.value) || 0;
+                ocHitosPago[i].monto = Math.round((total * ocHitosPago[i].porcentaje / 100) * 100) / 100;
+                const montoInput = row ? row.querySelector('input[data-hfield="monto"]') : null;
+                if (montoInput && document.activeElement !== montoInput) {
+                    montoInput.value = ocHitosPago[i].monto;
+                }
+            } else if (field === 'monto') {
+                ocHitosPago[i].monto = parseFloat(inp.value) || 0;
+                ocHitosPago[i].porcentaje = total > 0 ? Math.round((ocHitosPago[i].monto / total * 100) * 100) / 100 : 0;
+                const porcInput = row ? row.querySelector('input[data-hfield="porcentaje"]') : null;
+                if (porcInput && document.activeElement !== porcInput) {
+                    porcInput.value = ocHitosPago[i].porcentaje;
+                }
+            } else {
+                ocHitosPago[i].concepto = inp.value;
+            }
+            recalcPlanPago();
+        }
+
+        function addHitoPago() {
+            ocHitosPago.push({ concepto: 'Hito ' + ocHitosPago.length, porcentaje: 0, monto: 0 });
+            repartirPorcentajesEquitativos();
+            aplicarPorcentajesAMontos();
+            renderHitosPago();
+        }
+
+        function removeHitoPago(i) {
+            ocHitosPago.splice(i, 1);
+            repartirPorcentajesEquitativos();
+            aplicarPorcentajesAMontos();
+            renderHitosPago();
+        }
+
+        function recalcPlanPago() {
+            const fmt = function(n) { return 'L ' + (n || 0).toLocaleString('es-HN', { minimumFractionDigits: 2 }); };
+            const total = getOcTotalActual();
+            let asignado = 0;
+            let porcTotal = 0;
+            ocHitosPago.forEach(function(h) {
+                asignado += (parseFloat(h.monto) || 0);
+                porcTotal += (parseFloat(h.porcentaje) || 0);
+            });
+            porcTotal = Math.round(porcTotal * 100) / 100;
+            const saldo = total - asignado;
+            const porcSaldo = Math.round((100 - porcTotal) * 100) / 100;
+
+            document.getElementById('oc-plan-asignado').textContent = fmt(asignado);
+            document.getElementById('oc-plan-saldo').textContent = fmt(saldo);
+
+            const porcTotalEl = document.getElementById('oc-plan-porc-total');
+            const porcSaldoEl = document.getElementById('oc-plan-porc-saldo');
+            porcTotalEl.textContent = porcTotal + '%';
+            porcSaldoEl.textContent = porcSaldo + '%';
+
+            // Validación: la suma de % debe ser exactamente 100
+            const cuadra = Math.abs(porcTotal - 100) < 0.005;
+            const colorOk = '#107e3e', colorErr = '#bb0000', colorNeutral = '#6a6d70';
+            porcTotalEl.style.color = cuadra ? colorOk : colorErr;
+            porcSaldoEl.style.color = cuadra ? colorOk : (porcTotal > 100 ? colorErr : colorNeutral);
+            document.getElementById('oc-plan-saldo').style.color = cuadra ? colorOk : (saldo < 0 ? colorErr : colorNeutral);
+        }
+
+        // Devuelve true si el plan de pago es válido (suma 100%)
+        function planPagoEsValido() {
+            if (document.getElementById('oc-forma-pago').value !== 'PLAN_PAGO') return true;
+            let porcTotal = 0;
+            ocHitosPago.forEach(function(h) { porcTotal += (parseFloat(h.porcentaje) || 0); });
+            return Math.abs(Math.round(porcTotal * 100) / 100 - 100) < 0.005;
         }
 
         function renderOcArticulos(articulos) {
@@ -2255,10 +2567,14 @@
             articulos.forEach(function(art, i) {
                 const subtotal = art.cantidad * art.costo_actual;
                 total += subtotal;
+                const codExo = art.codigo_exoneracion || '—';
+                const sku = art.sku || '—';
                 html += '<tr style="border-bottom:1px solid #f0f0f0;">' +
+                    '<td style="padding:0.6rem 1.25rem; color:#32363a; font-weight:600;">' + codExo + '</td>' +
+                    '<td style="padding:0.6rem 1.25rem; color:#6a6d70; font-family:monospace; font-size:0.8rem;">' + sku + '</td>' +
                     '<td style="padding:0.6rem 1.25rem; color:#32363a;">' + (art.descripcion || '-') + '</td>' +
-                    '<td style="padding:0.6rem 1rem; text-align:center;"><input type="number" data-idx="' + i + '" data-field="cantidad" value="' + art.cantidad + '" min="0" step="1" style="width:70px; text-align:center; border:1px solid #d9d9d9; border-radius:4px; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;" onchange="recalcOcTotal()"></td>' +
-                    '<td style="padding:0.6rem 1rem; text-align:right;"><input type="number" data-idx="' + i + '" data-field="costo" value="' + art.costo_actual.toFixed(2) + '" min="0" step="0.01" style="width:110px; text-align:right; border:1px solid #d9d9d9; border-radius:4px; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;" onchange="recalcOcTotal()"></td>' +
+                    '<td style="padding:0.6rem 1rem; text-align:center;"><input type="number" data-idx="' + i + '" data-field="cantidad" value="' + art.cantidad + '" min="0" step="1" style="width:70px; text-align:center; border:1px solid #d9d9d9; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;" onchange="recalcOcTotal()"></td>' +
+                    '<td style="padding:0.6rem 1rem; text-align:right;"><input type="number" data-idx="' + i + '" data-field="costo" value="' + art.costo_actual.toFixed(2) + '" min="0" step="0.01" style="width:110px; text-align:right; border:1px solid #d9d9d9; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;" onchange="recalcOcTotal()"></td>' +
                     '<td style="padding:0.6rem 1.25rem; text-align:right; font-weight:600; color:#32363a;" id="oc-art-sub-' + i + '">L ' + subtotal.toLocaleString('es-HN', {minimumFractionDigits: 2}) + '</td>' +
                 '</tr>';
             });
@@ -2274,10 +2590,14 @@
             articulos.forEach(function(art, i) {
                 const subtotal = art.cantidad * art.costo_unitario;
                 total += subtotal;
+                const codExo = art.codigo_exoneracion || '—';
+                const sku = art.sku || '—';
                 html += '<tr style="border-bottom:1px solid #f0f0f0;">' +
+                    '<td style="padding:0.6rem 1.25rem; color:#32363a; font-weight:600;">' + codExo + '</td>' +
+                    '<td style="padding:0.6rem 1.25rem; color:#6a6d70; font-family:monospace; font-size:0.8rem;">' + sku + '</td>' +
                     '<td style="padding:0.6rem 1.25rem; color:#32363a;">' + (art.descripcion || '-') + '</td>' +
-                    '<td style="padding:0.6rem 1rem; text-align:center;"><input type="number" data-idx="' + i + '" data-field="cantidad" value="' + art.cantidad + '" min="0" step="1" style="width:70px; text-align:center; border:1px solid #d9d9d9; border-radius:4px; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;" onchange="recalcOcTotal()"></td>' +
-                    '<td style="padding:0.6rem 1rem; text-align:right;"><input type="number" data-idx="' + i + '" data-field="costo" value="' + art.costo_unitario.toFixed(2) + '" min="0" step="0.01" style="width:110px; text-align:right; border:1px solid #d9d9d9; border-radius:4px; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;" onchange="recalcOcTotal()"></td>' +
+                    '<td style="padding:0.6rem 1rem; text-align:center;"><input type="number" data-idx="' + i + '" data-field="cantidad" value="' + art.cantidad + '" min="0" step="1" style="width:70px; text-align:center; border:1px solid #d9d9d9; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;" onchange="recalcOcTotal()"></td>' +
+                    '<td style="padding:0.6rem 1rem; text-align:right;"><input type="number" data-idx="' + i + '" data-field="costo" value="' + art.costo_unitario.toFixed(2) + '" min="0" step="0.01" style="width:110px; text-align:right; border:1px solid #d9d9d9; padding:0.35rem 0.5rem; font-size:0.84rem; font-family:inherit;" onchange="recalcOcTotal()"></td>' +
                     '<td style="padding:0.6rem 1.25rem; text-align:right; font-weight:600; color:#32363a;" id="oc-art-sub-' + i + '">L ' + subtotal.toLocaleString('es-HN', {minimumFractionDigits: 2}) + '</td>' +
                 '</tr>';
             });
@@ -2301,12 +2621,27 @@
                 if (el) el.textContent = 'L ' + sub.toLocaleString('es-HN', {minimumFractionDigits: 2});
             });
             document.getElementById('oc-total-display').textContent = 'L ' + total.toLocaleString('es-HN', {minimumFractionDigits: 2});
+            // Si hay plan de pago visible, recalcular los montos según los % sobre el nuevo total
+            if (document.getElementById('oc-plan-pago').style.display !== 'none') {
+                aplicarPorcentajesAMontos();
+                renderHitosPago();
+            }
         }
 
-        async function saveOrdenCompra() {
+        async function saveOrdenCompra(keepOpen) {
+            // Validar plan de pago: los porcentajes deben sumar 100%
+            if (!planPagoEsValido()) {
+                let porcTotal = 0;
+                ocHitosPago.forEach(function(h) { porcTotal += (parseFloat(h.porcentaje) || 0); });
+                Swal.fire('Plan de pago inválido', 'Los porcentajes de los hitos deben sumar 100%. Actualmente suman ' + (Math.round(porcTotal * 100) / 100) + '%.', 'warning');
+                return;
+            }
+
             const btn = document.getElementById('oc-btn-save');
+            const btnKeep = document.getElementById('oc-btn-save-keep');
             btn.disabled = true;
             btn.style.opacity = '0.6';
+            if (btnKeep) { btnKeep.disabled = true; btnKeep.style.opacity = '0.6'; }
 
             try {
                 if (ocModalMode === 'create') {
@@ -2333,6 +2668,12 @@
 
                     const payload = {
                         tipo_documento: document.getElementById('oc-tipo-doc').value,
+                        forma_pago: document.getElementById('oc-forma-pago').value,
+                        tipo_contrato: document.getElementById('oc-tipo-contrato').value,
+                        centro_costo_id: document.getElementById('oc-centro-costo').value || null,
+                        fecha_entrega_estimada: document.getElementById('oc-fecha-entrega').value || null,
+                        notas: document.getElementById('oc-notas').value,
+                        hitos_pago: formaUsaHitos(document.getElementById('oc-forma-pago').value) ? ocHitosPago : [],
                         articulos: articulosPayload,
                         doc_checklist: {
                             doc_factura: document.getElementById('oc-doc-factura').checked,
@@ -2368,6 +2709,11 @@
 
                     const payload = {
                         proveedor_id: document.getElementById('oc-proveedor').value,
+                        forma_pago: document.getElementById('oc-forma-pago').value,
+                        numero_oc: document.getElementById('oc-numero').value,
+                        tipo_contrato: document.getElementById('oc-tipo-contrato').value,
+                        centro_costo_id: document.getElementById('oc-centro-costo').value || null,
+                        hitos_pago: formaUsaHitos(document.getElementById('oc-forma-pago').value) ? ocHitosPago : [],
                         fecha_entrega_estimada: document.getElementById('oc-fecha-entrega').value || null,
                         notas: document.getElementById('oc-notas').value,
                         doc_factura: document.getElementById('oc-doc-factura').checked,
@@ -2385,9 +2731,14 @@
                     });
                     const result = await resp.json();
                     if (result.success) {
-                        closeOcModal();
-                        Swal.fire('Actualizada', result.message, 'success')
-                            .then(() => location.reload());
+                        if (keepOpen) {
+                            // Guardar sin cerrar: refrescar datos y avisar con un toast
+                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Cambios guardados', showConfirmButton: false, timer: 1800 });
+                        } else {
+                            closeOcModal();
+                            Swal.fire('Actualizada', result.message, 'success')
+                                .then(() => location.reload());
+                        }
                     } else {
                         Swal.fire('Error', result.message, 'error');
                     }
@@ -2397,7 +2748,229 @@
             } finally {
                 btn.disabled = false;
                 btn.style.opacity = '1';
+                if (btnKeep) { btnKeep.disabled = false; btnKeep.style.opacity = '1'; }
             }
+        }
+
+        function previewOrdenCompra() {
+            // Recolectar los valores actuales del modal (con ediciones en pantalla)
+            const costoField = (ocModalMode === 'create') ? 'costo_actual' : 'costo_unitario';
+            const inputs = document.querySelectorAll('#oc-articulos-tbody input[type="number"]');
+            let rows = {};
+            inputs.forEach(function(inp) {
+                const idx = inp.dataset.idx;
+                if (!rows[idx]) rows[idx] = { ...ocArticulosData[idx] };
+                if (inp.dataset.field === 'cantidad') rows[idx].cantidad = parseFloat(inp.value) || 0;
+                if (inp.dataset.field === 'costo') rows[idx]._costo = parseFloat(inp.value) || 0;
+            });
+
+            const articulos = Object.values(rows);
+            if (articulos.length === 0) {
+                Swal.fire('Sin artículos', 'No hay artículos para previsualizar.', 'info');
+                return;
+            }
+
+            const provSelect = document.getElementById('oc-proveedor');
+            const proveedorNombre = provSelect.options[provSelect.selectedIndex] ? provSelect.options[provSelect.selectedIndex].text : '—';
+            const prov = getProveedorSeleccionado() || {};
+            const tipoDoc = document.getElementById('oc-tipo-doc').value;
+            const fpSelect = document.getElementById('oc-forma-pago');
+            const formaPago = fpSelect.options[fpSelect.selectedIndex] ? fpSelect.options[fpSelect.selectedIndex].text : (ocFormaPago || '—');
+            const notas = document.getElementById('oc-notas').value || '';
+            const subtitle = document.getElementById('oc-modal-subtitle').textContent || '';
+            const tcSelect = document.getElementById('oc-tipo-contrato');
+            const tipoContratoTxt = (tcSelect && tcSelect.value) ? tcSelect.options[tcSelect.selectedIndex].text : '';
+            const referenciaA = document.getElementById('oc-referencia').value || '';
+            const numeroOcInput = (document.getElementById('oc-numero').value || '').trim();
+            const ccSelect = document.getElementById('oc-centro-costo');
+            const centroCostoTxt = (ccSelect && ccSelect.value) ? ccSelect.options[ccSelect.selectedIndex].text : 'MANTENIMIENTO - INSTALACIONES';
+
+            let total = 0;
+            articulos.forEach(function(art) {
+                const costo = (art._costo !== undefined) ? art._costo : (art[costoField] || 0);
+                total += (art.cantidad || 0) * costo;
+            });
+
+            const numFmt = function(n) { return (n || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+            const now = new Date();
+            const mesesUp = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+            const diaN = now.getDate();
+            const mesN = mesesUp[now.getMonth()];
+            const anioN = now.getFullYear();
+
+            // Fecha de entrega desglosada (día / mes / año)
+            let entDia = '', entMes = '', entAnio = '';
+            const feVal = document.getElementById('oc-fecha-entrega').value;
+            if (feVal) {
+                const fp = feVal.split('-');
+                if (fp.length === 3) { entAnio = fp[0]; entMes = mesesUp[parseInt(fp[1],10)-1] || ''; entDia = String(parseInt(fp[2],10)); }
+            }
+
+            const emisor = EMISOR_POR_TIPO[tipoDoc] || EMISOR_POR_TIPO['OC'];
+            const numeroOc = numeroOcInput || (subtitle.split('—')[0] || '').trim() || '—';
+            const centroCosto = centroCostoTxt || 'MANTENIMIENTO - INSTALACIONES';
+
+            // Filas de artículos (Descripción / Unidad / Cantidad / P/U / Total)
+            let filasArt = '';
+            articulos.forEach(function(art) {
+                const costo = (art._costo !== undefined) ? art._costo : (art[costoField] || 0);
+                const sub = (art.cantidad || 0) * costo;
+                filasArt +=
+                    '<tr><td class="l">' + (art.descripcion || '-') + '</td>' +
+                    '<td class="c">UND</td>' +
+                    '<td class="c">' + (art.cantidad || 0) + '</td>' +
+                    '<td class="r">' + numFmt(costo) + '</td>' +
+                    '<td class="r">' + numFmt(sub) + '</td></tr>';
+            });
+
+            // Condiciones de pago
+            const esPlan = fpSelect.value === 'PLAN_PAGO';
+            const esAnticipo = fpSelect.value === 'ANTICIPO';
+            const esDiferido = fpSelect.value === 'DIFERIDO';
+            const esCredito = fpSelect.value === 'CREDITO';
+            const esContraEntrega = fpSelect.value === 'CONTRA_ENTREGA';
+            const usaHitos = formaUsaHitos(fpSelect.value);
+            const chk = function(cond) { return cond ? 'X' : ''; };
+
+            // Hitos (a la derecha del bloque de condiciones) — Plan, Anticipo o Diferido
+            let hitosFilasDoc = '';
+            if (usaHitos && ocHitosPago.length > 0) {
+                ocHitosPago.forEach(function(h) {
+                    const p = Math.round((parseFloat(h.porcentaje) || 0) * 100) / 100;
+                    const m = parseFloat(h.monto) || 0;
+                    hitosFilasDoc += '<tr><td class="l" style="border:0.25px solid #666; padding:3px 6px;">' + (h.concepto || '—') + '</td>' +
+                        '<td class="c" style="border:0.25px solid #666; padding:3px 6px; width:60px;">' + p + '%</td>' +
+                        '<td class="r" style="border:0.25px solid #666; padding:3px 6px; width:110px;">' + numFmt(m) + '</td></tr>';
+                });
+            }
+
+            // Documentación
+            const docFactura = document.getElementById('oc-doc-factura').checked;
+            const docEstimacion = document.getElementById('oc-doc-estimacion').checked;
+            const docRespaldo = document.getElementById('oc-doc-respaldo').checked;
+            const docGarantia = document.getElementById('oc-doc-garantia').checked;
+            const docMark = function(on) { return on ? 'X' : 'N/A'; };
+
+            const html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">' +
+                '<title>Orden de Compra ' + numeroOc + '</title>' +
+                '<style>' +
+                '@page { size: A4; margin: 8mm 3mm; }' +
+                '* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }' +
+                'html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
+                'body { font-family: "Arial Narrow", "Segoe UI", Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 8px 3mm; font-size: 11px; }' +
+                'table { width: 100%; border-collapse: collapse; }' +
+                '.occ-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }' +
+                '.occ-logo { height: 60px; }' +
+                '.occ-dir { font-family: "Arial Narrow", Arial, sans-serif; font-size: 8.5px; color: #333; text-align: right; line-height: 1.5; }' +
+                '.occ-emisor { text-align: center; margin: 8px 0 2px; font-family: "Aptos Narrow", "Arial Narrow", Arial, sans-serif; }' +
+                '.occ-emisor .nom { font-family: "Aptos Narrow", "Arial Narrow", Arial, sans-serif; font-size: 17px; font-weight: 800; color: #111; }' +
+                '.occ-emisor .rtn { font-family: "Aptos Narrow", "Arial Narrow", Arial, sans-serif; font-size: 9px; font-weight: 700; color: #111; margin-top: 1px; }' +
+                '.banner { font-family: "Arial Narrow", Arial, sans-serif; background: rgb(11,29,47); color: #fff; text-align: center; font-weight: 700; letter-spacing: 1px; font-size: 12px; padding: 6px; margin: 12px 0 10px; }' +
+                '.banner-oc { font-family: "Arial Black", Arial, sans-serif; font-weight: 900; }' +
+                '.bx { border-collapse: collapse; }' +
+                '.bx td, .bx th { border: 0.25px solid #666; padding: 4px 7px; vertical-align: middle; }' +
+                '.lbl { background: #CCCCCC; font-weight: 700; font-size: 9.5px; }' +
+                '.c { text-align: center; } .r { text-align: right; } .l { text-align: left; }' +
+                '.mut { color: #555; font-size: 8.5px; font-weight: 700; }' +
+                '.legal { font-size: 9px; color: #222; margin-top: 14px; line-height: 1.5; text-align: justify; }' +
+                '.firmas { display: flex; justify-content: space-around; margin-top: 60px; text-align: center; font-size: 9.5px; }' +
+                '.firma-line { border-top: 1px solid #333; width: 260px; margin: 0 auto; padding-top: 4px; font-weight: 700; }' +
+                '.no-print { text-align: center; margin: 16px 0; }' +
+                '.no-print button { padding: 10px 24px; margin: 0 6px; border: none; background: #1f3a5f; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }' +
+                '.no-print button.sec2 { background: #fff; color: #1a1a1a; border: 1px solid #999; }' +
+                '@media print { .no-print { display: none; } body { padding: 0 3mm; } ' +
+                '  .banner { background: rgb(11,29,47) !important; color: #fff !important; } ' +
+                '  .lbl { background: #CCCCCC !important; } ' +
+                '  .bx td, .bx th { border: 0.25px solid #666 !important; } }' +
+                '</style></head><body>' +
+                '<div class="no-print"><button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button><button class="sec2" onclick="window.close()">Cerrar</button></div>' +
+                '<div class="occ-head"><img src="' + OCC_LOGO_URL + '" class="occ-logo" alt="OCC"><div class="occ-dir">' + emisor.direccion + '</div></div>' +
+                '<div class="occ-emisor"><div class="nom">' + emisor.nombre + '</div><div class="rtn">RTN: ' + emisor.rtn + '</div></div>' +
+                '<div class="banner banner-oc">ORDEN DE COMPRA</div>' +
+                // Fecha (izquierda) y Número de Orden + Centro de Costo (derecha) en tablas separadas
+                '<div style="display:flex; justify-content:space-between; gap:14px; margin-bottom:12px;">' +
+                    '<table class="bx" style="width:46%; height:min-content;"><tr>' +
+                        '<td class="lbl" style="width:30%;">FECHA:</td>' +
+                        '<td class="c" style="width:23%;">' + diaN + '<div class="mut">DIA</div></td>' +
+                        '<td class="c" style="width:24%;">' + mesN + '<div class="mut">MES</div></td>' +
+                        '<td class="c" style="width:23%;">' + anioN + '<div class="mut">AÑO</div></td>' +
+                    '</tr></table>' +
+                    '<table class="bx" style="width:46%;">' +
+                        '<tr><td class="lbl" style="width:42%;">NUMERO DE ORDEN DE COMPRA</td>' +
+                        '<td class="c" style="font-weight:800; font-size:12px;">' + numeroOc + '</td></tr>' +
+                        '<tr><td class="lbl">CENTRO DE COSTO</td>' +
+                        '<td class="c" style="font-weight:700;">' + centroCosto + '</td></tr>' +
+                    '</table>' +
+                '</div>' +
+                '<div class="banner">DATOS DEL PROVEEDOR</div>' +
+                '<table class="bx" style="margin-bottom:12px;">' +
+                    '<tr><td class="lbl" style="width:16%;">NOMBRE DEL PROVEEDOR:</td><td style="width:44%;">' + (prov.nombre || proveedorNombre || '') + '</td>' +
+                    '<td class="lbl" style="width:16%;">No. DE PROVEEDOR:</td><td class="c" style="width:24%;">' + (prov.numero_proveedor || '') + '</td></tr>' +
+                    '<tr><td class="lbl">DOMICILIO DEL PROVEEDOR:</td><td>' + (prov.domicilio || '') + '</td>' +
+                    '<td class="lbl">CONTACTO:</td><td class="c">' + (prov.contacto || '') + '</td></tr>' +
+                    '<tr><td class="lbl">R. T.N:</td><td style="font-weight:700;">' + (prov.rtn || '') + '</td>' +
+                    '<td class="lbl">CORREO/NUMERO:</td><td class="c">' + (prov.email || prov.telefono || '') + '</td></tr>' +
+                    '<tr><td class="lbl">REFERENCIA A :</td><td>' + (referenciaA || '') + '</td>' +
+                    '<td class="lbl">TIPO DE CONTRATO :</td><td class="c">' + (tipoContratoTxt || '') + '</td></tr>' +
+                '</table>' +
+                '<table class="bx" style="margin-bottom:2px;">' +
+                    '<tr><th class="lbl l" style="width:52%;">DESCRIPCION</th><th class="lbl c" style="width:10%;">UNIDAD</th>' +
+                    '<th class="lbl c" style="width:12%;">CANTIDAD</th><th class="lbl r" style="width:13%;">P/U</th><th class="lbl r" style="width:13%;">TOTAL</th></tr>' +
+                    filasArt +
+                    '<tr><td class="c" colspan="5" style="color:#555; font-weight:700;">------ UL ------</td></tr>' +
+                '</table>' +
+                '<table class="bx" style="width:46%; margin-bottom:14px;">' +
+                    '<tr><td class="lbl r" style="width:55%;">IMPORTE DE LAS COMPRAS :</td><td class="r" style="font-weight:700;">' + numFmt(total) + '</td><td class="c" style="width:20%;">LEMPIRAS</td></tr>' +
+                    '<tr><td class="lbl r">EXONERADO :</td><td class="r">0.00</td><td class="c"></td></tr>' +
+                    '<tr><td class="lbl r">TOTAL :</td><td class="r" style="font-weight:800; background:#dfe8f0;">' + numFmt(total) + '</td><td class="c">LEMPIRAS</td></tr>' +
+                '</table>' +
+                '<table class="bx" style="width:46%; margin-bottom:12px;"><tr>' +
+                    '<td class="lbl" style="width:34%;">PERÍODO DE ENTREGA:</td>' +
+                    '<td class="c" style="width:22%;">' + (entDia || '') + '<div class="mut">DÍA</div></td>' +
+                    '<td class="c" style="width:22%;">' + (entMes || '') + '<div class="mut">MES</div></td>' +
+                    '<td class="c" style="width:22%;">' + (entAnio || '') + '<div class="mut">AÑO</div></td>' +
+                '</tr></table>' +
+                '<div class="banner">CONDICIONES DE PAGO:</div>' +
+                '<table class="bx" style="margin-bottom:12px;">' +
+                    '<tr><td class="lbl" style="width:22%;">ANTICIPO:</td>' +
+                    '<td class="c" style="width:6%;">NO</td><td class="c" style="width:6%;">' + chk(!esAnticipo && !esPlan) + '</td>' +
+                    '<td class="c" style="width:6%;">SÍ</td><td class="c" style="width:8%;">' + chk(esAnticipo || esPlan) + '</td>' +
+                    '<td rowspan="4" style="width:52%; padding:0; vertical-align:top;">' + (hitosFilasDoc ? ('<table style="width:100%; height:100%; border-collapse:collapse;">' + hitosFilasDoc + '</table>') : '') + '</td></tr>' +
+                    '<tr><td class="lbl">PLAN DE PAGOS:</td>' +
+                    '<td class="c">NO</td><td class="c">' + chk(!esPlan) + '</td>' +
+                    '<td class="c">SÍ</td><td class="c">' + chk(esPlan) + '</td></tr>' +
+                    '<tr><td class="lbl">CREDITO:<br><span class="mut">DÍAS DE CREDITO</span></td>' +
+                    '<td class="c">NO</td><td class="c">' + chk(!esCredito) + '</td>' +
+                    '<td class="c">SÍ</td><td class="c">' + chk(esCredito) + '</td></tr>' +
+                    '<tr><td class="lbl">CONTRA ENTREGA:</td>' +
+                    '<td class="c">NO</td><td class="c">' + chk(!esContraEntrega) + '</td>' +
+                    '<td class="c">SÍ</td><td class="c">' + chk(esContraEntrega) + '</td></tr>' +
+                '</table>' +
+                '<div class="banner">EL "PROVEEDOR" DEBERÁ ENTREGAR LA SIGUIENTE DOCUMENTACIÓN</div>' +
+                '<table class="bx" style="margin-bottom:12px;">' +
+                    '<tr><td class="lbl" style="width:16%;">FACTURA</td><td style="width:70%;">ORIGINAL</td><td class="c" style="width:14%;">' + docMark(docFactura) + '</td></tr>' +
+                    '<tr><td class="lbl">ESTIMACION</td><td>POR AVANCE DE OBRA (CARATULA, CONTROL, DESGLOSE Y GENERADORES DE OBRA)</td><td class="c">' + docMark(docEstimacion) + '</td></tr>' +
+                    '<tr><td class="lbl">RESPALDO</td><td>REPORTE FOTOGRAFICO CON FIRMA DE APROBACION DE SUPERVISIÓN DE OCC</td><td class="c">' + docMark(docRespaldo) + '</td></tr>' +
+                    '<tr><td class="lbl">GARANTIA</td><td>GARANTIA DE CALIDAD PRODUCTO/MANO DE OBRA</td><td class="c">' + docMark(docGarantia) + '</td></tr>' +
+                '</table>' +
+                '<div class="banner">LAS FIANZAS MENCIONADAS DEBERÁN TRAMITARSE EN LOS TERMINOS ESTABLECIDOS EN EL CONTRATO</div>' +
+                '<p class="legal">La presente orden de compra tiene como objeto establecer la solicitud de compra de los insumos antes mencionados, con la finalidad de que el contratista y/o proveedor inicie las labores necesarias para el suministro de los insumos adjudicados, bajo los términos de su oferta y documentos establecidos en la Licitación Privada.</p>' +
+                '<p class="legal">Mediante la presente Orden de Compra se manifiestan las condiciones principales, más no limitativas por lo que el Contratista reconoce y acepta plenamente su conformidad con éstas, no reservándose acción alguna en contra de OCC.</p>' +
+                '<div style="text-align:center; font-weight:700; font-size:10px; margin-top:36px;">FIRMAN LAS PARTES DE CONFORMIDAD</div>' +
+                '<div class="firmas">' +
+                    '<div><div style="font-weight:700; margin-bottom:48px;">POR OPERADORA CC S.A. DE C.V.</div><div class="firma-line">ING. RICARDO ZERRATE<br><span style="font-weight:400;">DIRECTOR OCC</span></div></div>' +
+                    '<div><div style="font-weight:700; margin-bottom:48px;">POR LA CONTRATISTA</div><div class="firma-line">' + (prov.nombre || proveedorNombre || '') + '</div></div>' +
+                '</div>' +
+                '</body></html>';
+
+            const win = window.open('', '_blank');
+            if (!win) {
+                Swal.fire('Ventana bloqueada', 'Permite las ventanas emergentes para previsualizar la orden de compra.', 'warning');
+                return;
+            }
+            win.document.open();
+            win.document.write(html);
+            win.document.close();
         }
 
         function viewRequisitionDetailsFromCtx() {
@@ -3486,7 +4059,18 @@
                     </div>
                     <div style="background:#ffffff; border:1px solid #d9d9d9; border-radius:0.5rem; padding:1rem 1.25rem; box-shadow:0 0.125rem 0.25rem rgba(0,0,0,0.08);">
                         <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Proveedor</label>
-                        <select id="oc-proveedor" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit; background:#fff;">
+                        <select id="oc-proveedor" onchange="renderProveedorInfo()" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit; background:#fff;">
+                        </select>
+                    </div>
+                    <div style="background:#ffffff; border:1px solid #d9d9d9; border-radius:0.5rem; padding:1rem 1.25rem; box-shadow:0 0.125rem 0.25rem rgba(0,0,0,0.08);">
+                        <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Forma de Pago</label>
+                        <select id="oc-forma-pago" onchange="togglePlanPago()" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit; background:#fff;">
+                            <option value="CONTADO">Al Contado</option>
+                            <option value="ANTICIPO">Anticipo</option>
+                            <option value="DIFERIDO">Diferido</option>
+                            <option value="CREDITO">A Plazos / Crédito</option>
+                            <option value="CONTRA_ENTREGA">Contra Entrega</option>
+                            <option value="PLAN_PAGO">Plan de Pago</option>
                         </select>
                     </div>
                     <div style="background:#ffffff; border:1px solid #d9d9d9; border-radius:0.5rem; padding:1rem 1.25rem; box-shadow:0 0.125rem 0.25rem rgba(0,0,0,0.08);">
@@ -3497,6 +4081,85 @@
                         <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Notas</label>
                         <input type="text" id="oc-notas" placeholder="Observaciones..." style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit;">
                     </div>
+                    <div style="background:#ffffff; border:1px solid #d9d9d9; border-radius:0.5rem; padding:1rem 1.25rem; box-shadow:0 0.125rem 0.25rem rgba(0,0,0,0.08);">
+                        <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Número de Orden de Compra</label>
+                        <input type="text" id="oc-numero" placeholder="Autogenerado" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit;">
+                    </div>
+                    <div style="background:#ffffff; border:1px solid #d9d9d9; border-radius:0.5rem; padding:1rem 1.25rem; box-shadow:0 0.125rem 0.25rem rgba(0,0,0,0.08);">
+                        <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Centro de Costo</label>
+                        <select id="oc-centro-costo" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit; background:#fff;">
+                            <option value="">— Sin asignar —</option>
+                        </select>
+                    </div>
+                    <div style="background:#ffffff; border:1px solid #d9d9d9; border-radius:0.5rem; padding:1rem 1.25rem; box-shadow:0 0.125rem 0.25rem rgba(0,0,0,0.08);">
+                        <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Tipo de Contrato</label>
+                        <select id="oc-tipo-contrato" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit; background:#fff;">
+                            <option value="">— Seleccionar —</option>
+                            <option value="SUMINISTRO_INSTALACION">Suministro e Instalación</option>
+                            <option value="CONTRATO_SERVICIO">Contrato de Servicio</option>
+                        </select>
+                    </div>
+                    <div style="grid-column:1 / -1; background:#ffffff; border:1px solid #d9d9d9; border-radius:0.5rem; padding:1rem 1.25rem; box-shadow:0 0.125rem 0.25rem rgba(0,0,0,0.08);">
+                        <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Referencia A</label>
+                        <input type="text" id="oc-referencia" readonly style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit; background:#f7f9fb; color:#32363a;">
+                    </div>
+                </div>
+
+                <!-- Datos del Proveedor -->
+                <div id="oc-proveedor-info" style="background:#ffffff; border:1px solid #d9d9d9; border-radius:0.5rem; box-shadow:0 0.125rem 0.25rem rgba(0,0,0,0.08); margin-bottom:1.5rem; overflow:hidden; display:none;">
+                    <div style="padding:0.85rem 1.25rem; border-bottom:1px solid #d9d9d9; display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+                        <span style="font-size:0.85rem; font-weight:600; color:#32363a; display:flex; align-items:center; gap:0.5rem;">
+                            <i class="ph ph-buildings" style="color:#0070f2;"></i> Datos del Proveedor
+                        </span>
+                        <button type="button" onclick="openEditProveedorModal()" style="padding:0.35rem 0.85rem; background:#ffffff; border:1px solid #0070f2; border-radius:4px; font-size:0.76rem; cursor:pointer; font-weight:600; color:#0070f2; display:flex; align-items:center; gap:0.35rem;">
+                            <i class="ph ph-pencil-simple"></i> Editar
+                        </button>
+                    </div>
+                    <div style="padding:1rem 1.25rem; display:grid; grid-template-columns:repeat(3, 1fr); gap:0.9rem 1.5rem;">
+                        <div><span style="display:block; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px; color:#6a6d70; font-weight:600; margin-bottom:2px;">No. de Proveedor</span><span id="oc-prov-numero" style="font-size:0.85rem; color:#32363a;">—</span></div>
+                        <div><span style="display:block; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px; color:#6a6d70; font-weight:600; margin-bottom:2px;">R.T.N.</span><span id="oc-prov-rtn" style="font-size:0.85rem; color:#32363a;">—</span></div>
+                        <div><span style="display:block; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px; color:#6a6d70; font-weight:600; margin-bottom:2px;">Contacto</span><span id="oc-prov-contacto" style="font-size:0.85rem; color:#32363a;">—</span></div>
+                        <div><span style="display:block; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px; color:#6a6d70; font-weight:600; margin-bottom:2px;">Teléfono</span><span id="oc-prov-telefono" style="font-size:0.85rem; color:#32363a;">—</span></div>
+                        <div><span style="display:block; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px; color:#6a6d70; font-weight:600; margin-bottom:2px;">Correo</span><span id="oc-prov-email" style="font-size:0.85rem; color:#32363a;">—</span></div>
+                        <div style="grid-column:1 / -1;"><span style="display:block; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px; color:#6a6d70; font-weight:600; margin-bottom:2px;">Domicilio</span><span id="oc-prov-domicilio" style="font-size:0.85rem; color:#32363a;">—</span></div>
+                    </div>
+                </div>
+
+                <!-- Plan de Pago (Hitos) -->
+                <div id="oc-plan-pago" style="background:#ffffff; border:1px solid #d9d9d9; border-radius:0.5rem; box-shadow:0 0.125rem 0.25rem rgba(0,0,0,0.08); margin-bottom:1.5rem; overflow:hidden; display:none;">
+                    <div style="padding:0.85rem 1.25rem; border-bottom:1px solid #d9d9d9; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.85rem; font-weight:600; color:#32363a; display:flex; align-items:center; gap:0.5rem;">
+                            <i class="ph ph-list-checks" style="color:#0070f2;"></i> Plan de Pago
+                        </span>
+                        <button type="button" onclick="addHitoPago()" style="padding:0.4rem 0.9rem; background:#0070f2; color:#fff; border:none; border-radius:4px; font-size:0.78rem; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:0.35rem;">
+                            <i class="ph ph-plus"></i> Agregar Hito
+                        </button>
+                    </div>
+                    <table style="width:100%; border-collapse:collapse; font-size:0.84rem;">
+                        <thead>
+                            <tr style="background:#f0f4f8;">
+                                <th style="padding:0.7rem 1.25rem; text-align:left; font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; color:#32363a; border-bottom:1px solid #d9d9d9;">Concepto / Hito</th>
+                                <th style="padding:0.7rem 1rem; text-align:right; width:110px; font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; color:#32363a; border-bottom:1px solid #d9d9d9;">Porcentaje</th>
+                                <th style="padding:0.7rem 1rem; text-align:right; width:180px; font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; color:#32363a; border-bottom:1px solid #d9d9d9;">Monto</th>
+                                <th style="padding:0.7rem 1rem; text-align:center; width:60px; font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; color:#32363a; border-bottom:1px solid #d9d9d9;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="oc-plan-pago-tbody"></tbody>
+                        <tfoot>
+                            <tr style="background:#f8fafc; border-top:2px solid #d9d9d9;">
+                                <td style="padding:0.7rem 1.25rem; text-align:right; font-weight:700; font-size:0.82rem; color:#32363a;">Total</td>
+                                <td style="padding:0.7rem 1rem; text-align:right; font-weight:700; font-size:0.9rem;" id="oc-plan-porc-total">0%</td>
+                                <td style="padding:0.7rem 1rem; text-align:right; font-weight:700; font-size:0.9rem; color:#0070f2;" id="oc-plan-asignado">L 0.00</td>
+                                <td></td>
+                            </tr>
+                            <tr style="background:#f8fafc;">
+                                <td style="padding:0.5rem 1.25rem; text-align:right; font-weight:700; font-size:0.82rem; color:#32363a;">Saldo por asignar</td>
+                                <td id="oc-plan-porc-saldo" style="padding:0.5rem 1rem; text-align:right; font-weight:700; font-size:0.82rem; color:#6a6d70;">100%</td>
+                                <td style="padding:0.5rem 1rem; text-align:right; font-weight:700; font-size:0.9rem;" id="oc-plan-saldo">L 0.00</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
 
                 <!-- Tabla de artículos -->
@@ -3510,6 +4173,8 @@
                     <table style="width:100%; border-collapse:collapse; font-size:0.84rem;">
                         <thead>
                             <tr style="background:#f0f4f8;">
+                                <th style="padding:0.7rem 1.25rem; text-align:left; width:150px; font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; color:#32363a; border-bottom:1px solid #d9d9d9;">Código Exoneración</th>
+                                <th style="padding:0.7rem 1.25rem; text-align:left; width:120px; font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; color:#32363a; border-bottom:1px solid #d9d9d9;">SKU</th>
                                 <th style="padding:0.7rem 1.25rem; text-align:left; font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; color:#32363a; border-bottom:1px solid #d9d9d9;">Descripción</th>
                                 <th style="padding:0.7rem 1rem; text-align:center; width:100px; font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; color:#32363a; border-bottom:1px solid #d9d9d9;">Cantidad</th>
                                 <th style="padding:0.7rem 1rem; text-align:right; width:140px; font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; color:#32363a; border-bottom:1px solid #d9d9d9;">Costo Unitario</th>
@@ -3519,7 +4184,7 @@
                         <tbody id="oc-articulos-tbody"></tbody>
                         <tfoot>
                             <tr style="background:#f8fafc; border-top:2px solid #d9d9d9;">
-                                <td colspan="3" style="padding:0.85rem 1.25rem; text-align:right; font-weight:700; font-size:0.85rem; color:#32363a;">TOTAL</td>
+                                <td colspan="5" style="padding:0.85rem 1.25rem; text-align:right; font-weight:700; font-size:0.85rem; color:#32363a;">TOTAL</td>
                                 <td style="padding:0.85rem 1.25rem; text-align:right; font-weight:700; font-size:1rem; color:#0070f2;" id="oc-total-display">L 0.00</td>
                             </tr>
                         </tfoot>
@@ -3549,17 +4214,144 @@
             </div>
 
             <!-- Footer -->
-            <div style="padding:1rem 2rem; border-top:1px solid #d9d9d9; background:#ffffff; display:flex; justify-content:flex-end; gap:0.75rem; flex-shrink:0;">
-                <button onclick="closeOcModal()" style="padding:0.6rem 1.5rem; background:#ffffff; border:1px solid #d9d9d9; border-radius:4px; font-size:0.84rem; cursor:pointer; font-weight:500; font-family:inherit; color:#32363a;">
-                    Cancelar
+            <div style="padding:1rem 2rem; border-top:1px solid #d9d9d9; background:#ffffff; display:flex; justify-content:space-between; align-items:center; gap:0.75rem; flex-shrink:0;">
+                <button onclick="previewOrdenCompra()" style="padding:0.6rem 1.5rem; background:#ffffff; border:1px solid #0070f2; border-radius:4px; font-size:0.84rem; cursor:pointer; font-weight:600; font-family:inherit; color:#0070f2; display:flex; align-items:center; gap:0.5rem;">
+                    <i class="ph ph-eye"></i> Previsualizar
                 </button>
-                <button id="oc-btn-save" onclick="saveOrdenCompra()" style="padding:0.6rem 2rem; background:#0070f2; color:white; border:none; border-radius:4px; font-size:0.84rem; cursor:pointer; font-weight:600; font-family:inherit; display:flex; align-items:center; gap:0.5rem;">
-                    <i class="ph ph-check-circle"></i> <span id="oc-btn-label">Generar OC</span>
-                </button>
+                <div style="display:flex; gap:0.75rem;">
+                    <button onclick="closeOcModal()" style="padding:0.6rem 1.5rem; background:#ffffff; border:1px solid #d9d9d9; border-radius:4px; font-size:0.84rem; cursor:pointer; font-weight:500; font-family:inherit; color:#32363a;">
+                        Cancelar
+                    </button>
+                    <button id="oc-btn-save-keep" onclick="saveOrdenCompra(true)" style="display:none; padding:0.6rem 1.5rem; background:#ffffff; border:1px solid #0070f2; border-radius:4px; font-size:0.84rem; cursor:pointer; font-weight:600; font-family:inherit; color:#0070f2; align-items:center; gap:0.5rem;">
+                        <i class="ph ph-floppy-disk"></i> Guardar
+                    </button>
+                    <button id="oc-btn-save" onclick="saveOrdenCompra()" style="padding:0.6rem 2rem; background:#0070f2; color:white; border:none; border-radius:4px; font-size:0.84rem; cursor:pointer; font-weight:600; font-family:inherit; display:flex; align-items:center; gap:0.5rem;">
+                        <i class="ph ph-check-circle"></i> <span id="oc-btn-label">Generar OC</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
     {% endif %}
+
+    <!-- Modal Editar Proveedor -->
+    <div id="edit-prov-overlay" onclick="closeEditProveedorModal(event)" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100000; align-items:center; justify-content:center;">
+        <div style="background:#fff; width:90%; max-width:640px; border-radius:0.5rem; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.25); display:flex; flex-direction:column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:1rem 1.5rem; border-bottom:1px solid #d9d9d9;">
+                <h2 style="margin:0; font-size:1rem; font-weight:700; color:#32363a; display:flex; align-items:center; gap:0.5rem;">
+                    <i class="ph ph-buildings" style="color:#0070f2;"></i> Editar Proveedor
+                </h2>
+                <button onclick="closeEditProveedorModal()" style="background:#eff2f5; border:none; width:32px; height:32px; border-radius:4px; cursor:pointer; color:#6a6d70;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding:1.5rem; display:grid; grid-template-columns:1fr 1fr; gap:1rem; background:#eff2f5;">
+                <div style="grid-column:1 / -1;">
+                    <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Nombre del Proveedor *</label>
+                    <input type="text" id="edit-prov-nombre" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit;">
+                </div>
+                <div>
+                    <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">No. de Proveedor</label>
+                    <input type="text" id="edit-prov-numero" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit;">
+                </div>
+                <div>
+                    <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">R.T.N.</label>
+                    <input type="text" id="edit-prov-rtn" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit;">
+                </div>
+                <div>
+                    <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Contacto</label>
+                    <input type="text" id="edit-prov-contacto" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit;">
+                </div>
+                <div>
+                    <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Teléfono</label>
+                    <input type="text" id="edit-prov-telefono" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit;">
+                </div>
+                <div style="grid-column:1 / -1;">
+                    <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Correo</label>
+                    <input type="email" id="edit-prov-email" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit;">
+                </div>
+                <div style="grid-column:1 / -1;">
+                    <label style="font-size:0.7rem; font-weight:600; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:0.4rem;">Domicilio</label>
+                    <textarea id="edit-prov-domicilio" rows="2" style="width:100%; padding:0.5rem 0.6rem; border:1px solid #d9d9d9; border-radius:4px; font-size:0.85rem; font-family:inherit;"></textarea>
+                </div>
+            </div>
+            <div style="padding:1rem 1.5rem; border-top:1px solid #d9d9d9; display:flex; justify-content:flex-end; gap:0.75rem;">
+                <button onclick="closeEditProveedorModal()" style="padding:0.6rem 1.5rem; background:#fff; border:1px solid #d9d9d9; border-radius:4px; font-size:0.84rem; cursor:pointer; font-weight:500; color:#32363a;">Cancelar</button>
+                <button id="edit-prov-save" onclick="saveEditProveedor()" style="padding:0.6rem 2rem; background:#0070f2; color:#fff; border:none; border-radius:4px; font-size:0.84rem; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:0.5rem;">
+                    <i class="ph ph-floppy-disk"></i> Guardar Proveedor
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openEditProveedorModal() {
+            const prov = getProveedorSeleccionado();
+            if (!prov) {
+                Swal.fire('Sin proveedor', 'Selecciona un proveedor primero.', 'info');
+                return;
+            }
+            document.getElementById('edit-prov-nombre').value = prov.nombre || '';
+            document.getElementById('edit-prov-numero').value = prov.numero_proveedor || '';
+            document.getElementById('edit-prov-rtn').value = prov.rtn || '';
+            document.getElementById('edit-prov-contacto').value = prov.contacto || '';
+            document.getElementById('edit-prov-telefono').value = prov.telefono || '';
+            document.getElementById('edit-prov-email').value = prov.email || '';
+            document.getElementById('edit-prov-domicilio').value = prov.domicilio || '';
+            document.getElementById('edit-prov-overlay').style.display = 'flex';
+        }
+
+        function closeEditProveedorModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('edit-prov-overlay').style.display = 'none';
+        }
+
+        async function saveEditProveedor() {
+            const prov = getProveedorSeleccionado();
+            if (!prov) return;
+            const nombre = document.getElementById('edit-prov-nombre').value.trim();
+            if (!nombre) {
+                Swal.fire('Falta el nombre', 'El nombre del proveedor es obligatorio.', 'warning');
+                return;
+            }
+            const payload = {
+                nombre: nombre,
+                numero_proveedor: document.getElementById('edit-prov-numero').value.trim(),
+                rtn: document.getElementById('edit-prov-rtn').value.trim(),
+                contacto: document.getElementById('edit-prov-contacto').value.trim(),
+                telefono: document.getElementById('edit-prov-telefono').value.trim(),
+                email: document.getElementById('edit-prov-email').value.trim(),
+                domicilio: document.getElementById('edit-prov-domicilio').value.trim(),
+            };
+            const btn = document.getElementById('edit-prov-save');
+            btn.disabled = true; btn.style.opacity = '0.6';
+            try {
+                const resp = await fetch(`/presupuestos/proveedor/${prov.id}/actualizar/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await resp.json();
+                if (result.success) {
+                    // Actualizar la copia local del proveedor y refrescar vistas
+                    const idx = ocProveedoresData.findIndex(function(p) { return String(p.id) === String(result.proveedor.id); });
+                    if (idx >= 0) ocProveedoresData[idx] = result.proveedor;
+                    // Actualizar el texto de la opción del select (nombre puede haber cambiado)
+                    const provSelect = document.getElementById('oc-proveedor');
+                    Array.prototype.forEach.call(provSelect.options, function(opt) {
+                        if (String(opt.value) === String(result.proveedor.id)) opt.textContent = result.proveedor.nombre;
+                    });
+                    renderProveedorInfo();
+                    closeEditProveedorModal();
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Proveedor actualizado', showConfirmButton: false, timer: 1800 });
+                } else {
+                    Swal.fire('Error', result.message || 'No se pudo actualizar.', 'error');
+                }
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error');
+            } finally {
+                btn.disabled = false; btn.style.opacity = '1';
+            }
+        }
+    </script>
 
 </body>
 </html>

@@ -146,7 +146,10 @@ def empresa_directory_path(instance, filename):
     return f'empresas/{instance.empresa.id}/{filename}'
 
 class Empresa(models.Model):
-    nombre = models.CharField(max_length=200, unique=True)
+    nombre = models.CharField(max_length=200, unique=True, verbose_name='Nombre del Proveedor')
+    numero_proveedor = models.CharField(max_length=50, blank=True, null=True, db_index=True, verbose_name='No. de Proveedor')
+    rtn = models.CharField(max_length=30, blank=True, null=True, verbose_name='R.T.N.')
+    domicilio = models.TextField(blank=True, null=True, verbose_name='Domicilio del Proveedor')
     descripcion = models.TextField(blank=True, null=True)
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
