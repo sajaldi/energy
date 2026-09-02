@@ -1,0 +1,127 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    :root {
+        --fiori-primary: #0070f2;
+        --fiori-bg: #eff2f5;
+        --fiori-border: #d9d9d9;
+        --fiori-text: #32363a;
+        --fiori-text-secondary: #6a6d70;
+        --fiori-success: #107e3e;
+    }
+    body { font-family: 'Outfit', sans-serif !important; background: var(--fiori-bg) !important; }
+    .lr-wrap { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+    .lr-head { margin-bottom: 18px; }
+    .lr-head h1 { margin: 0; font-size: 1.5rem; font-weight: 700; color: var(--fiori-text); }
+    .lr-head p { margin: 6px 0 0; color: var(--fiori-text-secondary); font-size: 0.9rem; }
+    .lr-card { background: #fff; border: 1px solid var(--fiori-border); border-radius: 0.5rem; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08); margin-bottom: 12px; padding: 16px; }
+    .lr-card-head { display: flex; justify-content: space-between; align-items: center; }
+    .lr-id { font-weight: 800; font-size: 1.05rem; color: var(--fiori-primary); }
+    .lr-tag { background: #e5f0ff; color: #0064d1; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
+    .lr-info { color: var(--fiori-text-secondary); font-size: 0.85rem; margin-top: 6px; }
+    .lr-btn { margin-top: 14px; width: 100%; background: var(--fiori-success); color: #fff; border: none; padding: 12px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .lr-empty { text-align: center; color: var(--fiori-text-secondary); padding: 48px 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lr-wrap">
+    <div class="lr-head">
+        <h1><ion-icon name="cube-outline" style="color:var(--fiori-primary);"></ion-icon> Listo para Recolección</h1>
+        <p>Solicitudes despachadas pendientes de confirmar la entrega. Al confirmar se descuenta el stock.</p>
+    </div>
+
+    <div id="lr-list"></div>
+</div>
+
+<script>
+    function getCookie(name) {
+        let v = null;
+        if (document.cookie) document.cookie.split(';').forEach(c => { c = c.trim(); if (c.startsWith(name + '=')) v = decodeURIComponent(c.substring(name.length + 1)); });
+        return v;
+    }
+
+    async function cargar() {
+        const cont = document.getElementById('lr-list');
+        cont.innerHTML = '<div class="lr-empty">Cargando...</div>';
+        try {
+            const res = await fetch('{% url "inventarios:api_pedidos_listos_recoleccion" %}');
+            const data = await res.json();
+            const pedidos = data.pedidos || [];
+            if (pedidos.length === 0) {
+                cont.innerHTML = '<div class="lr-empty"><ion-icon name="checkmark-done-circle-outline" style="font-size:2.5rem;"></ion-icon><p>No hay solicitudes por confirmar.</p></div>';
+                return;
+            }
+            cont.innerHTML = pedidos.map(p => `
+                <div class="lr-card" id="lr-${p.id}">
+                    <div class="lr-card-head">
+                        <span class="lr-id">#${p.id}</span>
+                        <span class="lr-tag">Lista para recolección</span>
+                    </div>
+                    <div class="lr-info"><strong>${p.solicitante}</strong> · ${p.fecha}</div>
+                    <div class="lr-info">${p.items_count} materiales · ${p.almacen}</div>
+                    ${p.comentarios ? `<div class="lr-info"><em>${p.comentarios}</em></div>` : ''}
+                    <button class="lr-btn" onclick="confirmar(${p.id})"><ion-icon name="checkmark-done-outline"></ion-icon> Confirmar Entrega</button>
+                </div>
+            `).join('');
+        } catch (e) {
+            cont.innerHTML = '<div class="lr-empty">Error al cargar.</div>';
+        }
+    }
+
+    async function confirmar(id) {
+        const { value: formValues } = await Swal.fire({
+            title: `Confirmar entrega #${id}`,
+            html: `
+                <input id="swal-recibe" class="swal2-input" placeholder="¿Quién recibe el material?">
+                <input id="swal-foto" type="file" accept="image/*" capture="environment" class="swal2-file" style="display:block; margin:12px auto;">
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Confirmar entrega',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#107e3e',
+            preConfirm: () => {
+                const recibe = document.getElementById('swal-recibe').value.trim();
+                const fotoInput = document.getElementById('swal-foto');
+                if (!recibe) { Swal.showValidationMessage('Indica quién recibe el material.'); return false; }
+                return { recibe, foto: fotoInput.files[0] || null };
+            }
+        });
+        if (!formValues) return;
+
+        Swal.fire({ title: 'Confirmando...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+
+        const fd = new FormData();
+        fd.append('recibe_nombre', formValues.recibe);
+        if (formValues.foto) fd.append('foto_entrega', formValues.foto);
+
+        try {
+            const res = await fetch(`/inventarios/api/pedidos/${id}/confirmar-entrega/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                body: fd
+            });
+            const d = await res.json();
+            if (d.status === 'success') {
+                Swal.fire({ icon: 'success', title: 'Entregado', text: d.message, timer: 1800, showConfirmButton: false });
+                const card = document.getElementById(`lr-${id}`);
+                if (card) card.remove();
+                if (!document.querySelector('#lr-list .lr-card')) cargar();
+            } else {
+                Swal.fire('Error', d.message || 'No se pudo confirmar.', 'error');
+            }
+        } catch (e) {
+            Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', cargar);
+</script>
+{% endblock %}

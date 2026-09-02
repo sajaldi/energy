@@ -789,6 +789,86 @@ def api_pedidos_pendientes_almacen(request):
     return JsonResponse({'status': 'success', 'pedidos': data, 'count': len(data)})
 
 @login_required
+def api_pedidos_listos_recoleccion(request):
+    """Retorna las solicitudes en estado LISTO_RECOLECCION (despachadas, pendientes de confirmar entrega)."""
+    if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+
+    pedidos = SolicitudMaterial.objects.filter(estado='LISTO_RECOLECCION').select_related(
+        'usuario', 'orden_trabajo', 'ubicacion_origen'
+    ).order_by('fecha_solicitud')
+
+    data = []
+    for p in pedidos:
+        data.append({
+            'id': p.id,
+            'solicitante': p.solicitante_nombre,
+            'fecha': p.fecha_solicitud.strftime('%d/%m/%Y %H:%M'),
+            'ot': str(p.orden_trabajo.id) if p.orden_trabajo else 'N/A',
+            'almacen': p.ubicacion_origen.nombre if p.ubicacion_origen else 'N/A',
+            'items_count': p.items.count(),
+            'comentarios': p.comentarios_solicitud or ''
+        })
+    return JsonResponse({'status': 'success', 'pedidos': data, 'count': len(data)})
+
+
+@csrf_exempt
+@login_required
+def api_confirmar_entrega_almacen(request, pk):
+    """
+    Confirma la entrega de una solicitud LISTO_RECOLECCION: descuenta stock y pasa a ENTREGADO.
+    Acepta (opcional, multipart) 'recibe_nombre', 'comentarios' y foto 'foto_entrega'.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+
+    from django.utils import timezone
+
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+    if solicitud.estado != 'LISTO_RECOLECCION':
+        return JsonResponse({'status': 'error', 'message': f'La solicitud no está lista para recolección ({solicitud.get_estado_display()}).'}, status=400)
+
+    if request.content_type and 'application/json' in request.content_type:
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            data = {}
+    else:
+        data = request.POST.dict()
+
+    recibe_nombre = (data.get('recibe_nombre') or '').strip()
+
+    try:
+        with transaction.atomic():
+            for mov in solicitud.items.filter(estado='PENDIENTE'):
+                mov.liquidar(request.user)
+
+            solicitud.estado = 'ENTREGADO'
+            solicitud.fecha_entrega = timezone.now()
+            if not solicitud.entregado_por:
+                solicitud.entregado_por = request.user
+            if recibe_nombre:
+                solicitud.recibe_nombre = recibe_nombre
+
+            foto = request.FILES.get('foto_entrega')
+            if foto:
+                solicitud.foto_entrega = foto
+
+            solicitud.save()
+
+        try:
+            from .utils_n8n import notify_powerautomate_despacho
+            notify_powerautomate_despacho(solicitud)
+        except Exception:
+            pass
+
+        return JsonResponse({'status': 'success', 'message': f'Entrega de la solicitud #{solicitud.id} confirmada. Stock actualizado.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Error al confirmar entrega: {str(e)}'}, status=500)
+
+@login_required
 def api_detalle_solicitud_almacen(request, pk):
     """Retorna los items (movimientos) de una solicitud pendiente para el almacenista."""
     if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
@@ -910,26 +990,22 @@ def api_despachar_solicitud(request, pk):
                     mov.save()
                     continue
                 
-                # Caso 1: Se entrega material USADO
+                # DESPACHAR = preparar (ajustar cantidades) SIN descontar stock.
+                # El stock se descuenta al CONFIRMAR LA ENTREGA.
                 if cant_usada > 0:
-                    # Buscar el material usado
                     sku_usado = f"{mov.material.sku}-USADO"
                     material_usado = Material.objects.filter(sku=sku_usado).first()
                     if not material_usado:
                         errores.append(f"{mov.material.nombre}: No existe registro de material USADO para este SKU.")
                         continue
-                    
-                    # Si se entrega TODO como usado, simplemente cambiamos el material del movimiento original
-                    # Si se entrega PARCIAL, creamos un nuevo movimiento para el usado
+
                     if cant_nueva == 0:
                         mov.material = material_usado
                         mov.cantidad = cant_usada
                         mov.save()
-                        mov.liquidar(request.user)
                         procesados += 1
                     else:
-                        # Entrega Mixta: El original se queda como nuevo, creamos uno nuevo para el usado
-                        mov_usado = MovimientoInventario.objects.create(
+                        MovimientoInventario.objects.create(
                             material=material_usado,
                             tipo=mov.tipo,
                             cantidad=cant_usada,
@@ -937,50 +1013,47 @@ def api_despachar_solicitud(request, pk):
                             ubicacion_destino=mov.ubicacion_destino,
                             usuario=mov.usuario,
                             solicitud=mov.solicitud,
-                            estado='PENDIENTE', # Se liquida ahora
+                            estado='PENDIENTE',
                             comentarios=f"Entrega de material usado (Sustitución de {mov.material.nombre})"
                         )
-                        mov_usado.liquidar(request.user)
-                        
-                        # Actualizar el original con la parte nueva
                         mov.cantidad = cant_nueva
                         mov.save()
-                        mov.liquidar(request.user)
-                        procesados += 2 # Contamos ambos como procesados
-                
-                # Caso 2: Solo se entrega material NUEVO (comportamiento original)
+                        procesados += 2
+
                 elif cant_nueva > 0:
                     mov.cantidad = cant_nueva
                     mov.save()
-                    mov.liquidar(request.user)
                     procesados += 1
-                    
+
             except ValueError as e:
                 errores.append(f"{mov.material.nombre}: {str(e)}")
-        
+
         if not errores:
-            solicitud.estado = 'ENTREGADO'
-            solicitud.fecha_entrega = timezone.now()
+            solicitud.estado = 'LISTO_RECOLECCION'
             solicitud.entregado_por = request.user
             solicitud.comentarios_almacen = comentarios_almacen
             solicitud.save()
 
-        # Notificar éxito vía Webhook a n8n para que avise al técnico
-        from .utils_n8n import notify_n8n_despacho_material
-        notify_n8n_despacho_material(solicitud)
-
-        # Notificar a Power Automate
-        from .utils_n8n import notify_powerautomate_despacho
-        notify_powerautomate_despacho(solicitud)
-    
     if errores:
         return JsonResponse({
             'status': 'partial',
             'message': f'Se procesaron {procesados} ítems, pero hubo errores.',
             'errores': errores
         }, status=400)
-    
-    return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} despachada exitosamente. {procesados} ítems entregados.'})
+
+    # Notificar al solicitante que su pedido está listo para recolección
+    try:
+        from .utils_n8n import notify_powerautomate_recoleccion
+        notify_powerautomate_recoleccion(solicitud)
+    except Exception:
+        pass
+    try:
+        from .utils_push import push_a_solicitante
+        push_a_solicitante(solicitud)
+    except Exception:
+        pass
+
+    return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} despachada. Está lista para recolección y se notificó al solicitante.'})
 
 @login_required
 @mobile_permission_required('logistica')
@@ -1257,6 +1330,24 @@ def mobile_gestion_salidas_view(request):
         'title': 'Gestión de Salidas'
     }
     return render(request, 'inventarios/mobile_gestion_salidas.html', context)
+
+
+@login_required
+def listo_recoleccion_view(request):
+    """
+    Sección para el almacén: solicitudes despachadas (LISTO_RECOLECCION) pendientes
+    de confirmar la entrega (descontar stock).
+    """
+    es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+    if not es_almacen:
+        return redirect('inventarios:dashboard')
+
+    listos = SolicitudMaterial.objects.filter(estado='LISTO_RECOLECCION').count()
+    context = {
+        'listos_count': listos,
+        'title': 'Listo para Recolección',
+    }
+    return render(request, 'inventarios/listo_recoleccion.html', context)
 
 @login_required
 def api_niveles_por_edificio(request):
