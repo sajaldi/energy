@@ -31,6 +31,12 @@ class SolicitudMaterial(models.Model):
     fecha_entrega = models.DateTimeField(null=True, blank=True)
     entregado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_despachadas')
 
+    # Autorización / Rechazo (registro de quién y cuándo)
+    autorizado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_autorizadas', verbose_name="Autorizado por")
+    fecha_autorizacion = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de autorización")
+    rechazado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_rechazadas', verbose_name="Rechazado por")
+    fecha_rechazo = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de rechazo")
+
     def __str__(self):
         return f"Orden #{self.id} - {self.usuario.username}"
 

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autorización de Solicitud de Materiales</title>
+</head>
+<!--
+  PLANTILLA DE CORREO — Autorización de Solicitud de Materiales
+  Para: Power Automate → acción "Enviar un correo electrónico (V2)"
+  Los marcadores @{...} son expresiones de Power Automate que se sustituyen con
+  los datos del payload del webhook (notify_powerautomate_solicitud).
+  Pegar el contenido de <body> en el cuerpo del correo (modo código HTML).
+-->
+<body style="margin:0; padding:0; background-color:#eff2f5; font-family:'Segoe UI', Arial, sans-serif; color:#32363a;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff2f5; padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px; max-width:600px; background-color:#ffffff; border:1px solid #d9d9d9; border-radius:8px; overflow:hidden;">
+
+          <!-- Encabezado -->
+          <tr>
+            <td style="background-color:#0b1d2f; padding:24px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="color:#ffffff; font-size:20px; font-weight:700;">Solicitud de Materiales</td>
+                  <td align="right" style="color:#c9d4df; font-size:13px;">N.º @{triggerBody()?['solicitud_id']}</td>
+                </tr>
+              </table>
+              <div style="color:#c9d4df; font-size:13px; margin-top:6px;">Requiere su autorización</div>
+            </td>
+          </tr>
+
+          <!-- Saludo -->
+          <tr>
+            <td style="padding:28px 32px 8px;">
+              <p style="margin:0 0 12px; font-size:15px;">Estimado(a) @{items('Apply_to_each_2')?['nombre']},</p>
+              <p style="margin:0; font-size:14px; color:#32363a; line-height:1.6;">
+                <strong>@{triggerBody()?['usuario_nombre']}</strong> ha registrado una solicitud de materiales que requiere autorización.
+                A continuación el detalle:
+              </p>
+            </td>
+          </tr>
+
+          <!-- Datos de la solicitud -->
+          <tr>
+            <td style="padding:16px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d9d9d9; border-radius:6px;">
+                <tr>
+                  <td style="padding:10px 14px; background-color:#f0f4f8; font-size:11px; font-weight:700; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; width:45%;">Solicitante</td>
+                  <td style="padding:10px 14px; background-color:#f0f4f8; font-size:11px; font-weight:700; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px;">Fecha</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px; font-size:14px; border-bottom:1px solid #eef1f4;">@{triggerBody()?['usuario_nombre']}<br><span style="color:#6a6d70; font-size:12px;">@{triggerBody()?['usuario_email']}</span></td>
+                  <td style="padding:10px 14px; font-size:14px; border-bottom:1px solid #eef1f4;">@{formatDateTime(triggerBody()?['fecha'], 'dd/MM/yyyy HH:mm')}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px; background-color:#f8fafc; font-size:11px; font-weight:700; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px;">Bodega de origen</td>
+                  <td style="padding:10px 14px; background-color:#f8fafc; font-size:11px; font-weight:700; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px;">Orden de trabajo</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 14px; font-size:14px; border-bottom:1px solid #eef1f4;">@{triggerBody()?['ubicacion_origen']}</td>
+                  <td style="padding:10px 14px; font-size:14px; border-bottom:1px solid #eef1f4;">@{triggerBody()?['orden_trabajo']}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 14px; background-color:#f8fafc; font-size:11px; font-weight:700; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px;">Comentarios</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:10px 14px; font-size:14px;">@{triggerBody()?['comentarios']}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Tabla de materiales -->
+          <tr>
+            <td style="padding:8px 32px 4px;">
+              <div style="font-size:13px; font-weight:700; color:#32363a; margin-bottom:8px;">Materiales solicitados</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; font-size:13px;">
+                <tr style="background-color:#0b1d2f;">
+                  <th align="left" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">Material</th>
+                  <th align="left" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">SKU</th>
+                  <th align="right" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">Cant.</th>
+                  <th align="left" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">Unidad</th>
+                </tr>
+                <!--
+                  Filas dinámicas: se construyen en un "Apply to each" sobre
+                  triggerBody()?['items'] anexando cada <tr> a la variable varFilasItems.
+                  Aquí se inserta esa variable con todas las filas ya armadas.
+                -->
+                @{variables('varFilasItems')}
+              </table>
+            </td>
+          </tr>
+
+          <!-- Estado en vivo (badge dinámico) -->
+          <tr>
+            <td style="padding:20px 32px 4px;" align="center">
+              <img src="@{triggerBody()?['url_estado_badge']}" alt="Estado de la solicitud" style="max-width:100%; height:auto; border:0;">
+              <div style="font-size:11px; color:#6a6d70; margin-top:6px;">Estado actual (se actualiza al abrir el correo)</div>
+            </td>
+          </tr>
+
+          <!-- Botones de acción (un correo por aprobador: usa items('Apply_to_each_2')) -->
+          <tr>
+            <td style="padding:16px 32px 8px;" align="center">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:0 6px;">
+                    <a href="@{items('Apply_to_each_2')?['url_aprobar']}" style="display:inline-block; background-color:#107e3e; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; padding:12px 28px; border-radius:4px;">Autorizar</a>
+                  </td>
+                  <td style="padding:0 6px;">
+                    <a href="@{items('Apply_to_each_2')?['url_rechazar']}" style="display:inline-block; background-color:#bb0000; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; padding:12px 28px; border-radius:4px;">Rechazar</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Enlace al detalle -->
+          <tr>
+            <td style="padding:8px 32px 24px;" align="center">
+              <a href="@{triggerBody()?['url_detalle']}" style="color:#0070f2; font-size:13px; text-decoration:none;">Ver detalle completo de la solicitud →</a>
+            </td>
+          </tr>
+
+          <!-- Pie -->
+          <tr>
+            <td style="background-color:#f0f4f8; padding:16px 32px; border-top:1px solid #d9d9d9;">
+              <p style="margin:0; font-size:11px; color:#6a6d70; line-height:1.5;">
+                Este es un mensaje automático del sistema SoftCom CCG. Por favor no responda a este correo.
+                Si no reconoce esta solicitud, ignore este mensaje.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instructivo — Creación de Órdenes de Compra | SoftCom CCG</title>
+    <style>
+        @font-face {
+            font-family: 'Artifakt Element';
+            src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Element%20Medium.woff2') format('woff2');
+            font-weight: 400; font-style: normal; font-display: swap;
+        }
+        @font-face {
+            font-family: 'Artifakt Element';
+            src: url('https://raw.githubusercontent.com/Autodesk/standard-surface/master/style/fonts/Artifakt/Artifakt%20Legend%20Bold.woff2') format('woff2');
+            font-weight: 700; font-style: normal; font-display: swap;
+        }
+        :root {
+            --fiori-primary: #0070f2;
+            --fiori-bg: #eff2f5;
+            --fiori-card-bg: #ffffff;
+            --fiori-text: #32363a;
+            --fiori-text-secondary: #6a6d70;
+            --fiori-border: #d9d9d9;
+            --fiori-success: #107e3e;
+            --fiori-warning: #e9730c;
+            --fiori-error: #bb0000;
+            --occ-dark: rgb(11, 29, 47);
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Artifakt Element', 'Outfit', sans-serif;
+            background: var(--fiori-bg);
+            color: var(--fiori-text);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+        .wrap { max-width: 960px; margin: 0 auto; padding: 32px 20px 80px; }
+        header.doc-head {
+            background: var(--occ-dark);
+            color: #fff;
+            padding: 28px 32px;
+            border-radius: 8px;
+            margin-bottom: 28px;
+        }
+        header.doc-head h1 { margin: 0 0 6px; font-size: 1.6rem; font-weight: 700; }
+        header.doc-head p { margin: 0; color: #c9d4df; font-size: 0.95rem; }
+        .meta-bar {
+            display: flex; flex-wrap: wrap; gap: 12px;
+            margin-bottom: 28px; font-size: 0.82rem; color: var(--fiori-text-secondary);
+        }
+        .meta-bar span {
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            padding: 6px 12px; border-radius: 4px;
+        }
+        .card {
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            border-radius: 8px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .card-title {
+            background: #f0f4f8;
+            border-bottom: 1px solid var(--fiori-border);
+            padding: 14px 20px;
+            font-weight: 700;
+            font-size: 1.05rem;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .card-body { padding: 20px 24px; }
+        .step-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 26px; height: 26px; border-radius: 50%;
+            background: var(--fiori-primary); color: #fff;
+            font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+        }
+        ol.steps { margin: 0; padding-left: 22px; }
+        ol.steps > li { margin-bottom: 14px; padding-left: 6px; }
+        ul.sub { margin: 8px 0 0; padding-left: 20px; }
+        ul.sub li { margin-bottom: 5px; }
+        code {
+            background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+            font-family: 'Consolas', monospace; font-size: 0.85em; color: #0b3d91;
+        }
+        .badge {
+            display: inline-block; padding: 2px 10px; border-radius: 4px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .badge-info { background: #eff6ff; color: #1d4ed8; }
+        .badge-warn { background: #fef3c7; color: #92400e; }
+        .badge-ok { background: #dcfce7; color: #166534; }
+        .badge-proc { background: #f1f5f9; color: #475569; }
+        .callout {
+            border-left: 4px solid var(--fiori-primary);
+            background: #f6f9fe; padding: 12px 16px; border-radius: 0 4px 4px 0;
+            margin: 14px 0; font-size: 0.92rem;
+        }
+        .callout.warn { border-left-color: var(--fiori-warning); background: #fff8f0; }
+        .callout.error { border-left-color: var(--fiori-error); background: #fdf1f1; }
+        table.ref {
+            width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 8px;
+        }
+        table.ref th, table.ref td {
+            border: 1px solid var(--fiori-border); padding: 8px 10px; text-align: left; vertical-align: top;
+        }
+        table.ref th { background: #f0f4f8; font-weight: 700; }
+        .toc { columns: 2; column-gap: 32px; font-size: 0.92rem; }
+        .toc a { color: var(--fiori-primary); text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+        footer { text-align: center; color: var(--fiori-text-secondary); font-size: 0.8rem; margin-top: 40px; }
+        h2.section { scroll-margin-top: 20px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header class="doc-head">
+        <h1>Instructivo: Creación de Órdenes de Compra</h1>
+        <p>Módulo de Presupuestos — Solicitudes de Pago · SoftCom CCG</p>
+    </header>
+
+    <div class="meta-bar">
+        <span><strong>Ruta:</strong> /presupuestos/pagos/solicitud/&lt;id&gt;/</span>
+        <span><strong>Perfil requerido:</strong> Procura</span>
+        <span><strong>Documento:</strong> Orden de Compra (OC)</span>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📋 Contenido</div>
+        <div class="card-body toc">
+            <p><a href="#requisitos">1. Requisitos previos</a></p>
+            <p><a href="#acceso">2. Acceso a la solicitud de pago</a></p>
+            <p><a href="#generar">3. Generar la Orden de Compra</a></p>
+            <p><a href="#cabecera">4. Datos de cabecera</a></p>
+            <p><a href="#proveedor">5. Datos del proveedor</a></p>
+            <p><a href="#articulos">6. Artículos</a></p>
+            <p><a href="#pago">7. Forma de pago y plan de pagos</a></p>
+            <p><a href="#docs">8. Documentación requerida</a></p>
+            <p><a href="#preview">9. Previsualizar e imprimir</a></p>
+            <p><a href="#guardar">10. Generar / Guardar</a></p>
+            <p><a href="#editar">11. Editar una OC existente</a></p>
+            <p><a href="#visualizar">12. Visualización por otros usuarios</a></p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="requisitos"><span class="step-num">1</span> Requisitos previos</div>
+        <div class="card-body">
+            <ul class="sub">
+                <li>Pertenecer al grupo <span class="badge badge-proc">Procura</span> (o Procura_Tecnica para procesar).</li>
+                <li>La requisición debe estar <strong>Autorizada</strong> (estados válidos: <code>AUTORIZADO</code>, <code>VISTO_PROCURA</code> o <code>PROCURA_PROCESANDO</code>).</li>
+                <li>Cada artículo de la requisición debe tener un <strong>proveedor asignado</strong>.</li>
+                <li>El proveedor (Empresa) debe tener sus datos completos: No. de proveedor, RTN, domicilio, contacto, correo/teléfono. Se administran en <code>/admin/mantenimiento/empresa/</code>.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="acceso"><span class="step-num">2</span> Acceso a la solicitud de pago</div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>Ingresa a la solicitud de pago: <code>/presupuestos/pagos/solicitud/&lt;id&gt;/</code>.</li>
+                <li>En la tabla de ítems verás cada <strong>requisición</strong> asociada con su asunto, montos y estado.</li>
+                <li>Ubica la fila de la requisición sobre la que generarás la Orden de Compra.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="generar"><span class="step-num">3</span> Generar la Orden de Compra</div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>Haz <strong>clic derecho</strong> sobre la fila de la requisición para abrir el menú contextual.</li>
+                <li>Selecciona <strong>“Generar Orden de Compra”</strong>. El sistema procesa la requisición (pasa a <code>PROCURA_PROCESANDO</code>) y abre el modal <em>Generar Orden de Compra</em>.</li>
+            </ol>
+            <div class="callout">
+                Si la requisición <strong>ya tiene</strong> una OC generada, el menú mostrará <strong>“Editar Orden de Compra”</strong> y en la fila aparecerá un <span class="badge badge-info">chip con el N.º de OC</span>.
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="cabecera"><span class="step-num">4</span> Datos de cabecera</div>
+        <div class="card-body">
+            <p>En la parte superior del modal completa la configuración del documento:</p>
+            <table class="ref">
+                <tr><th>Campo</th><th>Descripción</th></tr>
+                <tr><td><strong>Tipo Documento</strong></td><td>OC o DOIH. Define el emisor y el formato del documento (para OC: OPERADORA CC SA DE CV, RTN 0801 9019 137058).</td></tr>
+                <tr><td><strong>Proveedor</strong></td><td>Empresa a la que se emite la OC. Al seleccionarlo se despliega el panel “Datos del Proveedor”.</td></tr>
+                <tr><td><strong>Forma de Pago</strong></td><td>Se hereda de la requisición, pero puede modificarse (ver sección 7).</td></tr>
+                <tr><td><strong>Número de Orden de Compra</strong></td><td>Editable por Procura. En creación se autogenera; en edición puede ajustarse (debe ser único).</td></tr>
+                <tr><td><strong>Centro de Costo</strong></td><td>Editable por Procura. Selección del centro de costo asociado.</td></tr>
+                <tr><td><strong>Tipo de Contrato</strong></td><td>Suministro e Instalación / Contrato de Servicio.</td></tr>
+                <tr><td><strong>Referencia A</strong></td><td>Solo lectura: número de la requisición de origen + su asunto.</td></tr>
+                <tr><td><strong>Fecha de Entrega</strong></td><td>Define el “Período de entrega” del documento (día/mes/año).</td></tr>
+                <tr><td><strong>Notas</strong></td><td>Observaciones adicionales.</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="proveedor"><span class="step-num">5</span> Datos del proveedor</div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>Al elegir el proveedor se muestra el panel <strong>“Datos del Proveedor”</strong> con: No. de proveedor, RTN, contacto, teléfono, correo y domicilio.</li>
+                <li>Si necesitas corregir estos datos, pulsa <strong>“Editar”</strong> en ese panel para abrir el modal de edición del proveedor.</li>
+                <li>Guarda; los cambios se reflejan al instante en el panel y en el registro maestro de la Empresa.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="articulos"><span class="step-num">6</span> Artículos</div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>La tabla de artículos muestra: <strong>Código de Exoneración</strong>, <strong>SKU</strong>, <strong>Descripción</strong>, <strong>Cantidad</strong>, <strong>Costo Unitario</strong> y <strong>Subtotal</strong>.</li>
+                <li>Ajusta cantidad y/o costo unitario según corresponda; el <strong>Total</strong> se recalcula automáticamente.</li>
+            </ol>
+            <div class="callout">El Código de Exoneración y el SKU provienen del material vinculado a cada artículo. Si no tienen dato, se muestran como “—”.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="pago"><span class="step-num">7</span> Forma de pago y plan de pagos</div>
+        <div class="card-body">
+            <p>Selecciona la <strong>Forma de Pago</strong>. Según la opción, se habilita la tabla de hitos:</p>
+            <table class="ref">
+                <tr><th>Forma de pago</th><th>Comportamiento</th></tr>
+                <tr><td><strong>Al Contado</strong></td><td>Sin tabla de hitos.</td></tr>
+                <tr><td><strong>Anticipo</strong></td><td>Muestra la tabla de hitos (desglose libre). En el documento se marca “ANTICIPO”.</td></tr>
+                <tr><td><strong>Diferido</strong></td><td>Muestra la tabla de hitos (desglose libre).</td></tr>
+                <tr><td><strong>A Plazos / Crédito</strong></td><td>Sin hitos. En el documento se marca “CRÉDITO”.</td></tr>
+                <tr><td><strong>Contra Entrega</strong></td><td>Sin hitos. En el documento se marca la fila “CONTRA ENTREGA”.</td></tr>
+                <tr><td><strong>Plan de Pago</strong></td><td>Muestra la tabla de hitos. Los porcentajes <strong>deben sumar 100%</strong>. Marca “ANTICIPO” y “PLAN DE PAGOS”.</td></tr>
+            </table>
+            <p style="margin-top:14px;"><strong>Tabla de hitos</strong> (Plan de Pago, Anticipo, Diferido):</p>
+            <ul class="sub">
+                <li>Por defecto se crean 4 hitos: <strong>Anticipo, Hito 1, Hito 2, Hito 3</strong> repartidos equitativamente al 100%.</li>
+                <li>Cada hito tiene <strong>Concepto</strong>, <strong>Porcentaje</strong> y <strong>Monto</strong>. Al cambiar el % se recalcula el monto (y viceversa).</li>
+                <li>Usa <strong>“Agregar Hito”</strong> para añadir filas o el ícono de basura para eliminarlas; el 100% se redistribuye.</li>
+                <li>El pie muestra el % total asignado y el saldo por asignar.</li>
+            </ul>
+            <div class="callout warn">
+                <strong>Validación:</strong> solo en <span class="badge badge-info">Plan de Pago</span> los porcentajes deben sumar exactamente 100% para poder guardar. En Anticipo y Diferido el desglose es libre.
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="docs"><span class="step-num">8</span> Documentación requerida</div>
+        <div class="card-body">
+            <p>Marca los documentos que el proveedor deberá entregar:</p>
+            <ul class="sub">
+                <li><strong>Factura</strong></li>
+                <li><strong>Estimación</strong> (por avance de obra)</li>
+                <li><strong>Respaldo</strong> (reporte fotográfico con firma de supervisión)</li>
+                <li><strong>Garantía</strong> (calidad de producto / mano de obra)</li>
+            </ul>
+            <p>Los no marcados aparecen como <code>N/A</code> en el documento.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="preview"><span class="step-num">9</span> Previsualizar e imprimir</div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>Pulsa <strong>“Previsualizar”</strong> (abajo a la izquierda del modal). Se abre una ventana con el documento en el formato oficial de OCC.</li>
+                <li>Verifica encabezado, datos del proveedor, artículos, condiciones de pago, documentación y firmas.</li>
+                <li>Pulsa <strong>“Imprimir / Guardar PDF”</strong>. Los colores y esquemas se conservan al imprimir.</li>
+            </ol>
+            <div class="callout">Si al imprimir no se ven los fondos de color, activa <em>“Gráficos de fondo”</em> en las opciones del diálogo de impresión del navegador.</div>
+            <div class="callout warn">La previsualización refleja lo capturado en pantalla y <strong>no</strong> constituye una OC oficial hasta ser generada/guardada.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="guardar"><span class="step-num">10</span> Generar / Guardar</div>
+        <div class="card-body">
+            <ul class="sub">
+                <li><strong>Generar OC</strong> (creación): crea la orden de compra, agrupando por proveedor. La requisición pasa a <code>EN_ORDEN_COMPRA</code> y se notifica al solicitante.</li>
+                <li><strong>Guardar</strong> (edición): persiste los cambios <em>sin cerrar</em> el modal (solo disponible al editar una OC existente).</li>
+            </ul>
+            <div class="callout error">Si la forma de pago es <strong>Plan de Pago</strong> y los porcentajes no suman 100%, el guardado se bloquea con un aviso.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="editar"><span class="step-num">11</span> Editar una OC existente</div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>Haz clic en el <span class="badge badge-info">chip de OC</span> de la fila, o usa el menú contextual → “Editar Orden de Compra”.</li>
+                <li>Modifica los campos necesarios (proveedor, forma de pago, hitos, número de OC, centro de costo, tipo de contrato, artículos, etc.).</li>
+                <li>Pulsa <strong>Guardar</strong> para persistir sin cerrar, o <strong>Generar/Actualizar</strong> para confirmar y cerrar.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" id="visualizar"><span class="step-num">12</span> Visualización por otros usuarios</div>
+        <div class="card-body">
+            <ul class="sub">
+                <li>Una vez generada, la OC aparece como <span class="badge badge-info">chip</span> junto a su requisición en <strong>todas</strong> las solicitudes de pago que la contengan.</li>
+                <li><span class="badge badge-proc">Procura</span>: al hacer clic, abre el modal para <strong>editar</strong>.</li>
+                <li><span class="badge badge-ok">Otros usuarios</span>: al hacer clic, ven la OC en modo <strong>solo lectura</strong> (proveedor, tipo, estado, forma de pago, artículos y total).</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer>
+        Documento interno de referencia · SoftCom CCG · Módulo Presupuestos / Órdenes de Compra
+    </footer>
+</div>
+</body>
+</html>

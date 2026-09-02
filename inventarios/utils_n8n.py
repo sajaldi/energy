@@ -162,7 +162,71 @@ POWERAUTOMATE_SOLICITUD_URL = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environ
 
 POWERAUTOMATE_DESPACHO_URL = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/00d78dda269f477daefd4464162a4af4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=F_ds80wMf2RdkzyCaDGF2N118z0-vH9azCzyVPkKKac"
 
+POWERAUTOMATE_APROBACION_URL = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/13/workflows/816034cd62ca4b07bb44331b705a0ff3/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IWueBl1Y-mKIhc8Mo4lOedgkRr0M7hR0g-svObUU1b0"
+
 POWERAUTOMATE_SITE_URL = "https://softcom.ccg.hn"
+
+def _aprobador_dict(solicitud, u, departamento_nombre):
+    """Construye el dict de un aprobador con sus enlaces de acción (sin token)."""
+    base = f"{POWERAUTOMATE_SITE_URL}/inventarios/api/solicitudes/{solicitud.id}/autorizar/"
+    return {
+        'user_id': u.id,
+        'nombre': (f"{u.first_name} {u.last_name}".strip() or u.username),
+        'email': u.email or '',
+        'username': u.username,
+        'departamento': departamento_nombre or '',
+        'url_aprobar': f"{base}?accion=aprobar&aprobador={u.id}",
+        'url_rechazar': f"{base}?accion=rechazar&aprobador={u.id}",
+    }
+
+
+def _obtener_aprobadores_solicitud(solicitud, superior=None):
+    """
+    Devuelve la lista de aprobadores de salida elegibles para autorizar la solicitud.
+
+    Lógica:
+    1. Se obtienen los departamentos vinculados a los materiales de la solicitud.
+    2. Se listan los PerfilUsuario con aprobador_salidas=True de esos departamentos.
+    3. Si ningún material tiene departamentos restringidos o no hay aprobadores
+       configurados, se usa como fallback el superior/jefe directo del solicitante.
+
+    Cada elemento: {'nombre', 'email', 'username', 'departamento'}.
+    """
+    try:
+        from core.models import PerfilUsuario
+        from .models import Material
+
+        # Departamentos de los materiales solicitados
+        material_ids = [mov.material_id for mov in solicitud.items.all() if mov.material_id]
+        deptos_ids = set()
+        if material_ids:
+            for mat in Material.objects.filter(id__in=material_ids).prefetch_related('departamentos'):
+                for depto in mat.departamentos.all():
+                    deptos_ids.add(depto.id)
+
+        aprobadores = []
+        vistos = set()
+        if deptos_ids:
+            perfiles = PerfilUsuario.objects.filter(
+                departamento_id__in=deptos_ids,
+                aprobador_salidas=True
+            ).select_related('usuario', 'departamento')
+            for p in perfiles:
+                u = p.usuario
+                if not u or u.id in vistos:
+                    continue
+                vistos.add(u.id)
+                aprobadores.append(_aprobador_dict(solicitud, u, p.departamento.nombre if p.departamento else ''))
+
+        # Fallback: si no hay aprobadores configurados, usar el superior directo
+        if not aprobadores and superior:
+            aprobadores.append(_aprobador_dict(solicitud, superior, ''))
+
+        return aprobadores
+    except Exception as e:
+        logger.error(f"Error obteniendo aprobadores para solicitud #{getattr(solicitud, 'id', '?')}: {e}")
+        return []
+
 
 def notify_powerautomate_solicitud(solicitud):
     """
@@ -185,6 +249,12 @@ def notify_powerautomate_solicitud(solicitud):
         jefe_departamento = perfil.departamento.responsable if perfil and perfil.departamento else None
         superior = jefe_directo or jefe_departamento
 
+        # Construir la lista de aprobadores de salida elegibles para esta solicitud.
+        # Se toman los departamentos de los materiales solicitados y se listan los
+        # perfiles con aprobador_salidas=True de esos departamentos. Así Power Automate
+        # puede enviar el correo de autorización a cualquiera de ellos.
+        aprobadores = _obtener_aprobadores_solicitud(solicitud, superior)
+
         data = {
             'event': 'solicitud_material_created',
             'solicitud_id': solicitud.id,
@@ -194,6 +264,8 @@ def notify_powerautomate_solicitud(solicitud):
             'usuario_email': user.email,
             'superior_nombre': f"{superior.first_name} {superior.last_name}".strip() if superior else '',
             'superior_email': superior.email if superior else '',
+            'aprobadores': aprobadores,
+            'aprobadores_emails': [a['email'] for a in aprobadores if a.get('email')],
             'ubicacion_origen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "N/A",
             'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
             'ot_id': solicitud.orden_trabajo.id if solicitud.orden_trabajo else 0,
@@ -202,11 +274,39 @@ def notify_powerautomate_solicitud(solicitud):
             'items': items,
             'url_detalle': f"{POWERAUTOMATE_SITE_URL}/inventarios/mobile/pedidos/{solicitud.id}/",
             'url_api_autorizar': f"{POWERAUTOMATE_SITE_URL}/inventarios/api/solicitudes/{solicitud.id}/autorizar/",
+            'url_estado_badge': f"{POWERAUTOMATE_SITE_URL}/inventarios/solicitud/{solicitud.id}/estado-badge.png",
         }
 
-        response = requests.post(POWERAUTOMATE_SOLICITUD_URL, json=data, timeout=10)
+        # Renderizar el HTML del correo YA ARMADO, uno por aprobador.
+        # Así Power Automate solo hace: Para = aprobador.email, Cuerpo = aprobador.email_html.
+        try:
+            from django.template.loader import render_to_string
+            from django.utils import timezone as _tz
+            fecha_fmt = _tz.localtime(solicitud.fecha_solicitud).strftime('%d/%m/%Y %H:%M') if solicitud.fecha_solicitud else ''
+            ctx_base = {
+                'solicitud_id': solicitud.id,
+                'usuario_nombre': data['usuario_nombre'] or user.username,
+                'usuario_email': data['usuario_email'] or '',
+                'fecha': fecha_fmt,
+                'ubicacion_origen': data['ubicacion_origen'],
+                'orden_trabajo': data['orden_trabajo'],
+                'comentarios': data['comentarios'],
+                'items': items,
+                'url_detalle': data['url_detalle'],
+                'url_estado_badge': data['url_estado_badge'],
+            }
+            for ap in aprobadores:
+                ctx = dict(ctx_base)
+                ctx['aprobador_nombre'] = ap.get('nombre', '')
+                ctx['url_aprobar'] = ap.get('url_aprobar', '')
+                ctx['url_rechazar'] = ap.get('url_rechazar', '')
+                ap['email_html'] = render_to_string('inventarios/email_autorizacion.html', ctx)
+        except Exception as e:
+            logger.error(f"Error renderizando email_html de aprobadores para solicitud #{solicitud.id}: {e}")
+
+        response = requests.post(POWERAUTOMATE_APROBACION_URL, json=data, timeout=10)
         response.raise_for_status()
-        logger.info(f"Webhook Power Automate enviado para solicitud #{solicitud.id}")
+        logger.info(f"Webhook Power Automate (aprobación) enviado para solicitud #{solicitud.id}")
         return True
     except Exception as e:
         logger.error(f"Error en webhook Power Automate para solicitud #{solicitud.id}: {e}")

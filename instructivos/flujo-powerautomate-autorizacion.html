@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instructivo — Flujo Power Automate: Autorización de Solicitud de Materiales | SoftCom CCG</title>
+<style>
+    :root {
+        --fiori-primary: #0070f2;
+        --fiori-bg: #eff2f5;
+        --fiori-card-bg: #ffffff;
+        --fiori-text: #32363a;
+        --fiori-text-secondary: #6a6d70;
+        --fiori-border: #d9d9d9;
+        --fiori-success: #107e3e;
+        --fiori-warning: #e9730c;
+        --fiori-error: #bb0000;
+        --occ-dark: rgb(11, 29, 47);
+    }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--fiori-bg); color: var(--fiori-text); margin: 0; padding: 0; line-height: 1.6; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 80px; }
+    header.doc-head { background: var(--occ-dark); color: #fff; padding: 28px 32px; border-radius: 8px; margin-bottom: 24px; }
+    header.doc-head h1 { margin: 0 0 6px; font-size: 1.5rem; font-weight: 700; }
+    header.doc-head p { margin: 0; color: #c9d4df; font-size: 0.95rem; }
+    .meta-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; font-size: 0.8rem; color: var(--fiori-text-secondary); }
+    .meta-bar span { background: var(--fiori-card-bg); border: 1px solid var(--fiori-border); padding: 6px 12px; border-radius: 4px; }
+    .card { background: var(--fiori-card-bg); border: 1px solid var(--fiori-border); border-radius: 8px; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08); margin-bottom: 18px; overflow: hidden; }
+    .card-title { background: #f0f4f8; border-bottom: 1px solid var(--fiori-border); padding: 13px 20px; font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 10px; }
+    .card-body { padding: 18px 22px; }
+    .stepn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: var(--fiori-primary); color: #fff; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+    ul.sub { margin: 8px 0 0; padding-left: 20px; }
+    ul.sub li { margin-bottom: 6px; }
+    ol.steps { margin: 0; padding-left: 20px; }
+    ol.steps li { margin-bottom: 10px; }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: Consolas, monospace; font-size: 0.85em; color: #0b3d91; word-break: break-word; }
+    pre { background: #0b1d2f; color: #e6edf3; padding: 14px 16px; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; }
+    pre code { background: none; color: inherit; padding: 0; }
+    .callout { border-left: 4px solid var(--fiori-primary); background: #f6f9fe; padding: 12px 16px; border-radius: 0 4px 4px 0; margin: 12px 0; font-size: 0.9rem; }
+    .callout.warn { border-left-color: var(--fiori-warning); background: #fff8f0; }
+    .callout.error { border-left-color: var(--fiori-error); background: #fdf1f1; }
+    .callout.ok { border-left-color: var(--fiori-success); background: #f2fbf5; }
+    table.ref { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin-top: 8px; }
+    table.ref th, table.ref td { border: 1px solid var(--fiori-border); padding: 8px 10px; text-align: left; vertical-align: top; }
+    table.ref th { background: #f0f4f8; font-weight: 700; }
+    .kbd { background:#eef1f4; border:1px solid #d9d9d9; border-radius:4px; padding:1px 7px; font-size:0.85em; font-family:Consolas,monospace; }
+    footer { text-align: center; color: var(--fiori-text-secondary); font-size: 0.8rem; margin-top: 36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header class="doc-head">
+        <h1>Flujo Power Automate: Autorización de Solicitud de Materiales</h1>
+        <p>Versión simplificada — El correo llega ya armado desde el sistema (campo <code>email_html</code>)</p>
+    </header>
+
+    <div class="meta-bar">
+        <span><strong>Origen:</strong> /inventarios/crear-solicitud/</span>
+        <span><strong>Webhook:</strong> POWERAUTOMATE_APROBACION_URL</span>
+        <span><strong>Evento:</strong> solicitud_material_created</span>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🔎 Cómo funciona (resumen)</div>
+        <div class="card-body">
+            <p>El sistema (Django) hace un POST al trigger HTTP de este flujo. En el JSON, <strong>cada aprobador ya trae su correo completo listo</strong> en el campo <code>email_html</code>, con su nombre y sus botones personalizados de Autorizar/Rechazar.</p>
+            <p>Por eso el flujo es mínimo: solo recorre los aprobadores y envía a cada uno su correo. <strong>No hay que armar tablas ni pegar HTML.</strong></p>
+            <div class="callout ok">Cualquiera de los aprobadores puede autorizar; el primero que lo haga cierra la solicitud. El correo incluye un indicador de estado en vivo que muestra si alguien ya aprobó.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="stepn">1</span> Crear el flujo y el trigger HTTP</div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>Crea un flujo <strong>instantáneo (automatizado en la nube)</strong> en blanco.</li>
+                <li>Primer paso: <strong>“When a HTTP request is received”</strong> (Solicitud / Request).</li>
+                <li>Método: <strong>POST</strong>.</li>
+                <li>Clic en <strong>“Use sample payload to generate schema”</strong> y pega el JSON de muestra de abajo. Power Automate genera el esquema.</li>
+                <li>Guarda el flujo: se genera la <strong>URL HTTP POST</strong>. Esa URL ya está registrada en el sistema como <code>POWERAUTOMATE_APROBACION_URL</code>.</li>
+            </ol>
+            <p style="margin-top:12px; font-weight:600;">Sample payload (pegar para generar el esquema):</p>
+            <pre><code>{
+  "event": "solicitud_material_created",
+  "solicitud_id": 123,
+  "estado": "PENDIENTE_AUTORIZACION",
+  "usuario_nombre": "Saúl Alvarado",
+  "usuario_email": "saul.alvarado@ccg.hn",
+  "aprobadores": [
+    {
+      "user_id": 5,
+      "nombre": "Ricardo Zerrate",
+      "email": "ricardo.zerrate@ccg.hn",
+      "departamento": "Mantenimiento",
+      "url_aprobar": "https://softcom.ccg.hn/inventarios/api/solicitudes/123/autorizar/?accion=aprobar&aprobador=5",
+      "url_rechazar": "https://softcom.ccg.hn/inventarios/api/solicitudes/123/autorizar/?accion=rechazar&aprobador=5",
+      "email_html": "&lt;table&gt;...correo completo ya armado para Ricardo...&lt;/table&gt;"
+    }
+  ],
+  "aprobadores_emails": ["ricardo.zerrate@ccg.hn"],
+  "url_detalle": "https://softcom.ccg.hn/inventarios/mobile/pedidos/123/",
+  "url_estado_badge": "https://softcom.ccg.hn/inventarios/solicitud/123/estado-badge.png"
+}</code></pre>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="stepn">2</span> (Opcional) Condición por estado</div>
+        <div class="card-body">
+            <p>Si solo quieres enviar correo cuando la solicitud requiere autorización, agrega una acción <strong>Condición</strong>:</p>
+            <ul class="sub">
+                <li><code>triggerBody()?['estado']</code> <strong>es igual a</strong> <code>PENDIENTE_AUTORIZACION</code></li>
+                <li>Pon las siguientes acciones en la rama <strong>“En caso afirmativo”</strong>.</li>
+            </ul>
+            <div class="callout">Si no agregas la condición, el correo se enviará siempre que llegue el webhook.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="stepn">3</span> Recorrer los aprobadores</div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>Agrega la acción <strong>“Aplicar a cada uno”</strong> (Apply to each).</li>
+                <li>En “Seleccione una salida…” pon: <code>triggerBody()?['aprobadores']</code></li>
+            </ol>
+            <div class="callout">Este bucle enviará un correo por cada aprobador del departamento. Cada uno recibe su propio enlace, para poder saber quién autorizó.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="stepn">4</span> Enviar el correo (dentro del bucle)</div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>Dentro del “Aplicar a cada uno”, agrega <strong>“Enviar un correo electrónico (V2)”</strong> (Office 365 Outlook).</li>
+                <li>Configura los campos:</li>
+            </ol>
+            <table class="ref">
+                <tr><th>Campo</th><th>Valor</th></tr>
+                <tr><td><strong>Para</strong></td><td><code>@{items('Apply_to_each')?['email']}</code></td></tr>
+                <tr><td><strong>Asunto</strong></td><td><code>Autorización requerida · Solicitud #@{triggerBody()?['solicitud_id']} · @{triggerBody()?['usuario_nombre']}</code></td></tr>
+                <tr><td><strong>Cuerpo</strong></td><td>Cambia el editor a modo código <span class="kbd">&lt;/&gt;</span> y coloca: <code>@{items('Apply_to_each')?['email_html']}</code></td></tr>
+            </table>
+            <div class="callout ok">Eso es todo el correo. El HTML ya viene relleno con el nombre del aprobador, la tabla de materiales, el badge de estado y sus botones Autorizar/Rechazar.</div>
+            <div class="callout warn">El nombre <code>Apply_to_each</code> debe coincidir con el de tu acción real (Power Automate reemplaza espacios por guiones bajos). Si tu bucle tiene otro nombre, ajusta las expresiones.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="stepn">5</span> Responder al sistema (recomendado)</div>
+        <div class="card-body">
+            <ul class="sub">
+                <li>Después del bucle, agrega una acción <strong>“Response”</strong> con código <strong>200</strong>.</li>
+                <li>El sistema espera respuesta en menos de 10 segundos (timeout del webhook). Mantén el flujo ágil.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🖼️ Estado en vivo dentro del correo</div>
+        <div class="card-body">
+            <p>El correo incluye una imagen (<code>url_estado_badge</code>) que muestra el estado actual: <em>Pendiente de autorización</em>, <em>Autorizada por {nombre} el {fecha}</em> o <em>Rechazada por {nombre}</em>. Se actualiza cada vez que se abre el correo.</p>
+            <div class="callout warn">Algunos clientes (Outlook) bloquean imágenes remotas hasta que el usuario las habilita. Si no se ve la imagen, al hacer clic en un botón la página de confirmación igual indica si la solicitud ya fue resuelta.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">✅ Botones Autorizar / Rechazar</div>
+        <div class="card-body">
+            <p>Ya están incluidos en el <code>email_html</code> de cada aprobador y apuntan a:</p>
+            <ul class="sub">
+                <li><code>.../inventarios/api/solicitudes/&lt;id&gt;/autorizar/?accion=aprobar&aprobador=&lt;user_id&gt;</code></li>
+                <li><code>.../inventarios/api/solicitudes/&lt;id&gt;/autorizar/?accion=rechazar&aprobador=&lt;user_id&gt;</code></li>
+            </ul>
+            <p>Al hacer clic, el sistema registra quién autorizó/rechazó y muestra una página de confirmación. Si otro aprobador ya lo hizo antes, mostrará “Ya {nombre} autorizó esta solicitud”.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🧪 Prueba de punta a punta</div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>Guarda y activa el flujo.</li>
+                <li>Crea una solicitud en <code>/inventarios/crear-solicitud/</code> con materiales de un departamento que tenga aprobadores configurados, y pulsa <strong>Enviar Solicitud</strong>.</li>
+                <li>Revisa el <strong>historial de ejecuciones</strong> del flujo: debe registrar la llamada entrante.</li>
+                <li>Verifica que cada aprobador reciba su correo con la tabla de materiales y los botones.</li>
+                <li>Haz clic en <strong>Autorizar</strong> desde un correo → debe mostrar la confirmación. Abre otro de los correos → el badge/página debe indicar que ya fue autorizada.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🧰 Estructura final del flujo</div>
+        <div class="card-body">
+            <pre><code>When a HTTP request is received  (POST)
+└─ (opcional) Condición: estado == PENDIENTE_AUTORIZACION
+   └─ Aplicar a cada uno: triggerBody()?['aprobadores']
+      └─ Enviar un correo electrónico (V2)
+             Para:    items('Apply_to_each')?['email']
+             Asunto:  Autorización requerida · Solicitud #... 
+             Cuerpo:  items('Apply_to_each')?['email_html']
+└─ Response 200</code></pre>
+        </div>
+    </div>
+
+    <footer>Documento interno · SoftCom CCG · Flujo Power Automate — Autorización de Solicitud de Materiales</footer>
+</div>
+</body>
+</html>

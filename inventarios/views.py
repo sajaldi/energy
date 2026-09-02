@@ -4452,3 +4452,160 @@ def api_ajuste_masivo_catalogo(request):
         'has_next': page_obj.has_next(),
         'has_prev': page_obj.has_previous(),
     })
+
+
+@csrf_exempt
+def solicitud_autorizar_publica(request, pk):
+    """
+    Autoriza o rechaza una solicitud de material desde el correo (enlace simple sin login).
+    Uso: /inventarios/api/solicitudes/<pk>/autorizar/?accion=aprobar|rechazar&aprobador=<user_id>
+
+    - El primer aprobador que actúe cierra la solicitud.
+    - Si la solicitud ya fue resuelta, muestra quién la aprobó/rechazó y cuándo.
+    Devuelve una página HTML de confirmación pensada para abrirse desde el correo.
+    """
+    from django.contrib.auth import get_user_model
+    from django.utils import timezone
+
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+    accion = (request.GET.get('accion') or '').lower()
+    aprobador_id = request.GET.get('aprobador')
+
+    User = get_user_model()
+    aprobador = User.objects.filter(id=aprobador_id).first() if aprobador_id else None
+
+    def _nombre(u):
+        return (u.get_full_name() or u.username) if u else 'Un aprobador'
+
+    def _pagina(titulo, mensaje, color):
+        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{titulo}</title>
+<style>
+body {{ font-family:'Segoe UI',Arial,sans-serif; background:#eff2f5; margin:0; padding:0; }}
+.box {{ max-width:520px; margin:60px auto; background:#fff; border:1px solid #d9d9d9; border-radius:8px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.08); }}
+.hd {{ background:{color}; color:#fff; padding:22px 28px; font-size:1.15rem; font-weight:700; }}
+.bd {{ padding:26px 28px; color:#32363a; font-size:0.98rem; line-height:1.6; }}
+.sol {{ color:#6a6d70; font-size:0.85rem; margin-top:14px; }}
+a.btn {{ display:inline-block; margin-top:18px; background:#0070f2; color:#fff; text-decoration:none; padding:10px 22px; border-radius:4px; font-weight:600; font-size:0.9rem; }}
+</style></head><body>
+<div class="box"><div class="hd">{titulo}</div>
+<div class="bd">{mensaje}
+<div class="sol">Solicitud #{solicitud.id} · Solicitante: {solicitud.solicitante_nombre}</div>
+<a class="btn" href="{'/inventarios/mobile/pedidos/' + str(solicitud.id) + '/'}">Ver detalle de la solicitud</a>
+</div></div></body></html>"""
+        return HttpResponse(html)
+
+    # Si ya fue resuelta previamente, informar el resultado existente
+    if solicitud.estado == 'PENDIENTE' and solicitud.autorizado_por:
+        fecha = solicitud.fecha_autorizacion.strftime('%d/%m/%Y %H:%M') if solicitud.fecha_autorizacion else ''
+        return _pagina(
+            'Solicitud ya autorizada',
+            f"Esta solicitud ya fue <strong>autorizada por {_nombre(solicitud.autorizado_por)}</strong>{(' el ' + fecha) if fecha else ''}. No se requiere acción adicional.",
+            '#107e3e'
+        )
+    if solicitud.estado == 'RECHAZADO':
+        fecha = solicitud.fecha_rechazo.strftime('%d/%m/%Y %H:%M') if solicitud.fecha_rechazo else ''
+        return _pagina(
+            'Solicitud rechazada',
+            f"Esta solicitud fue <strong>rechazada por {_nombre(solicitud.rechazado_por)}</strong>{(' el ' + fecha) if fecha else ''}.",
+            '#bb0000'
+        )
+    if solicitud.estado not in ('PENDIENTE_AUTORIZACION',):
+        return _pagina(
+            'Solicitud no disponible',
+            f"Esta solicitud está en estado <strong>{solicitud.get_estado_display()}</strong> y no puede autorizarse desde aquí.",
+            '#6a6d70'
+        )
+
+    # Procesar la acción
+    if accion == 'aprobar':
+        solicitud.estado = 'PENDIENTE'  # aprobada → pasa a pendiente de despacho en almacén
+        solicitud.autorizado_por = aprobador
+        solicitud.fecha_autorizacion = timezone.now()
+        solicitud.save(update_fields=['estado', 'autorizado_por', 'fecha_autorizacion'])
+        try:
+            from .utils_ntfy import notificar_nueva_solicitud
+            notificar_nueva_solicitud(solicitud)
+        except Exception:
+            pass
+        return _pagina(
+            'Solicitud autorizada',
+            f"Gracias. La solicitud fue <strong>autorizada</strong> correctamente por <strong>{_nombre(aprobador)}</strong>. El almacén ha sido notificado.",
+            '#107e3e'
+        )
+    elif accion == 'rechazar':
+        solicitud.estado = 'RECHAZADO'
+        solicitud.rechazado_por = aprobador
+        solicitud.fecha_rechazo = timezone.now()
+        solicitud.save(update_fields=['estado', 'rechazado_por', 'fecha_rechazo'])
+        return _pagina(
+            'Solicitud rechazada',
+            f"La solicitud fue <strong>rechazada</strong> por <strong>{_nombre(aprobador)}</strong>. Se notificará al solicitante.",
+            '#bb0000'
+        )
+    else:
+        return _pagina(
+            'Acción no válida',
+            "El enlace no especifica una acción válida (aprobar o rechazar).",
+            '#e9730c'
+        )
+
+
+def solicitud_estado_badge(request, pk):
+    """
+    Genera un badge PNG dinámico con el estado actual de la solicitud, para
+    incrustar en el correo. Al abrir el correo, muestra el estado en vivo:
+    'Pendiente de autorización' o 'Autorizada por {nombre} el {fecha}'.
+    """
+    from PIL import Image, ImageDraw, ImageFont
+    from django.utils import timezone
+    import io
+
+    solicitud = SolicitudMaterial.objects.filter(pk=pk).select_related('autorizado_por', 'rechazado_por').first()
+
+    # Determinar texto y color según el estado
+    if not solicitud:
+        texto, color = "Solicitud no encontrada", (106, 109, 112)
+    elif solicitud.estado == 'RECHAZADO':
+        nom = (solicitud.rechazado_por.get_full_name() or solicitud.rechazado_por.username) if solicitud.rechazado_por else 'un aprobador'
+        fecha = solicitud.fecha_rechazo.strftime('%d/%m/%Y %H:%M') if solicitud.fecha_rechazo else ''
+        texto, color = f"Rechazada por {nom}" + (f" el {fecha}" if fecha else ""), (187, 0, 0)
+    elif solicitud.autorizado_por:
+        nom = solicitud.autorizado_por.get_full_name() or solicitud.autorizado_por.username
+        fecha = solicitud.fecha_autorizacion.strftime('%d/%m/%Y %H:%M') if solicitud.fecha_autorizacion else ''
+        texto, color = f"Autorizada por {nom}" + (f" el {fecha}" if fecha else ""), (16, 126, 62)
+    elif solicitud.estado == 'PENDIENTE_AUTORIZACION':
+        texto, color = "Pendiente de autorización", (233, 115, 12)
+    else:
+        texto, color = f"Estado: {solicitud.get_estado_display()}", (0, 112, 242)
+
+    # Construir la imagen
+    try:
+        font = ImageFont.truetype("arialbd.ttf", 20)
+    except Exception:
+        try:
+            font = ImageFont.truetype("DejaVuSans-Bold.ttf", 20)
+        except Exception:
+            font = ImageFont.load_default()
+
+    pad_x, pad_y = 22, 12
+    tmp = Image.new("RGB", (10, 10))
+    d = ImageDraw.Draw(tmp)
+    bbox = d.textbbox((0, 0), texto, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    w, h = tw + pad_x * 2, th + pad_y * 2
+
+    img = Image.new("RGB", (w, h), color)
+    draw = ImageDraw.Draw(img)
+    draw.text((pad_x, pad_y - bbox[1]), texto, fill=(255, 255, 255), font=font)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    resp = HttpResponse(buf.getvalue(), content_type="image/png")
+    # Evitar que el cliente de correo cachee un estado viejo
+    resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp['Pragma'] = 'no-cache'
+    resp['Expires'] = '0'
+    return resp
