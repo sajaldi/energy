@@ -42,7 +42,11 @@ def inventario_dashboard(request):
     
     # Verificar si el usuario es del grupo Almacenes o Superusuario
     es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
-    
+    # Acceso a Ajuste Masivo: Auditoría o Procura_Tecnica (o superuser)
+    es_auditoria = request.user.groups.filter(name='Auditoria').exists() or request.user.is_superuser
+    es_procura = request.user.groups.filter(name='Procura_Tecnica').exists() or request.user.is_superuser
+    puede_ajuste_masivo = es_auditoria or es_procura
+
     ot_id = request.GET.get('ot_id')
     ot_pre = None
     if ot_id:
@@ -59,6 +63,7 @@ def inventario_dashboard(request):
         'total_materiales': total_materiales,
         'pedidos_pendientes': pedidos_pendientes,
         'es_almacen': es_almacen,
+        'puede_ajuste_masivo': puede_ajuste_masivo,
         'ot_pre': ot_pre,
         'racks': racks,
         'active_tab': 'dashboard',
@@ -4522,7 +4527,8 @@ def api_ajuste_masivo_catalogo(request):
     from django.core.paginator import Paginator
 
     es_auditoria = request.user.groups.filter(name='Auditoria').exists() or request.user.is_superuser
-    if not es_auditoria:
+    es_procura = request.user.groups.filter(name='Procura_Tecnica').exists()
+    if not (es_auditoria or es_procura):
         return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
 
     # Parámetros
