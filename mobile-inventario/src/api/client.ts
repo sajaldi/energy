@@ -95,4 +95,59 @@ export async function fetchCategorias(): Promise<{ categorias: any[] }> {
   return apiRequest('/inventarios/api/mobile-sync/categorias/');
 }
 
+// ===== SOLICITUDES (por rol) =====
+
+// Aprobador de salidas: solicitudes pendientes de autorización de su departamento
+export async function fetchPendientesAprobacion(): Promise<{ solicitudes: any[] }> {
+  return apiRequest('/inventarios/api/mobile/aprobaciones/');
+}
+
+export async function aprobarSolicitud(id: number, accion: 'aprobar' | 'rechazar'): Promise<any> {
+  return apiRequest(`/inventarios/api/mobile/solicitudes/${id}/aprobar/`, {
+    method: 'POST',
+    body: JSON.stringify({ accion }),
+  });
+}
+
+// Almacén: solicitudes listas para despacho / recolección
+export async function fetchParaDespacho(): Promise<{ solicitudes: any[] }> {
+  return apiRequest('/inventarios/api/mobile/despachos/');
+}
+
+// Almacén: despachar (pasa a LISTO_RECOLECCION)
+export async function despacharSolicitud(id: number): Promise<any> {
+  return apiRequest(`/inventarios/api/mobile/solicitudes/${id}/despachar/`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+// Almacén: confirmar entrega con foto de quién recibe (base64) y cantidades
+export async function confirmarEntrega(
+  id: number,
+  payload: { recibe_nombre?: string; foto_base64?: string; items?: { mov_id: number; cantidad: number }[] }
+): Promise<any> {
+  return apiRequest(`/inventarios/api/mobile/solicitudes/${id}/confirmar-entrega/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+// Usuario común: mis solicitudes
+export async function fetchMisSolicitudes(): Promise<{ solicitudes: any[] }> {
+  return apiRequest('/inventarios/api/mobile/mis-solicitudes/');
+}
+
+export async function fetchSolicitudDetalle(id: number): Promise<{ solicitud: any }> {
+  return apiRequest(`/inventarios/api/mobile/solicitudes/${id}/`);
+}
+
+// ===== PUSH NOTIFICATIONS =====
+export async function registrarPushToken(expoPushToken: string): Promise<any> {
+  return apiRequest('/inventarios/api/mobile/push-token/', {
+    method: 'POST',
+    body: JSON.stringify({ token: expoPushToken }),
+  });
+}
+
 export { isOnline };

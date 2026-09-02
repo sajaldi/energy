@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ciclo de Vida — Proceso de Almacenes | SoftCom CCG</title>
+<style>
+    :root {
+        --fiori-primary: #0070f2;
+        --fiori-bg: #eff2f5;
+        --fiori-card-bg: #ffffff;
+        --fiori-text: #32363a;
+        --fiori-text-secondary: #6a6d70;
+        --fiori-border: #d9d9d9;
+        --fiori-success: #107e3e;
+        --fiori-warning: #e9730c;
+        --fiori-error: #bb0000;
+        --occ-dark: rgb(11, 29, 47);
+    }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--fiori-bg); color: var(--fiori-text); margin: 0; padding: 0; line-height: 1.6; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 80px; }
+    header.doc-head { background: var(--occ-dark); color: #fff; padding: 28px 32px; border-radius: 8px; margin-bottom: 24px; }
+    header.doc-head h1 { margin: 0 0 6px; font-size: 1.5rem; font-weight: 700; }
+    header.doc-head p { margin: 0; color: #c9d4df; font-size: 0.95rem; }
+    .meta-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; font-size: 0.8rem; color: var(--fiori-text-secondary); }
+    .meta-bar span { background: var(--fiori-card-bg); border: 1px solid var(--fiori-border); padding: 6px 12px; border-radius: 4px; }
+
+    /* Línea de tiempo vertical */
+    .timeline { position: relative; margin: 8px 0 0 0; padding-left: 46px; }
+    .timeline::before { content: ''; position: absolute; left: 17px; top: 6px; bottom: 6px; width: 2px; background: var(--fiori-border); }
+    .tl-item { position: relative; margin-bottom: 22px; }
+    .tl-dot { position: absolute; left: -46px; top: 0; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; box-shadow: 0 0 0 4px var(--fiori-bg); }
+    .tl-card { background: var(--fiori-card-bg); border: 1px solid var(--fiori-border); border-radius: 8px; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08); overflow: hidden; }
+    .tl-head { padding: 12px 18px; border-bottom: 1px solid var(--fiori-border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .tl-head h3 { margin: 0; font-size: 1rem; font-weight: 700; }
+    .tl-body { padding: 14px 18px; font-size: 0.9rem; }
+    .tl-body ul { margin: 8px 0 0; padding-left: 18px; }
+    .tl-body li { margin-bottom: 5px; }
+
+    .badge { display:inline-block; font-size:0.72rem; font-weight:700; padding:4px 11px; border-radius:2rem; white-space:nowrap; }
+    .b-pendiente { background:#fff4e5; color:#e9730c; }
+    .b-listo { background:#e5f0ff; color:#0064d1; }
+    .b-entregado { background:#e7f4e9; color:#107e3e; }
+    .b-rechazado { background:#ffebeb; color:#bb0000; }
+    .who { display:inline-block; background:#eef4fd; color:#0057c2; font-size:0.7rem; font-weight:700; padding:3px 9px; border-radius:2rem; text-transform:uppercase; letter-spacing:0.4px; }
+
+    .callout { border-left: 4px solid var(--fiori-primary); background: #f6f9fe; padding: 11px 15px; border-radius: 0 4px 4px 0; margin: 10px 0 0; font-size: 0.85rem; }
+    .callout.warn { border-left-color: var(--fiori-warning); background: #fff8f0; }
+    .callout.ok { border-left-color: var(--fiori-success); background: #f2fbf5; }
+
+    .card { background: var(--fiori-card-bg); border: 1px solid var(--fiori-border); border-radius: 8px; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08); margin-bottom: 18px; overflow: hidden; }
+    .card-title { background: #f0f4f8; border-bottom: 1px solid var(--fiori-border); padding: 13px 20px; font-weight: 700; font-size: 1rem; }
+    .card-body { padding: 18px 22px; }
+    table.ref { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin-top: 6px; }
+    table.ref th, table.ref td { border: 1px solid var(--fiori-border); padding: 9px 11px; text-align: left; vertical-align: top; }
+    table.ref th { background: #f0f4f8; font-weight: 700; }
+    footer { text-align: center; color: var(--fiori-text-secondary); font-size: 0.8rem; margin-top: 36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header class="doc-head">
+        <h1>Ciclo de Vida — Proceso de Almacenes</h1>
+        <p>Recorrido de una solicitud desde que llega al almacén hasta que se entrega</p>
+    </header>
+
+    <div class="meta-bar">
+        <span><strong>Módulo:</strong> Inventarios</span>
+        <span><strong>Rol principal:</strong> Almacén (grupo Almacenes)</span>
+        <span><strong>Vista:</strong> Detalle de solicitud</span>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🔎 En resumen</div>
+        <div class="card-body">
+            <p>El almacén entra en acción <strong>después de que la solicitud fue autorizada</strong>. Su trabajo tiene dos momentos clave: <strong>despachar</strong> (preparar y avisar que está listo) y <strong>confirmar la entrega</strong> (cuando el solicitante recoge). El stock del inventario se descuenta hasta el final, al confirmar la entrega.</p>
+        </div>
+    </div>
+
+    <div class="timeline">
+
+        <div class="tl-item">
+            <div class="tl-dot" style="background:var(--fiori-warning);">1</div>
+            <div class="tl-card">
+                <div class="tl-head">
+                    <h3>Llega la solicitud al almacén</h3>
+                    <span class="badge b-pendiente">Pendiente</span>
+                </div>
+                <div class="tl-body">
+                    Una vez que la solicitud fue autorizada por el aprobador, pasa al estado <span class="badge b-pendiente">Pendiente</span> y aparece en la bandeja del almacén, lista para prepararse. <span class="who">Sistema</span>
+                    <div class="callout">El almacén recibe un aviso automático de que hay una solicitud lista para despacho.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-dot" style="background:var(--fiori-primary);">2</div>
+            <div class="tl-card">
+                <div class="tl-head">
+                    <h3>Revisar y ajustar el pedido</h3>
+                    <span class="who">Almacén</span>
+                </div>
+                <div class="tl-body">
+                    El almacenista abre el detalle de la solicitud y prepara físicamente los materiales. En esta etapa puede:
+                    <ul>
+                        <li><strong>Ajustar las cantidades</strong> según la disponibilidad real en bodega.</li>
+                        <li><strong>Agregar o quitar</strong> materiales de la lista.</li>
+                    </ul>
+                    <div class="callout warn">Estos ajustes solo se pueden hacer mientras la solicitud está en <span class="badge b-pendiente">Pendiente</span>. Después de despachar ya no se editan.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-dot" style="background:var(--fiori-primary);">3</div>
+            <div class="tl-card">
+                <div class="tl-head">
+                    <h3>Despachar materiales</h3>
+                    <span class="who">Almacén</span>
+                </div>
+                <div class="tl-body">
+                    Cuando el pedido está preparado, el almacenista pulsa <strong>Despachar Materiales</strong>. La solicitud cambia a <span class="badge b-listo">Lista para Recolección</span> y se notifica al solicitante que ya puede pasar a recogerla.
+                    <div class="callout">Importante: al despachar <strong>todavía no se descuenta el stock</strong>. El pedido queda reservado/listo, pero el inventario se mueve hasta la confirmación de entrega.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-dot" style="background:#0064d1;">4</div>
+            <div class="tl-card">
+                <div class="tl-head">
+                    <h3>El solicitante recoge</h3>
+                    <span class="badge b-listo">Lista para Recolección</span>
+                </div>
+                <div class="tl-body">
+                    La solicitud espera en estado <span class="badge b-listo">Lista para Recolección</span> hasta que la persona solicitante llega al almacén a retirar los materiales. <span class="who">Solicitante</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-dot" style="background:var(--fiori-success);">5</div>
+            <div class="tl-card">
+                <div class="tl-head">
+                    <h3>Confirmar entrega</h3>
+                    <span class="badge b-entregado">Entregado</span>
+                </div>
+                <div class="tl-body">
+                    Al entregar los materiales, el almacenista pulsa <strong>Confirmar Entrega</strong>. En ese momento:
+                    <ul>
+                        <li>Se <strong>descuenta el stock</strong> del inventario.</li>
+                        <li>La solicitud queda como <span class="badge b-entregado">Entregado / Completado</span>.</li>
+                    </ul>
+                    <div class="callout ok">Con esto el ciclo del almacén termina. La solicitud queda finalizada y ya no se puede editar.</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="card" style="margin-top:24px;">
+        <div class="card-title">📋 Estados que maneja el almacén</div>
+        <div class="card-body">
+            <table class="ref">
+                <tr><th>Estado</th><th>Qué significa para el almacén</th><th>Acción disponible</th></tr>
+                <tr><td><span class="badge b-pendiente">Pendiente</span></td><td>Autorizada; lista para preparar</td><td>Ajustar cantidades · Despachar</td></tr>
+                <tr><td><span class="badge b-listo">Lista para Recolección</span></td><td>Despachada; esperando que recojan</td><td>Confirmar entrega</td></tr>
+                <tr><td><span class="badge b-entregado">Entregado / Completado</span></td><td>Entregada y stock descontado</td><td>Ninguna (finalizada)</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">💡 Puntos clave para recordar</div>
+        <div class="card-body">
+            <ul style="margin:0; padding-left:18px;">
+                <li>El almacén <strong>no autoriza</strong> la solicitud; eso lo hace el aprobador antes. El almacén recibe la solicitud ya aprobada.</li>
+                <li>El <strong>stock se descuenta al confirmar la entrega</strong>, no al despachar.</li>
+                <li>Los <strong>ajustes de cantidad</strong> solo son posibles en estado Pendiente (antes de despachar).</li>
+                <li>Solo el personal del grupo <strong>Almacenes</strong> puede despachar y confirmar entregas.</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer>Documento interno · SoftCom CCG · Ciclo de Vida del Proceso de Almacenes</footer>
+</div>
+</body>
+</html>
