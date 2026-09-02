@@ -4866,12 +4866,27 @@ def solicitud_detalle_departamento(request, pk):
     puede_despachar = es_almacen and pedido.estado == 'PENDIENTE'
     puede_confirmar_entrega = es_almacen and pedido.estado == 'LISTO_RECOLECCION'
 
+    # Personas autorizadas para aprobar los materiales de esta solicitud
+    # (misma lógica que el webhook de autorización).
+    try:
+        from .utils_n8n import _obtener_aprobadores_solicitud
+        sol_perfil_obj = getattr(pedido.usuario, 'perfil', None)
+        jefe_directo = getattr(sol_perfil_obj, 'responsable', None) if sol_perfil_obj else None
+        jefe_departamento = None
+        if sol_perfil_obj and getattr(sol_perfil_obj, 'departamento', None):
+            jefe_departamento = getattr(sol_perfil_obj.departamento, 'responsable', None)
+        superior = jefe_directo or jefe_departamento
+        aprobadores = _obtener_aprobadores_solicitud(pedido, superior)
+    except Exception:
+        aprobadores = []
+
     return render(request, 'inventarios/mobile_detalle_pedido.html', {
         'pedido': pedido,
         'items': items,
         'puede_despachar': puede_despachar,
         'puede_confirmar_entrega': puede_confirmar_entrega,
         'es_almacen': es_almacen,
+        'aprobadores': aprobadores,
     })
 
 

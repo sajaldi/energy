@@ -140,6 +140,18 @@
             {% if pedido.entregado_por %}<div class="info-item"><span class="info-label">Despachado por</span><span class="info-value">{{ pedido.entregado_por.get_full_name|default:pedido.entregado_por.username }}</span></div>{% endif %}
         </div>
 
+        <div class="section-title">Aprobadores Autorizados</div>
+        <div class="info-list">
+            {% for ap in aprobadores %}
+            <div class="info-item" style="flex-direction:column; align-items:flex-start; gap:2px;">
+                <span class="info-value" style="text-align:left;">{{ ap.nombre }}</span>
+                <span class="info-label">{{ ap.email|default:"Sin correo" }}{% if ap.departamento %} · {{ ap.departamento }}{% endif %}</span>
+            </div>
+            {% empty %}
+            <div class="info-item"><span class="info-label" style="width:100%; text-align:center;">No hay aprobadores configurados para estos materiales</span></div>
+            {% endfor %}
+        </div>
+
         {% if pedido.comentarios_solicitud %}<div class="section-title">Comentarios Solicitud</div><div class="comment-box"><div class="comment-header">Técnico</div>{{ pedido.comentarios_solicitud }}</div>{% endif %}
         {% if pedido.comentarios_almacen %}<div class="section-title">Notas del Almacén</div><div class="comment-box" style="border-left-color: var(--sapSuccessColor);"><div class="comment-header">Almacén</div>{{ pedido.comentarios_almacen }}</div>{% endif %}
 
