@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login as apiLogin, logout as apiLogout } from '../api/client';
+import { registerForPushNotifications } from '../notifications';
 
 interface AuthState {
   isLoggedIn: boolean;
@@ -27,6 +28,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem('user_info').then(info => {
           if (info) setUser(JSON.parse(info));
         });
+        // Re-registrar el token push por si cambió o no se había guardado
+        registerForPushNotifications();
       }
     });
   }, []);
@@ -36,6 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const info = await AsyncStorage.getItem('user_info');
     setUser(info ? JSON.parse(info) : null);
     setIsLoggedIn(true);
+    // Registrar el dispositivo para notificaciones push tras iniciar sesión
+    registerForPushNotifications();
   };
 
   const logout = async () => {

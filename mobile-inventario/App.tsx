@@ -5,6 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useRef } from 'react';
+import * as Notifications from 'expo-notifications';
 import { initDatabase } from './src/db/database';
 import { SyncProvider } from './src/context/SyncContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -118,9 +120,26 @@ function AppContent() {
 
 export default function App() {
   const [dbReady, setDbReady] = useState(false);
+  const navigationRef = useRef<any>(null);
 
   useEffect(() => {
     initDatabase().then(() => setDbReady(true));
+  }, []);
+
+  // Al tocar una notificación, navegar al detalle de la solicitud si aplica
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(response => {
+      const data: any = response?.notification?.request?.content?.data || {};
+      const solicitudId = data?.solicitud_id;
+      if (solicitudId && navigationRef.current) {
+        try {
+          navigationRef.current.navigate('SolicitudDetalle', { id: Number(solicitudId) });
+        } catch (e) {
+          // Si la pestaña activa no tiene ese stack, se ignora
+        }
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   if (!dbReady) return null;
@@ -129,7 +148,7 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <SyncProvider>
-          <NavigationContainer>
+          <NavigationContainer ref={navigationRef}>
             <StatusBar style="light" />
             <AppContent />
           </NavigationContainer>

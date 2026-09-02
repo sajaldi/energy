@@ -651,6 +651,13 @@ def cart_checkout(request):
                 # Webhook a Power Automate
                 from .utils_n8n import notify_powerautomate_solicitud
                 notify_powerautomate_solicitud(solicitud)
+                # Push nativa: si requiere autorización, avisar a los aprobadores del depto
+                if estado_inicial == 'PENDIENTE_AUTORIZACION':
+                    try:
+                        from .utils_push import push_a_aprobadores
+                        push_a_aprobadores(solicitud)
+                    except Exception:
+                        pass
             # Limpiar carrito solo si venimos de la vista de carrito
             if not items_json:
                 Cart(request).clear()
