@@ -38,6 +38,10 @@ class SolicitudMaterial(models.Model):
     rechazado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_rechazadas', verbose_name="Rechazado por")
     fecha_rechazo = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de rechazo")
 
+    # Recepción / Entrega (evidencia)
+    recibe_nombre = models.CharField(max_length=200, blank=True, null=True, verbose_name="Recibido por (nombre)")
+    foto_entrega = models.ImageField(upload_to='entregas/', blank=True, null=True, verbose_name="Foto de entrega")
+
     def __str__(self):
         return f"Orden #{self.id} - {self.usuario.username}"
 

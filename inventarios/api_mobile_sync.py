@@ -57,7 +57,21 @@ def api_mobile_login(request):
             return JsonResponse({'error': 'Credenciales inválidas'}, status=401)
         
         token = _generate_token(user)
-        
+
+        # Determinar el rol para que la app muestre la interfaz correcta
+        perfil = getattr(user, 'perfil', None)
+        es_aprobador_salidas = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
+        departamento = getattr(getattr(perfil, 'departamento', None), 'nombre', '') or ''
+        es_almacen = user.groups.filter(name__iexact='Almacenes').exists()
+
+        # rol principal para la UI: 'almacen' > 'aprobador' > 'usuario'
+        if es_almacen:
+            rol = 'almacen'
+        elif es_aprobador_salidas:
+            rol = 'aprobador'
+        else:
+            rol = 'usuario'
+
         return JsonResponse({
             'token': token,
             'user': {
@@ -66,6 +80,10 @@ def api_mobile_login(request):
                 'nombre': user.get_full_name() or user.username,
                 'email': user.email,
                 'is_staff': user.is_staff,
+                'rol': rol,
+                'es_aprobador_salidas': es_aprobador_salidas,
+                'es_almacen': es_almacen,
+                'departamento': departamento,
             }
         })
     except Exception as e:
@@ -443,3 +461,287 @@ def api_mobile_categorias(request):
         return JsonResponse({'error': 'No autorizado'}, status=401)
     cats = CategoriaMaterial.objects.all().order_by('nombre').values('id', 'nombre')
     return JsonResponse({'categorias': list(cats)})
+
+
+# ==========================================================================
+# APIs móviles por rol: aprobaciones, despachos, mis solicitudes, push token
+# ==========================================================================
+
+def _serialize_items(solicitud):
+    items = []
+    for mov in solicitud.items.select_related('material', 'material__unidad_medida').all():
+        items.append({
+            'mov_id': mov.id,
+            'material_id': mov.material_id,
+            'material_nombre': mov.material.nombre if mov.material else '',
+            'sku': mov.material.sku if mov.material else '',
+            'cantidad': float(mov.cantidad_solicitada or mov.cantidad or 0),
+            'unidad': mov.material.unidad_medida.abreviatura if (mov.material and mov.material.unidad_medida) else 'UND',
+        })
+    return items
+
+
+def _serialize_solicitud(solicitud, full=False):
+    data = {
+        'id': solicitud.id,
+        'estado': solicitud.estado,
+        'estado_display': solicitud.get_estado_display(),
+        'solicitante': solicitud.solicitante_nombre,
+        'fecha': timezone.localtime(solicitud.fecha_solicitud).strftime('%d/%m/%Y %H:%M') if solicitud.fecha_solicitud else '',
+        'ubicacion_origen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else '',
+        'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else '',
+        'comentarios': solicitud.comentarios_solicitud or '',
+        'num_items': solicitud.items.count(),
+    }
+    if solicitud.autorizado_por:
+        data['autorizado_por'] = solicitud.autorizado_por.get_full_name() or solicitud.autorizado_por.username
+    if full:
+        data['items'] = _serialize_items(solicitud)
+    return data
+
+
+@csrf_exempt
+@require_GET
+def api_mobile_aprobaciones(request):
+    """Solicitudes pendientes de autorización del departamento del aprobador."""
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+
+    perfil = getattr(user, 'perfil', None)
+    departamento = getattr(perfil, 'departamento', None)
+    if not departamento or not getattr(perfil, 'aprobador_salidas', False):
+        return JsonResponse({'solicitudes': []})
+
+    qs = (SolicitudMaterial.objects
+          .filter(estado='PENDIENTE_AUTORIZACION', usuario__perfil__departamento=departamento)
+          .select_related('usuario', 'orden_trabajo', 'ubicacion_origen')
+          .distinct().order_by('-fecha_solicitud'))
+    return JsonResponse({'solicitudes': [_serialize_solicitud(s) for s in qs]})
+
+
+@csrf_exempt
+@require_POST
+def api_mobile_aprobar(request, pk):
+    """Aprueba o rechaza una solicitud (aprobador de salidas del departamento)."""
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+
+    perfil = getattr(user, 'perfil', None)
+    departamento = getattr(perfil, 'departamento', None)
+    if not departamento or not getattr(perfil, 'aprobador_salidas', False):
+        return JsonResponse({'status': 'error', 'message': 'No tienes permisos de aprobador.'}, status=403)
+
+    solicitud = SolicitudMaterial.objects.filter(pk=pk).first()
+    if not solicitud:
+        return JsonResponse({'status': 'error', 'message': 'Solicitud no encontrada.'}, status=404)
+
+    sol_dep = getattr(getattr(solicitud.usuario, 'perfil', None), 'departamento', None)
+    if sol_dep != departamento:
+        return JsonResponse({'status': 'error', 'message': 'Esta solicitud no pertenece a tu departamento.'}, status=403)
+
+    if solicitud.estado != 'PENDIENTE_AUTORIZACION':
+        return JsonResponse({'status': 'error', 'message': f'La solicitud ya no está pendiente ({solicitud.get_estado_display()}).'}, status=400)
+
+    try:
+        data = json.loads(request.body or '{}')
+    except Exception:
+        data = {}
+    accion = (data.get('accion') or '').lower()
+
+    if accion == 'aprobar':
+        solicitud.estado = 'PENDIENTE'
+        solicitud.autorizado_por = user
+        solicitud.fecha_autorizacion = timezone.now()
+        solicitud.save(update_fields=['estado', 'autorizado_por', 'fecha_autorizacion'])
+        try:
+            from .utils_ntfy import notificar_nueva_solicitud
+            notificar_nueva_solicitud(solicitud)
+        except Exception:
+            pass
+        try:
+            from .utils_n8n import notify_powerautomate_almacen
+            notify_powerautomate_almacen(solicitud)
+        except Exception:
+            pass
+        try:
+            from .utils_push import push_a_almacen
+            push_a_almacen(solicitud)
+        except Exception:
+            pass
+        return JsonResponse({'status': 'success', 'message': 'Solicitud autorizada.'})
+    elif accion == 'rechazar':
+        solicitud.estado = 'RECHAZADO'
+        solicitud.rechazado_por = user
+        solicitud.fecha_rechazo = timezone.now()
+        solicitud.save(update_fields=['estado', 'rechazado_por', 'fecha_rechazo'])
+        return JsonResponse({'status': 'success', 'message': 'Solicitud rechazada.'})
+    return JsonResponse({'status': 'error', 'message': 'Acción no válida.'}, status=400)
+
+
+@csrf_exempt
+@require_GET
+def api_mobile_despachos(request):
+    """Solicitudes por despachar (PENDIENTE) o listas para recolección (LISTO_RECOLECCION). Solo grupo Almacenes."""
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    if not user.groups.filter(name__iexact='Almacenes').exists():
+        return JsonResponse({'solicitudes': []})
+
+    qs = (SolicitudMaterial.objects
+          .filter(estado__in=['PENDIENTE', 'LISTO_RECOLECCION'])
+          .select_related('usuario', 'orden_trabajo', 'ubicacion_origen')
+          .order_by('-fecha_solicitud'))
+    return JsonResponse({'solicitudes': [_serialize_solicitud(s) for s in qs]})
+
+
+@csrf_exempt
+@require_POST
+def api_mobile_despachar(request, pk):
+    """Despacha (pasa a LISTO_RECOLECCION) y notifica al solicitante. Solo grupo Almacenes."""
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    if not user.groups.filter(name__iexact='Almacenes').exists():
+        return JsonResponse({'status': 'error', 'message': 'Solo Almacenes puede despachar.'}, status=403)
+
+    solicitud = SolicitudMaterial.objects.filter(pk=pk).first()
+    if not solicitud:
+        return JsonResponse({'status': 'error', 'message': 'Solicitud no encontrada.'}, status=404)
+    if solicitud.estado != 'PENDIENTE':
+        return JsonResponse({'status': 'error', 'message': f'La solicitud no está lista para despacho ({solicitud.get_estado_display()}).'}, status=400)
+
+    solicitud.estado = 'LISTO_RECOLECCION'
+    solicitud.entregado_por = user
+    solicitud.save(update_fields=['estado', 'entregado_por'])
+    try:
+        from .utils_n8n import notify_powerautomate_recoleccion
+        notify_powerautomate_recoleccion(solicitud)
+    except Exception:
+        pass
+    try:
+        from .utils_push import push_a_solicitante
+        push_a_solicitante(solicitud)
+    except Exception:
+        pass
+    return JsonResponse({'status': 'success', 'message': 'Despachada. Se notificó al solicitante.'})
+
+
+@csrf_exempt
+@require_POST
+def api_mobile_confirmar_entrega(request, pk):
+    """Confirma la entrega con foto de quién recibe. Descuenta stock -> ENTREGADO. Solo grupo Almacenes."""
+    import base64
+    from django.core.files.base import ContentFile
+    from django.db import transaction
+
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    if not user.groups.filter(name__iexact='Almacenes').exists():
+        return JsonResponse({'status': 'error', 'message': 'Solo Almacenes puede confirmar la entrega.'}, status=403)
+
+    solicitud = SolicitudMaterial.objects.filter(pk=pk).first()
+    if not solicitud:
+        return JsonResponse({'status': 'error', 'message': 'Solicitud no encontrada.'}, status=404)
+    if solicitud.estado != 'LISTO_RECOLECCION':
+        return JsonResponse({'status': 'error', 'message': f'La solicitud no está lista para recolección ({solicitud.get_estado_display()}).'}, status=400)
+
+    try:
+        data = json.loads(request.body or '{}')
+    except Exception:
+        data = {}
+
+    recibe_nombre = (data.get('recibe_nombre') or '').strip()
+    foto_base64 = data.get('foto_base64') or ''
+
+    try:
+        with transaction.atomic():
+            for mov in solicitud.items.all():
+                if mov.estado != 'APROBADO':
+                    mov.liquidar(user)
+
+            solicitud.estado = 'ENTREGADO'
+            solicitud.recibe_nombre = recibe_nombre or None
+            if not solicitud.entregado_por:
+                solicitud.entregado_por = user
+            solicitud.fecha_entrega = timezone.now()
+
+            if foto_base64:
+                try:
+                    img_data = base64.b64decode(foto_base64)
+                    solicitud.foto_entrega.save(f'entrega_{solicitud.id}.jpg', ContentFile(img_data), save=False)
+                except Exception:
+                    pass
+
+            solicitud.save()
+
+        try:
+            from .utils_n8n import notify_powerautomate_despacho
+            notify_powerautomate_despacho(solicitud)
+        except Exception:
+            pass
+
+        return JsonResponse({'status': 'success', 'message': f'Entrega de la solicitud #{solicitud.id} confirmada.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Error al confirmar: {str(e)}'}, status=500)
+
+
+@csrf_exempt
+@require_GET
+def api_mobile_mis_solicitudes(request):
+    """Solicitudes del usuario autenticado."""
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    qs = (SolicitudMaterial.objects
+          .filter(usuario=user)
+          .select_related('orden_trabajo', 'ubicacion_origen')
+          .order_by('-fecha_solicitud')[:100])
+    return JsonResponse({'solicitudes': [_serialize_solicitud(s) for s in qs]})
+
+
+@csrf_exempt
+@require_GET
+def api_mobile_solicitud_detalle(request, pk):
+    """Detalle completo de una solicitud (dueño, mismo departamento o almacén)."""
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+
+    solicitud = SolicitudMaterial.objects.filter(pk=pk).select_related('usuario', 'orden_trabajo', 'ubicacion_origen').first()
+    if not solicitud:
+        return JsonResponse({'error': 'No encontrada'}, status=404)
+
+    perfil = getattr(user, 'perfil', None)
+    mi_dep = getattr(getattr(perfil, 'departamento', None), 'id', None)
+    sol_dep = getattr(getattr(getattr(solicitud.usuario, 'perfil', None), 'departamento', None), 'id', None)
+    es_almacen = user.groups.filter(name__iexact='Almacenes').exists()
+    es_aprobador = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
+
+    if not (solicitud.usuario_id == user.id or (mi_dep and mi_dep == sol_dep) or es_almacen or es_aprobador or user.is_superuser):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    return JsonResponse({'solicitud': _serialize_solicitud(solicitud, full=True)})
+
+
+@csrf_exempt
+@require_POST
+def api_mobile_push_token(request):
+    """Registra el token de notificaciones push (Expo) del usuario."""
+    user = _get_user_from_token(request)
+    if not user:
+        return JsonResponse({'error': 'No autorizado'}, status=401)
+    try:
+        data = json.loads(request.body or '{}')
+    except Exception:
+        data = {}
+    token = (data.get('token') or '').strip()
+    perfil = getattr(user, 'perfil', None)
+    if perfil is not None and token:
+        perfil.expo_push_token = token
+        perfil.save(update_fields=['expo_push_token'])
+        return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'error', 'message': 'Token o perfil no disponible.'}, status=400)

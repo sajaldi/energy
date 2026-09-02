@@ -260,6 +260,11 @@ class PerfilUsuario(models.Model):
         verbose_name="Aprobador de Salidas",
         help_text="Si está activo, este usuario puede aprobar solicitudes de material de su departamento."
     )
+    expo_push_token = models.CharField(
+        max_length=255, blank=True, null=True,
+        verbose_name="Token Push (Expo)",
+        help_text="Token de notificaciones push de la app móvil."
+    )
 
     def __str__(self):
         return f"Perfil de {self.usuario.username}"

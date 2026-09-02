@@ -4820,6 +4820,11 @@ def solicitud_aprobar_departamento(request, pk):
             notify_powerautomate_almacen(solicitud)
         except Exception:
             pass
+        try:
+            from .utils_push import push_a_almacen
+            push_a_almacen(solicitud)
+        except Exception:
+            pass
         return JsonResponse({'status': 'success', 'message': 'Solicitud autorizada.', 'nuevo_estado': 'PENDIENTE'})
     elif accion == 'rechazar':
         solicitud.estado = 'RECHAZADO'
