@@ -2659,6 +2659,66 @@ def api_check_ot_solicitud(request, ot_id):
 
 
 @login_required
+def api_aprobadores_solicitud(request, pk):
+    """
+    Devuelve la lista de personas autorizadas para aprobar una solicitud.
+
+    Usa la misma lógica que el webhook de autorización
+    (_obtener_aprobadores_solicitud): aprobadores de salida de los departamentos
+    de los materiales y, como fallback, el superior/jefe del solicitante.
+
+    Respuesta JSON con la lista de aprobadores. Si se abre en el navegador con
+    ?format=html, muestra una tabla legible.
+    """
+    from .utils_n8n import _obtener_aprobadores_solicitud
+
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+
+    # Determinar el superior del solicitante (fallback) igual que en el webhook
+    user = solicitud.usuario
+    perfil = getattr(user, 'perfil', None)
+    jefe_directo = getattr(perfil, 'responsable', None) if perfil else None
+    jefe_departamento = None
+    if perfil and getattr(perfil, 'departamento', None):
+        jefe_departamento = getattr(perfil.departamento, 'responsable', None)
+    superior = jefe_directo or jefe_departamento
+
+    aprobadores = _obtener_aprobadores_solicitud(solicitud, superior)
+
+    if request.GET.get('format') == 'html':
+        filas = ''.join(
+            f"<tr><td>{a.get('nombre','')}</td><td>{a.get('email','') or '—'}</td>"
+            f"<td>{a.get('departamento','') or '—'}</td></tr>"
+            for a in aprobadores
+        ) or '<tr><td colspan="3" style="text-align:center;color:#6a6d70;">Sin aprobadores configurados</td></tr>'
+        html = f"""
+        <div style="font-family:'Outfit',sans-serif;max-width:640px;margin:24px auto;">
+          <h2 style="color:#32363a;">Personas autorizadas para aprobar la Solicitud #{solicitud.id}</h2>
+          <p style="color:#6a6d70;">Estado actual: <strong>{solicitud.get_estado_display()}</strong> ·
+             Solicitante: {(f"{user.first_name} {user.last_name}".strip() or user.username)}</p>
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+            <thead><tr style="background:#f0f4f8;">
+              <th style="border:1px solid #d9d9d9;padding:8px;text-align:left;">Nombre</th>
+              <th style="border:1px solid #d9d9d9;padding:8px;text-align:left;">Correo</th>
+              <th style="border:1px solid #d9d9d9;padding:8px;text-align:left;">Departamento</th>
+            </tr></thead>
+            <tbody>{filas}</tbody>
+          </table>
+        </div>
+        """
+        return HttpResponse(html)
+
+    return JsonResponse({
+        'status': 'success',
+        'solicitud_id': solicitud.id,
+        'estado': solicitud.estado,
+        'estado_display': solicitud.get_estado_display(),
+        'total': len(aprobadores),
+        'aprobadores': aprobadores,
+    })
+
+
+@login_required
 def api_solicitud_update_items(request, pk):
     """
     Actualiza items de una solicitud: agrega nuevos, modifica cantidades y elimina líneas.
