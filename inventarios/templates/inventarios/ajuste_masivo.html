@@ -672,7 +672,8 @@
                 <span class="toolbar-count" id="catCount"></span>
             </div>
 
-            <!-- Barra de acción masiva -->
+            <!-- Barra de acción masiva (solo Procura_Tecnica / superuser) -->
+            {% if puede_asignar_depto %}
             <div class="bulk-bar" id="bulkBar">
                 <span class="bulk-count"><strong id="bulkCount">0</strong> seleccionado(s)</span>
                 <select id="bulkDepartamento">
@@ -690,13 +691,14 @@
                 </button>
                 <button type="button" class="btn-bulk-clear" id="btnLimpiarSel">Limpiar</button>
             </div>
+            {% endif %}
 
             <!-- Tabla -->
             <div class="sap-table-wrapper">
                 <table class="sap-table">
                     <thead>
                         <tr>
-                            <th style="width:36px; text-align:center;"><input type="checkbox" id="catCheckAll" title="Seleccionar todo"></th>
+                            {% if puede_asignar_depto %}<th style="width:36px; text-align:center;"><input type="checkbox" id="catCheckAll" title="Seleccionar todo"></th>{% endif %}
                             <th>SKU</th>
                             <th>Material</th>
                             <th>Categoría</th>
@@ -870,6 +872,8 @@ MAT-003,0</pre>
     });
 
     // ═══ CATÁLOGO ═══
+    const PUEDE_ASIGNAR = {% if puede_asignar_depto %}true{% else %}false{% endif %};
+    const CAT_COLSPAN = PUEDE_ASIGNAR ? 10 : 9;
     let catCurrentPage = 1;
     let catDebounce = null;
 
@@ -892,20 +896,20 @@ MAT-003,0</pre>
         if (catFilterTipo.value) params.set('tipo', catFilterTipo.value);
 
         const tbody = document.getElementById('catTableBody');
-        tbody.innerHTML = '<tr><td colspan="10" class="table-loading"><div class="loading-spinner"></div>Cargando...</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${CAT_COLSPAN}" class="table-loading"><div class="loading-spinner"></div>Cargando...</td></tr>`;
 
         fetch(`{% url 'inventarios:api_ajuste_masivo_catalogo' %}?${params.toString()}`)
             .then(r => r.json())
             .then(data => {
                 if (data.status !== 'success') {
-                    tbody.innerHTML = '<tr><td colspan="10" class="table-empty">Error al cargar datos.</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="${CAT_COLSPAN}" class="table-empty">Error al cargar datos.</td></tr>`;
                     return;
                 }
 
                 document.getElementById('catCount').textContent = `${data.total_items} materiales`;
 
                 if (data.items.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="10" class="table-empty">
+                    tbody.innerHTML = `<tr><td colspan="${CAT_COLSPAN}" class="table-empty">
                         <ion-icon name="search-outline"></ion-icon>
                         <p>No se encontraron materiales con los filtros actuales.</p>
                     </td></tr>`;
@@ -916,7 +920,7 @@ MAT-003,0</pre>
 
                 tbody.innerHTML = data.items.map(item => `
                     <tr>
-                        <td style="text-align:center;"><input type="checkbox" class="cat-row-check" value="${item.id}" ${selectedIds.has(item.id) ? 'checked' : ''}></td>
+                        ${PUEDE_ASIGNAR ? `<td style="text-align:center;"><input type="checkbox" class="cat-row-check" value="${item.id}" ${selectedIds.has(item.id) ? 'checked' : ''}></td>` : ''}
                         <td class="col-sku">${item.sku}</td>
                         <td class="col-nombre" title="${item.nombre}">${item.nombre}</td>
                         <td><span class="badge-cat">${item.categoria}</span></td>
@@ -929,9 +933,8 @@ MAT-003,0</pre>
                     </tr>
                 `).join('');
 
-                // Re-enlazar checkboxes de la página recién cargada
-                bindRowChecks();
-                syncCheckAll();
+                // Re-enlazar checkboxes de la página recién cargada (solo si aplica)
+                if (PUEDE_ASIGNAR) { bindRowChecks(); syncCheckAll(); }
 
                 // Paginación
                 const start = (data.page - 1) * 50 + 1;
@@ -959,89 +962,97 @@ MAT-003,0</pre>
                 document.getElementById('pagButtons').innerHTML = pagHtml;
             })
             .catch(err => {
-                tbody.innerHTML = '<tr><td colspan="10" class="table-empty">Error de conexión.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="${CAT_COLSPAN}" class="table-empty">Error de conexión.</td></tr>`;
             });
     }
 
-    // ═══ SELECCIÓN Y ASIGNACIÓN DE DEPARTAMENTO ═══
+    // ═══ SELECCIÓN Y ASIGNACIÓN DE DEPARTAMENTO (solo Procura_Tecnica / superuser) ═══
     const selectedIds = new Set();
-    const bulkBar = document.getElementById('bulkBar');
-    const bulkCount = document.getElementById('bulkCount');
-    const catCheckAll = document.getElementById('catCheckAll');
 
-    function updateBulkBar() {
-        bulkCount.textContent = selectedIds.size;
-        bulkBar.classList.toggle('show', selectedIds.size > 0);
-    }
+    // Definidas siempre para que loadCatalogo pueda llamarlas sin errores.
+    function updateBulkBar() {}
+    function bindRowChecks() {}
+    function syncCheckAll() {}
 
-    function bindRowChecks() {
-        document.querySelectorAll('.cat-row-check').forEach(cb => {
-            cb.addEventListener('change', () => {
+    if (PUEDE_ASIGNAR) {
+        const bulkBar = document.getElementById('bulkBar');
+        const bulkCount = document.getElementById('bulkCount');
+        const catCheckAll = document.getElementById('catCheckAll');
+
+        updateBulkBar = function () {
+            bulkCount.textContent = selectedIds.size;
+            bulkBar.classList.toggle('show', selectedIds.size > 0);
+        };
+
+        syncCheckAll = function () {
+            const checks = document.querySelectorAll('.cat-row-check');
+            if (!checks.length) { catCheckAll.checked = false; return; }
+            catCheckAll.checked = Array.from(checks).every(cb => cb.checked);
+        };
+
+        bindRowChecks = function () {
+            document.querySelectorAll('.cat-row-check').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const id = parseInt(cb.value);
+                    if (cb.checked) selectedIds.add(id);
+                    else selectedIds.delete(id);
+                    updateBulkBar();
+                    syncCheckAll();
+                });
+            });
+        };
+
+        catCheckAll.addEventListener('change', () => {
+            document.querySelectorAll('.cat-row-check').forEach(cb => {
+                cb.checked = catCheckAll.checked;
                 const id = parseInt(cb.value);
                 if (cb.checked) selectedIds.add(id);
                 else selectedIds.delete(id);
-                updateBulkBar();
-                syncCheckAll();
             });
+            updateBulkBar();
         });
-    }
 
-    function syncCheckAll() {
-        const checks = document.querySelectorAll('.cat-row-check');
-        if (!checks.length) { catCheckAll.checked = false; return; }
-        catCheckAll.checked = Array.from(checks).every(cb => cb.checked);
-    }
-
-    catCheckAll.addEventListener('change', () => {
-        document.querySelectorAll('.cat-row-check').forEach(cb => {
-            cb.checked = catCheckAll.checked;
-            const id = parseInt(cb.value);
-            if (cb.checked) selectedIds.add(id);
-            else selectedIds.delete(id);
+        document.getElementById('btnLimpiarSel').addEventListener('click', () => {
+            selectedIds.clear();
+            document.querySelectorAll('.cat-row-check').forEach(cb => cb.checked = false);
+            catCheckAll.checked = false;
+            updateBulkBar();
         });
-        updateBulkBar();
-    });
 
-    document.getElementById('btnLimpiarSel').addEventListener('click', () => {
-        selectedIds.clear();
-        document.querySelectorAll('.cat-row-check').forEach(cb => cb.checked = false);
-        catCheckAll.checked = false;
-        updateBulkBar();
-    });
+        document.getElementById('btnAsignarDepto').addEventListener('click', async () => {
+            const deptoId = document.getElementById('bulkDepartamento').value;
+            const modo = document.getElementById('bulkModo').value;
+            if (!deptoId) { alert('Seleccione un departamento.'); return; }
+            if (selectedIds.size === 0) { alert('Seleccione al menos un material.'); return; }
 
-    document.getElementById('btnAsignarDepto').addEventListener('click', async () => {
-        const deptoId = document.getElementById('bulkDepartamento').value;
-        const modo = document.getElementById('bulkModo').value;
-        if (!deptoId) { alert('Seleccione un departamento.'); return; }
-        if (selectedIds.size === 0) { alert('Seleccione al menos un material.'); return; }
+            const deptoNombre = document.getElementById('bulkDepartamento').selectedOptions[0].text;
+            if (!confirm(`¿Asignar ${selectedIds.size} material(es) al departamento "${deptoNombre}"?`)) return;
 
-        const deptoNombre = document.getElementById('bulkDepartamento').selectedOptions[0].text;
-        if (!confirm(`¿Asignar ${selectedIds.size} material(es) al departamento "${deptoNombre}"?`)) return;
-
-        const csrf = document.querySelector('#formAjusteMasivo [name=csrfmiddlewaretoken]').value;
-        try {
-            const res = await fetch(`{% url 'inventarios:api_ajuste_masivo_asignar_departamento' %}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-                body: JSON.stringify({
-                    material_ids: Array.from(selectedIds),
-                    departamento_id: parseInt(deptoId),
-                    modo: modo,
-                })
-            });
-            const data = await res.json();
-            if (data.status === 'success') {
-                alert(data.message);
-                selectedIds.clear();
-                updateBulkBar();
-                loadCatalogo(catCurrentPage);
-            } else {
-                alert(data.message || 'Error al asignar.');
+            const csrf = document.querySelector('#formAjusteMasivo [name=csrfmiddlewaretoken]').value;
+            try {
+                const res = await fetch(`{% url 'inventarios:api_ajuste_masivo_asignar_departamento' %}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({
+                        material_ids: Array.from(selectedIds),
+                        departamento_id: parseInt(deptoId),
+                        modo: modo,
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert(data.message);
+                    selectedIds.clear();
+                    updateBulkBar();
+                    loadCatalogo(catCurrentPage);
+                } else {
+                    alert(data.message || 'Error al asignar.');
+                }
+            } catch (e) {
+                alert('Error de conexión.');
             }
-        } catch (e) {
-            alert('Error de conexión.');
-        }
-    });
+        });
+    }
 
     // Expose globally for pagination buttons
     window.loadCatalogo = loadCatalogo;

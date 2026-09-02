@@ -4291,10 +4291,11 @@ def ajuste_masivo_view(request):
     from django.db.models import Q
     from .models import AjusteMasivoInventario
 
-    # Verificar pertenencia al grupo Auditoria
+    # Verificar pertenencia al grupo Auditoria o Procura_Tecnica
     es_auditoria = request.user.groups.filter(name='Auditoria').exists() or request.user.is_superuser
-    if not es_auditoria:
-        messages.error(request, 'No tienes permiso para acceder a esta sección. Solo el perfil Auditoría puede realizar ajustes masivos.')
+    puede_asignar_depto = request.user.groups.filter(name='Procura_Tecnica').exists() or request.user.is_superuser
+    if not (es_auditoria or puede_asignar_depto):
+        messages.error(request, 'No tienes permiso para acceder a esta sección.')
         return redirect('inventarios:dashboard')
 
     ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
@@ -4313,6 +4314,7 @@ def ajuste_masivo_view(request):
         'active_tab': 'ajuste_masivo',
         'title': 'Ajuste Masivo de Inventario',
         'es_auditoria': es_auditoria,
+        'puede_asignar_depto': puede_asignar_depto,
     }
     return render(request, 'inventarios/ajuste_masivo.html', context)
 
@@ -4624,9 +4626,10 @@ def api_ajuste_masivo_asignar_departamento(request):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
-    es_auditoria = request.user.groups.filter(name='Auditoria').exists() or request.user.is_superuser
-    if not es_auditoria:
-        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+    # Solo el grupo Procura_Tecnica o un superusuario puede asignar departamentos.
+    puede_asignar = request.user.groups.filter(name='Procura_Tecnica').exists() or request.user.is_superuser
+    if not puede_asignar:
+        return JsonResponse({'status': 'error', 'message': 'No autorizado. Solo Procura Técnica puede asignar materiales a departamentos.'}, status=403)
 
     try:
         data = json.loads(request.body)
