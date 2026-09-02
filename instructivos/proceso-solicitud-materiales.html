@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instructivo — Proceso de Solicitud de Materiales | SoftCom CCG</title>
+<style>
+    :root {
+        --fiori-primary: #0070f2;
+        --fiori-bg: #eff2f5;
+        --fiori-card-bg: #ffffff;
+        --fiori-text: #32363a;
+        --fiori-text-secondary: #6a6d70;
+        --fiori-border: #d9d9d9;
+        --fiori-success: #107e3e;
+        --fiori-warning: #e9730c;
+        --fiori-error: #bb0000;
+        --occ-dark: rgb(11, 29, 47);
+    }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--fiori-bg); color: var(--fiori-text); margin: 0; padding: 0; line-height: 1.6; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 80px; }
+    header.doc-head { background: var(--occ-dark); color: #fff; padding: 28px 32px; border-radius: 8px; margin-bottom: 24px; }
+    header.doc-head h1 { margin: 0 0 6px; font-size: 1.5rem; font-weight: 700; }
+    header.doc-head p { margin: 0; color: #c9d4df; font-size: 0.95rem; }
+    .meta-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; font-size: 0.8rem; color: var(--fiori-text-secondary); }
+    .meta-bar span { background: var(--fiori-card-bg); border: 1px solid var(--fiori-border); padding: 6px 12px; border-radius: 4px; }
+    .card { background: var(--fiori-card-bg); border: 1px solid var(--fiori-border); border-radius: 8px; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08); margin-bottom: 18px; overflow: hidden; }
+    .card-title { background: #f0f4f8; border-bottom: 1px solid var(--fiori-border); padding: 13px 20px; font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 10px; }
+    .card-body { padding: 18px 22px; }
+    .stepn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--fiori-primary); color: #fff; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
+    ul.sub { margin: 8px 0 0; padding-left: 20px; }
+    ul.sub li { margin-bottom: 6px; }
+    ol.steps { margin: 0; padding-left: 20px; }
+    ol.steps li { margin-bottom: 10px; }
+    .who { display:inline-block; background:#eef4fd; color:#0057c2; font-size:0.72rem; font-weight:700; padding:3px 10px; border-radius:2rem; text-transform:uppercase; letter-spacing:0.4px; }
+    .callout { border-left: 4px solid var(--fiori-primary); background: #f6f9fe; padding: 12px 16px; border-radius: 0 4px 4px 0; margin: 12px 0; font-size: 0.9rem; }
+    .callout.warn { border-left-color: var(--fiori-warning); background: #fff8f0; }
+    .callout.error { border-left-color: var(--fiori-error); background: #fdf1f1; }
+    .callout.ok { border-left-color: var(--fiori-success); background: #f2fbf5; }
+    table.ref { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin-top: 8px; }
+    table.ref th, table.ref td { border: 1px solid var(--fiori-border); padding: 9px 11px; text-align: left; vertical-align: top; }
+    table.ref th { background: #f0f4f8; font-weight: 700; }
+    .badge { display:inline-block; font-size:0.75rem; font-weight:700; padding:3px 10px; border-radius:2rem; white-space:nowrap; }
+    .b-borrador { background:#f1f5f9; color:#475569; }
+    .b-autoriz { background:#eff6ff; color:#1d4ed8; }
+    .b-pendiente { background:#fff4e5; color:#e9730c; }
+    .b-listo { background:#e5f0ff; color:#0064d1; }
+    .b-entregado { background:#e7f4e9; color:#107e3e; }
+    .b-rechazado { background:#ffebeb; color:#bb0000; }
+    .flow { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
+    .flow .arrow { color:#adb5bd; font-weight:700; }
+    footer { text-align: center; color: var(--fiori-text-secondary); font-size: 0.8rem; margin-top: 36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header class="doc-head">
+        <h1>Proceso de Solicitud de Materiales</h1>
+        <p>Guía para el usuario — desde que se pide el material hasta que se entrega</p>
+    </header>
+
+    <div class="meta-bar">
+        <span><strong>Módulo:</strong> Inventarios</span>
+        <span><strong>Dirigido a:</strong> Solicitantes · Aprobadores · Almacén</span>
+        <span><strong>Sistema:</strong> SoftCom CCG</span>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🗺️ Visión general del flujo</div>
+        <div class="card-body">
+            <p>Toda solicitud de materiales recorre estas etapas. En cada una hay una persona responsable de actuar:</p>
+            <div class="flow">
+                <span class="badge b-borrador">Borrador</span><span class="arrow">→</span>
+                <span class="badge b-autoriz">Pendiente de Autorización</span><span class="arrow">→</span>
+                <span class="badge b-pendiente">Pendiente (por despachar)</span><span class="arrow">→</span>
+                <span class="badge b-listo">Lista para Recolección</span><span class="arrow">→</span>
+                <span class="badge b-entregado">Entregado</span>
+            </div>
+            <div class="callout warn" style="margin-top:14px;">Si un aprobador rechaza la solicitud, el proceso termina en el estado <span class="badge b-rechazado">Rechazado</span> y no continúa.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="stepn">1</span> Crear la solicitud <span class="who">Solicitante</span></div>
+        <div class="card-body">
+            <ol class="steps">
+                <li>Entra a <strong>Crear Solicitud</strong> en el módulo de Inventarios.</li>
+                <li>Busca y agrega los <strong>materiales</strong> que necesitas, indicando la <strong>cantidad</strong> de cada uno.</li>
+                <li>Si aplica, asocia la <strong>Orden de Trabajo</strong> y escribe un <strong>comentario</strong> con el motivo.</li>
+                <li>Pulsa <strong>Enviar Solicitud</strong>.</li>
+            </ol>
+            <div class="callout">Si guardas sin enviar, la solicitud queda como <span class="badge b-borrador">Borrador</span> y puedes seguir editándola. El proceso arranca cuando pulsas <strong>Enviar Solicitud</strong>.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="stepn">2</span> Se pide la autorización <span class="who">Sistema</span></div>
+        <div class="card-body">
+            <p>Al enviarse, la solicitud pasa a <span class="badge b-autoriz">Pendiente de Autorización</span>. El sistema identifica automáticamente <strong>quiénes pueden aprobar esos materiales</strong> y les envía un correo a cada uno.</p>
+            <p style="margin-top:12px;"><strong>¿Quiénes son los aprobadores?</strong></p>
+            <ul class="sub">
+                <li>Las personas marcadas como <strong>aprobadores</strong> en los departamentos dueños de esos materiales.</li>
+                <li>Si no hay ninguno configurado, se usa como respaldo el <strong>jefe/responsable</strong> del solicitante.</li>
+            </ul>
+            <div class="callout ok">Puedes ver la lista de aprobadores directamente en la pantalla de detalle de la solicitud, en la sección <strong>“Aprobadores Autorizados”</strong> (nombre, correo y departamento).</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="stepn">3</span> Autorizar o rechazar <span class="who">Aprobador</span></div>
+        <div class="card-body">
+            <p>Cada aprobador recibe un correo con la lista de materiales y dos botones: <strong>Autorizar</strong> o <strong>Rechazar</strong>.</p>
+            <ul class="sub">
+                <li>El <strong>primero</strong> que responda cierra la decisión. Los demás correos mostrarán que ya fue resuelta y por quién.</li>
+                <li>Si <strong>rechaza</strong> → la solicitud queda <span class="badge b-rechazado">Rechazado</span> y el proceso termina.</li>
+                <li>Si <strong>autoriza</strong> → pasa a <span class="badge b-pendiente">Pendiente</span> y el almacén recibe aviso automático.</li>
+            </ul>
+            <div class="callout warn">Los enlaces de Autorizar/Rechazar solo funcionan mientras la solicitud está en <span class="badge b-autoriz">Pendiente de Autorización</span>. Si ya fue resuelta, el enlace mostrará el resultado en lugar de volver a procesarla.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="stepn">4</span> Preparar y despachar <span class="who">Almacén</span></div>
+        <div class="card-body">
+            <p>Con la solicitud en <span class="badge b-pendiente">Pendiente</span>, el personal de Almacén abre el detalle y prepara el pedido. En esta etapa puede:</p>
+            <ul class="sub">
+                <li><strong>Ajustar las cantidades</strong> según la disponibilidad real, así como agregar o quitar materiales.</li>
+                <li>Pulsar <strong>Despachar Materiales</strong> cuando el pedido está listo.</li>
+            </ul>
+            <p style="margin-top:12px;">Al despachar, la solicitud pasa a <span class="badge b-listo">Lista para Recolección</span> y se le avisa al solicitante que ya puede pasar a recogerla.</p>
+            <div class="callout">En este punto el <strong>stock todavía no se descuenta</strong>. El descuento ocurre al confirmar la entrega (paso 5).</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="stepn">5</span> Confirmar la entrega <span class="who">Almacén</span></div>
+        <div class="card-body">
+            <p>Cuando el solicitante llega a recoger el material, el almacén pulsa <strong>Confirmar Entrega</strong>.</p>
+            <ul class="sub">
+                <li>En ese momento se <strong>descuenta el stock</strong>.</li>
+                <li>La solicitud queda como <span class="badge b-entregado">Entregado</span> y el proceso se cierra.</li>
+            </ul>
+            <div class="callout ok">A partir de aquí la solicitud está finalizada y ya no puede editarse.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📋 Resumen de estados</div>
+        <div class="card-body">
+            <table class="ref">
+                <tr><th>Estado</th><th>Qué significa</th><th>Quién actúa</th></tr>
+                <tr><td><span class="badge b-borrador">Borrador</span></td><td>Creada pero aún no enviada</td><td>Solicitante</td></tr>
+                <tr><td><span class="badge b-autoriz">Pendiente de Autorización</span></td><td>Esperando aprobación</td><td>Aprobadores</td></tr>
+                <tr><td><span class="badge b-rechazado">Rechazado</span></td><td>No aprobada; proceso terminado</td><td>—</td></tr>
+                <tr><td><span class="badge b-pendiente">Pendiente</span></td><td>Aprobada; esperando despacho</td><td>Almacén</td></tr>
+                <tr><td><span class="badge b-listo">Lista para Recolección</span></td><td>Despachada; lista para recoger</td><td>Solicitante recoge</td></tr>
+                <tr><td><span class="badge b-entregado">Entregado</span></td><td>Recibida; stock descontado</td><td>Almacén confirma</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">❓ Preguntas frecuentes</div>
+        <div class="card-body">
+            <p><strong>El correo de autorización solo le llegó a una persona.</strong><br>
+            Significa que solo hay un aprobador configurado para esos materiales, o que se usó el respaldo (el jefe del solicitante). Para que lleguen más, hay que marcar a esas personas como aprobadoras en su departamento.</p>
+            <p style="margin-top:12px;"><strong>Abrí el enlace del correo y dice “Solicitud no disponible”.</strong><br>
+            La solicitud ya no está en <span class="badge b-autoriz">Pendiente de Autorización</span> (por ejemplo, ya fue aprobada y está en <span class="badge b-pendiente">Pendiente</span>). Usa el botón <em>Ver detalle de la solicitud</em> para revisar su estado actual.</p>
+            <p style="margin-top:12px;"><strong>¿Puedo cambiar las cantidades después de enviar?</strong><br>
+            El almacén puede ajustarlas durante la etapa <span class="badge b-pendiente">Pendiente</span> (antes de despachar). Una vez <span class="badge b-entregado">Entregado</span> o <span class="badge b-rechazado">Rechazado</span>, ya no se puede editar.</p>
+        </div>
+    </div>
+
+    <footer>Documento interno · SoftCom CCG · Proceso de Solicitud de Materiales</footer>
+</div>
+</body>
+</html>

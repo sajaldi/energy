@@ -963,17 +963,56 @@ def api_despachar_solicitud(request, pk):
 @login_required
 @mobile_permission_required('logistica')
 def mobile_detalle_pedido(request, pk):
-    """Detalle móvil de una solicitud de material."""
-    pedido = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
+    """Detalle móvil de una solicitud de material.
+
+    Puede verlo: el dueño de la solicitud, alguien del mismo departamento del
+    solicitante, un aprobador de salidas o el personal de Almacenes. Así los
+    enlaces del correo (autorización, despacho) funcionan para todos.
+    """
+    pedido = get_object_or_404(SolicitudMaterial, pk=pk)
+
+    perfil = getattr(request.user, 'perfil', None)
+    mi_departamento_id = getattr(getattr(perfil, 'departamento', None), 'id', None)
+    sol_perfil = getattr(pedido.usuario, 'perfil', None)
+    sol_departamento_id = getattr(getattr(sol_perfil, 'departamento', None), 'id', None)
+
+    es_dueno = pedido.usuario_id == request.user.id
+    mismo_departamento = bool(mi_departamento_id and mi_departamento_id == sol_departamento_id)
+    es_aprobador = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
+    es_almacen_grp = request.user.groups.filter(name__iexact='Almacenes').exists()
+
+    if not (es_dueno or mismo_departamento or es_aprobador or es_almacen_grp or request.user.is_superuser):
+        return HttpResponse("No tienes permiso para ver esta solicitud.", status=403)
+
     items = pedido.items.select_related('material', 'material__unidad_medida').all()
-    
+
     for item in items:
         m = item.material
         item.image_url = m.imagen.url if m.imagen else ''
-    
+
+    es_almacen = es_almacen_grp
+    puede_despachar = es_almacen and pedido.estado == 'PENDIENTE'
+    puede_confirmar_entrega = es_almacen and pedido.estado == 'LISTO_RECOLECCION'
+
+    # Personas autorizadas para aprobar los materiales de esta solicitud
+    try:
+        from .utils_n8n import _obtener_aprobadores_solicitud
+        jefe_directo = getattr(sol_perfil, 'responsable', None) if sol_perfil else None
+        jefe_departamento = None
+        if sol_perfil and getattr(sol_perfil, 'departamento', None):
+            jefe_departamento = getattr(sol_perfil.departamento, 'responsable', None)
+        superior = jefe_directo or jefe_departamento
+        aprobadores = _obtener_aprobadores_solicitud(pedido, superior)
+    except Exception:
+        aprobadores = []
+
     return render(request, 'inventarios/mobile_detalle_pedido.html', {
         'pedido': pedido,
-        'items': items
+        'items': items,
+        'puede_despachar': puede_despachar,
+        'puede_confirmar_entrega': puede_confirmar_entrega,
+        'es_almacen': es_almacen,
+        'aprobadores': aprobadores,
     })
 
 @login_required
@@ -2807,7 +2846,17 @@ def api_resolicitud_webhook(request, pk):
     """Reenvía el webhook a Power Automate para una solicitud."""
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
-    solicitud = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+
+    # Puede reenviar: el dueño, un aprobador de salidas, el personal de Almacenes
+    # o un superusuario.
+    perfil = getattr(request.user, 'perfil', None)
+    es_dueno = solicitud.usuario_id == request.user.id
+    es_aprobador = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
+    es_almacen = request.user.groups.filter(name__iexact='Almacenes').exists()
+    if not (es_dueno or es_aprobador or es_almacen or request.user.is_superuser):
+        return JsonResponse({'status': 'error', 'message': 'No tienes permiso para reenviar esta solicitud.'}, status=403)
+
     from .utils_n8n import notify_powerautomate_solicitud
     ok = notify_powerautomate_solicitud(solicitud)
     if ok:
