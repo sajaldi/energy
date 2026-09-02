@@ -4615,3 +4615,150 @@ def solicitud_estado_badge(request, pk):
     resp['Pragma'] = 'no-cache'
     resp['Expires'] = '0'
     return resp
+
+
+@login_required
+def dashboard_departamento(request):
+    """
+    Dashboard por departamento del usuario:
+      1. Materiales permitidos de su departamento.
+      2. Salidas (movimientos) aprobadas cuyos materiales pertenecen a su departamento.
+    """
+    from django.db.models import Sum
+    from .models import Material, MovimientoInventario, SolicitudMaterial
+
+    perfil = getattr(request.user, 'perfil', None)
+    departamento = getattr(perfil, 'departamento', None)
+    es_aprobador = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
+
+    solicitudes_pendientes = []
+    total_salidas = 0
+    total_pendientes = 0
+
+    q = (request.GET.get('q') or '').strip()
+
+    if departamento:
+        # 1. Materiales de mi departamento (paginados + búsqueda, pueden ser miles)
+        from django.core.paginator import Paginator
+        from django.db.models import Q
+
+        from django.db.models import Count
+
+        # 1. Materiales MÁS UTILIZADOS por el equipo (top 10 por cantidad total solicitada)
+        materiales_top = (
+            MovimientoInventario.objects
+            .filter(tipo='SALIDA', solicitud__usuario__perfil__departamento=departamento)
+            .values('material__id', 'material__nombre', 'material__sku', 'material__unidad_medida__abreviatura')
+            .annotate(
+                total_cantidad=Sum('cantidad_solicitada'),
+                veces=Count('id'),
+            )
+            .order_by('-total_cantidad')[:10]
+        )
+        total_materiales = MovimientoInventario.objects.filter(
+            tipo='SALIDA', solicitud__usuario__perfil__departamento=departamento
+        ).values('material_id').distinct().count()
+
+        # 2. Salidas AGRUPADAS POR SOLICITUD hechas por el equipo (paginadas)
+        salidas_qs = (
+            SolicitudMaterial.objects
+            .filter(usuario__perfil__departamento=departamento)
+            .exclude(estado='BORRADOR')
+            .select_related('usuario', 'orden_trabajo', 'ubicacion_origen')
+            .annotate(num_items=Count('items'))
+            .order_by('-fecha_solicitud')
+        )
+        if q:
+            salidas_qs = salidas_qs.filter(
+                Q(id__icontains=q) |
+                Q(orden_trabajo__codigo_de_orden__icontains=q) |
+                Q(comentarios_solicitud__icontains=q)
+            )
+        total_salidas = salidas_qs.count()
+        salidas_paginator = Paginator(salidas_qs, 25)
+        salidas_page = salidas_paginator.get_page(request.GET.get('spage') or 1)
+
+        # 3. Solicitudes pendientes de autorización hechas por miembros de mi departamento
+        solicitudes_pendientes = (
+            SolicitudMaterial.objects
+            .filter(estado='PENDIENTE_AUTORIZACION', usuario__perfil__departamento=departamento)
+            .select_related('usuario', 'orden_trabajo', 'ubicacion_origen')
+            .prefetch_related('items__material__unidad_medida')
+            .distinct()
+            .order_by('-fecha_solicitud')
+        )
+        total_pendientes = solicitudes_pendientes.count()
+
+    context = {
+        'departamento': departamento,
+        'es_aprobador': es_aprobador,
+        'materiales_top': materiales_top if departamento else [],
+        'salidas_page': salidas_page if departamento else None,
+        'solicitudes_pendientes': solicitudes_pendientes,
+        'q': q,
+        'total_materiales': total_materiales if departamento else 0,
+        'total_salidas': total_salidas,
+        'total_pendientes': total_pendientes,
+        'title': 'Dashboard de mi Departamento',
+    }
+    return render(request, 'inventarios/dashboard_departamento.html', context)
+
+
+@login_required
+@require_POST
+def solicitud_aprobar_departamento(request, pk):
+    """
+    Aprueba o rechaza una solicitud desde el dashboard de departamento.
+    Requiere login y que el usuario sea aprobador de salidas de su departamento,
+    y que la solicitud incluya materiales de ese departamento.
+    """
+    from django.utils import timezone
+    from .models import SolicitudMaterial
+
+    perfil = getattr(request.user, 'perfil', None)
+    departamento = getattr(perfil, 'departamento', None)
+    es_aprobador = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
+
+    if not departamento or not es_aprobador:
+        return JsonResponse({'status': 'error', 'message': 'No tienes permisos de aprobador en tu departamento.'}, status=403)
+
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+
+    # Validar que el solicitante pertenezca al departamento del aprobador
+    sol_perfil = getattr(solicitud.usuario, 'perfil', None)
+    sol_departamento = getattr(sol_perfil, 'departamento', None)
+    if sol_departamento_id := getattr(sol_departamento, 'id', None):
+        if sol_departamento_id != departamento.id:
+            return JsonResponse({'status': 'error', 'message': 'Esta solicitud no pertenece a tu departamento.'}, status=403)
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Esta solicitud no pertenece a tu departamento.'}, status=403)
+
+    if solicitud.estado != 'PENDIENTE_AUTORIZACION':
+        return JsonResponse({'status': 'error', 'message': f'La solicitud ya no está pendiente (estado: {solicitud.get_estado_display()}).'}, status=400)
+
+    accion = (request.POST.get('accion') or '').lower()
+
+    if accion == 'aprobar':
+        solicitud.estado = 'PENDIENTE'
+        solicitud.autorizado_por = request.user
+        solicitud.fecha_autorizacion = timezone.now()
+        solicitud.save(update_fields=['estado', 'autorizado_por', 'fecha_autorizacion'])
+        try:
+            from .utils_ntfy import notificar_nueva_solicitud
+            notificar_nueva_solicitud(solicitud)
+        except Exception:
+            pass
+        try:
+            from .utils_n8n import notify_powerautomate_almacen
+            notify_powerautomate_almacen(solicitud)
+        except Exception:
+            pass
+        return JsonResponse({'status': 'success', 'message': 'Solicitud autorizada.', 'nuevo_estado': 'PENDIENTE'})
+    elif accion == 'rechazar':
+        solicitud.estado = 'RECHAZADO'
+        solicitud.rechazado_por = request.user
+        solicitud.fecha_rechazo = timezone.now()
+        solicitud.save(update_fields=['estado', 'rechazado_por', 'fecha_rechazo'])
+        return JsonResponse({'status': 'success', 'message': 'Solicitud rechazada.', 'nuevo_estado': 'RECHAZADO'})
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Acción no válida.'}, status=400)
