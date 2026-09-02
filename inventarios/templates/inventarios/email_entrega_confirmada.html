@@ -1,0 +1,107 @@
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff2f5; padding:24px 0; font-family:'Segoe UI', Arial, sans-serif; color:#32363a;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px; max-width:600px; background-color:#ffffff; border:1px solid #d9d9d9; border-radius:8px; overflow:hidden;">
+
+        <!-- Encabezado -->
+        <tr>
+          <td style="background-color:#107e3e; padding:24px 32px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="color:#ffffff; font-size:20px; font-weight:700;">Entrega confirmada</td>
+                <td align="right" style="color:#d6f2df; font-size:13px;">N.&ordm; {{ solicitud_id }}</td>
+              </tr>
+            </table>
+            <div style="color:#d6f2df; font-size:13px; margin-top:6px;">Tus materiales fueron entregados</div>
+          </td>
+        </tr>
+
+        <!-- Mensaje -->
+        <tr>
+          <td style="padding:28px 32px 8px;">
+            <p style="margin:0 0 12px; font-size:15px;">Hola {{ solicitante_nombre }},</p>
+            <p style="margin:0; font-size:14px; color:#32363a; line-height:1.6;">
+              La entrega de tu solicitud de materiales <strong>#{{ solicitud_id }}</strong> fue
+              <strong>confirmada</strong> en el almac&eacute;n <strong>{{ ubicacion_origen }}</strong>.
+              A continuaci&oacute;n el detalle de lo entregado.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Datos del receptor -->
+        <tr>
+          <td style="padding:16px 32px 4px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d9d9d9; border-radius:6px;">
+              <tr>
+                <td style="padding:10px 14px; background-color:#f8fafc; font-size:11px; font-weight:700; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px; width:50%;">Recibido por</td>
+                <td style="padding:10px 14px; background-color:#f8fafc; font-size:11px; font-weight:700; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px;">Entregado por</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px; font-size:14px;">{{ recibe_nombre|default:"N/A" }}</td>
+                <td style="padding:10px 14px; font-size:14px;">{{ entregado_por|default:"Almac&eacute;n" }}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px; background-color:#f8fafc; font-size:11px; font-weight:700; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px;">Fecha de entrega</td>
+                <td style="padding:10px 14px; background-color:#f8fafc; font-size:11px; font-weight:700; color:#6a6d70; text-transform:uppercase; letter-spacing:0.5px;">Orden de trabajo</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px; font-size:14px;">{{ fecha_entrega|default:"N/A" }}</td>
+                <td style="padding:10px 14px; font-size:14px;">{{ orden_trabajo }}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Foto de la entrega -->
+        {% if foto_url %}
+        <tr>
+          <td style="padding:16px 32px 4px;">
+            <div style="font-size:13px; font-weight:700; color:#32363a; margin-bottom:8px;">Evidencia de entrega</div>
+            <img src="{{ foto_url }}" alt="Foto de entrega" width="536" style="width:100%; max-width:536px; border:1px solid #d9d9d9; border-radius:6px; display:block;" />
+          </td>
+        </tr>
+        {% endif %}
+
+        <!-- Tabla de materiales entregados -->
+        <tr>
+          <td style="padding:16px 32px 4px;">
+            <div style="font-size:13px; font-weight:700; color:#32363a; margin-bottom:8px;">Materiales entregados</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; font-size:13px;">
+              <tr style="background-color:#107e3e;">
+                <th align="left" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">Material</th>
+                <th align="left" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">SKU</th>
+                <th align="right" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">Cant.</th>
+                <th align="left" style="padding:8px 10px; color:#ffffff; font-size:11px; text-transform:uppercase; letter-spacing:0.3px;">Unidad</th>
+              </tr>
+              {% for it in items %}
+              <tr style="border-bottom:1px solid #eef1f4;">
+                <td style="padding:8px 10px;">{{ it.material_nombre }}</td>
+                <td style="padding:8px 10px; color:#6a6d70;">{{ it.sku }}</td>
+                <td align="right" style="padding:8px 10px; font-weight:700;">{{ it.cantidad }}</td>
+                <td style="padding:8px 10px;">{{ it.unidad }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          </td>
+        </tr>
+
+        <!-- Enlace -->
+        <tr>
+          <td style="padding:20px 32px 8px;" align="center">
+            <a href="{{ url_detalle }}" style="display:inline-block; background-color:#107e3e; color:#ffffff; text-decoration:none; font-size:14px; font-weight:600; padding:12px 28px; border-radius:4px;">Ver detalle del pedido</a>
+          </td>
+        </tr>
+
+        <!-- Pie -->
+        <tr>
+          <td style="background-color:#f0f4f8; padding:16px 32px; border-top:1px solid #d9d9d9;">
+            <p style="margin:0; font-size:11px; color:#6a6d70; line-height:1.5;">
+              Mensaje autom&aacute;tico del sistema SoftCom CCG. Si no reconoces esta entrega, contacta al almac&eacute;n.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>

@@ -410,20 +410,69 @@
         }
 
         async function confirmarEntrega() {
-            const result = await Swal.fire({
-                title: '¿Confirmar entrega?',
-                text: 'Se descontará el stock y la solicitud quedará como Entregada.',
-                icon: 'question',
+            // Construir filas editables con las cantidades exactas por material
+            const filas = Array.from(document.querySelectorAll('#items-container .fiori-card')).map(card => {
+                const movId = card.dataset.movId;
+                const nombre = card.dataset.materialNombre || '';
+                const unidad = card.dataset.unidad || 'UND';
+                const cant = card.dataset.cantidad || '0';
+                return `
+                    <tr style="border-bottom:1px solid #eef1f4;">
+                        <td style="padding:6px 8px; text-align:left; font-size:0.82rem;">${nombre}</td>
+                        <td style="padding:6px 8px; text-align:center;">
+                            <input type="number" min="0" step="0.01" data-mov="${movId}"
+                                class="ce-cant swal2-input" style="width:90px; margin:0; padding:6px; text-align:center;" value="${cant}">
+                        </td>
+                        <td style="padding:6px 8px; text-align:center; font-size:0.78rem; color:#6a6d70;">${unidad}</td>
+                    </tr>`;
+            }).join('');
+
+            const { value: formValues } = await Swal.fire({
+                title: 'Confirmar entrega',
+                width: 640,
+                html: `
+                    <div style="text-align:left; font-size:0.8rem; color:#6a6d70; margin-bottom:6px;">Ajusta las cantidades exactas entregadas (0 = no entregado):</div>
+                    <div style="max-height:240px; overflow:auto; border:1px solid #d9d9d9; border-radius:6px;">
+                      <table style="width:100%; border-collapse:collapse;">
+                        <thead><tr style="background:#f0f4f8;">
+                          <th style="padding:8px; text-align:left; font-size:0.72rem; color:#6a6d70;">MATERIAL</th>
+                          <th style="padding:8px; text-align:center; font-size:0.72rem; color:#6a6d70;">CANT.</th>
+                          <th style="padding:8px; text-align:center; font-size:0.72rem; color:#6a6d70;">UNIDAD</th>
+                        </tr></thead>
+                        <tbody>${filas}</tbody>
+                      </table>
+                    </div>
+                    <input id="ce-recibe" class="swal2-input" placeholder="¿Quién recibe el material?">
+                    <input id="ce-foto" type="file" accept="image/*" capture="environment" class="swal2-file" style="display:block; margin:12px auto;">
+                `,
+                focusConfirm: false,
                 showCancelButton: true,
                 confirmButtonText: 'Sí, confirmar',
-                confirmButtonColor: '#107e3e'
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#107e3e',
+                preConfirm: () => {
+                    const recibe = document.getElementById('ce-recibe').value.trim();
+                    if (!recibe) { Swal.showValidationMessage('Indica quién recibe el material.'); return false; }
+                    const foto = document.getElementById('ce-foto').files[0] || null;
+                    const cantidades = [];
+                    document.querySelectorAll('.ce-cant').forEach(inp => {
+                        cantidades.push({ mov_id: parseInt(inp.dataset.mov), cantidad: parseFloat(inp.value || '0') });
+                    });
+                    return { recibe, foto, cantidades };
+                }
             });
-            if (!result.isConfirmed) return;
+            if (!formValues) return;
+
             Swal.fire({ title: 'Confirmando...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+            const fd = new FormData();
+            fd.append('recibe_nombre', formValues.recibe);
+            fd.append('cantidades', JSON.stringify(formValues.cantidades));
+            if (formValues.foto) fd.append('foto_entrega', formValues.foto);
             try {
                 const r = await fetch(`/inventarios/solicitud/{{ pedido.id }}/confirmar-entrega/`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: fd
                 });
                 const d = await r.json();
                 if (d.status === 'success') {

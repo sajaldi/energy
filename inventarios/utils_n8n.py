@@ -510,6 +510,109 @@ def notify_powerautomate_recoleccion(solicitud):
         return False
 
 
+def notify_powerautomate_entrega(solicitud):
+    """
+    Notifica al SOLICITANTE que la entrega de su solicitud fue CONFIRMADA en el
+    almacén. Incluye las cantidades exactas entregadas, el nombre del receptor y
+    la foto de la entrega (URL absoluta).
+    Envía el correo ya armado (email_html) al correo del solicitante.
+    """
+    try:
+        url = getattr(settings, 'POWERAUTOMATE_ENTREGA_URL', '')
+        if not url:
+            logger.warning("POWERAUTOMATE_ENTREGA_URL no configurada. Se omite la notificación de entrega confirmada.")
+            return False
+
+        user = solicitud.usuario
+        if not user or not user.email:
+            logger.info(f"Solicitud #{solicitud.id}: el solicitante no tiene email. Se omite notificación de entrega.")
+            return False
+
+        # Cantidades exactas entregadas (movimientos ya liquidados/entregados)
+        items = []
+        for mov in solicitud.items.all():
+            if mov.estado == 'RECHAZADO':
+                continue
+            items.append({
+                'material_id': mov.material.id,
+                'material_nombre': mov.material.nombre,
+                'sku': mov.material.sku,
+                'cantidad': int(mov.cantidad),
+                'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else "Unidad",
+            })
+
+        solicitante_nombre = (f"{user.first_name} {user.last_name}".strip() or user.username)
+        url_detalle = f"{POWERAUTOMATE_SITE_URL}/inventarios/solicitud/{solicitud.id}/detalle-departamento/"
+        ubicacion_origen = solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "N/A"
+        orden_trabajo = solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A"
+        recibe_nombre = getattr(solicitud, 'recibe_nombre', '') or ''
+
+        entregado_por = ''
+        if solicitud.entregado_por:
+            entregado_por = (f"{solicitud.entregado_por.first_name} {solicitud.entregado_por.last_name}".strip()
+                             or solicitud.entregado_por.username)
+
+        from django.utils import timezone as _tz
+        fecha_entrega = ''
+        if solicitud.fecha_entrega:
+            fecha_entrega = _tz.localtime(solicitud.fecha_entrega).strftime('%d/%m/%Y %H:%M')
+
+        # URL absoluta de la foto de entrega
+        foto_url = ''
+        try:
+            if getattr(solicitud, 'foto_entrega', None):
+                foto_path = solicitud.foto_entrega.url
+                if foto_path.startswith('http'):
+                    foto_url = foto_path
+                else:
+                    foto_url = f"{POWERAUTOMATE_SITE_URL}{foto_path}"
+        except Exception:
+            foto_url = ''
+
+        email_html = ''
+        try:
+            from django.template.loader import render_to_string
+            email_html = render_to_string('inventarios/email_entrega_confirmada.html', {
+                'solicitud_id': solicitud.id,
+                'solicitante_nombre': solicitante_nombre,
+                'ubicacion_origen': ubicacion_origen,
+                'orden_trabajo': orden_trabajo,
+                'items': items,
+                'recibe_nombre': recibe_nombre,
+                'entregado_por': entregado_por,
+                'fecha_entrega': fecha_entrega,
+                'foto_url': foto_url,
+                'url_detalle': url_detalle,
+            })
+        except Exception as e:
+            logger.error(f"Error renderizando email_html de entrega para solicitud #{solicitud.id}: {e}")
+
+        data = {
+            'event': 'solicitud_material_entrega_confirmada',
+            'solicitud_id': solicitud.id,
+            'estado': solicitud.estado,
+            'solicitante_nombre': solicitante_nombre,
+            'solicitante_email': user.email,
+            'ubicacion_origen': ubicacion_origen,
+            'orden_trabajo': orden_trabajo,
+            'recibe_nombre': recibe_nombre,
+            'entregado_por': entregado_por,
+            'fecha_entrega': fecha_entrega,
+            'foto_url': foto_url,
+            'items': items,
+            'email_html': email_html,
+            'url_detalle': url_detalle,
+        }
+
+        response = requests.post(url, json=data, timeout=10)
+        response.raise_for_status()
+        logger.info(f"Webhook Power Automate (entrega confirmada) enviado para solicitud #{solicitud.id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error en webhook Power Automate (entrega confirmada) para solicitud #{solicitud.id}: {e}")
+        return False
+
+
 def notify_powerautomate_despacho(solicitud):
     """
     Envía un webhook a Power Automate cuando se despacha una solicitud de materiales.

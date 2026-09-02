@@ -149,6 +149,10 @@ POWERAUTOMATE_DESPACHO_ALMACEN_URL = os.environ.get('POWERAUTOMATE_DESPACHO_ALMA
 # para recolección (tras el despacho del almacén)
 POWERAUTOMATE_RECOLECCION_URL = os.environ.get('POWERAUTOMATE_RECOLECCION_URL', '')
 
+# Power Automate: flujo de notificación al solicitante cuando la entrega es
+# confirmada en el almacén (incluye foto y nombre del receptor)
+POWERAUTOMATE_ENTREGA_URL = os.environ.get('POWERAUTOMATE_ENTREGA_URL', '')
+
 # Ordenes de Trabajo y Reportes
 N8N_OT_WEBHOOK_URL = os.environ.get(
     'N8N_OT_WEBHOOK_URL', 

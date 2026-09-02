@@ -23,6 +23,22 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import CategoriaMaterial
 from .utils_n8n import notify_n8n_solicitud_material
 
+
+def _puede_gestionar_almacen(user):
+    """
+    Determina si un usuario puede gestionar el flujo de almacén (despacho,
+    listo para recolección y confirmación de entrega).
+
+    Acepta a superusuarios y a miembros de los grupos 'Almacenes' o
+    'Procura_Tecnica'.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name__in=['Almacenes', 'Procura_Tecnica']).exists()
+
+
 @login_required
 def inventario_dashboard(request):
     """
@@ -777,7 +793,7 @@ def api_pedidos_pendientes_almacen(request):
     """
     Retorna la lista de pedidos pendientes para el modal de Gestión de Salidas.
     """
-    if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
+    if not _puede_gestionar_almacen(request.user):
         return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
         
     pedidos = SolicitudMaterial.objects.filter(estado='PENDIENTE').select_related('usuario', 'orden_trabajo', 'ubicacion_origen').order_by('fecha_solicitud')
@@ -798,7 +814,7 @@ def api_pedidos_pendientes_almacen(request):
 @login_required
 def api_pedidos_listos_recoleccion(request):
     """Retorna las solicitudes en estado LISTO_RECOLECCION (despachadas, pendientes de confirmar entrega)."""
-    if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
+    if not _puede_gestionar_almacen(request.user):
         return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
 
     pedidos = SolicitudMaterial.objects.filter(estado='LISTO_RECOLECCION').select_related(
@@ -828,7 +844,7 @@ def api_confirmar_entrega_almacen(request, pk):
     """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
-    if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
+    if not _puede_gestionar_almacen(request.user):
         return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
 
     from django.utils import timezone
@@ -847,9 +863,38 @@ def api_confirmar_entrega_almacen(request, pk):
 
     recibe_nombre = (data.get('recibe_nombre') or '').strip()
 
+    # Cantidades exactas ajustadas por el almacenista al confirmar la entrega.
+    # Puede venir como lista [{'mov_id': X, 'cantidad': Y}, ...] (JSON) o como
+    # 'cantidades' serializado en JSON dentro de un FormData.
+    cantidades_raw = data.get('cantidades')
+    if isinstance(cantidades_raw, str):
+        try:
+            cantidades_raw = json.loads(cantidades_raw)
+        except Exception:
+            cantidades_raw = []
+    cantidades_map = {}
+    for c in (cantidades_raw or []):
+        try:
+            cantidades_map[int(c['mov_id'])] = Decimal(str(c.get('cantidad', 0)))
+        except Exception:
+            continue
+
     try:
         with transaction.atomic():
             for mov in solicitud.items.filter(estado='PENDIENTE'):
+                # Si el almacenista definió una cantidad exacta para este
+                # movimiento, ajustarla antes de liquidar (descontar stock).
+                if mov.id in cantidades_map:
+                    nueva_cant = cantidades_map[mov.id]
+                    if nueva_cant > 0:
+                        mov.cantidad = nueva_cant
+                        mov.save(update_fields=['cantidad'])
+                    elif nueva_cant == 0:
+                        # Cantidad 0 => no se entrega este material
+                        mov.estado = 'RECHAZADO'
+                        mov.comentarios = (mov.comentarios or '') + ' | No entregado (cantidad 0 al confirmar).'
+                        mov.save(update_fields=['estado', 'comentarios'])
+                        continue
                 mov.liquidar(request.user)
 
             solicitud.estado = 'ENTREGADO'
@@ -865,9 +910,10 @@ def api_confirmar_entrega_almacen(request, pk):
 
             solicitud.save()
 
+        # Notificar al solicitante que la entrega fue confirmada (con foto y nombre del receptor)
         try:
-            from .utils_n8n import notify_powerautomate_despacho
-            notify_powerautomate_despacho(solicitud)
+            from .utils_n8n import notify_powerautomate_entrega
+            notify_powerautomate_entrega(solicitud)
         except Exception:
             pass
 
@@ -878,7 +924,7 @@ def api_confirmar_entrega_almacen(request, pk):
 @login_required
 def api_detalle_solicitud_almacen(request, pk):
     """Retorna los items (movimientos) de una solicitud pendiente para el almacenista."""
-    if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
+    if not _puede_gestionar_almacen(request.user):
         return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
     
     solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
@@ -935,7 +981,7 @@ def api_despachar_solicitud(request, pk):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
     
-    if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
+    if not _puede_gestionar_almacen(request.user):
         return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
     
     solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
@@ -1081,7 +1127,7 @@ def mobile_detalle_pedido(request, pk):
     es_dueno = pedido.usuario_id == request.user.id
     mismo_departamento = bool(mi_departamento_id and mi_departamento_id == sol_departamento_id)
     es_aprobador = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
-    es_almacen_grp = request.user.groups.filter(name__iexact='Almacenes').exists()
+    es_almacen_grp = _puede_gestionar_almacen(request.user)
 
     if not (es_dueno or mismo_departamento or es_aprobador or es_almacen_grp or request.user.is_superuser):
         return HttpResponse("No tienes permiso para ver esta solicitud.", status=403)
@@ -1345,7 +1391,7 @@ def listo_recoleccion_view(request):
     Sección para el almacén: solicitudes despachadas (LISTO_RECOLECCION) pendientes
     de confirmar la entrega (descontar stock).
     """
-    es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+    es_almacen = _puede_gestionar_almacen(request.user)
     if not es_almacen:
         return redirect('inventarios:dashboard')
 
@@ -5154,8 +5200,9 @@ def solicitud_detalle_departamento(request, pk):
     mismo_departamento = bool(mi_departamento_id and mi_departamento_id == sol_departamento_id)
     # Los aprobadores de salidas (p. ej. personal de Almacenes) también pueden ver el detalle
     es_aprobador = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
+    es_almacen_grp = _puede_gestionar_almacen(request.user)
 
-    if not (es_dueno or mismo_departamento or es_aprobador or request.user.is_superuser):
+    if not (es_dueno or mismo_departamento or es_aprobador or es_almacen_grp or request.user.is_superuser):
         return HttpResponse("No tienes permiso para ver esta solicitud.", status=403)
 
     items = pedido.items.select_related('material', 'material__unidad_medida').all()
@@ -5163,8 +5210,8 @@ def solicitud_detalle_departamento(request, pk):
         m = item.material
         item.image_url = m.imagen.url if m.imagen else ''
 
-    # El personal del grupo "Almacenes" puede despachar/confirmar entrega
-    es_almacen = request.user.groups.filter(name__iexact='Almacenes').exists()
+    # El personal de Almacenes o Procura Técnica puede despachar/confirmar entrega
+    es_almacen = _puede_gestionar_almacen(request.user)
     puede_despachar = es_almacen and pedido.estado == 'PENDIENTE'
     puede_confirmar_entrega = es_almacen and pedido.estado == 'LISTO_RECOLECCION'
 
@@ -5203,8 +5250,8 @@ def solicitud_despachar(request, pk):
     from django.utils import timezone
     from .models import SolicitudMaterial
 
-    if not request.user.groups.filter(name__iexact='Almacenes').exists():
-        return JsonResponse({'status': 'error', 'message': 'Solo el personal de Almacenes puede despachar.'}, status=403)
+    if not _puede_gestionar_almacen(request.user):
+        return JsonResponse({'status': 'error', 'message': 'Solo Almacenes o Procura Técnica puede despachar.'}, status=403)
 
     solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
 
@@ -5241,31 +5288,72 @@ def solicitud_confirmar_entrega(request, pk):
     from django.utils import timezone
     from .models import SolicitudMaterial
 
-    if not request.user.groups.filter(name__iexact='Almacenes').exists():
-        return JsonResponse({'status': 'error', 'message': 'Solo el personal de Almacenes puede confirmar la entrega.'}, status=403)
+    if not _puede_gestionar_almacen(request.user):
+        return JsonResponse({'status': 'error', 'message': 'Solo Almacenes o Procura Técnica puede confirmar la entrega.'}, status=403)
 
     solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
 
     if solicitud.estado != 'LISTO_RECOLECCION':
         return JsonResponse({'status': 'error', 'message': f'La solicitud no está lista para recolección (estado: {solicitud.get_estado_display()}).'}, status=400)
 
+    # Datos opcionales: receptor, foto y cantidades exactas por movimiento
+    if request.content_type and 'application/json' in request.content_type:
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            data = {}
+    else:
+        data = request.POST.dict()
+
+    recibe_nombre = (data.get('recibe_nombre') or '').strip()
+
+    cantidades_raw = data.get('cantidades')
+    if isinstance(cantidades_raw, str):
+        try:
+            cantidades_raw = json.loads(cantidades_raw)
+        except Exception:
+            cantidades_raw = []
+    cantidades_map = {}
+    for c in (cantidades_raw or []):
+        try:
+            cantidades_map[int(c['mov_id'])] = Decimal(str(c.get('cantidad', 0)))
+        except Exception:
+            continue
+
     try:
         with transaction.atomic():
             # Liquidar cada movimiento (aprueba y descuenta stock)
             for mov in solicitud.items.all():
-                if mov.estado != 'APROBADO':
-                    mov.liquidar(request.user)
+                if mov.estado == 'APROBADO':
+                    continue
+                # Ajustar cantidad exacta si el almacenista la definió
+                if mov.id in cantidades_map:
+                    nueva_cant = cantidades_map[mov.id]
+                    if nueva_cant > 0:
+                        mov.cantidad = nueva_cant
+                        mov.save(update_fields=['cantidad'])
+                    elif nueva_cant == 0:
+                        mov.estado = 'RECHAZADO'
+                        mov.comentarios = (mov.comentarios or '') + ' | No entregado (cantidad 0 al confirmar).'
+                        mov.save(update_fields=['estado', 'comentarios'])
+                        continue
+                mov.liquidar(request.user)
 
             solicitud.estado = 'ENTREGADO'
             if not solicitud.entregado_por:
                 solicitud.entregado_por = request.user
+            if recibe_nombre:
+                solicitud.recibe_nombre = recibe_nombre
+            foto = request.FILES.get('foto_entrega')
+            if foto:
+                solicitud.foto_entrega = foto
             solicitud.fecha_entrega = timezone.now()
-            solicitud.save(update_fields=['estado', 'entregado_por', 'fecha_entrega'])
+            solicitud.save()
 
-        # Notificar despacho/entrega (Power Automate) - no bloquear si falla
+        # Notificar al solicitante que la entrega fue confirmada (foto + receptor)
         try:
-            from .utils_n8n import notify_powerautomate_despacho
-            notify_powerautomate_despacho(solicitud)
+            from .utils_n8n import notify_powerautomate_entrega
+            notify_powerautomate_entrega(solicitud)
         except Exception:
             pass
 

@@ -24,6 +24,18 @@ def _generate_token(user):
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+def _puede_gestionar_almacen(user):
+    """
+    Puede gestionar el flujo de almacén (despacho, confirmación de entrega):
+    grupos 'Almacenes' o 'Procura_Tecnica', o superusuario.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name__in=['Almacenes', 'Procura_Tecnica']).exists()
+
+
 def _get_user_from_token(request):
     """Extrae el usuario del header Authorization: Token xxx"""
     from django.contrib.auth import get_user_model
@@ -62,7 +74,7 @@ def api_mobile_login(request):
         perfil = getattr(user, 'perfil', None)
         es_aprobador_salidas = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
         departamento = getattr(getattr(perfil, 'departamento', None), 'nombre', '') or ''
-        es_almacen = user.groups.filter(name__iexact='Almacenes').exists()
+        es_almacen = _puede_gestionar_almacen(user)
 
         # rol principal para la UI: 'almacen' > 'aprobador' > 'usuario'
         if es_almacen:
@@ -587,7 +599,7 @@ def api_mobile_despachos(request):
     user = _get_user_from_token(request)
     if not user:
         return JsonResponse({'error': 'No autorizado'}, status=401)
-    if not user.groups.filter(name__iexact='Almacenes').exists():
+    if not _puede_gestionar_almacen(user):
         return JsonResponse({'solicitudes': []})
 
     qs = (SolicitudMaterial.objects
@@ -604,8 +616,8 @@ def api_mobile_despachar(request, pk):
     user = _get_user_from_token(request)
     if not user:
         return JsonResponse({'error': 'No autorizado'}, status=401)
-    if not user.groups.filter(name__iexact='Almacenes').exists():
-        return JsonResponse({'status': 'error', 'message': 'Solo Almacenes puede despachar.'}, status=403)
+    if not _puede_gestionar_almacen(user):
+        return JsonResponse({'status': 'error', 'message': 'Solo Almacenes o Procura Técnica puede despachar.'}, status=403)
 
     solicitud = SolicitudMaterial.objects.filter(pk=pk).first()
     if not solicitud:
@@ -640,8 +652,8 @@ def api_mobile_confirmar_entrega(request, pk):
     user = _get_user_from_token(request)
     if not user:
         return JsonResponse({'error': 'No autorizado'}, status=401)
-    if not user.groups.filter(name__iexact='Almacenes').exists():
-        return JsonResponse({'status': 'error', 'message': 'Solo Almacenes puede confirmar la entrega.'}, status=403)
+    if not _puede_gestionar_almacen(user):
+        return JsonResponse({'status': 'error', 'message': 'Solo Almacenes o Procura Técnica puede confirmar la entrega.'}, status=403)
 
     solicitud = SolicitudMaterial.objects.filter(pk=pk).first()
     if not solicitud:
@@ -718,7 +730,7 @@ def api_mobile_solicitud_detalle(request, pk):
     perfil = getattr(user, 'perfil', None)
     mi_dep = getattr(getattr(perfil, 'departamento', None), 'id', None)
     sol_dep = getattr(getattr(getattr(solicitud.usuario, 'perfil', None), 'departamento', None), 'id', None)
-    es_almacen = user.groups.filter(name__iexact='Almacenes').exists()
+    es_almacen = _puede_gestionar_almacen(user)
     es_aprobador = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
 
     if not (solicitud.usuario_id == user.id or (mi_dep and mi_dep == sol_dep) or es_almacen or es_aprobador or user.is_superuser):
