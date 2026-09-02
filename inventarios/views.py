@@ -2666,7 +2666,14 @@ def api_solicitud_update_items(request, pk):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
-    solicitud = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+
+    # Puede editar: el dueño de la solicitud o el personal de Almacenes (almacenista)
+    es_dueno = solicitud.usuario_id == request.user.id
+    es_almacen = request.user.groups.filter(name__iexact='Almacenes').exists() or request.user.is_superuser
+    if not (es_dueno or es_almacen):
+        return JsonResponse({'status': 'error', 'message': 'No tienes permiso para modificar esta solicitud.'}, status=403)
+
     if solicitud.estado in ('ENTREGADO', 'RECHAZADO'):
         return JsonResponse({'status': 'error', 'message': 'La solicitud ya está finalizada'}, status=400)
 
