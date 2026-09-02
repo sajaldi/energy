@@ -8,6 +8,7 @@ class SolicitudMaterial(models.Model):
         ('BORRADOR', 'Borrador'),
         ('PENDIENTE_AUTORIZACION', 'Pendiente de Autorización'),
         ('PENDIENTE', 'Pendiente'),
+        ('LISTO_RECOLECCION', 'Lista para Recolección'),
         ('ENTREGADO', 'Entregado / Completado'),
         ('RECHAZADO', 'Rechazado'),
     ]

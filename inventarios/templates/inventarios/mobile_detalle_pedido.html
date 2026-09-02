@@ -37,6 +37,7 @@
         .tag-PENDIENTE { background: #fff4e5; color: var(--sapWarningColor); }
         .tag-BORRADOR { background: #f1f5f9; color: #475569; }
         .tag-PENDIENTE_AUTORIZACION { background: #eff6ff; color: #1d4ed8; }
+        .tag-LISTO_RECOLECCION { background: #e5f0ff; color: #0064d1; }
         .tag-RECHAZADO { background: #ffebeb; color: var(--sapErrorColor); }
         .section-title { font-size: 1rem; font-weight: 700; color: var(--sapTextColor); padding: 1rem 1rem 0.5rem 1rem; background: transparent; }
         .fiori-card { background: white; margin: 0 0.5rem 0.5rem 0.5rem; border-radius: 0.25rem; border: 1px solid #d9d9d9; box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08); overflow: hidden; }
@@ -153,6 +154,24 @@
             <button onclick="enviarBorrador()" style="background:var(--sapPrimaryColor); color:white; border:none; padding:14px 32px; font-size:1rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
                 <ion-icon name="paper-plane-outline"></ion-icon> Enviar Solicitud
             </button>
+        </div>
+        {% endif %}
+
+        {% if puede_despachar %}
+        <div style="padding:16px; text-align:center;">
+            <button onclick="despacharSolicitud()" style="background:var(--sapPrimaryColor); color:white; border:none; padding:14px 32px; font-size:1rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <ion-icon name="cube-outline"></ion-icon> Despachar Materiales
+            </button>
+            <p style="color:var(--sapContent_LabelColor); font-size:0.78rem; margin-top:8px;">Al despachar se notifica al solicitante que su pedido está listo para recolección. El stock se descuenta al confirmar la entrega.</p>
+        </div>
+        {% endif %}
+
+        {% if puede_confirmar_entrega %}
+        <div style="padding:16px; text-align:center;">
+            <button onclick="confirmarEntrega()" style="background:var(--sapSuccessColor); color:white; border:none; padding:14px 32px; font-size:1rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <ion-icon name="checkmark-done-outline"></ion-icon> Confirmar Entrega
+            </button>
+            <p style="color:var(--sapContent_LabelColor); font-size:0.78rem; margin-top:8px;">Al confirmar la entrega se descuenta el stock y la solicitud queda como Entregada.</p>
         </div>
         {% endif %}
     </div>
@@ -347,6 +366,60 @@
                 const d = await r.json();
                 Swal.fire({ icon: d.status === 'success' ? 'success' : 'error', title: d.status === 'success' ? 'Enviado' : 'Error', text: d.message });
             } catch(e) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red' });
+            }
+        }
+
+        async function despacharSolicitud() {
+            const result = await Swal.fire({
+                title: '¿Despachar materiales?',
+                text: 'Se notificará al solicitante que su pedido está listo para recolección.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, despachar',
+                confirmButtonColor: '#0064d1'
+            });
+            if (!result.isConfirmed) return;
+            Swal.fire({ title: 'Despachando...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+            try {
+                const r = await fetch(`/inventarios/solicitud/{{ pedido.id }}/despachar/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+                });
+                const d = await r.json();
+                if (d.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Despachado', text: d.message }).then(() => location.reload());
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: d.message });
+                }
+            } catch (e) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red' });
+            }
+        }
+
+        async function confirmarEntrega() {
+            const result = await Swal.fire({
+                title: '¿Confirmar entrega?',
+                text: 'Se descontará el stock y la solicitud quedará como Entregada.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, confirmar',
+                confirmButtonColor: '#107e3e'
+            });
+            if (!result.isConfirmed) return;
+            Swal.fire({ title: 'Confirmando...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+            try {
+                const r = await fetch(`/inventarios/solicitud/{{ pedido.id }}/confirmar-entrega/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+                });
+                const d = await r.json();
+                if (d.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Entrega confirmada', text: d.message }).then(() => location.reload());
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: d.message });
+                }
+            } catch (e) {
                 Swal.fire({ icon: 'error', title: 'Error', text: 'Error de red' });
             }
         }

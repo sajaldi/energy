@@ -145,6 +145,10 @@ POWERAUTOMATE_APROBACION_URL = os.environ.get('POWERAUTOMATE_APROBACION_URL', ''
 # (correo informativo a los aprobadores del departamento "Almacenes")
 POWERAUTOMATE_DESPACHO_ALMACEN_URL = os.environ.get('POWERAUTOMATE_DESPACHO_ALMACEN_URL', '')
 
+# Power Automate: flujo de notificación al solicitante cuando su orden está lista
+# para recolección (tras el despacho del almacén)
+POWERAUTOMATE_RECOLECCION_URL = os.environ.get('POWERAUTOMATE_RECOLECCION_URL', '')
+
 # Ordenes de Trabajo y Reportes
 N8N_OT_WEBHOOK_URL = os.environ.get(
     'N8N_OT_WEBHOOK_URL', 

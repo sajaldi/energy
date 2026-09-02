@@ -443,6 +443,73 @@ def notify_powerautomate_almacen(solicitud, nombre_departamento="Almacenes"):
         return False
 
 
+def notify_powerautomate_recoleccion(solicitud):
+    """
+    Notifica al SOLICITANTE que su orden fue despachada y está lista para recolección.
+    Envía el correo ya armado (email_html) al correo del solicitante.
+    """
+    try:
+        url = getattr(settings, 'POWERAUTOMATE_RECOLECCION_URL', '')
+        if not url:
+            logger.warning("POWERAUTOMATE_RECOLECCION_URL no configurada. Se omite la notificación de recolección.")
+            return False
+
+        user = solicitud.usuario
+        if not user or not user.email:
+            logger.info(f"Solicitud #{solicitud.id}: el solicitante no tiene email. Se omite notificación de recolección.")
+            return False
+
+        items = []
+        for mov in solicitud.items.all():
+            items.append({
+                'material_id': mov.material.id,
+                'material_nombre': mov.material.nombre,
+                'sku': mov.material.sku,
+                'cantidad': int(mov.cantidad_solicitada),
+                'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else "Unidad",
+            })
+
+        solicitante_nombre = (f"{user.first_name} {user.last_name}".strip() or user.username)
+        url_detalle = f"{POWERAUTOMATE_SITE_URL}/inventarios/solicitud/{solicitud.id}/detalle-departamento/"
+        ubicacion_origen = solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "N/A"
+        orden_trabajo = solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A"
+
+        email_html = ''
+        try:
+            from django.template.loader import render_to_string
+            email_html = render_to_string('inventarios/email_recoleccion.html', {
+                'solicitud_id': solicitud.id,
+                'solicitante_nombre': solicitante_nombre,
+                'ubicacion_origen': ubicacion_origen,
+                'orden_trabajo': orden_trabajo,
+                'items': items,
+                'url_detalle': url_detalle,
+            })
+        except Exception as e:
+            logger.error(f"Error renderizando email_html de recolección para solicitud #{solicitud.id}: {e}")
+
+        data = {
+            'event': 'solicitud_material_lista_recoleccion',
+            'solicitud_id': solicitud.id,
+            'estado': solicitud.estado,
+            'solicitante_nombre': solicitante_nombre,
+            'solicitante_email': user.email,
+            'ubicacion_origen': ubicacion_origen,
+            'orden_trabajo': orden_trabajo,
+            'items': items,
+            'email_html': email_html,
+            'url_detalle': url_detalle,
+        }
+
+        response = requests.post(url, json=data, timeout=10)
+        response.raise_for_status()
+        logger.info(f"Webhook Power Automate (recolección) enviado para solicitud #{solicitud.id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error en webhook Power Automate (recolección) para solicitud #{solicitud.id}: {e}")
+        return False
+
+
 def notify_powerautomate_despacho(solicitud):
     """
     Envía un webhook a Power Automate cuando se despacha una solicitud de materiales.

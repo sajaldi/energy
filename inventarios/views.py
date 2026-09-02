@@ -4794,7 +4794,97 @@ def solicitud_detalle_departamento(request, pk):
         m = item.material
         item.image_url = m.imagen.url if m.imagen else ''
 
+    # El personal del grupo "Almacenes" puede despachar/confirmar entrega
+    es_almacen = request.user.groups.filter(name__iexact='Almacenes').exists()
+    puede_despachar = es_almacen and pedido.estado == 'PENDIENTE'
+    puede_confirmar_entrega = es_almacen and pedido.estado == 'LISTO_RECOLECCION'
+
     return render(request, 'inventarios/mobile_detalle_pedido.html', {
         'pedido': pedido,
-        'items': items
+        'items': items,
+        'puede_despachar': puede_despachar,
+        'puede_confirmar_entrega': puede_confirmar_entrega,
+        'es_almacen': es_almacen,
     })
+
+
+@login_required
+@require_POST
+def solicitud_despachar(request, pk):
+    """
+    Despacha (liquida) los materiales de una solicitud. Solo para usuarios del
+    grupo 'Almacenes'. Liquida cada MovimientoInventario (descuenta stock) y marca
+    la solicitud como ENTREGADO.
+    """
+    from django.utils import timezone
+    from .models import SolicitudMaterial
+
+    if not request.user.groups.filter(name__iexact='Almacenes').exists():
+        return JsonResponse({'status': 'error', 'message': 'Solo el personal de Almacenes puede despachar.'}, status=403)
+
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+
+    if solicitud.estado != 'PENDIENTE':
+        return JsonResponse({'status': 'error', 'message': f'La solicitud no está lista para despacho (estado: {solicitud.get_estado_display()}).'}, status=400)
+
+    try:
+        # El despacho NO descuenta stock todavía. Marca la orden como lista para
+        # recolección y notifica al solicitante. El stock se descuenta al confirmar la entrega.
+        solicitud.estado = 'LISTO_RECOLECCION'
+        solicitud.entregado_por = request.user  # quien preparó/despachó
+        solicitud.save(update_fields=['estado', 'entregado_por'])
+
+        # Notificar al solicitante que su orden está lista para recolección
+        try:
+            from .utils_n8n import notify_powerautomate_recoleccion
+            notify_powerautomate_recoleccion(solicitud)
+        except Exception:
+            pass
+
+        return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} despachada. Se notificó al solicitante que está lista para recolección.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Error al despachar: {str(e)}'}, status=500)
+
+
+@login_required
+@require_POST
+def solicitud_confirmar_entrega(request, pk):
+    """
+    Confirma la entrega de una solicitud que está lista para recolección.
+    Solo para el grupo 'Almacenes'. Aquí se liquida el stock y la solicitud
+    pasa a ENTREGADO.
+    """
+    from django.utils import timezone
+    from .models import SolicitudMaterial
+
+    if not request.user.groups.filter(name__iexact='Almacenes').exists():
+        return JsonResponse({'status': 'error', 'message': 'Solo el personal de Almacenes puede confirmar la entrega.'}, status=403)
+
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+
+    if solicitud.estado != 'LISTO_RECOLECCION':
+        return JsonResponse({'status': 'error', 'message': f'La solicitud no está lista para recolección (estado: {solicitud.get_estado_display()}).'}, status=400)
+
+    try:
+        with transaction.atomic():
+            # Liquidar cada movimiento (aprueba y descuenta stock)
+            for mov in solicitud.items.all():
+                if mov.estado != 'APROBADO':
+                    mov.liquidar(request.user)
+
+            solicitud.estado = 'ENTREGADO'
+            if not solicitud.entregado_por:
+                solicitud.entregado_por = request.user
+            solicitud.fecha_entrega = timezone.now()
+            solicitud.save(update_fields=['estado', 'entregado_por', 'fecha_entrega'])
+
+        # Notificar despacho/entrega (Power Automate) - no bloquear si falla
+        try:
+            from .utils_n8n import notify_powerautomate_despacho
+            notify_powerautomate_despacho(solicitud)
+        except Exception:
+            pass
+
+        return JsonResponse({'status': 'success', 'message': f'Entrega de la solicitud #{solicitud.id} confirmada. Stock actualizado.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Error al confirmar entrega: {str(e)}'}, status=500)
