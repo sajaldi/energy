@@ -318,6 +318,131 @@ def notify_powerautomate_solicitud(solicitud):
         logger.error(f"Error en webhook Power Automate para solicitud #{solicitud.id}: {e}")
         return False
 
+def _aprobadores_por_departamento(nombre_departamento):
+    """
+    Devuelve los usuarios aprobadores (aprobador_salidas=True) que pertenecen a un
+    departamento por nombre (ej. 'Almacenes'). Comparación case-insensitive.
+    """
+    try:
+        from core.models import PerfilUsuario
+        perfiles = PerfilUsuario.objects.filter(
+            departamento__nombre__iexact=nombre_departamento,
+            aprobador_salidas=True
+        ).select_related('usuario', 'departamento')
+        resultado = []
+        vistos = set()
+        for p in perfiles:
+            u = p.usuario
+            if not u or u.id in vistos:
+                continue
+            vistos.add(u.id)
+            resultado.append(u)
+        return resultado
+    except Exception as e:
+        logger.error(f"Error obteniendo aprobadores del departamento '{nombre_departamento}': {e}")
+        return []
+
+
+def notify_powerautomate_almacen(solicitud, nombre_departamento="Almacenes"):
+    """
+    Notifica (informativo) a los aprobadores del departamento de almacén que una
+    solicitud fue autorizada y está lista para despacho.
+
+    - Solo envía a los usuarios con aprobador_salidas=True del departamento indicado.
+    - Cada aprobador recibe su correo ya armado en 'email_html'.
+    - No hay acción de aprobar/rechazar: es una notificación.
+    """
+    try:
+        url = getattr(settings, 'POWERAUTOMATE_DESPACHO_ALMACEN_URL', '')
+        if not url:
+            logger.warning("POWERAUTOMATE_DESPACHO_ALMACEN_URL no configurada. Se omite la notificación al almacén.")
+            return False
+
+        aprobadores_users = _aprobadores_por_departamento(nombre_departamento)
+        if not aprobadores_users:
+            logger.info(f"Sin aprobadores en el departamento '{nombre_departamento}'. No se notifica al almacén (solicitud #{solicitud.id}).")
+            return False
+
+        items = []
+        for mov in solicitud.items.all():
+            items.append({
+                'material_id': mov.material.id,
+                'material_nombre': mov.material.nombre,
+                'sku': mov.material.sku,
+                'cantidad': int(mov.cantidad_solicitada),
+                'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else "Unidad",
+            })
+
+        user = solicitud.usuario
+        autorizado_por = ''
+        if solicitud.autorizado_por:
+            autorizado_por = (f"{solicitud.autorizado_por.first_name} {solicitud.autorizado_por.last_name}".strip()
+                              or solicitud.autorizado_por.username)
+
+        from django.utils import timezone as _tz
+        fecha_aut = ''
+        if solicitud.fecha_autorizacion:
+            fecha_aut = _tz.localtime(solicitud.fecha_autorizacion).strftime('%d/%m/%Y %H:%M')
+
+        url_detalle = f"{POWERAUTOMATE_SITE_URL}/inventarios/mobile/pedidos/{solicitud.id}/"
+
+        aprobadores = []
+        for u in aprobadores_users:
+            aprobadores.append({
+                'user_id': u.id,
+                'nombre': (f"{u.first_name} {u.last_name}".strip() or u.username),
+                'email': u.email or '',
+                'username': u.username,
+            })
+
+        # Renderizar el correo por aprobador de almacén
+        try:
+            from django.template.loader import render_to_string
+            ctx_base = {
+                'solicitud_id': solicitud.id,
+                'usuario_nombre': (f"{user.first_name} {user.last_name}".strip() or user.username),
+                'usuario_email': user.email or '',
+                'ubicacion_origen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "N/A",
+                'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
+                'comentarios': solicitud.comentarios_solicitud or "",
+                'autorizado_por': autorizado_por,
+                'fecha_autorizacion': fecha_aut,
+                'items': items,
+                'url_detalle': url_detalle,
+            }
+            for ap in aprobadores:
+                ctx = dict(ctx_base)
+                ctx['aprobador_nombre'] = ap.get('nombre', '')
+                ap['email_html'] = render_to_string('inventarios/email_despacho_almacen.html', ctx)
+        except Exception as e:
+            logger.error(f"Error renderizando email_html de almacén para solicitud #{solicitud.id}: {e}")
+
+        data = {
+            'event': 'solicitud_material_lista_despacho',
+            'solicitud_id': solicitud.id,
+            'estado': solicitud.estado,
+            'usuario_nombre': ctx_base['usuario_nombre'],
+            'usuario_email': ctx_base['usuario_email'],
+            'autorizado_por': autorizado_por,
+            'fecha_autorizacion': fecha_aut,
+            'ubicacion_origen': ctx_base['ubicacion_origen'],
+            'orden_trabajo': ctx_base['orden_trabajo'],
+            'comentarios': ctx_base['comentarios'],
+            'items': items,
+            'aprobadores': aprobadores,
+            'aprobadores_emails': [a['email'] for a in aprobadores if a.get('email')],
+            'url_detalle': url_detalle,
+        }
+
+        response = requests.post(url, json=data, timeout=10)
+        response.raise_for_status()
+        logger.info(f"Webhook Power Automate (almacén) enviado para solicitud #{solicitud.id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error en webhook Power Automate (almacén) para solicitud #{solicitud.id}: {e}")
+        return False
+
+
 def notify_powerautomate_despacho(solicitud):
     """
     Envía un webhook a Power Automate cuando se despacha una solicitud de materiales.

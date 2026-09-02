@@ -4529,6 +4529,12 @@ a.btn {{ display:inline-block; margin-top:18px; background:#0070f2; color:#fff; 
             notificar_nueva_solicitud(solicitud)
         except Exception:
             pass
+        # Notificar al departamento de Almacenes (aprobadores) que está lista para despacho
+        try:
+            from .utils_n8n import notify_powerautomate_almacen
+            notify_powerautomate_almacen(solicitud)
+        except Exception:
+            pass
         return _pagina(
             'Solicitud autorizada',
             f"Gracias. La solicitud fue <strong>autorizada</strong> correctamente por <strong>{_nombre(aprobador)}</strong>. El almacén ha sido notificado.",
