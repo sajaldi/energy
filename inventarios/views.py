@@ -4762,3 +4762,37 @@ def solicitud_aprobar_departamento(request, pk):
         return JsonResponse({'status': 'success', 'message': 'Solicitud rechazada.', 'nuevo_estado': 'RECHAZADO'})
     else:
         return JsonResponse({'status': 'error', 'message': 'Acción no válida.'}, status=400)
+
+
+@login_required
+def solicitud_detalle_departamento(request, pk):
+    """
+    Detalle de una solicitud accesible desde el dashboard de departamento.
+    Permite ver la solicitud si el usuario es el dueño, o si pertenece al mismo
+    departamento que el solicitante (para que el equipo/aprobador pueda verla).
+    """
+    from .models import SolicitudMaterial
+
+    pedido = get_object_or_404(SolicitudMaterial, pk=pk)
+
+    perfil = getattr(request.user, 'perfil', None)
+    mi_departamento_id = getattr(getattr(perfil, 'departamento', None), 'id', None)
+
+    sol_perfil = getattr(pedido.usuario, 'perfil', None)
+    sol_departamento_id = getattr(getattr(sol_perfil, 'departamento', None), 'id', None)
+
+    es_dueno = pedido.usuario_id == request.user.id
+    mismo_departamento = bool(mi_departamento_id and mi_departamento_id == sol_departamento_id)
+
+    if not (es_dueno or mismo_departamento or request.user.is_superuser):
+        return HttpResponse("No tienes permiso para ver esta solicitud.", status=403)
+
+    items = pedido.items.select_related('material', 'material__unidad_medida').all()
+    for item in items:
+        m = item.material
+        item.image_url = m.imagen.url if m.imagen else ''
+
+    return render(request, 'inventarios/mobile_detalle_pedido.html', {
+        'pedido': pedido,
+        'items': items
+    })

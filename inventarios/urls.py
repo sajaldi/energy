@@ -13,6 +13,7 @@ urlpatterns = [
     path('crear-solicitud/', views.crear_solicitud_dashboard, name='crear_solicitud'),
     path('mi-departamento/', views.dashboard_departamento, name='dashboard_departamento'),
     path('solicitud/<int:pk>/aprobar-departamento/', views.solicitud_aprobar_departamento, name='solicitud_aprobar_departamento'),
+    path('solicitud/<int:pk>/detalle-departamento/', views.solicitud_detalle_departamento, name='solicitud_detalle_departamento'),
     path('api/solicitudes/<int:pk>/autorizar/', views.solicitud_autorizar_publica, name='solicitud_autorizar_publica'),
     path('solicitud/<int:pk>/estado-badge.png', views.solicitud_estado_badge, name='solicitud_estado_badge'),
     path('api/stock/<int:material_id>/', views.api_get_material_stock, name='api_get_material_stock'),
