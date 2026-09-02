@@ -2848,13 +2848,18 @@ def api_resolicitud_webhook(request, pk):
         return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
     solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
 
-    # Puede reenviar: el dueño, un aprobador de salidas, el personal de Almacenes
-    # o un superusuario.
+    # Puede reenviar: el dueño, cualquier persona del mismo departamento del
+    # solicitante, un aprobador de salidas, el personal de Almacenes o un superusuario.
     perfil = getattr(request.user, 'perfil', None)
+    mi_departamento_id = getattr(getattr(perfil, 'departamento', None), 'id', None)
+    sol_perfil = getattr(solicitud.usuario, 'perfil', None)
+    sol_departamento_id = getattr(getattr(sol_perfil, 'departamento', None), 'id', None)
+
     es_dueno = solicitud.usuario_id == request.user.id
+    mismo_departamento = bool(mi_departamento_id and mi_departamento_id == sol_departamento_id)
     es_aprobador = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
     es_almacen = request.user.groups.filter(name__iexact='Almacenes').exists()
-    if not (es_dueno or es_aprobador or es_almacen or request.user.is_superuser):
+    if not (es_dueno or mismo_departamento or es_aprobador or es_almacen or request.user.is_superuser):
         return JsonResponse({'status': 'error', 'message': 'No tienes permiso para reenviar esta solicitud.'}, status=403)
 
     from .utils_n8n import notify_powerautomate_solicitud
