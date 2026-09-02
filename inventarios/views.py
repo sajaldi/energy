@@ -553,12 +553,29 @@ def cart_checkout(request):
             with transaction.atomic():
                 # Verificar si el usuario tiene un jefe inmediato
                 jefe = getattr(request.user, 'perfil', None) and getattr(request.user.perfil, 'responsable', None)
-                
-                # Si se pide guardar como borrador, respetar ese estado
+
+                # ¿Hay aprobadores de salida en los departamentos de los materiales?
+                from core.models import PerfilUsuario as _PU
+                from .models import Material as _MatModel
+                _materiales_ids = [i['material'].id for i in items_to_process]
+                _deptos_ids = set()
+                for _mat in _MatModel.objects.filter(id__in=_materiales_ids).prefetch_related('departamentos'):
+                    for _depto in _mat.departamentos.all():
+                        _deptos_ids.add(_depto.id)
+                hay_aprobadores = False
+                if _deptos_ids:
+                    hay_aprobadores = _PU.objects.filter(
+                        departamento_id__in=_deptos_ids, aprobador_salidas=True
+                    ).exists()
+
+                # Si se pide guardar como borrador, respetar ese estado.
+                # Requiere autorización si hay aprobadores por departamento o jefe directo.
                 if es_borrador:
                     estado_inicial = 'BORRADOR'
+                elif hay_aprobadores or jefe:
+                    estado_inicial = 'PENDIENTE_AUTORIZACION'
                 else:
-                    estado_inicial = 'PENDIENTE_AUTORIZACION' if jefe else 'PENDIENTE'
+                    estado_inicial = 'PENDIENTE'
 
                 # Crear la cabecera de la orden
                 solicitud = SolicitudMaterial.objects.create(
@@ -1091,12 +1108,8 @@ def api_enviar_borrador(request, pk):
     if not solicitud.ubicacion_origen:
         return JsonResponse({'status': 'error', 'message': 'Seleccione una bodega de origen antes de enviar.'}, status=400)
     
-    # Determinar estado
-    jefe = getattr(request.user, 'perfil', None) and getattr(request.user.perfil, 'responsable', None)
-    solicitud.estado = 'PENDIENTE_AUTORIZACION' if jefe else 'PENDIENTE'
-    solicitud.save()
-    
-    # Crear movimientos si no existen
+    # Crear movimientos si no existen (antes de calcular aprobadores, que dependen
+    # de los materiales asociados a la solicitud)
     from decimal import Decimal
     if not solicitud.items.filter(tipo='SALIDA').exists():
         for item in solicitud.items.all():
@@ -1110,7 +1123,20 @@ def api_enviar_borrador(request, pk):
                 orden_trabajo=solicitud.orden_trabajo,
                 usuario=request.user,
             )
-    
+
+    # Determinar estado: requiere autorización si existe al menos un aprobador
+    # (aprobadores por departamento de los materiales o, como respaldo, el jefe
+    # del solicitante). Si no hay ninguno, pasa directo a despacho.
+    try:
+        from .utils_n8n import _obtener_aprobadores_solicitud
+        perfil_sol = getattr(request.user, 'perfil', None)
+        jefe = getattr(perfil_sol, 'responsable', None) if perfil_sol else None
+        aprobadores = _obtener_aprobadores_solicitud(solicitud, jefe)
+    except Exception:
+        aprobadores = []
+    solicitud.estado = 'PENDIENTE_AUTORIZACION' if aprobadores else 'PENDIENTE'
+    solicitud.save(update_fields=['estado'])
+
     # Notificaciones
     if solicitud.estado == 'PENDIENTE_AUTORIZACION':
         try:
