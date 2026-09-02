@@ -274,7 +274,7 @@ def notify_powerautomate_solicitud(solicitud):
             'comentarios': solicitud.comentarios_solicitud or "",
             'estado': solicitud.estado,
             'items': items,
-            'url_detalle': f"{POWERAUTOMATE_SITE_URL}/inventarios/mobile/pedidos/{solicitud.id}/",
+            'url_detalle': f"{POWERAUTOMATE_SITE_URL}/inventarios/solicitud/{solicitud.id}/detalle-departamento/",
             'url_api_autorizar': f"{POWERAUTOMATE_SITE_URL}/inventarios/api/solicitudes/{solicitud.id}/autorizar/",
             'url_estado_badge': f"{POWERAUTOMATE_SITE_URL}/inventarios/solicitud/{solicitud.id}/estado-badge.png",
         }
@@ -384,7 +384,7 @@ def notify_powerautomate_almacen(solicitud, nombre_departamento="Almacenes"):
         if solicitud.fecha_autorizacion:
             fecha_aut = _tz.localtime(solicitud.fecha_autorizacion).strftime('%d/%m/%Y %H:%M')
 
-        url_detalle = f"{POWERAUTOMATE_SITE_URL}/inventarios/mobile/pedidos/{solicitud.id}/"
+        url_detalle = f"{POWERAUTOMATE_SITE_URL}/inventarios/solicitud/{solicitud.id}/detalle-departamento/"
 
         aprobadores = []
         for u in aprobadores_users:

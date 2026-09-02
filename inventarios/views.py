@@ -4783,8 +4783,10 @@ def solicitud_detalle_departamento(request, pk):
 
     es_dueno = pedido.usuario_id == request.user.id
     mismo_departamento = bool(mi_departamento_id and mi_departamento_id == sol_departamento_id)
+    # Los aprobadores de salidas (p. ej. personal de Almacenes) también pueden ver el detalle
+    es_aprobador = bool(perfil and getattr(perfil, 'aprobador_salidas', False))
 
-    if not (es_dueno or mismo_departamento or request.user.is_superuser):
+    if not (es_dueno or mismo_departamento or es_aprobador or request.user.is_superuser):
         return HttpResponse("No tienes permiso para ver esta solicitud.", status=403)
 
     items = pedido.items.select_related('material', 'material__unidad_medida').all()
