@@ -396,6 +396,47 @@
         border-color: var(--primary);
     }
 
+    .bulk-bar {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 10px 16px;
+        background: #eef4fd;
+        border-bottom: 1px solid var(--border);
+    }
+    .bulk-bar.show { display: flex; }
+    .bulk-bar .bulk-count { font-size: 0.82rem; color: var(--text); }
+    .bulk-bar select {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 0.85rem;
+        background: #fff;
+    }
+    .bulk-bar .btn-bulk-assign {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        padding: 9px 16px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .bulk-bar .btn-bulk-assign:hover { filter: brightness(0.95); }
+    .bulk-bar .btn-bulk-clear {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        padding: 9px 14px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        cursor: pointer;
+    }
     .catalogo-toolbar .toolbar-count {
         font-size: 0.78rem;
         color: var(--text-muted);
@@ -631,11 +672,31 @@
                 <span class="toolbar-count" id="catCount"></span>
             </div>
 
+            <!-- Barra de acción masiva -->
+            <div class="bulk-bar" id="bulkBar">
+                <span class="bulk-count"><strong id="bulkCount">0</strong> seleccionado(s)</span>
+                <select id="bulkDepartamento">
+                    <option value="">— Seleccionar departamento —</option>
+                    {% for d in departamentos %}
+                    <option value="{{ d.id }}">{{ d.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <select id="bulkModo" title="Cómo aplicar el departamento">
+                    <option value="agregar">Agregar departamento</option>
+                    <option value="reemplazar">Reemplazar departamentos</option>
+                </select>
+                <button type="button" class="btn-bulk-assign" id="btnAsignarDepto">
+                    <ion-icon name="business-outline"></ion-icon> Asignar material al departamento
+                </button>
+                <button type="button" class="btn-bulk-clear" id="btnLimpiarSel">Limpiar</button>
+            </div>
+
             <!-- Tabla -->
             <div class="sap-table-wrapper">
                 <table class="sap-table">
                     <thead>
                         <tr>
+                            <th style="width:36px; text-align:center;"><input type="checkbox" id="catCheckAll" title="Seleccionar todo"></th>
                             <th>SKU</th>
                             <th>Material</th>
                             <th>Categoría</th>
@@ -644,10 +705,11 @@
                             <th style="text-align:right;">Stock</th>
                             <th style="text-align:right;">Mínimo</th>
                             <th>Bodega(s)</th>
+                            <th>Departamento(s)</th>
                         </tr>
                     </thead>
                     <tbody id="catTableBody">
-                        <tr><td colspan="8" class="table-loading">
+                        <tr><td colspan="10" class="table-loading">
                             <div class="loading-spinner"></div>
                             Cargando catálogo...
                         </td></tr>
@@ -830,20 +892,20 @@ MAT-003,0</pre>
         if (catFilterTipo.value) params.set('tipo', catFilterTipo.value);
 
         const tbody = document.getElementById('catTableBody');
-        tbody.innerHTML = '<tr><td colspan="8" class="table-loading"><div class="loading-spinner"></div>Cargando...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="table-loading"><div class="loading-spinner"></div>Cargando...</td></tr>';
 
         fetch(`{% url 'inventarios:api_ajuste_masivo_catalogo' %}?${params.toString()}`)
             .then(r => r.json())
             .then(data => {
                 if (data.status !== 'success') {
-                    tbody.innerHTML = '<tr><td colspan="8" class="table-empty">Error al cargar datos.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10" class="table-empty">Error al cargar datos.</td></tr>';
                     return;
                 }
 
                 document.getElementById('catCount').textContent = `${data.total_items} materiales`;
 
                 if (data.items.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">
+                    tbody.innerHTML = `<tr><td colspan="10" class="table-empty">
                         <ion-icon name="search-outline"></ion-icon>
                         <p>No se encontraron materiales con los filtros actuales.</p>
                     </td></tr>`;
@@ -854,6 +916,7 @@ MAT-003,0</pre>
 
                 tbody.innerHTML = data.items.map(item => `
                     <tr>
+                        <td style="text-align:center;"><input type="checkbox" class="cat-row-check" value="${item.id}" ${selectedIds.has(item.id) ? 'checked' : ''}></td>
                         <td class="col-sku">${item.sku}</td>
                         <td class="col-nombre" title="${item.nombre}">${item.nombre}</td>
                         <td><span class="badge-cat">${item.categoria}</span></td>
@@ -862,8 +925,13 @@ MAT-003,0</pre>
                         <td class="col-stock ${item.bajo_stock ? 'bajo' : ''}" style="text-align:right;">${item.stock_total}</td>
                         <td style="text-align:right; color: var(--text-muted);">${item.stock_minimo}</td>
                         <td class="col-bodega" title="${item.bodegas}">${item.bodegas}</td>
+                        <td class="col-depto" title="${item.departamentos}">${item.departamentos}</td>
                     </tr>
                 `).join('');
+
+                // Re-enlazar checkboxes de la página recién cargada
+                bindRowChecks();
+                syncCheckAll();
 
                 // Paginación
                 const start = (data.page - 1) * 50 + 1;
@@ -891,9 +959,89 @@ MAT-003,0</pre>
                 document.getElementById('pagButtons').innerHTML = pagHtml;
             })
             .catch(err => {
-                tbody.innerHTML = '<tr><td colspan="8" class="table-empty">Error de conexión.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="table-empty">Error de conexión.</td></tr>';
             });
     }
+
+    // ═══ SELECCIÓN Y ASIGNACIÓN DE DEPARTAMENTO ═══
+    const selectedIds = new Set();
+    const bulkBar = document.getElementById('bulkBar');
+    const bulkCount = document.getElementById('bulkCount');
+    const catCheckAll = document.getElementById('catCheckAll');
+
+    function updateBulkBar() {
+        bulkCount.textContent = selectedIds.size;
+        bulkBar.classList.toggle('show', selectedIds.size > 0);
+    }
+
+    function bindRowChecks() {
+        document.querySelectorAll('.cat-row-check').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const id = parseInt(cb.value);
+                if (cb.checked) selectedIds.add(id);
+                else selectedIds.delete(id);
+                updateBulkBar();
+                syncCheckAll();
+            });
+        });
+    }
+
+    function syncCheckAll() {
+        const checks = document.querySelectorAll('.cat-row-check');
+        if (!checks.length) { catCheckAll.checked = false; return; }
+        catCheckAll.checked = Array.from(checks).every(cb => cb.checked);
+    }
+
+    catCheckAll.addEventListener('change', () => {
+        document.querySelectorAll('.cat-row-check').forEach(cb => {
+            cb.checked = catCheckAll.checked;
+            const id = parseInt(cb.value);
+            if (cb.checked) selectedIds.add(id);
+            else selectedIds.delete(id);
+        });
+        updateBulkBar();
+    });
+
+    document.getElementById('btnLimpiarSel').addEventListener('click', () => {
+        selectedIds.clear();
+        document.querySelectorAll('.cat-row-check').forEach(cb => cb.checked = false);
+        catCheckAll.checked = false;
+        updateBulkBar();
+    });
+
+    document.getElementById('btnAsignarDepto').addEventListener('click', async () => {
+        const deptoId = document.getElementById('bulkDepartamento').value;
+        const modo = document.getElementById('bulkModo').value;
+        if (!deptoId) { alert('Seleccione un departamento.'); return; }
+        if (selectedIds.size === 0) { alert('Seleccione al menos un material.'); return; }
+
+        const deptoNombre = document.getElementById('bulkDepartamento').selectedOptions[0].text;
+        if (!confirm(`¿Asignar ${selectedIds.size} material(es) al departamento "${deptoNombre}"?`)) return;
+
+        const csrf = document.querySelector('#formAjusteMasivo [name=csrfmiddlewaretoken]').value;
+        try {
+            const res = await fetch(`{% url 'inventarios:api_ajuste_masivo_asignar_departamento' %}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                body: JSON.stringify({
+                    material_ids: Array.from(selectedIds),
+                    departamento_id: parseInt(deptoId),
+                    modo: modo,
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert(data.message);
+                selectedIds.clear();
+                updateBulkBar();
+                loadCatalogo(catCurrentPage);
+            } else {
+                alert(data.message || 'Error al asignar.');
+            }
+        } catch (e) {
+            alert('Error de conexión.');
+        }
+    });
 
     // Expose globally for pagination buttons
     window.loadCatalogo = loadCatalogo;

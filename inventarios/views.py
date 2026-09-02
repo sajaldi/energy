@@ -4301,10 +4301,14 @@ def ajuste_masivo_view(request):
     historial = AjusteMasivoInventario.objects.filter(usuario=request.user).order_by('-fecha')[:20]
     categorias = CategoriaMaterial.objects.all().order_by('nombre')
 
+    from core.models import Departamento
+    departamentos = Departamento.objects.all().order_by('nombre')
+
     context = {
         'ubicaciones': ubicaciones,
         'historial': historial,
         'categorias': categorias,
+        'departamentos': departamentos,
         'tipos_material': Material.TIPO_MATERIAL_CHOICES,
         'active_tab': 'ajuste_masivo',
         'title': 'Ajuste Masivo de Inventario',
@@ -4527,7 +4531,7 @@ def api_ajuste_masivo_catalogo(request):
     page = int(request.GET.get('page', 1))
     per_page = int(request.GET.get('per_page', 50))
 
-    qs = Material.objects.select_related('categoria', 'unidad_medida', 'marca').all()
+    qs = Material.objects.select_related('categoria', 'unidad_medida', 'marca').prefetch_related('departamentos').all()
 
     # Filtros
     if search:
@@ -4576,6 +4580,7 @@ def api_ajuste_masivo_catalogo(request):
         stock_total = sum(b['cantidad'] for b in bodegas)
         bodegas_nombres = ', '.join(set(b['bodega'] for b in bodegas)) if bodegas else '—'
 
+        deptos = list(m.departamentos.all())
         items.append({
             'id': m.id,
             'sku': m.sku,
@@ -4588,6 +4593,8 @@ def api_ajuste_masivo_catalogo(request):
             'bodegas': bodegas_nombres,
             'bodegas_detalle': bodegas,
             'bajo_stock': stock_total < float(m.stock_minimo) and float(m.stock_minimo) > 0,
+            'departamentos': ', '.join(d.nombre for d in deptos) if deptos else 'Global',
+            'departamentos_ids': [d.id for d in deptos],
         })
 
     return JsonResponse({
@@ -4598,6 +4605,62 @@ def api_ajuste_masivo_catalogo(request):
         'total_items': paginator.count,
         'has_next': page_obj.has_next(),
         'has_prev': page_obj.has_previous(),
+    })
+
+
+@login_required
+def api_ajuste_masivo_asignar_departamento(request):
+    """
+    Asigna (o reemplaza) el departamento de una lista de materiales.
+    Solo accesible para usuarios del grupo Auditoria o superusuarios.
+
+    Body JSON:
+      {
+        "material_ids": [1, 2, 3],
+        "departamento_id": 5,        # departamento a asignar
+        "modo": "agregar" | "reemplazar"  # opcional, por defecto "agregar"
+      }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    es_auditoria = request.user.groups.filter(name='Auditoria').exists() or request.user.is_superuser
+    if not es_auditoria:
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
+
+    material_ids = data.get('material_ids') or []
+    departamento_id = data.get('departamento_id')
+    modo = (data.get('modo') or 'agregar').lower()
+
+    if not material_ids:
+        return JsonResponse({'status': 'error', 'message': 'No se seleccionó ningún material.'}, status=400)
+    if not departamento_id:
+        return JsonResponse({'status': 'error', 'message': 'Debe seleccionar un departamento.'}, status=400)
+
+    from core.models import Departamento
+    departamento = Departamento.objects.filter(id=departamento_id).first()
+    if not departamento:
+        return JsonResponse({'status': 'error', 'message': 'El departamento no existe.'}, status=404)
+
+    materiales = Material.objects.filter(id__in=material_ids)
+    actualizados = 0
+    for m in materiales:
+        if modo == 'reemplazar':
+            m.departamentos.set([departamento])
+        else:
+            m.departamentos.add(departamento)
+        actualizados += 1
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f"{actualizados} material(es) asignado(s) al departamento '{departamento.nombre}'.",
+        'actualizados': actualizados,
+        'departamento': departamento.nombre,
     })
 
 
