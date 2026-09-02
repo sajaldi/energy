@@ -138,6 +138,9 @@ URL_REASIGNACION_TICKET = os.environ.get('URL_REASIGNACION_TICKET', '')
 # Materiales e Inventarios
 N8N_SOLICITUD_WEBHOOK_URL = os.environ.get('N8N_SOLICITUD_WEBHOOK_URL', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}solicitud-material')
 
+# Power Automate: flujo de autorización de solicitudes de material (correo a aprobadores)
+POWERAUTOMATE_APROBACION_URL = os.environ.get('POWERAUTOMATE_APROBACION_URL', '')
+
 # Ordenes de Trabajo y Reportes
 N8N_OT_WEBHOOK_URL = os.environ.get(
     'N8N_OT_WEBHOOK_URL', 

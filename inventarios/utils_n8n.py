@@ -162,7 +162,9 @@ POWERAUTOMATE_SOLICITUD_URL = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environ
 
 POWERAUTOMATE_DESPACHO_URL = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/00d78dda269f477daefd4464162a4af4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=F_ds80wMf2RdkzyCaDGF2N118z0-vH9azCzyVPkKKac"
 
-POWERAUTOMATE_APROBACION_URL = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/13/workflows/816034cd62ca4b07bb44331b705a0ff3/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IWueBl1Y-mKIhc8Mo4lOedgkRr0M7hR0g-svObUU1b0"
+# URL del flujo de aprobación en Power Automate. Se lee desde el entorno
+# (definida en Coolify como POWERAUTOMATE_APROBACION_URL).
+POWERAUTOMATE_APROBACION_URL = getattr(settings, 'POWERAUTOMATE_APROBACION_URL', '')
 
 POWERAUTOMATE_SITE_URL = "https://softcom.ccg.hn"
 
@@ -303,6 +305,10 @@ def notify_powerautomate_solicitud(solicitud):
                 ap['email_html'] = render_to_string('inventarios/email_autorizacion.html', ctx)
         except Exception as e:
             logger.error(f"Error renderizando email_html de aprobadores para solicitud #{solicitud.id}: {e}")
+
+        if not POWERAUTOMATE_APROBACION_URL:
+            logger.warning("POWERAUTOMATE_APROBACION_URL no configurada. Se omite el webhook de aprobación.")
+            return False
 
         response = requests.post(POWERAUTOMATE_APROBACION_URL, json=data, timeout=10)
         response.raise_for_status()
