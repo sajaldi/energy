@@ -142,4 +142,5 @@ urlpatterns = [
     path('api/ajuste-masivo/procesar/', views.api_ajuste_masivo_procesar, name='api_ajuste_masivo_procesar'),
     path('api/ajuste-masivo/catalogo/', views.api_ajuste_masivo_catalogo, name='api_ajuste_masivo_catalogo'),
     path('api/ajuste-masivo/asignar-departamento/', views.api_ajuste_masivo_asignar_departamento, name='api_ajuste_masivo_asignar_departamento'),
+    path('api/ajuste-masivo/asignar-categoria/', views.api_ajuste_masivo_asignar_categoria, name='api_ajuste_masivo_asignar_categoria'),
 ]

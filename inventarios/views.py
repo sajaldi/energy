@@ -4667,6 +4667,53 @@ def api_ajuste_masivo_asignar_departamento(request):
     })
 
 
+@login_required
+def api_ajuste_masivo_asignar_categoria(request):
+    """
+    Cambia la categoría de una lista de materiales.
+    Solo accesible para el grupo Procura_Tecnica o superusuarios.
+
+    Body JSON:
+      {
+        "material_ids": [1, 2, 3],
+        "categoria_id": 5
+      }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    # Solo el grupo Procura_Tecnica o un superusuario puede cambiar categorías.
+    puede_asignar = request.user.groups.filter(name='Procura_Tecnica').exists() or request.user.is_superuser
+    if not puede_asignar:
+        return JsonResponse({'status': 'error', 'message': 'No autorizado. Solo Procura Técnica puede cambiar la categoría de los materiales.'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
+
+    material_ids = data.get('material_ids') or []
+    categoria_id = data.get('categoria_id')
+
+    if not material_ids:
+        return JsonResponse({'status': 'error', 'message': 'No se seleccionó ningún material.'}, status=400)
+    if not categoria_id:
+        return JsonResponse({'status': 'error', 'message': 'Debe seleccionar una categoría.'}, status=400)
+
+    categoria = CategoriaMaterial.objects.filter(id=categoria_id).first()
+    if not categoria:
+        return JsonResponse({'status': 'error', 'message': 'La categoría no existe.'}, status=404)
+
+    actualizados = Material.objects.filter(id__in=material_ids).update(categoria=categoria)
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f"{actualizados} material(es) movido(s) a la categoría '{categoria.nombre}'.",
+        'actualizados': actualizados,
+        'categoria': categoria.nombre,
+    })
+
+
 @csrf_exempt
 def solicitud_autorizar_publica(request, pk):
     """

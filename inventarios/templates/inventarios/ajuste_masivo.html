@@ -437,6 +437,12 @@
         font-size: 0.85rem;
         cursor: pointer;
     }
+    .bulk-bar .bulk-sep {
+        width: 1px;
+        align-self: stretch;
+        background: var(--border);
+        margin: 0 2px;
+    }
     .catalogo-toolbar .toolbar-count {
         font-size: 0.78rem;
         color: var(--text-muted);
@@ -688,6 +694,16 @@
                 </select>
                 <button type="button" class="btn-bulk-assign" id="btnAsignarDepto">
                     <ion-icon name="business-outline"></ion-icon> Asignar material al departamento
+                </button>
+                <span class="bulk-sep"></span>
+                <select id="bulkCategoria">
+                    <option value="">— Seleccionar categoría —</option>
+                    {% for c in categorias %}
+                    <option value="{{ c.id }}">{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <button type="button" class="btn-bulk-assign" id="btnAsignarCategoria">
+                    <ion-icon name="pricetags-outline"></ion-icon> Cambiar categoría
                 </button>
                 <button type="button" class="btn-bulk-clear" id="btnLimpiarSel">Limpiar</button>
             </div>
@@ -1019,25 +1035,13 @@ MAT-003,0</pre>
             updateBulkBar();
         });
 
-        document.getElementById('btnAsignarDepto').addEventListener('click', async () => {
-            const deptoId = document.getElementById('bulkDepartamento').value;
-            const modo = document.getElementById('bulkModo').value;
-            if (!deptoId) { alert('Seleccione un departamento.'); return; }
-            if (selectedIds.size === 0) { alert('Seleccione al menos un material.'); return; }
-
-            const deptoNombre = document.getElementById('bulkDepartamento').selectedOptions[0].text;
-            if (!confirm(`¿Asignar ${selectedIds.size} material(es) al departamento "${deptoNombre}"?`)) return;
-
+        async function enviarAsignacion(url, payload) {
             const csrf = document.querySelector('#formAjusteMasivo [name=csrfmiddlewaretoken]').value;
             try {
-                const res = await fetch(`{% url 'inventarios:api_ajuste_masivo_asignar_departamento' %}`, {
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-                    body: JSON.stringify({
-                        material_ids: Array.from(selectedIds),
-                        departamento_id: parseInt(deptoId),
-                        modo: modo,
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 if (data.status === 'success') {
@@ -1046,11 +1050,41 @@ MAT-003,0</pre>
                     updateBulkBar();
                     loadCatalogo(catCurrentPage);
                 } else {
-                    alert(data.message || 'Error al asignar.');
+                    alert(data.message || 'Error al aplicar el cambio.');
                 }
             } catch (e) {
                 alert('Error de conexión.');
             }
+        }
+
+        document.getElementById('btnAsignarDepto').addEventListener('click', () => {
+            const deptoId = document.getElementById('bulkDepartamento').value;
+            const modo = document.getElementById('bulkModo').value;
+            if (!deptoId) { alert('Seleccione un departamento.'); return; }
+            if (selectedIds.size === 0) { alert('Seleccione al menos un material.'); return; }
+
+            const deptoNombre = document.getElementById('bulkDepartamento').selectedOptions[0].text;
+            if (!confirm(`¿Asignar ${selectedIds.size} material(es) al departamento "${deptoNombre}"?`)) return;
+
+            enviarAsignacion(`{% url 'inventarios:api_ajuste_masivo_asignar_departamento' %}`, {
+                material_ids: Array.from(selectedIds),
+                departamento_id: parseInt(deptoId),
+                modo: modo,
+            });
+        });
+
+        document.getElementById('btnAsignarCategoria').addEventListener('click', () => {
+            const catId = document.getElementById('bulkCategoria').value;
+            if (!catId) { alert('Seleccione una categoría.'); return; }
+            if (selectedIds.size === 0) { alert('Seleccione al menos un material.'); return; }
+
+            const catNombre = document.getElementById('bulkCategoria').selectedOptions[0].text;
+            if (!confirm(`¿Mover ${selectedIds.size} material(es) a la categoría "${catNombre}"?`)) return;
+
+            enviarAsignacion(`{% url 'inventarios:api_ajuste_masivo_asignar_categoria' %}`, {
+                material_ids: Array.from(selectedIds),
+                categoria_id: parseInt(catId),
+            });
         });
     }
 
