@@ -402,7 +402,7 @@ def subir_evidencias(page, evidencias):
                 page.screenshot(path=os.path.join(settings.BASE_DIR, "downloads", f"error_adjuntos_{i+1}.png"))
 
 
-def sync_individual_ticket(username, password, company_name, ticket_folio, fecha_solicitud, diagnostico_django, actividades_django, observaciones_django, observaciones_usuario_django, fecha_observaciones_usuario, fecha_cierre, evidencias=None, solicitud_adicional=False):
+def sync_individual_ticket(username, password, company_name, ticket_folio, fecha_solicitud, diagnostico_django, actividades_django, observaciones_django, observaciones_usuario_django, fecha_observaciones_usuario, fecha_cierre, evidencias=None, solicitud_adicional=False, responsable_cierre=None):
     """
     Robot que sincroniza un ticket individual en SIG GIA.
     """
@@ -620,8 +620,11 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                         robot_log("[Asignar/Cierre] ADVERTENCIA: No se confirm├│ apertura de cat├ílogo, continuando...")
                     page.wait_for_timeout(800)
 
-                    # Filtrar responsable ÔÇö usar get_by_placeholder como selector primario
-                    robot_log("Filtrando por 'soporte'...")
+                    # Determinar el responsable a asignar en SIG GIA
+                    # responsable_cierre puede ser "MAO Soporte" o "Leonel Alejandro Almendares Inestroza"
+                    nombre_responsable = responsable_cierre or "MAO Soporte"
+                    termino_busqueda = nombre_responsable.split()[0].lower()
+                    robot_log(f"Filtrando por '{termino_busqueda}' para responsable: {nombre_responsable}")
                     filtrar_loc = None
                     for loc_fn in [
                         lambda: page.get_by_placeholder("Filtrar"),
@@ -639,23 +642,22 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                             continue
 
                     if filtrar_loc:
-                        filtrar_loc.fill("soporte")
-                        robot_log("[Asignar/Cierre] Campo 'Filtrar' llenado con 'soporte'.")
+                        filtrar_loc.fill(termino_busqueda)
+                        robot_log(f"[Asignar/Cierre] Campo 'Filtrar' llenado con '{termino_busqueda}'.")
                     else:
-                        # ├Ültimo fallback: escribir en cualquier input visible dentro del di├ílogo
-                        page.keyboard.type("soporte")
-                        robot_log("[Asignar/Cierre] Filtrar llenado v├¡a keyboard (fallback).")
+                        page.keyboard.type(termino_busqueda)
+                        robot_log(f"[Asignar/Cierre] Filtrar llenado via keyboard (fallback).")
                     page.wait_for_timeout(1500)
 
-                    # Doble clic en soporte Mao para seleccionarlo y cerrar el cat├ílogo autom├íticamente
-                    page.get_by_role("gridcell", name="MAO Soporte").dblclick()
+                    # Doble clic en el responsable para seleccionarlo
+                    page.get_by_role("gridcell", name=nombre_responsable).dblclick()
                     page.wait_for_timeout(1000)
 
                     take_screenshot(page, "06_modal_cierre_llenado")
 
                     # Click en Aplicar para guardar y cerrar modal
                     page.get_by_role("button", name="Aplicar").click()
-                    robot_log(f"Asignar/Cierre guardado: {fecha_local_cierre.strftime('%d/%m/%Y %I:%M %p')} - MAO Soporte")
+                    robot_log(f"Asignar/Cierre guardado: {fecha_local_cierre.strftime('%d/%m/%Y %I:%M %p')} - {nombre_responsable}")
                     time.sleep(3)
 
                     # Manejar cualquier SweetAlert de confirmaci├│n o advertencia que aparezca

@@ -111,6 +111,16 @@ def sync_single_ticket_task(ticket_id):
                 except Exception as e:
                     logger.warning(f"No se pudo descargar evidencia {ev.id}: {e}")
 
+        # Determinar el responsable de cierre desde el usuario responsable del ticket
+        responsable_cierre = None
+        if ticket.usuario_responsable:
+            nombre = ticket.usuario_responsable.get_full_name().strip()
+            if nombre:
+                responsable_cierre = nombre
+        # Fallback al responsable por defecto si no hay usuario asignado
+        if not responsable_cierre:
+            responsable_cierre = "MAO Soporte"
+
         # Ejecutar el robot scraper
         try:
             result = sync_individual_ticket(
@@ -126,7 +136,8 @@ def sync_single_ticket_task(ticket_id):
                 fecha_observaciones_usuario=ticket.fecha_observaciones_usuario,
                 fecha_cierre=ticket.fecha_cierre,
                 evidencias=evidencias,
-                solicitud_adicional=ticket.solicitud_adicional
+                solicitud_adicional=ticket.solicitud_adicional,
+                responsable_cierre=responsable_cierre
             )
             
             # Guardar el estado y logs en el ticket de Django
