@@ -39,6 +39,66 @@ def _puede_gestionar_almacen(user):
     return user.groups.filter(name__in=['Almacenes', 'Procura_Tecnica']).exists()
 
 
+def _construir_timeline_solicitud(pedido):
+    """Construye la línea de tiempo (hitos) de una solicitud de material."""
+    def _nombre(u):
+        if not u:
+            return ''
+        return (f"{u.first_name} {u.last_name}".strip() or u.username)
+
+    timeline = []
+    timeline.append({
+        'titulo': 'Solicitud creada',
+        'fecha': pedido.fecha_solicitud,
+        'actor': _nombre(pedido.usuario),
+        'icono': 'add-circle-outline',
+        'color': '#0070f2',
+    })
+    if pedido.fecha_autorizacion or pedido.autorizado_por:
+        timeline.append({
+            'titulo': 'Autorizada',
+            'fecha': pedido.fecha_autorizacion,
+            'actor': _nombre(pedido.autorizado_por),
+            'icono': 'checkmark-circle-outline',
+            'color': '#107e3e',
+        })
+    if pedido.fecha_rechazo or pedido.rechazado_por:
+        timeline.append({
+            'titulo': 'Rechazada',
+            'fecha': pedido.fecha_rechazo,
+            'actor': _nombre(pedido.rechazado_por),
+            'icono': 'close-circle-outline',
+            'color': '#bb0000',
+        })
+    if pedido.estado in ('LISTO_RECOLECCION', 'ENTREGADO'):
+        timeline.append({
+            'titulo': 'Despachada · lista para recolección',
+            'fecha': None,
+            'actor': _nombre(pedido.entregado_por),
+            'icono': 'cube-outline',
+            'color': '#e9730c',
+        })
+    if pedido.estado == 'ENTREGADO' or pedido.fecha_entrega:
+        timeline.append({
+            'titulo': 'Entrega confirmada',
+            'fecha': pedido.fecha_entrega,
+            'actor': _nombre(pedido.entregado_por),
+            'recibe_nombre': pedido.recibe_nombre or '',
+            'icono': 'checkmark-done-outline',
+            'color': '#107e3e',
+        })
+    return timeline
+
+
+def _foto_entrega_url(pedido):
+    try:
+        if pedido.foto_entrega:
+            return pedido.foto_entrega.url
+    except Exception:
+        pass
+    return ''
+
+
 @login_required
 def inventario_dashboard(request):
     """
@@ -1161,6 +1221,8 @@ def mobile_detalle_pedido(request, pk):
         'puede_confirmar_entrega': puede_confirmar_entrega,
         'es_almacen': es_almacen,
         'aprobadores': aprobadores,
+        'timeline': _construir_timeline_solicitud(pedido),
+        'foto_entrega_url': _foto_entrega_url(pedido),
     })
 
 @login_required
@@ -5236,6 +5298,8 @@ def solicitud_detalle_departamento(request, pk):
         'puede_confirmar_entrega': puede_confirmar_entrega,
         'es_almacen': es_almacen,
         'aprobadores': aprobadores,
+        'timeline': _construir_timeline_solicitud(pedido),
+        'foto_entrega_url': _foto_entrega_url(pedido),
     })
 
 

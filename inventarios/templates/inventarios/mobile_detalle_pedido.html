@@ -52,6 +52,15 @@
         .qty-val.delivered { color: var(--sapSuccessColor); }
         .unit { font-size: 0.75rem; font-weight: normal; color: var(--sapContent_LabelColor); }
         .info-list { background: white; border-top: 1px solid #d9d9d9; border-bottom: 1px solid #d9d9d9; }
+        .timeline { background: white; border-top: 1px solid #d9d9d9; border-bottom: 1px solid #d9d9d9; padding: 1rem 1rem 0.5rem 1rem; }
+        .tl-item { position: relative; padding-left: 2.25rem; padding-bottom: 1.1rem; }
+        .tl-item:last-child { padding-bottom: 0.25rem; }
+        .tl-dot { position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 1; }
+        .tl-line { position: absolute; left: 12px; top: 26px; bottom: -4px; width: 2px; background: #e2e8f0; }
+        .tl-content { padding-top: 2px; }
+        .tl-title { font-size: 0.9rem; font-weight: 700; color: var(--sapTextColor); }
+        .tl-date { font-size: 0.78rem; color: var(--sapContent_LabelColor); margin-top: 2px; }
+        .tl-actor { font-size: 0.78rem; color: var(--sapContent_LabelColor); margin-top: 1px; }
         .info-item { display: flex; justify-content: space-between; padding: 0.875rem 1rem; border-bottom: 1px solid #eee; }
         .info-item:last-child { border-bottom: none; }
         .info-label { color: var(--sapContent_LabelColor); font-size: 0.875rem; }
@@ -154,6 +163,41 @@
 
         {% if pedido.comentarios_solicitud %}<div class="section-title">Comentarios Solicitud</div><div class="comment-box"><div class="comment-header">Técnico</div>{{ pedido.comentarios_solicitud }}</div>{% endif %}
         {% if pedido.comentarios_almacen %}<div class="section-title">Notas del Almacén</div><div class="comment-box" style="border-left-color: var(--sapSuccessColor);"><div class="comment-header">Almacén</div>{{ pedido.comentarios_almacen }}</div>{% endif %}
+
+        <!-- Línea de tiempo -->
+        <div class="section-title">Línea de Tiempo</div>
+        <div class="timeline">
+            {% for t in timeline %}
+            <div class="tl-item">
+                <div class="tl-dot" style="background:{{ t.color }};">
+                    <ion-icon name="{{ t.icono }}" style="color:#fff; font-size:14px;"></ion-icon>
+                </div>
+                {% if not forloop.last %}<div class="tl-line"></div>{% endif %}
+                <div class="tl-content">
+                    <div class="tl-title">{{ t.titulo }}</div>
+                    {% if t.fecha %}<div class="tl-date">{{ t.fecha|date:"d/m/Y H:i" }}</div>{% endif %}
+                    {% if t.actor %}<div class="tl-actor">Por: {{ t.actor }}</div>{% endif %}
+                    {% if t.recibe_nombre %}<div class="tl-actor">Recibido por: <strong>{{ t.recibe_nombre }}</strong></div>{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Evidencia de entrega -->
+        {% if foto_entrega_url or pedido.recibe_nombre %}
+        <div class="section-title">Evidencia de Entrega</div>
+        <div class="info-list">
+            {% if pedido.recibe_nombre %}<div class="info-item"><span class="info-label">Recibido por</span><span class="info-value">{{ pedido.recibe_nombre }}</span></div>{% endif %}
+            {% if pedido.fecha_entrega %}<div class="info-item"><span class="info-label">Fecha de entrega</span><span class="info-value">{{ pedido.fecha_entrega|date:"d/m/Y H:i" }}</span></div>{% endif %}
+        </div>
+        {% if foto_entrega_url %}
+        <div style="padding:0 8px 8px;">
+            <a href="{{ foto_entrega_url }}" target="_blank">
+                <img src="{{ foto_entrega_url }}" alt="Foto de entrega" style="width:100%; border:1px solid var(--sapField_BorderColor,#d9d9d9); border-radius:8px; display:block;">
+            </a>
+        </div>
+        {% endif %}
+        {% endif %}
 
         {% if pedido.estado == 'PENDIENTE_AUTORIZACION' %}
         <div style="text-align:center; margin:16px 0;">
