@@ -39,8 +39,33 @@ def _puede_gestionar_almacen(user):
     return user.groups.filter(name__in=['Almacenes', 'Procura_Tecnica']).exists()
 
 
+def _formatear_duracion(delta):
+    """Convierte un timedelta en texto legible (ej. '2 d 3 h', '45 min')."""
+    if delta is None:
+        return ''
+    total = int(delta.total_seconds())
+    if total < 0:
+        total = 0
+    dias, resto = divmod(total, 86400)
+    horas, resto = divmod(resto, 3600)
+    minutos, _ = divmod(resto, 60)
+    partes = []
+    if dias:
+        partes.append(f"{dias} d")
+    if horas:
+        partes.append(f"{horas} h")
+    if minutos and not dias:
+        partes.append(f"{minutos} min")
+    if not partes:
+        return "menos de 1 min"
+    return " ".join(partes)
+
+
 def _construir_timeline_solicitud(pedido):
-    """Construye la línea de tiempo (hitos) de una solicitud de material."""
+    """
+    Construye la línea de tiempo (hitos) de una solicitud de material, incluyendo
+    el tiempo transcurrido entre cada hito y el anterior.
+    """
     def _nombre(u):
         if not u:
             return ''
@@ -73,7 +98,7 @@ def _construir_timeline_solicitud(pedido):
     if pedido.estado in ('LISTO_RECOLECCION', 'ENTREGADO'):
         timeline.append({
             'titulo': 'Despachada · lista para recolección',
-            'fecha': None,
+            'fecha': pedido.fecha_despacho,
             'actor': _nombre(pedido.entregado_por),
             'icono': 'cube-outline',
             'color': '#e9730c',
@@ -87,7 +112,25 @@ def _construir_timeline_solicitud(pedido):
             'icono': 'checkmark-done-outline',
             'color': '#107e3e',
         })
-    return timeline
+
+    # Calcular tiempo transcurrido respecto al hito anterior que tenga fecha
+    fecha_anterior = None
+    for hito in timeline:
+        f = hito.get('fecha')
+        if f and fecha_anterior:
+            hito['duracion'] = _formatear_duracion(f - fecha_anterior)
+        else:
+            hito['duracion'] = ''
+        if f:
+            fecha_anterior = f
+
+    # Tiempo total (creación -> último hito con fecha)
+    if pedido.fecha_solicitud and fecha_anterior and fecha_anterior != pedido.fecha_solicitud:
+        total = _formatear_duracion(fecha_anterior - pedido.fecha_solicitud)
+    else:
+        total = ''
+
+    return timeline, total
 
 
 def _foto_entrega_url(pedido):
@@ -1145,6 +1188,8 @@ def api_despachar_solicitud(request, pk):
             solicitud.estado = 'LISTO_RECOLECCION'
             solicitud.entregado_por = request.user
             solicitud.comentarios_almacen = comentarios_almacen
+            if not solicitud.fecha_despacho:
+                solicitud.fecha_despacho = timezone.now()
             solicitud.save()
 
     if errores:
@@ -1214,6 +1259,7 @@ def mobile_detalle_pedido(request, pk):
     except Exception:
         aprobadores = []
 
+    _timeline, _tiempo_total = _construir_timeline_solicitud(pedido)
     return render(request, 'inventarios/mobile_detalle_pedido.html', {
         'pedido': pedido,
         'items': items,
@@ -1221,7 +1267,8 @@ def mobile_detalle_pedido(request, pk):
         'puede_confirmar_entrega': puede_confirmar_entrega,
         'es_almacen': es_almacen,
         'aprobadores': aprobadores,
-        'timeline': _construir_timeline_solicitud(pedido),
+        'timeline': _timeline,
+        'tiempo_total': _tiempo_total,
         'foto_entrega_url': _foto_entrega_url(pedido),
     })
 
@@ -5291,6 +5338,7 @@ def solicitud_detalle_departamento(request, pk):
     except Exception:
         aprobadores = []
 
+    _timeline, _tiempo_total = _construir_timeline_solicitud(pedido)
     return render(request, 'inventarios/mobile_detalle_pedido.html', {
         'pedido': pedido,
         'items': items,
@@ -5298,7 +5346,8 @@ def solicitud_detalle_departamento(request, pk):
         'puede_confirmar_entrega': puede_confirmar_entrega,
         'es_almacen': es_almacen,
         'aprobadores': aprobadores,
-        'timeline': _construir_timeline_solicitud(pedido),
+        'timeline': _timeline,
+        'tiempo_total': _tiempo_total,
         'foto_entrega_url': _foto_entrega_url(pedido),
     })
 
@@ -5327,7 +5376,8 @@ def solicitud_despachar(request, pk):
         # recolección y notifica al solicitante. El stock se descuenta al confirmar la entrega.
         solicitud.estado = 'LISTO_RECOLECCION'
         solicitud.entregado_por = request.user  # quien preparó/despachó
-        solicitud.save(update_fields=['estado', 'entregado_por'])
+        solicitud.fecha_despacho = timezone.now()
+        solicitud.save(update_fields=['estado', 'entregado_por', 'fecha_despacho'])
 
         # Notificar al solicitante que su orden está lista para recolección
         try:

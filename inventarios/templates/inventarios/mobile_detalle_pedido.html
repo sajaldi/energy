@@ -61,6 +61,7 @@
         .tl-title { font-size: 0.9rem; font-weight: 700; color: var(--sapTextColor); }
         .tl-date { font-size: 0.78rem; color: var(--sapContent_LabelColor); margin-top: 2px; }
         .tl-actor { font-size: 0.78rem; color: var(--sapContent_LabelColor); margin-top: 1px; }
+        .tl-delta { display: inline-block; font-size: 0.72rem; color: #6a6d70; background: #f0f4f8; border-radius: 4px; padding: 2px 8px; margin-top: 5px; }
         .info-item { display: flex; justify-content: space-between; padding: 0.875rem 1rem; border-bottom: 1px solid #eee; }
         .info-item:last-child { border-bottom: none; }
         .info-label { color: var(--sapContent_LabelColor); font-size: 0.875rem; }
@@ -165,7 +166,7 @@
         {% if pedido.comentarios_almacen %}<div class="section-title">Notas del Almacén</div><div class="comment-box" style="border-left-color: var(--sapSuccessColor);"><div class="comment-header">Almacén</div>{{ pedido.comentarios_almacen }}</div>{% endif %}
 
         <!-- Línea de tiempo -->
-        <div class="section-title">Línea de Tiempo</div>
+        <div class="section-title">Línea de Tiempo{% if tiempo_total %} · Total: {{ tiempo_total }}{% endif %}</div>
         <div class="timeline">
             {% for t in timeline %}
             <div class="tl-item">
@@ -178,6 +179,7 @@
                     {% if t.fecha %}<div class="tl-date">{{ t.fecha|date:"d/m/Y H:i" }}</div>{% endif %}
                     {% if t.actor %}<div class="tl-actor">Por: {{ t.actor }}</div>{% endif %}
                     {% if t.recibe_nombre %}<div class="tl-actor">Recibido por: <strong>{{ t.recibe_nombre }}</strong></div>{% endif %}
+                    {% if t.duracion %}<div class="tl-delta"><ion-icon name="time-outline" style="vertical-align:-2px; font-size:12px;"></ion-icon> +{{ t.duracion }} desde el paso anterior</div>{% endif %}
                 </div>
             </div>
             {% endfor %}

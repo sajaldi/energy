@@ -630,7 +630,8 @@ def api_mobile_despachar(request, pk):
 
     solicitud.estado = 'LISTO_RECOLECCION'
     solicitud.entregado_por = user
-    solicitud.save(update_fields=['estado', 'entregado_por'])
+    solicitud.fecha_despacho = timezone.now()
+    solicitud.save(update_fields=['estado', 'entregado_por', 'fecha_despacho'])
     try:
         from .utils_n8n import notify_powerautomate_recoleccion
         notify_powerautomate_recoleccion(solicitud)

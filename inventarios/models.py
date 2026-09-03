@@ -29,6 +29,7 @@ class SolicitudMaterial(models.Model):
     
     entregar_a = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_recibidas', verbose_name="Entregar A")
     
+    fecha_despacho = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de despacho (listo para recolección)")
     fecha_entrega = models.DateTimeField(null=True, blank=True)
     entregado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_despachadas')
 
