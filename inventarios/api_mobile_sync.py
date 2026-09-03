@@ -693,9 +693,10 @@ def api_mobile_confirmar_entrega(request, pk):
 
             solicitud.save()
 
+        # Notificar al solicitante que la entrega fue confirmada (foto + receptor)
         try:
-            from .utils_n8n import notify_powerautomate_despacho
-            notify_powerautomate_despacho(solicitud)
+            from .utils_n8n import notify_powerautomate_entrega
+            notify_powerautomate_entrega(solicitud)
         except Exception:
             pass
 
