@@ -557,15 +557,13 @@ def notify_powerautomate_entrega(solicitud):
         if solicitud.fecha_entrega:
             fecha_entrega = _tz.localtime(solicitud.fecha_entrega).strftime('%d/%m/%Y %H:%M')
 
-        # URL absoluta de la foto de entrega
+        # URL pública de la foto de entrega (endpoint sin login, apto para correo).
+        # No usamos .url porque devuelve la URL firmada/interna de MinIO
+        # (localhost:9000 / host interno), inaccesible desde el cliente de correo.
         foto_url = ''
         try:
             if getattr(solicitud, 'foto_entrega', None):
-                foto_path = solicitud.foto_entrega.url
-                if foto_path.startswith('http'):
-                    foto_url = foto_path
-                else:
-                    foto_url = f"{POWERAUTOMATE_SITE_URL}{foto_path}"
+                foto_url = f"{POWERAUTOMATE_SITE_URL}/inventarios/solicitud/{solicitud.id}/foto-entrega.jpg"
         except Exception:
             foto_url = ''
 

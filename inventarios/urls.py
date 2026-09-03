@@ -22,6 +22,7 @@ urlpatterns = [
     path('solicitud/<int:pk>/confirmar-entrega/', views.solicitud_confirmar_entrega, name='solicitud_confirmar_entrega'),
     path('api/solicitudes/<int:pk>/autorizar/', views.solicitud_autorizar_publica, name='solicitud_autorizar_publica'),
     path('solicitud/<int:pk>/estado-badge.png', views.solicitud_estado_badge, name='solicitud_estado_badge'),
+    path('solicitud/<int:pk>/foto-entrega.jpg', views.solicitud_foto_entrega, name='solicitud_foto_entrega'),
     path('api/stock/<int:material_id>/', views.api_get_material_stock, name='api_get_material_stock'),
     path('api/material/<int:material_id>/update/', views.api_update_material_mobile, name='api_update_material_mobile'),
     path('cart/add/', views.cart_add, name='cart_add'),

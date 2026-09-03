@@ -5136,6 +5136,39 @@ def solicitud_estado_badge(request, pk):
     return resp
 
 
+def solicitud_foto_entrega(request, pk):
+    """
+    Sirve públicamente la foto de entrega de una solicitud para poder
+    incrustarla en el correo de entrega confirmada. No requiere login
+    (igual que el badge de estado). Solo expone la imagen de evidencia.
+    """
+    from django.core.files.storage import default_storage
+    from django.http import FileResponse, HttpResponseNotFound
+
+    solicitud = SolicitudMaterial.objects.filter(pk=pk).first()
+    if not solicitud or not solicitud.foto_entrega:
+        return HttpResponseNotFound("Sin foto de entrega.")
+
+    try:
+        name = solicitud.foto_entrega.name
+        if not default_storage.exists(name):
+            return HttpResponseNotFound("Foto no encontrada.")
+        file_obj = default_storage.open(name)
+        # Content-type básico según extensión
+        lower = name.lower()
+        if lower.endswith('.png'):
+            ctype = 'image/png'
+        elif lower.endswith('.webp'):
+            ctype = 'image/webp'
+        else:
+            ctype = 'image/jpeg'
+        resp = FileResponse(file_obj, content_type=ctype)
+        resp['Cache-Control'] = 'public, max-age=86400'
+        return resp
+    except Exception as e:
+        return HttpResponseNotFound(f"Error al acceder a la foto: {str(e)}")
+
+
 @login_required
 def dashboard_departamento(request):
     """
