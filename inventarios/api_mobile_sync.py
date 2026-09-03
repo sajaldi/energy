@@ -115,11 +115,14 @@ def api_mobile_master_sync(request):
     if not user:
         return JsonResponse({'error': 'No autorizado'}, status=401)
     
-    # Materiales
-    materiales = Material.objects.select_related('unidad_medida', 'categoria').all()
+    # Materiales (stock_total agregado con annotate para evitar N+1 y timeouts)
+    from django.db.models import Sum
+    materiales = (Material.objects
+                  .select_related('unidad_medida', 'categoria')
+                  .annotate(_stock_total=Sum('existencias__cantidad')))
     materials_data = []
     for m in materiales:
-        stock_total = sum(sr.cantidad for sr in m.existencias.all())
+        stock_total = m._stock_total or 0
         materials_data.append({
             'id': m.id,
             'nombre': m.nombre,

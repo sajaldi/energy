@@ -21,7 +21,12 @@ export default function InventoryScreen() {
 
   // Conteos
   const [counts, setCounts] = useState<any[]>([]);
-  const { refreshPendingCount } = useSync();
+  const { refreshPendingCount, syncAll, isSyncing, lastError } = useSync();
+
+  const sincronizarYRecargar = async () => {
+    await syncAll();
+    await loadLocations();
+  };
 
   // Crear material
   const [creating, setCreating] = useState(false);
@@ -189,7 +194,18 @@ export default function InventoryScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="business-outline" size={40} color="#ccc" />
-              <Text style={{ color: '#94a3b8', marginTop: 8 }}>No hay ubicaciones. Sincroniza primero.</Text>
+              <Text style={{ color: '#94a3b8', marginTop: 8, textAlign: 'center' }}>No hay ubicaciones descargadas.</Text>
+              {!!lastError && (
+                <Text style={{ color: '#bb0000', marginTop: 8, textAlign: 'center', fontSize: 12 }}>{lastError}</Text>
+              )}
+              <TouchableOpacity
+                style={styles.syncNowBtn}
+                onPress={sincronizarYRecargar}
+                disabled={isSyncing}
+              >
+                <Ionicons name={isSyncing ? 'sync-outline' : 'cloud-download-outline'} size={18} color="#fff" />
+                <Text style={styles.syncNowText}>{isSyncing ? 'Sincronizando...' : 'Sincronizar ahora'}</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -402,6 +418,8 @@ const styles = StyleSheet.create({
   historyTitle: { fontSize: 14, fontWeight: '700', color: '#32363a', marginTop: 20, marginBottom: 8 },
   historyItem: { flexDirection: 'row', backgroundColor: '#fff', padding: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   empty: { alignItems: 'center', padding: 40 },
+  syncNowBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#0070f2', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 4, marginTop: 16 },
+  syncNowText: { color: '#fff', fontWeight: '700', marginLeft: 6 },
   countsBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdf4', padding: 12, marginTop: 12 },
   hintText: { fontSize: 11, color: '#94a3b8', marginBottom: 8, fontStyle: 'italic' },
   newInput: { borderWidth: 1, borderColor: '#d9d9d9', padding: 12, fontSize: 16, marginBottom: 10 },
