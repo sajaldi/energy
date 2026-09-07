@@ -4174,9 +4174,11 @@ def tickets_dashboard_api(request):
     if not config.mostrar_todos_clusters and config.clusters.exists():
         ticket_qs = SolicitudTicket.objects.filter(grupos__in=config.clusters.all()).distinct()
     else:
-        # Filtrar tickets por antigüedad
-        fecha_corte = timezone.now() - timedelta(days=config.dias_antiguedad)
-        ticket_qs = SolicitudTicket.objects.filter(fecha_solicitud__gte=fecha_corte)
+        # Filtrar tickets por el mes actual (en tiempo real)
+        ticket_qs = SolicitudTicket.objects.filter(
+            fecha_solicitud__year=timezone.now().year,
+            fecha_solicitud__month=timezone.now().month
+        )
         
         # Filtrar por departamento si se configuró
         if config.departamento_filtro:
@@ -4258,8 +4260,12 @@ def tickets_dashboard_api(request):
             }
     
     # Clusters
+    now = timezone.now()
     if config.mostrar_todos_clusters:
-        clusters_qs = GrupoTicket.objects.all()
+        clusters_qs = GrupoTicket.objects.filter(
+            fecha__year=now.year,
+            fecha__month=now.month
+        )
         # Solo filtrar por depto cuando se muestran todos (automático)
         if config.departamento_filtro:
             clusters_qs = clusters_qs.filter(departamento=config.departamento_filtro)

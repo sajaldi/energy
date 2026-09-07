@@ -402,7 +402,7 @@ def subir_evidencias(page, evidencias):
                 page.screenshot(path=os.path.join(settings.BASE_DIR, "downloads", f"error_adjuntos_{i+1}.png"))
 
 
-def sync_individual_ticket(username, password, company_name, ticket_folio, fecha_solicitud, diagnostico_django, actividades_django, observaciones_django, observaciones_usuario_django, fecha_observaciones_usuario, fecha_cierre, evidencias=None, solicitud_adicional=False):
+def sync_individual_ticket(username, password, company_name, ticket_folio, fecha_solicitud, diagnostico_django, actividades_django, observaciones_django, observaciones_usuario_django, fecha_observaciones_usuario, fecha_cierre, evidencias=None, solicitud_adicional=False, responsable_cierre=None):
     """
     Robot que sincroniza un ticket individual en SIG GIA.
     """
@@ -414,6 +414,11 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
     from datetime import timezone
     tz_honduras = timezone(timedelta(hours=-6))
     fecha_local = fecha_solicitud.astimezone(tz_honduras)
+
+    # Responsable de cierre: usar el parámetro o caer en MAO Soporte por defecto
+    responsable_cierre = responsable_cierre or "MAO Soporte"
+    # Extraer solo el primer nombre/palabra para usar en el filtro del catálogo
+    responsable_filtro = responsable_cierre.split()[0] if responsable_cierre else "MAO"
 
     start_date = fecha_local.replace(day=1).strftime("%d/%m/%Y")
     end_date   = fecha_local.strftime("%d/%m/%Y")
@@ -639,23 +644,23 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
                             continue
 
                     if filtrar_loc:
-                        filtrar_loc.fill("MAO")
-                        robot_log("[Asignar/Cierre] Campo 'Filtrar' llenado con 'MAO'.")
+                        filtrar_loc.fill(responsable_filtro)
+                        robot_log(f"[Asignar/Cierre] Campo 'Filtrar' llenado con '{responsable_filtro}'.")
                     else:
                         # Último fallback: escribir en cualquier input visible dentro del diálogo
-                        page.keyboard.type("MAO")
-                        robot_log("[Asignar/Cierre] Filtrar llenado vía keyboard (fallback).")
+                        page.keyboard.type(responsable_filtro)
+                        robot_log(f"[Asignar/Cierre] Filtrar llenado vía keyboard (fallback).")
                     page.wait_for_timeout(1500)
 
-                    # Doble clic en MAO Soporte para seleccionarlo y cerrar el catálogo automáticamente
-                    page.get_by_role("gridcell", name="MAO Soporte").dblclick()
+                    # Doble clic en el responsable para seleccionarlo y cerrar el catálogo automáticamente
+                    page.get_by_role("gridcell", name=responsable_cierre).dblclick()
                     page.wait_for_timeout(1000)
 
                     take_screenshot(page, "06_modal_cierre_llenado")
 
                     # Click en Aplicar para guardar y cerrar modal
                     page.get_by_role("button", name="Aplicar").click()
-                    robot_log(f"Asignar/Cierre guardado: {fecha_local_cierre.strftime('%d/%m/%Y %I:%M %p')} - MAO Soporte")
+                    robot_log(f"Asignar/Cierre guardado: {fecha_local_cierre.strftime('%d/%m/%Y %I:%M %p')} - {responsable_cierre}")
                     time.sleep(3)
 
                     # Manejar cualquier SweetAlert de confirmación o advertencia que aparezca
